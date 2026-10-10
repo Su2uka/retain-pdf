@@ -14,6 +14,10 @@ use super::{db_error, now, AccountsService};
 use crate::db::UserRecord;
 use crate::error::AppError;
 
+pub(crate) fn user_not_found(user_id: &str) -> AppError {
+    AppError::account(StatusCode::NOT_FOUND, "USER_NOT_FOUND", "账号不存在", json!({ "user_id": user_id }))
+}
+
 pub(crate) fn account_deleted() -> AppError {
     AppError::account(
         StatusCode::CONFLICT,

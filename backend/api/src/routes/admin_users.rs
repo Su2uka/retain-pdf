@@ -19,6 +19,7 @@ use crate::models::api::ApiResponse;
 use crate::routes::common::{
     build_accounts_route_deps, build_jobs_route_deps, ok_json, ApiJson, ApiPath, ApiQuery,
 };
+use crate::services::accounts::admin::user_not_found;
 use crate::services::accounts::api::{admin_view, AdminUserView, Principal};
 use crate::AppState;
 
@@ -196,7 +197,7 @@ pub async fn user_detail_route(
         let user = db
             .get_user(&user_id)
             .map_err(storage_error)?
-            .ok_or_else(|| AppError::not_found(format!("user not found: {user_id}")))?;
+            .ok_or_else(|| user_not_found(&user_id))?;
         let page_balance = if user.role == "admin" {
             None
         } else {
@@ -274,7 +275,7 @@ pub async fn user_jobs_route(
     let view = blocking(move || {
         db.get_user(&user_id)
             .map_err(storage_error)?
-            .ok_or_else(|| AppError::not_found(format!("user not found: {user_id}")))?;
+            .ok_or_else(|| user_not_found(&user_id))?;
         let (rows, total) = db
             .list_jobs_for_owner_page(&user_id, limit, offset)
             .map_err(storage_error)?;

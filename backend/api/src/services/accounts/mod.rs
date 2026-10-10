@@ -442,7 +442,7 @@ impl AccountsService {
         self.db
             .get_user(user_id)
             .map_err(db_error)?
-            .ok_or_else(|| AppError::not_found(format!("user not found: {user_id}")))
+            .ok_or_else(|| admin::user_not_found(user_id))
     }
 
     // ------------------------------------------------------------ 管理员
