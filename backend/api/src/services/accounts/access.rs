@@ -23,9 +23,6 @@ pub enum RoutePolicy {
 /// 路由模板（axum 的 MatchedPath，例如 `/api/v1/jobs/:job_id`）对应的策略。
 pub fn route_policy(method: &str, template: &str) -> RoutePolicy {
     let starts = |prefix: &str| template == prefix || template.starts_with(&format!("{prefix}/"));
-    if starts("/api/v1/ai/runtime-config") {
-        return RoutePolicy::AdminOnly;
-    }
     if starts("/api/v1/ai")
         || starts("/api/v1/assets")
         || starts("/api/v1/internal")
@@ -143,7 +140,8 @@ mod tests {
         assert_eq!(route_policy("GET", "/api/v1/fonts"), RoutePolicy::Signed);
         assert_eq!(route_policy("POST", "/api/v1/providers/deepseek/balance"), RoutePolicy::AdminOnly);
         assert_eq!(route_policy("POST", "/api/v1/fonts/upload"), RoutePolicy::AdminOnly);
-        assert_eq!(route_policy("GET", "/api/v1/ai/runtime-config"), RoutePolicy::AdminOnly);
+        // 这一期 AI 助手整体对网站账号关闭，运行设置也一样（管理员也不例外）。
+        assert_eq!(route_policy("GET", "/api/v1/ai/runtime-config"), RoutePolicy::Closed);
         assert_eq!(route_policy("GET", "/api/v1/credentials/:credential_ref"), RoutePolicy::AdminOnly);
         assert_eq!(route_policy("POST", "/api/v1/backups"), RoutePolicy::AdminOnly);
         assert_eq!(route_policy("POST", "/api/v1/sync/run"), RoutePolicy::AdminOnly);
