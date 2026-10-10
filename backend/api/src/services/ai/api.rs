@@ -16,6 +16,22 @@ fn forwarded_api_key(headers: &HeaderMap) -> &str {
         .unwrap_or("")
 }
 
+/// 用户的凭据在 Rust 这层已经验过；AI 服务再回 401 / 403，只能是 Rust 与 AI 之间的内部凭据配错了。
+/// 不能原样转给浏览器：前端把 401 当成「登录失效」，会整页刷新。
+fn reject_upstream_auth_failure(upstream: &reqwest::Response) -> Result<(), AppError> {
+    let status = upstream.status().as_u16();
+    if matches!(status, 401 | 403) {
+        tracing::warn!("AI service rejected the internal credential (upstream status {status})");
+        return Err(AppError::account(
+            StatusCode::BAD_GATEWAY,
+            "AI_SERVICE_AUTH_FAILED",
+            "AI 服务拒绝了内部凭据，请检查部署配置",
+            serde_json::json!({ "upstream_status": status }),
+        ));
+    }
+    Ok(())
+}
+
 fn response_metadata(upstream: &reqwest::Response) -> (StatusCode, String) {
     let status =
         StatusCode::from_u16(upstream.status().as_u16()).unwrap_or(StatusCode::BAD_GATEWAY);
@@ -34,6 +50,7 @@ pub async fn ask(
     payload: Value,
 ) -> Result<Response, AppError> {
     let upstream = gateway.ask(forwarded_api_key(headers), &payload).await?;
+    reject_upstream_auth_failure(&upstream)?;
     let (status, content_type) = response_metadata(&upstream);
     let idle = gateway.idle_timeout();
     // Body idle is separate from header wait: non-streaming answers may spend
@@ -77,6 +94,7 @@ fn streamed_ask_response(status: StatusCode, content_type: String, body: Body) -
 async fn buffered_runtime_config_response(
     upstream: reqwest::Response,
 ) -> Result<Response, AppError> {
+    reject_upstream_auth_failure(&upstream)?;
     let (status, content_type) = response_metadata(&upstream);
     let body = upstream
         .bytes()
@@ -119,6 +137,30 @@ mod tests {
     use axum::http::header::{CACHE_CONTROL, CONTENT_TYPE};
 
     use super::*;
+
+    fn upstream(status: u16) -> reqwest::Response {
+        reqwest::Response::from(
+            axum::http::Response::builder()
+                .status(status)
+                .body(r#"{"detail":"invalid api key"}"#)
+                .unwrap(),
+        )
+    }
+
+    #[tokio::test]
+    async fn upstream_auth_failures_never_reach_the_browser_as_401() {
+        for status in [401, 403] {
+            let response = buffered_runtime_config_response(upstream(status))
+                .await
+                .unwrap_err()
+                .into_response();
+            assert_eq!(response.status(), StatusCode::BAD_GATEWAY, "{status}");
+        }
+        let ok = buffered_runtime_config_response(upstream(200)).await.unwrap();
+        assert_eq!(ok.status(), StatusCode::OK);
+        let not_found = buffered_runtime_config_response(upstream(404)).await.unwrap();
+        assert_eq!(not_found.status(), StatusCode::NOT_FOUND, "其他状态照常转发");
+    }
 
     #[test]
     fn streamed_ask_response_disables_reverse_proxy_buffering() {
