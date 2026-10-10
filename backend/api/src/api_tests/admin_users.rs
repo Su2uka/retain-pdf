@@ -420,3 +420,26 @@ async fn soft_delete_locks_the_account_cancels_its_jobs_and_restore_undoes_it() 
     .await;
     assert_eq!(read_json(own).await["error"]["code"], "CANNOT_DELETE_SELF");
 }
+
+#[tokio::test]
+async fn unknown_users_get_a_chinese_not_found_on_every_admin_route() {
+    let state = multi_state("admin-missing");
+    let admin = login(&state, "root", ADMIN_PASSWORD).await;
+    let base = "/api/v1/admin/users/u_nobody";
+    for (method, uri, body) in [
+        (Method::GET, base.to_string(), None),
+        (Method::DELETE, base.to_string(), None),
+        (Method::GET, format!("{base}/jobs"), None),
+        (Method::GET, format!("{base}/pages"), None),
+        (Method::POST, format!("{base}/pages"), Some(json!({ "delta": 1 }))),
+        (Method::POST, format!("{base}/role"), Some(json!({ "role": "admin" }))),
+        (Method::POST, format!("{base}/restore"), None),
+        (Method::POST, format!("{base}/reset-password"), None),
+        (Method::POST, format!("{base}/disable"), None),
+    ] {
+        let response = send(&state, method.clone(), &uri, Some(&admin), body).await;
+        assert_eq!(response.status(), StatusCode::NOT_FOUND, "{method} {uri}");
+        let body = read_json(response).await;
+        assert_eq!((body["error"]["code"].as_str(), body["message"].as_str()), (Some("USER_NOT_FOUND"), Some("账号不存在")), "{method} {uri}");
+    }
+}

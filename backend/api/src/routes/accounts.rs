@@ -235,7 +235,7 @@ pub async fn user_pages_route(
         let user = db
             .get_user(&user_id)
             .map_err(|error| AppError::internal(format!("{error:#}")))?
-            .ok_or_else(|| AppError::not_found(format!("user not found: {user_id}")))?;
+            .ok_or_else(|| crate::services::accounts::admin::user_not_found(&user_id))?;
         if user.role == "admin" {
             return Ok(PageQuotaView::unlimited());
         }

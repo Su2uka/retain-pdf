@@ -206,7 +206,7 @@ pub fn grant_pages(
     let user = db
         .get_user(target_user_id)
         .map_err(db_error)?
-        .ok_or_else(|| AppError::not_found(format!("user not found: {target_user_id}")))?;
+        .ok_or_else(|| crate::services::accounts::admin::user_not_found(target_user_id))?;
     if user.is_deleted() {
         return Err(crate::services::accounts::admin::account_deleted());
     }
