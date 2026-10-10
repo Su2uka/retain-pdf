@@ -15,6 +15,7 @@ import { DialogFooter } from "@/ui/components/dialog.js";
 import { FormStatusLine } from "@/ui/components/form-status-line.js";
 import { Check, Save, ScanText } from "lucide-react";
 import { OCR_PROVIDER_DEFINITIONS } from "@/platform/config/providers.js";
+import { isMultiUser, useAuthSession } from "@/features/auth/index.js";
 
 const { browser: BROWSER_IDS } = CREDENTIAL_DOM_IDS;
 
@@ -26,6 +27,9 @@ export function CredentialsWorkbench() {
   const { credentials, view, handlers } = useCredentialsController();
 
   const setupMode = Boolean(view.setupMode);
+  // 多用户模式下 AI 助手对网站账号关闭（/ai/* 不给网站会话用，首页「AI 问答」也藏了），
+  // 这张卡一打开就读 /ai/runtime-config，会被拒。
+  const multiUser = isMultiUser(useAuthSession());
   const status = view.dialogStatus || { message: "", tone: "" };
   const saving = status.tone === "pending";
 
@@ -104,7 +108,7 @@ export function CredentialsWorkbench() {
           </div>
         </div>
       </div>
-      {setupMode ? (
+      {multiUser ? null : setupMode ? (
         <p className="credential-agent-setup-note">
           AI Agent 可稍后在设置中配置。
         </p>
