@@ -247,6 +247,102 @@ WEB_IMAGE=wxyhgk/retainpdf-web:<version> \
 docker compose up -d
 ```
 
+# 多用户模式（商业版）
+
+默认的 Docker 部署是**单工作区**：所有人共用一份数据，靠 NGINX 前面的 Basic Auth 之类挡外人。
+多用户模式下每个人用自己的账号登录，数据按账号隔离，翻译统一用平台配置的模型和 OCR（平台出钱），
+并按页数扣额度。
+
+| | 单机 / 单工作区（默认） | 多用户 |
+| --- | --- | --- |
+| 访问方式 | 页面直接用，NGINX 替浏览器补后端 key | 用户名 + 密码登录（会话 Cookie） |
+| 数据 | 所有人共用 | 每个账号只看得到自己的 |
+| 模型和 OCR | 每个用户在页面里填自己的 key | 统一用平台的，管理员在管理后台「平台设置」页配置 |
+| 用量 | 不限 | 按页扣额度，管理员发放；管理员不限额 |
+| 账号 | 无 | 管理员在管理后台建号 |
+
+## 部署步骤
+
+在 `ops/deployment/docker/delivery` 目录下操作。
+
+1. **改后端 key（只给内部服务用）。** `docker/auth.local.json` 的 `api_keys` 换成一个随机的长字符串，
+   例如 `openssl rand -hex 32` 的输出。多用户模式下浏览器不再用这个 key；AI 服务、任务服务等内部
+   组件之间还要用它。**拿到这个 key 就等于拥有全部数据的权限**，不要外泄。
+
+2. **填多用户配置** `docker/multi-user.env`（每一项的说明写在文件里）：
+   - `RETAIN_BOOTSTRAP_ADMIN_PASSWORD`：第一个管理员的密码，至少 8 位；
+   - `RETAIN_ALLOWED_ORIGINS`：用户在浏览器里访问的地址，例如 `https://pdf.example.com`；
+   - 其余保持默认即可。
+
+3. **用叠加配置启动：**
+
+   ```bash
+   docker compose -f docker-compose.yml -f docker-compose.multi-user.yml up -d
+   ```
+
+   之后的 `pull`、`up -d`、`down` 都要带上这两个 `-f`。
+
+   `docker-compose.multi-user.yml` 会**强制把 web 容器的 `RETAINPDF_PROXY_API_KEY` 设为空**——这一项
+   不能自己改回去。单机部署里 NGINX 替浏览器补后端 key；多用户模式下要是还补，后端会把每个请求都
+   当成「内部服务」，不用登录就能看到所有人的数据，已登录的用户也会越过数据隔离。
+
+4. **配 HTTPS 和域名**，按上面「使用域名和 NGINX 反向代理」一节。区别只有一点：多用户模式自带登录，
+   宿主机 NGINX 上的 Basic Auth 可以去掉（留着也行，只是用户要登录两次）。登录 Cookie 默认只走
+   HTTPS（`RETAIN_SESSION_COOKIE_SECURE=1`），**不配 HTTPS 用户登录不上**。
+
+5. **上线前检查**（把域名换成你的）：
+
+   ```bash
+   # 必须是 401：没登录就访问接口要被拒绝。
+   # 如果是 200，说明 NGINX 还在替浏览器补后端 key——立刻停服排查第 3 步。
+   curl -s -o /dev/null -w '%{http_code}\n' https://pdf.example.com/api/v1/jobs
+
+   # 必须是 "multi"。
+   curl -s https://pdf.example.com/api/v1/auth/session
+   ```
+
+6. **管理员登录、改密码。** 打开网站，用 `admin` 和第 2 步的密码登录，在账户页改掉密码。然后把
+   `docker/multi-user.env` 里 `RETAIN_BOOTSTRAP_ADMIN_USERNAME` 和 `RETAIN_BOOTSTRAP_ADMIN_PASSWORD`
+   **两行都删掉**，再执行一次第 3 步的命令，别让明文密码留在服务器上（只清空密码会导致启动失败）。
+
+7. **配平台模型和 OCR。** 打开 `/admin.html` →「平台设置」，填翻译模型（模型名、接口地址、协议、
+   API Key）和 OCR（MinerU 或 Paddle 加 token），先点「检测」再保存。保存即生效，不用重启。
+   没配好之前，用户提交翻译会提示「平台还没配置……」。
+
+8. **建账号、发页数。** `/admin.html` →「账号管理」：新建账号（系统生成初始密码，用户首次登录要改），
+   给账号发放页数（新账号默认 0 页）。
+
+## 上线后
+
+- **计费规则**：按一次提交实际选中的页数预扣；任务失败、取消、被删全额退回；纯 OCR 和翻译各算一次；
+  重新排版不计费。余额不够时提交会被拒绝并提示剩余页数。
+- **上传限制**：沿用 `docker/app.env` 的 `RUST_API_UPLOAD_MAX_BYTES`（默认 200 MB）和
+  `RUST_API_UPLOAD_MAX_PAGES`（默认 300 页），对所有账号生效。
+- **并发**：全站同时运行的任务数由 `docker/app.env` 的 `RUST_API_MAX_RUNNING_JOBS` 控制（它会覆盖
+  `docker/auth.local.json` 里的 `max_running_jobs`）；单个任务的翻译并发上限在「平台设置」里配，
+  防止把平台的 key 打到限流。
+- **数据和备份**：账号、额度账本、任务都在 `app_data` 卷的数据库里；平台的密钥在同一个卷的
+  `secrets/credentials.json`。备份要包含整个卷。
+- **端口**：app 映射到宿主机的 `41000` / `42000` 只用于本机调试，用后端 key 访问等于内部服务。
+  不需要时可以把 `docker-compose.yml` 里 app 的 `ports` 删掉，web 容器走 Docker 内部网络，不受影响。
+- **暂不开放给网站账号的功能**：AI 问答、附件，以及旧的一步翻译接口（`/api/v1/translate/bundle`）。
+
+## 从单机部署切换过来
+
+可以直接切，原有数据不会丢，但**原来的书和任务归在「本机用户」名下，网站账号（包括管理员账号）
+都看不到**。如果需要保留原来的使用方式，建议另起一个数据卷部署多用户版。
+
+## 常见问题
+
+- **app 起不来，日志里是 `RETAIN_BOOTSTRAP_ADMIN_USERNAME and RETAIN_BOOTSTRAP_ADMIN_PASSWORD must be set together`**：
+  第 2 步的管理员密码没填，或者第 6 步只清空了密码、没删用户名。
+- **登录后一刷新就掉线**：浏览器没存下 Cookie，通常是没走 HTTPS。正式部署请配 HTTPS；只在本机用
+  `http://127.0.0.1` 试用时，可以临时把 `RETAIN_SESSION_COOKIE_SECURE` 改成 `0`。
+- **保存、提交时提示 `request origin is not allowed`**：`RETAIN_ALLOWED_ORIGINS` 没写对，要和浏览器
+  地址栏里的协议、域名、端口完全一致。
+- **提交翻译提示「平台还没配置翻译模型 / OCR」**：去「平台设置」配好并保存。
+- **提交提示「页数额度不够」**：管理员在「账号管理」里给这个账号发放页数。
+
 # 开发者
 
 如果你想直接用 CLI 调接口，而不是走前端页面，可以按下面方式调用。

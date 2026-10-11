@@ -106,7 +106,7 @@ docker compose pull
 docker compose up -d
 ```
 
-See the [Docker deployment guide](ops/deployment/docker/delivery/README.md) for more options.
+See the [Docker deployment guide](ops/deployment/docker/delivery/README.md) for more options, including the multi-user edition (accounts, per-page quotas) in its 「多用户模式」 section.
 
 ## Community
 
