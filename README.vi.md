@@ -106,7 +106,7 @@ docker compose pull
 docker compose up -d
 ```
 
-Xem [hướng dẫn triển khai Docker](ops/deployment/docker/delivery/README.md) để biết thêm tùy chọn.
+Xem [hướng dẫn triển khai Docker](ops/deployment/docker/delivery/README.md) để biết thêm tùy chọn, bao gồm phiên bản nhiều người dùng (tài khoản, hạn mức theo trang) trong mục 「多用户模式」.
 
 ## Cộng đồng
 

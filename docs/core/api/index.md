@@ -896,7 +896,8 @@ operation 列表响应包含 `operations`、`total`、`limit`、`offset` 和 `ha
 
 ## 13.5 多用户：页数额度
 
-只在多用户模式（`RETAIN_DEPLOYMENT_MODE=multi`）下计费；单机模式、管理员不限额。
+只在多用户模式（`RETAIN_DEPLOYMENT_MODE=multi`）下计费；单机模式、管理员不限额。多用户模式怎么部署见
+[Docker 部署说明的「多用户模式」](../../../ops/deployment/docker/delivery/README.md#多用户模式商业版)。
 
 计费规则：
 

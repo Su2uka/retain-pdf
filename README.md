@@ -106,7 +106,7 @@ docker compose pull
 docker compose up -d
 ```
 
-更多配置见 [Docker 部署说明](ops/deployment/docker/delivery/README.md)。
+更多配置见 [Docker 部署说明](ops/deployment/docker/delivery/README.md)；多账号登录、按页计费的多用户版（商业版）部署见其中的「多用户模式」一节。
 
 ## 交流
 

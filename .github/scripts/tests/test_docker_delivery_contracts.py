@@ -105,6 +105,26 @@ def test_web_proxy_key_is_server_side_and_browser_key_defaults_empty() -> None:
     assert "RETAINPDF_PROXY_API_KEY" not in runtime_entrypoint
 
 
+def test_multi_user_overlay_never_lets_nginx_inject_the_backend_key() -> None:
+    """多用户模式下浏览器靠登录会话访问后端；web 容器的 NGINX 要是替请求补上后端 key，后端会把
+    每个请求都当成「内部服务」——不登录就能看到所有人的数据，已登录用户也越过数据隔离。
+    叠加配置必须用 environment（优先于 web.env）把它清空。"""
+    overlay = _text("ops/deployment/docker/delivery/docker-compose.multi-user.yml")
+    web = overlay[overlay.index("\n  web:"):]
+    assert 'RETAINPDF_PROXY_API_KEY: ""' in web
+    assert 'FRONT_X_API_KEY: ""' in web
+    app = _indented_section(overlay, "\n  app:", "\n  web:")
+    assert "./docker/app.env" in app and "./docker/multi-user.env" in app
+
+
+def test_multi_user_env_template_ships_no_admin_password() -> None:
+    """模板里不能带默认管理员密码：留空时 app 拒绝启动，逼部署的人自己填。"""
+    env = _text("ops/deployment/docker/delivery/docker/multi-user.env")
+    assert "RETAIN_DEPLOYMENT_MODE=multi\n" in env
+    assert "RETAIN_BOOTSTRAP_ADMIN_PASSWORD=\n" in env
+    assert "RETAIN_SESSION_COOKIE_SECURE=1\n" in env
+
+
 @pytest.mark.parametrize(
     "declaration",
     [
