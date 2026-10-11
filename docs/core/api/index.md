@@ -1065,7 +1065,7 @@ OCR token 不是这个服务商的，也算缺）。`updated_at` / `updated_by` 
 }
 ```
 
-非密钥字段整体替换（空串 = 不设）；`api_key` / `token` 不传或空串 = 保留原来的。返回同 GET。
+非密钥字段整体替换（空串 = 不设；`thinking` 空串 = 任务默认的 `auto`）；`api_key` / `token` 不传或空串 = 保留原来的。返回同 GET。
 错误（400）：`INVALID_API_PROTOCOL`、`INVALID_THINKING`、`INVALID_MAX_WORKERS`（0～64，0 = 不限）、
 `INVALID_BASE_URL`（要 http(s)、不能带账号密码；内网地址默认不允许，部署时可用
 `RUST_API_ALLOW_PRIVATE_PROVIDER_URLS=1` 放开）、`INVALID_OCR_PROVIDER`（只能 `mineru` / `paddle`）、
