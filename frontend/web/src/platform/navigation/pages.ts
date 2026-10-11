@@ -57,9 +57,9 @@ export function buildHomeUrl(tab: HomeTab | HomeTabKey | string = "library"): st
   return `./index.html?tab=${encodeURIComponent(contract)}`;
 }
 
-/** 管理后台（多用户模式、管理员）。 */
-export function buildAdminUrl(): string {
-  return "./admin.html";
+/** 管理后台（多用户模式、管理员）。view 不给是账号页，"platform" 是平台设置。 */
+export function buildAdminUrl(view: "" | "platform" = ""): string {
+  return view ? `./admin.html?view=${view}` : "./admin.html";
 }
 
 export function parseDetailJobId(search?: string): string {
