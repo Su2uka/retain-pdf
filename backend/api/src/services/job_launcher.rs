@@ -108,7 +108,12 @@ fn apply_platform_models_to(
     translation.model = platform.translation_model.clone();
     translation.base_url = platform.translation_base_url.clone();
     translation.api_protocol = platform.translation_api_protocol.clone();
-    translation.thinking = platform.translation_thinking.clone();
+    // 思考深度由平台定；平台留空 =「用默认」，要换成任务的默认值，而不是空串（任务校验不收空串）。
+    translation.thinking = if platform.translation_thinking.trim().is_empty() {
+        crate::models::request::TranslationInput::default().thinking
+    } else {
+        platform.translation_thinking.clone()
+    };
     translation.reviewer_thinking.clear();
     if platform.translation_max_workers > 0
         && (translation.workers <= 0 || translation.workers > platform.translation_max_workers)
@@ -274,6 +279,17 @@ mod platform_tests {
         input.translation.workers = 16;
         apply_platform_models_to_input(&mut input, &uncapped).unwrap();
         assert_eq!(input.translation.workers, 16, "0 = 不限");
+    }
+
+    #[test]
+    fn empty_platform_thinking_means_the_job_default_not_an_empty_string() {
+        let mut platform = platform();
+        platform.translation_thinking.clear();
+        let mut input = CreateJobInput::default();
+        input.workflow = WorkflowKind::Book;
+        input.translation.thinking = "max".into();
+        apply_platform_models_to_input(&mut input, &platform).unwrap();
+        assert_eq!(input.translation.thinking, crate::models::request::TranslationInput::default().thinking);
     }
 
     #[test]
