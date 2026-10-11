@@ -19,6 +19,18 @@ pub(super) const BEST_SUCCEEDED_JOB_SQL: &str = r#"
     LIMIT 1
 "#;
 
+/// 这本书除 ?2（刚没成功结束的任务）及其 OCR 子任务以外，还在排队或运行的任务：非 OCR 优先，
+/// 新提交的优先。书卡上应当先看到它的进度，而不是停在一个取消 / 失败的任务上。
+const IN_PROGRESS_JOB_SQL: &str = r#"
+    SELECT j.job_id FROM jobs j
+    WHERE j.document_id = documents.document_id
+      AND j.job_id <> ?2
+      AND j.job_id <> ?2 || '-ocr'
+      AND j.status_json IN ('"queued"', '"running"')
+    ORDER BY CASE WHEN j.workflow = '"ocr"' THEN 1 ELSE 0 END, j.created_at DESC, j.job_id DESC
+    LIMIT 1
+"#;
+
 struct DocumentFilterQuery {
     where_sql: String,
     args: Vec<String>,
@@ -538,22 +550,24 @@ impl Db {
         Ok(())
     }
 
-    /// 书卡还指着一个**没成功**结束的任务(失败 / 取消)时,按同一条规则
-    /// (`BEST_SUCCEEDED_JOB_SQL`)退回这本书最好的成功任务。
+    /// 书卡还指着一个**没成功**结束的任务(失败 / 取消)时,换成:这本书还在排队 / 运行的任务
+    /// (`IN_PROGRESS_JOB_SQL`),没有就退回最好的成功任务(`BEST_SUCCEEDED_JOB_SQL`)。
     ///
     /// 重试 / 重跑 / 重新渲染提交时就把指针给了新任务(要立刻看到进度);新任务失败了,
-    /// 指针原来就停在失败任务上,书卡显示失败,而这本书明明有成功的译文。
-    /// 指针已经被别的任务接走(用户又提交了一个)就不动;这本书一个成功任务都没有时也不动
-    /// —— 那时展示失败任务(能看到错误、能重试)比空卡有用。返回是否改了。
+    /// 指针原来就停在失败任务上,书卡显示失败,而这本书明明有成功的译文——或者还有一个更早
+    /// 提交、正在跑的任务,书卡却显示「已取消」、看不到它的进度(d4 联调时撞到的)。
+    /// 指针已经被别的任务接走(用户又提交了一个)就不动;这本书既没有在跑的也没有成功的
+    /// 任务时也不动 —— 那时展示失败任务(能看到错误、能重试)比空卡有用。返回是否改了。
     pub fn release_document_active_job(&self, document_id: &str, job_id: &str) -> Result<bool> {
         let conn = self.connect()?;
         let changed = conn.execute(
             &format!(
                 r#"
-                UPDATE documents SET active_job_id = ({BEST_SUCCEEDED_JOB_SQL}), updated_at = ?3
+                UPDATE documents
+                SET active_job_id = COALESCE(({IN_PROGRESS_JOB_SQL}), ({BEST_SUCCEEDED_JOB_SQL})), updated_at = ?3
                 WHERE documents.document_id = ?1
                   AND documents.active_job_id = ?2
-                  AND ({BEST_SUCCEEDED_JOB_SQL}) IS NOT NULL
+                  AND COALESCE(({IN_PROGRESS_JOB_SQL}), ({BEST_SUCCEEDED_JOB_SQL})) IS NOT NULL
                 "#
             ),
             params![document_id, job_id, now_iso()],

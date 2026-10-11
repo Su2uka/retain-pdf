@@ -728,3 +728,37 @@ fn release_active_job_falls_back_only_when_the_card_still_points_at_the_job() {
     assert!(db.release_document_active_job(&document_id, "job-failed").unwrap());
     assert_eq!(db.get_document(&document_id).unwrap().active_job_id.as_deref(), Some("job-book"));
 }
+
+/// 回归（d4 联调）：先提交的任务还在跑、后提交的那个被取消了，书卡要显示在跑的那个的进度，
+/// 而不是「已取消」。被取消任务自己的 OCR 子任务不算「在跑」。
+#[test]
+fn release_active_job_prefers_a_job_still_in_progress() {
+    let fs = TestDbFs::new("release-active-job-in-progress");
+    let db = fs.db();
+    db.init().expect("init");
+    let document_id = seed_document(&db, "up-progress", b"release prefers in progress");
+    let insert = |job_id: &str, workflow: &str, status: &str, created_at: &str| {
+        db.connect()
+            .unwrap()
+            .execute(
+                "INSERT INTO jobs (job_id, workflow, status_json, created_at, updated_at, command_json, request_json, \
+                 log_tail_json, document_id) VALUES (?1, ?2, ?3, ?4, ?4, '[]', '{}', '[]', ?5)",
+                params![job_id, format!("\"{workflow}\""), format!("\"{status}\""), created_at, document_id],
+            )
+            .unwrap();
+    };
+    insert("job-old", "book", "running", "2026-10-11T02:00:00Z");
+    insert("job-new", "book", "canceled", "2026-10-11T02:39:45Z");
+    insert("job-new-ocr", "ocr", "running", "2026-10-11T02:39:46Z");
+    db.set_document_active_job(&document_id, "job-new", None).expect("active");
+
+    assert!(db.release_document_active_job(&document_id, "job-new").unwrap());
+    assert_eq!(db.get_document(&document_id).unwrap().active_job_id.as_deref(), Some("job-old"));
+
+    // 在跑的优先于成功的。
+    insert_succeeded_job(&db, &document_id, "job-done", WorkflowKind::Book, "2026-10-01T00:00:00Z");
+    insert("job-retry", "book", "failed", "2026-10-11T03:00:00Z");
+    db.set_document_active_job(&document_id, "job-retry", None).expect("active");
+    assert!(db.release_document_active_job(&document_id, "job-retry").unwrap());
+    assert_eq!(db.get_document(&document_id).unwrap().active_job_id.as_deref(), Some("job-old"));
+}

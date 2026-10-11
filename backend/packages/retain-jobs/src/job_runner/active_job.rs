@@ -76,6 +76,11 @@ pub(crate) fn active_job_after_success(
     if current.is_ocr() && !finished.is_ocr() {
         return change_to(finished.job_id);
     }
+    // 当前指着一个失败 / 取消的任务：成功的优先，不管谁先提交。新提交的被取消了、更早的那个
+    // 后跑完，书卡不能还停在「已取消」上。
+    if matches!(current.status, JobStatusKind::Failed | JobStatusKind::Canceled) {
+        return change_to(finished.job_id);
+    }
     // 其余：刚完成的更新才换。旧任务后完成，不能把新提交的那个顶掉。
     (finished.rank() > current.rank()).then(|| finished.job_id.to_string())
 }
@@ -90,6 +95,7 @@ mod tests {
     const RUNNING: JobStatusKind = JobStatusKind::Running;
     const QUEUED: JobStatusKind = JobStatusKind::Queued;
     const FAILED: JobStatusKind = JobStatusKind::Failed;
+    const CANCELED: JobStatusKind = JobStatusKind::Canceled;
 
     fn job<'a>(id: &'a str, at: &'a str, workflow: &'a WorkflowKind, status: &'a JobStatusKind) -> ActiveCandidate<'a> {
         ActiveCandidate { job_id: id, created_at: at, workflow, status }
@@ -184,5 +190,15 @@ mod tests {
         let b = job("job-b", T1, &BOOK, &OK);
         assert_eq!(active_job_after_success(Some(a), b, Some(b)), Some("job-b".into()));
         assert_eq!(active_job_after_success(Some(b), a, Some(b)), None);
+    }
+
+    #[test]
+    fn an_older_job_succeeding_replaces_a_newer_canceled_or_failed_one() {
+        // 43505a（先提交）还在跑时提交了 b13ad5 又取消；43505a 后跑完，书卡要回到它。
+        let old = job("old", T1, &BOOK, &OK);
+        for status in [&CANCELED, &FAILED] {
+            let new = job("new", T2, &BOOK, status);
+            assert_eq!(active_job_after_success(Some(new), old, Some(old)), Some("old".into()), "{status:?}");
+        }
     }
 }
