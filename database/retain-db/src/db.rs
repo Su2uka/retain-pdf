@@ -13,6 +13,8 @@ mod admin_users;
 mod ownership;
 #[path = "db/page_quota.rs"]
 mod page_quota;
+#[path = "db/platform_settings.rs"]
+mod platform_settings;
 #[path = "db/agent_calculations.rs"]
 mod agent_calculations;
 #[path = "db/artifacts.rs"]
@@ -63,6 +65,7 @@ mod uploads;
 pub use accounts::{username_key, UserRecord, UsernameTaken};
 pub use admin_users::{OwnerJobRow, UserListPage, UserListQuery, UserListRow, UserSortKey, UserStats, UserStatusFilter};
 pub use ownership::OwnedKind;
+pub use platform_settings::PlatformSettingsRecord;
 pub use page_quota::{
     BillingSource, PageBalanceWouldGoNegative, PageChargeRecord, PageLedgerEntry, PageReservation,
 };

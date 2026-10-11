@@ -131,6 +131,11 @@ pub(super) const MIGRATIONS: &[Migration] = &[
         name: "user_soft_delete",
         sql: include_str!("v24_user_soft_delete.sql"),
     },
+    Migration {
+        version: 25,
+        name: "platform_settings",
+        sql: include_str!("v25_platform_settings.sql"),
+    },
 ];
 
 #[cfg(test)]

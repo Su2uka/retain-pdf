@@ -16,6 +16,9 @@ mod tests;
 #[cfg(test)]
 #[path = "creation/page_quota_tests.rs"]
 mod page_quota_tests;
+#[cfg(test)]
+#[path = "creation/platform_tests.rs"]
+mod platform_tests;
 
 pub(crate) use bundle::create_translation_bundle_job;
 pub(crate) use dev_defaults::with_dev_translation_defaults;

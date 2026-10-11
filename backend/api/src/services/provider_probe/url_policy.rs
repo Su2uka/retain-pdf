@@ -7,7 +7,7 @@ use crate::error::AppError;
 /// Validate a client-supplied provider URL before it carries a bearer token.
 /// This prevents probe endpoints from becoming SSRF or credential-exfiltration
 /// primitives. Self-hosted deployments can explicitly allow private targets.
-pub(super) fn validate_provider_base_url(
+pub(crate) fn validate_provider_base_url(
     raw_base_url: &str,
     allow_private_urls: bool,
 ) -> Result<(), AppError> {

@@ -46,13 +46,18 @@ pub struct AccountsConfig {
     pub platform: PlatformModels,
 }
 
-/// 平台的模型与 OCR 设置。密钥不放这里：管理员先经凭据接口存好，这里只写凭据编号。
+/// 平台的模型与 OCR 设置。密钥不放这里，只写凭据编号。来源：管理后台保存过的（存在库里，见
+/// rust_api 的 services::platform_settings）优先，否则是下面这些环境变量。
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct PlatformModels {
     pub translation_model: String,
     pub translation_base_url: String,
     /// 空 = 默认协议。
     pub translation_api_protocol: String,
+    /// 思考深度，统一由平台定（用户不知道平台用的是哪个模型）；空 = 默认。
+    pub translation_thinking: String,
+    /// 单个任务的翻译并发上限（防止把平台的 key 打到限流）；0 = 不限，按用户 / 默认。
+    pub translation_max_workers: i64,
     pub translation_credential_ref: String,
     pub ocr_provider: String,
     pub ocr_credential_ref: String,
@@ -65,6 +70,8 @@ impl PlatformModels {
             translation_model: read("RETAIN_PLATFORM_TRANSLATION_MODEL"),
             translation_base_url: read("RETAIN_PLATFORM_TRANSLATION_BASE_URL"),
             translation_api_protocol: read("RETAIN_PLATFORM_TRANSLATION_API_PROTOCOL"),
+            translation_thinking: read("RETAIN_PLATFORM_TRANSLATION_THINKING"),
+            translation_max_workers: read("RETAIN_PLATFORM_TRANSLATION_MAX_WORKERS").parse().unwrap_or(0).max(0),
             translation_credential_ref: read("RETAIN_PLATFORM_TRANSLATION_CREDENTIAL_REF"),
             ocr_provider: read("RETAIN_PLATFORM_OCR_PROVIDER"),
             ocr_credential_ref: read("RETAIN_PLATFORM_OCR_CREDENTIAL_REF"),

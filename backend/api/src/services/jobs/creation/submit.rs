@@ -14,8 +14,8 @@ use crate::services::uploads::UploadedPdfInput;
 /// 免得把网站账号自带的 key 存进服务器的凭据库。单机模式原样返回。
 fn platform_input(deps: &JobSubmitDeps<'_>, input: &CreateJobInput) -> Result<CreateJobInput, AppError> {
     let mut input = input.clone();
-    if let Some(platform) = deps.launcher.platform {
-        crate::services::job_launcher::apply_platform_models_to_input(&mut input, platform)?;
+    if let Some(source) = deps.launcher.platform {
+        crate::services::job_launcher::apply_platform_models_to_input(&mut input, &source.resolve()?)?;
     }
     Ok(input)
 }
