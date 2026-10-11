@@ -2,6 +2,9 @@ use std::collections::HashSet;
 
 use tokio::sync::RwLock;
 
+use crate::db::Db;
+use crate::models::domain::JobStatusKind;
+
 pub async fn request_cancel_with_registry(canceled_jobs: &RwLock<HashSet<String>>, job_id: &str) {
     let mut canceled_jobs = canceled_jobs.write().await;
     canceled_jobs.insert(job_id.to_string());
@@ -35,6 +38,32 @@ pub(super) async fn is_cancel_requested_any(
     extra_cancel_job_ids
         .iter()
         .any(|value| canceled_jobs.contains(value))
+}
+
+/// OCR 子任务该不该停：自己或父任务登记了取消，**或者库里的父任务已经不在 queued / running**
+/// （被取消、失败、被删）。
+///
+/// 只看内存里的取消登记不够：父任务收尾时会把自己的登记清掉，之后才走到检查点的子任务就再也
+/// 看不见——b13ad5-ocr 就是这样在父任务取消之后把 PDF 交给了 Paddle（白付一次 OCR，最后还记成
+/// failed）。库里的父任务状态不会丢，所以兜一层。读库出错时不当成取消（宁可多跑一步，不能误杀）；
+/// 父任务这一行不存在（被删了）才当成取消。
+pub(super) async fn should_stop_ocr_child(
+    canceled_jobs: &RwLock<HashSet<String>>,
+    db: &Db,
+    job_id: &str,
+    parent_job_ids: &[String],
+) -> bool {
+    if is_cancel_requested_any(canceled_jobs, job_id, parent_job_ids).await {
+        return true;
+    }
+    parent_job_ids.iter().any(|parent| match db.job_status(parent) {
+        Ok(Some(JobStatusKind::Queued | JobStatusKind::Running)) => false,
+        Ok(_) => true,
+        Err(error) => {
+            tracing::warn!("cancel check: reading status of parent job {parent} failed: {error:#}");
+            false
+        }
+    })
 }
 
 #[cfg(test)]

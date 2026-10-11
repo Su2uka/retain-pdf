@@ -12,7 +12,7 @@ use crate::ocr_provider::{provider_definition, OcrProviderKind};
 use super::transport::{prepare_local_upload_source, recover_remote_source_pdf};
 use super::workspace::OcrWorkspace;
 use super::{mineru, paddle};
-use crate::job_runner::cancel_registry::is_cancel_requested_any;
+use crate::job_runner::cancel_registry::should_stop_ocr_child;
 use crate::job_runner::runtime_credentials::resolve_ocr_provider_token;
 use crate::job_runner::ProcessRuntimeDeps;
 
@@ -70,7 +70,7 @@ pub(super) async fn execute_provider_transport(
     // 上传刚结束,这是最后一个还来得及止损的检查点——再往后 provider 已经
     // 收了文件,取消也退不了钱。所以这里必须连父任务的取消一起认。
     let parent_cancel_ids: Vec<String> = parent_job_id.iter().map(|v| v.to_string()).collect();
-    if is_cancel_requested_any(deps.canceled_jobs.as_ref(), &job.job_id, &parent_cancel_ids).await {
+    if should_stop_ocr_child(deps.canceled_jobs.as_ref(), deps.db.as_ref(), &job.job_id, &parent_cancel_ids).await {
         return Ok(std::path::PathBuf::new());
     }
 

@@ -296,6 +296,22 @@ impl Db {
         Ok(count.max(0) as u64)
     }
 
+    /// 只读一个任务的状态，不解码整行（取消检查这种高频、只关心状态的地方用）。没有这条任务返回 None。
+    pub fn job_status(&self, job_id: &str) -> Result<Option<JobStatusKind>> {
+        let conn = self.connect()?;
+        let raw: Option<String> = conn
+            .query_row("SELECT status_json FROM jobs WHERE job_id = ?1", params![job_id], |row| row.get(0))
+            .optional()?;
+        let Some(raw) = raw else {
+            return Ok(None);
+        };
+        // 老数据可能存的是不带引号的裸字符串。
+        let status = serde_json::from_str(&raw)
+            .or_else(|_| serde_json::from_value(serde_json::Value::String(raw.clone())))
+            .with_context(|| format!("unreadable status for job {job_id}: {raw}"))?;
+        Ok(Some(status))
+    }
+
     pub fn list_jobs_with_status(&self, status: &JobStatusKind) -> Result<Vec<JobSnapshot>> {
         let conn = self.connect()?;
         let status_json = serde_json::to_string(status)?;

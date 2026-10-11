@@ -35,10 +35,12 @@ mod support;
 mod transfer_watch;
 mod transport;
 mod workspace;
+#[cfg(test)]
+mod parent_cancel_tests;
 
 pub use page_subset::parse_page_ranges;
 
-use super::cancel_registry::is_cancel_requested_any;
+use super::cancel_registry::should_stop_ocr_child;
 use provider_transport::execute_provider_transport;
 pub use support::sync_parent_with_ocr_child;
 use support::{fail_missing_source_pdf, fail_ocr_transport, save_ocr_job};
@@ -88,8 +90,20 @@ pub async fn execute_ocr_job(
     )?;
     save_ocr_job(&deps, &job, parent_job_id.as_deref()).await?;
 
+    // 也认父任务的取消（内存登记 + 库里的父任务状态，见 should_stop_ocr_child）。
+    let parent_cancel_ids: Vec<String> = parent_job_id.iter().cloned().collect();
+
+    // 调任何付费接口（上传、CLI worker）之前先看一眼：父任务在子任务建出来前后被取消时，
+    // 这是唯一来得及一分钱不花的检查点。以前第一个检查点在上传、轮询都结束之后——小文件
+    // 几百毫秒就传完了，上传期间的定时检查一次都没轮上。
+    if should_stop_ocr_child(deps.canceled_jobs.as_ref(), deps.db.as_ref(), &job.job_id, &parent_cancel_ids).await {
+        mark_ocr_canceled(&mut job);
+        save_ocr_job(&deps, &job, parent_job_id.as_deref()).await?;
+        return Ok(job);
+    }
+
     if run_provider_worker {
-        return execute_process_job(deps, job, &[]).await;
+        return execute_process_job(deps, job, &parent_cancel_ids).await;
     }
 
     let source_pdf_path = match execute_provider_transport(
@@ -103,6 +117,16 @@ pub async fn execute_ocr_job(
     {
         Ok(path) => path,
         Err(err) => {
+            // 父任务已经取消了：服务商这边的失败多半就是被取消连带的（源文件被清掉等），
+            // 记成 canceled，别在统计里多出一个「失败」。
+            if should_stop_ocr_child(deps.canceled_jobs.as_ref(), deps.db.as_ref(), &job.job_id, &parent_cancel_ids)
+                .await
+            {
+                job.append_log(&format!("OCR stopped after parent cancel: {err:#}"));
+                mark_ocr_canceled(&mut job);
+                save_ocr_job(&deps, &job, parent_job_id.as_deref()).await?;
+                return Ok(job);
+            }
             fail_ocr_transport(&mut job, &err);
             return Ok(job);
         }
@@ -113,16 +137,8 @@ pub async fn execute_ocr_job(
     // 取消只登记被点的那个 id,而 book 任务里用户点的是父任务——子任务永远
     // 看不到信号,于是 OCR 跑到底,结果被丢弃。`extra_cancel_job_ids` 这套机制
     // 本来就是为此设计的,只是此前所有调用点都传 `&[]`,成了死代码。
-    let parent_cancel_ids: Vec<String> = parent_job_id.iter().cloned().collect();
-    if is_cancel_requested_any(deps.canceled_jobs.as_ref(), &job.job_id, &parent_cancel_ids).await {
-        job.status = JobStatusKind::Canceled;
-        job.stage = Some("canceled".to_string());
-        job.stage_detail = Some("OCR 任务已取消".to_string());
-        job.updated_at = now_iso();
-        job.finished_at = Some(now_iso());
-        clear_canceled_runtime_artifacts(&mut job);
-        clear_job_failure(&mut job);
-        sync_runtime_state(&mut job);
+    if should_stop_ocr_child(deps.canceled_jobs.as_ref(), deps.db.as_ref(), &job.job_id, &parent_cancel_ids).await {
+        mark_ocr_canceled(&mut job);
         save_ocr_job(&deps, &job, parent_job_id.as_deref()).await?;
         return Ok(job);
     }
@@ -154,7 +170,18 @@ pub async fn execute_ocr_job(
     sync_runtime_state(&mut job);
     save_ocr_job(&deps, &job, parent_job_id.as_deref()).await?;
 
-    execute_process_job(deps, job, &[]).await
+    execute_process_job(deps, job, &parent_cancel_ids).await
+}
+
+fn mark_ocr_canceled(job: &mut JobRuntimeState) {
+    job.status = JobStatusKind::Canceled;
+    job.stage = Some("canceled".to_string());
+    job.stage_detail = Some("OCR 任务已取消".to_string());
+    job.updated_at = now_iso();
+    job.finished_at = Some(now_iso());
+    clear_canceled_runtime_artifacts(job);
+    clear_job_failure(job);
+    sync_runtime_state(job);
 }
 
 #[cfg(test)]
@@ -210,7 +237,7 @@ mod tests {
 
 #[cfg(test)]
 mod parent_cancel_contract {
-    /// OCR 子任务的取消检查必须带上父任务 id。
+    /// OCR 子任务的取消检查必须走 should_stop_ocr_child 并带上父任务 id。
     ///
     /// 盯调用点而不是盯 `is_cancel_requested_any` 本身:那个函数一直是对的,
     /// 错的是所有调用点都传 `&[]`,让整套机制成了死代码。只测那个函数的话,
@@ -231,9 +258,15 @@ mod parent_cancel_contract {
                 include_str!("transfer_watch.rs"),
             ),
         ] {
+            // 只看产品代码：这个测试自己就在 mod.rs 里，别匹配到下面的字符串。
+            let source = source.split("#[cfg(test)]\nmod tests {").next().unwrap();
+            assert!(
+                !source.contains("is_cancel_requested_any("),
+                "{file}: OCR 子任务的取消检查要走 should_stop_ocr_child——只看内存登记会错过父任务的取消"
+            );
             let call = source
-                .find("is_cancel_requested_any(")
-                .unwrap_or_else(|| panic!("{file}: 取消检查必须走 is_cancel_requested_any"));
+                .find("should_stop_ocr_child(")
+                .unwrap_or_else(|| panic!("{file}: 取消检查必须走 should_stop_ocr_child"));
             let tail = &source[call..];
             let end = tail.find(").await").expect("调用应当被 await");
             let args = &tail[..end];

@@ -149,7 +149,7 @@ async fn canceled_job_does_not_wait_retry_after_or_issue_another_query() {
         .insert(job.job_id.clone());
     tokio::time::timeout(
         Duration::from_millis(100),
-        wait_retry_delay(&fixture.0, &job.job_id, Duration::from_secs(60)),
+        wait_retry_delay(&fixture.0, &job.job_id, None, Duration::from_secs(60)),
     )
     .await
     .unwrap();
