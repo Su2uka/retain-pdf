@@ -19,8 +19,8 @@ use serde_json::json;
 use crate::config::LOCAL_USER_ID;
 use crate::db::{Db, PageBalanceWouldGoNegative, PageLedgerEntry, PageReservation};
 use crate::error::AppError;
-use crate::job_runner::parse_page_ranges;
 use crate::models::domain::{JobSnapshot, ResolvedJobSpec, WorkflowKind};
+use crate::models::request::parse_page_ranges;
 use crate::models::now_iso;
 
 /// 账户页、管理员查看时列出的最近账目条数。

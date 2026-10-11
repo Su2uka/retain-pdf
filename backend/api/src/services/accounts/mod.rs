@@ -23,6 +23,7 @@ use crate::error::AppError;
 pub(crate) mod access;
 pub(crate) mod admin;
 pub(crate) mod api;
+mod console;
 
 pub const SESSION_COOKIE: &str = "retain_session";
 const LOCK_AFTER_FAILURES: i64 = 5;
@@ -269,7 +270,7 @@ pub(super) fn db_error(error: anyhow::Error) -> AppError {
 
 #[derive(Clone)]
 pub struct AccountsService {
-    db: Arc<Db>,
+    pub(super) db: Arc<Db>,
     config: AccountsConfig,
 }
 

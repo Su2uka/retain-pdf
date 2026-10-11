@@ -1,7 +1,7 @@
 //! 按页额度接在建任务上：预扣、余额不够拒绝、失败退回、谁不计费、渲染补扣。
 
 use crate::error::AppError;
-use crate::models::{now_iso, JobStatusKind, UploadRecord, WorkflowKind};
+use crate::models::domain::{now_iso, JobStatusKind, UploadRecord, WorkflowKind};
 use crate::services::job_launcher::start_job_execution;
 use crate::services::jobs::deps::JobSubmitDeps;
 use crate::test_support::pdf::build_test_pdf_bytes;
@@ -46,7 +46,7 @@ fn seed_owned_upload(state: &AppState, upload_id: &str, owner: &str, page_count:
     upload_id.to_string()
 }
 
-fn book_input(upload_id: &str) -> crate::models::CreateJobInput {
+fn book_input(upload_id: &str) -> crate::models::request::CreateJobInput {
     let mut input = base_translation_input(WorkflowKind::Book);
     input.source.upload_id = upload_id.to_string();
     input

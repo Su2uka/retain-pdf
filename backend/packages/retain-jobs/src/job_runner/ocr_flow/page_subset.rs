@@ -4,6 +4,9 @@ use std::path::{Path, PathBuf};
 use anyhow::{anyhow, Context, Result};
 use lopdf::Document;
 
+// 页范围的唯一实现在 retain-core（按页计费也用它）。
+use crate::models::request::parse_page_ranges;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct PreparedSourcePdf {
     pub(super) path: PathBuf,
@@ -82,56 +85,6 @@ pub(super) fn prepare_uploaded_source_pdf(
     })
 }
 
-/// OCR 的页范围（`"1, 3-5"`，从 1 起）解析成页号；空串 = 全部页。按页计费也用它，保证扣的页就是跑的页。
-pub fn parse_page_ranges(spec: &str, total_pages: u32) -> Result<Vec<u32>> {
-    if total_pages == 0 {
-        return Err(anyhow!("source pdf has no pages"));
-    }
-    if spec.trim().is_empty() {
-        return Ok((1..=total_pages).collect());
-    }
-
-    let mut pages = BTreeSet::new();
-    for raw_part in spec.split(',') {
-        let part = raw_part.trim();
-        if part.is_empty() {
-            continue;
-        }
-        if let Some((start_raw, end_raw)) = part.split_once('-') {
-            let start = parse_page_number(start_raw, total_pages, spec)?;
-            let end = parse_page_number(end_raw, total_pages, spec)?;
-            if start > end {
-                return Err(anyhow!(
-                    "invalid page range '{part}' in '{spec}': start > end"
-                ));
-            }
-            for page in start..=end {
-                pages.insert(page);
-            }
-            continue;
-        }
-        pages.insert(parse_page_number(part, total_pages, spec)?);
-    }
-
-    if pages.is_empty() {
-        return Err(anyhow!("page_ranges '{spec}' did not resolve to any page"));
-    }
-    Ok(pages.into_iter().collect())
-}
-
-fn parse_page_number(raw: &str, total_pages: u32, spec: &str) -> Result<u32> {
-    let value = raw
-        .trim()
-        .parse::<u32>()
-        .with_context(|| format!("invalid page number '{raw}' in '{spec}'"))?;
-    if value == 0 || value > total_pages {
-        return Err(anyhow!(
-            "page number '{value}' is out of bounds for total_pages={total_pages}"
-        ));
-    }
-    Ok(value)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -204,20 +157,6 @@ mod tests {
         doc.trailer.set("Root", catalog_id);
         doc.compress();
         doc.save(path).expect("save test pdf");
-    }
-
-    #[test]
-    fn parse_page_ranges_supports_singletons_and_ranges() {
-        assert_eq!(
-            parse_page_ranges("1, 3-5, 7", 8).expect("parse"),
-            vec![1, 3, 4, 5, 7]
-        );
-    }
-
-    #[test]
-    fn parse_page_ranges_rejects_out_of_bounds_pages() {
-        let err = parse_page_ranges("1-9", 5).expect_err("should fail");
-        assert!(err.to_string().contains("out of bounds"));
     }
 
     #[test]

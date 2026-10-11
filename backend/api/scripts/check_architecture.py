@@ -85,6 +85,8 @@ ALLOWED_APPSTATE_FILES = {
     Path("src/routes/uploads.rs"),
     Path("src/services/glossaries/tests.rs"),
     Path("src/services/jobs/creation/tests.rs"),
+    # 同一组建任务测试（按页额度），复用 creation/tests.rs 的 AppState 夹具。
+    Path("src/services/jobs/creation/page_quota_tests.rs"),
     Path("src/services/jobs/support.rs"),
 }
 
@@ -124,6 +126,7 @@ ROUTE_STATE_RESOURCE_ALLOWLIST = {
     Path("src/routes/common/credentials.rs"),
     Path("src/routes/common/document_operations.rs"),
     Path("src/routes/common/fonts.rs"),
+    Path("src/routes/common/platform_settings.rs"),
     Path("src/routes/common/glossaries.rs"),
     Path("src/routes/common/job_data.rs"),
     Path("src/routes/common/quality.rs"),
@@ -267,6 +270,16 @@ ROUTE_SERVICE_IMPORT_ALLOWLIST = {
     ),
     Path("src/routes/accounts.rs"): (
         "crate::services::accounts::api::",
+    ),
+    Path("src/routes/admin_users.rs"): (
+        "crate::services::accounts::api::",
+    ),
+    Path("src/routes/admin_platform.rs"): (
+        "crate::services::accounts::api::",
+        "crate::services::platform_settings::api::",
+    ),
+    Path("src/routes/common/platform_settings.rs"): (
+        "crate::services::platform_settings::api::PlatformSettingsApiDeps",
     ),
     Path("src/routes/common/accounts.rs"): (
         "crate::services::accounts::api::AccountsService",

@@ -1,5 +1,5 @@
 //! 管理后台的平台设置（/api/v1/admin/platform*，只给管理员、只在多用户模式）：多用户模式下所有任务
-//! 统一用的翻译模型和 OCR。规则见 services::platform_settings。
+//! 统一用的翻译模型和 OCR。规则见 services::platform_settings，路由只经它的 api 门面。
 
 use axum::extract::State;
 use axum::Json;
@@ -7,11 +7,12 @@ use axum::Json;
 use super::accounts::{require_admin, require_multi};
 use crate::error::AppError;
 use crate::models::api::ApiResponse;
-use crate::routes::common::{build_accounts_route_deps, ok_json, ApiJson};
+use crate::routes::common::{
+    build_accounts_route_deps, build_platform_settings_route_deps, ok_json, ApiJson,
+};
 use crate::services::accounts::api::Principal;
-use crate::services::platform_settings::{
-    self, PlatformSettingsView, PlatformTestView, ProbeRuntimes, SavePlatformSettingsInput,
-    TestPlatformInput,
+use crate::services::platform_settings::api::{
+    PlatformSettingsView, PlatformTestView, SavePlatformSettingsInput, TestPlatformInput,
 };
 use crate::AppState;
 
@@ -26,15 +27,10 @@ pub async fn get_platform_route(
     principal: Principal,
 ) -> Result<Json<ApiResponse<PlatformSettingsView>>, AppError> {
     admin_only(&state, &principal)?;
-    let view = tokio::task::spawn_blocking(move || {
-        platform_settings::view(
-            &state.db,
-            &state.config.data_root,
-            &state.config.accounts.platform,
-        )
-    })
-    .await
-    .map_err(|_| AppError::internal("platform settings task failed"))??;
+    let platform = build_platform_settings_route_deps(&state);
+    let view = tokio::task::spawn_blocking(move || platform.view())
+        .await
+        .map_err(|_| AppError::internal("platform settings task failed"))??;
     Ok(ok_json(view))
 }
 
@@ -45,18 +41,10 @@ pub async fn put_platform_route(
     ApiJson(input): ApiJson<SavePlatformSettingsInput>,
 ) -> Result<Json<ApiResponse<PlatformSettingsView>>, AppError> {
     admin_only(&state, &principal)?;
-    let view = tokio::task::spawn_blocking(move || {
-        platform_settings::save(
-            &state.db,
-            &state.config.data_root,
-            &state.config.accounts.platform,
-            &state.config.provider_runtime.deepseek,
-            &principal.user_id,
-            input,
-        )
-    })
-    .await
-    .map_err(|_| AppError::internal("platform settings task failed"))??;
+    let platform = build_platform_settings_route_deps(&state);
+    let view = tokio::task::spawn_blocking(move || platform.save(&principal.user_id, input))
+        .await
+        .map_err(|_| AppError::internal("platform settings task failed"))??;
     Ok(ok_json(view))
 }
 
@@ -67,18 +55,6 @@ pub async fn test_platform_route(
     ApiJson(input): ApiJson<TestPlatformInput>,
 ) -> Result<Json<ApiResponse<PlatformTestView>>, AppError> {
     admin_only(&state, &principal)?;
-    let runtimes = ProbeRuntimes {
-        deepseek: state.config.provider_runtime.deepseek.clone(),
-        mineru: state.config.provider_runtime.mineru.clone(),
-        paddle: state.config.provider_runtime.paddle.clone(),
-    };
-    let view = platform_settings::test(
-        &state.db,
-        &state.config.data_root,
-        &state.config.accounts.platform,
-        &runtimes,
-        input,
-    )
-    .await?;
-    Ok(ok_json(view))
+    let platform = build_platform_settings_route_deps(&state);
+    Ok(ok_json(platform.test(input).await?))
 }
