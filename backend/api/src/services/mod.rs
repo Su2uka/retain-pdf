@@ -29,6 +29,7 @@ pub(crate) mod managed_credential_gc;
 pub mod model_executor;
 pub mod model_requests_api;
 pub mod page_quota;
+pub mod platform_settings;
 pub(crate) mod document_pages;
 pub(crate) mod merge;
 pub(crate) mod ocr_artifact_reuse;

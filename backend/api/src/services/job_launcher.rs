@@ -5,6 +5,7 @@ use crate::error::AppError;
 use crate::job_events::persist_job_with_resources;
 use crate::config::PlatformModels;
 use crate::models::domain::JobSnapshot;
+use crate::services::platform_settings::PlatformSource;
 
 use super::runtime_gateway::JobRuntimeLauncher;
 
@@ -14,8 +15,9 @@ pub struct JobLaunchDeps<'a> {
     pub data_root: &'a Path,
     pub output_root: &'a Path,
     pub runtime: JobRuntimeLauncher,
-    /// 多用户模式：所有任务改用平台的模型和 OCR（见 [`apply_platform_models`]）。单机模式为 None。
-    pub platform: Option<&'a PlatformModels>,
+    /// 多用户模式：所有任务改用平台的模型和 OCR（见 [`apply_platform_models`]），建任务时现读，
+    /// 管理后台改了下一个任务就生效。单机模式为 None。
+    pub platform: Option<PlatformSource<'a>>,
     /// 多用户模式：新任务开跑前按页预扣（见 [`crate::services::page_quota`]）。单机模式为 false。
     pub page_quota: bool,
 }
@@ -37,7 +39,7 @@ impl<'a> JobLaunchDeps<'a> {
         }
     }
 
-    pub fn with_platform(mut self, platform: Option<&'a PlatformModels>) -> Self {
+    pub fn with_platform(mut self, platform: Option<PlatformSource<'a>>) -> Self {
         self.platform = platform;
         self
     }
@@ -106,6 +108,13 @@ fn apply_platform_models_to(
     translation.model = platform.translation_model.clone();
     translation.base_url = platform.translation_base_url.clone();
     translation.api_protocol = platform.translation_api_protocol.clone();
+    translation.thinking = platform.translation_thinking.clone();
+    translation.reviewer_thinking.clear();
+    if platform.translation_max_workers > 0
+        && (translation.workers <= 0 || translation.workers > platform.translation_max_workers)
+    {
+        translation.workers = platform.translation_max_workers;
+    }
     translation.credential_ref = platform.translation_credential_ref.clone();
     if translates && !platform.translation_ready() {
         return Err(AppError::ServiceUnavailable("平台还没配置翻译模型，请联系管理员".into()));
@@ -126,8 +135,8 @@ pub fn start_job_execution(
     deps: &JobLaunchDeps<'_>,
     mut job: JobSnapshot,
 ) -> Result<JobSnapshot, AppError> {
-    if let Some(platform) = deps.platform {
-        apply_platform_models(&mut job, platform)?;
+    if let Some(source) = deps.platform {
+        apply_platform_models(&mut job, &source.resolve()?)?;
     }
     // The new contract must never silently use the legacy Python transport.
     // Worker rollout is a separate, explicit gate while migration is in flight.
@@ -240,10 +249,31 @@ mod platform_tests {
             translation_model: "platform-model".into(),
             translation_base_url: "https://platform.example/v1".into(),
             translation_api_protocol: String::new(),
+            translation_thinking: "low".into(),
+            translation_max_workers: 4,
             translation_credential_ref: "cred-translation".into(),
             ocr_provider: "mineru".into(),
             ocr_credential_ref: "cred-ocr".into(),
         }
+    }
+
+    #[test]
+    fn thinking_is_set_by_the_platform_and_workers_are_capped() {
+        for (asked, expected) in [(0, 4), (2, 2), (16, 4)] {
+            let mut input = CreateJobInput::default();
+            input.workflow = WorkflowKind::Book;
+            input.translation.thinking = "max".into();
+            input.translation.workers = asked;
+            apply_platform_models_to_input(&mut input, &platform()).unwrap();
+            assert_eq!((input.translation.thinking.as_str(), input.translation.workers), ("low", expected), "{asked}");
+        }
+        let mut uncapped = platform();
+        uncapped.translation_max_workers = 0;
+        let mut input = CreateJobInput::default();
+        input.workflow = WorkflowKind::Book;
+        input.translation.workers = 16;
+        apply_platform_models_to_input(&mut input, &uncapped).unwrap();
+        assert_eq!(input.translation.workers, 16, "0 = 不限");
     }
 
     #[test]

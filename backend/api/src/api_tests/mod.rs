@@ -1,4 +1,5 @@
 mod accounts;
+mod admin_platform;
 mod admin_users;
 mod agent_calculations;
 mod agent_capabilities;

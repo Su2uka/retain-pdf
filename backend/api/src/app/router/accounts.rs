@@ -2,7 +2,7 @@ use axum::routing::{get, post};
 use axum::Router;
 
 use crate::app::AppState;
-use crate::routes::{accounts, admin_users};
+use crate::routes::{accounts, admin_platform, admin_users};
 
 pub(super) fn routes() -> Router<AppState> {
     Router::new()
@@ -27,4 +27,9 @@ pub(super) fn routes() -> Router<AppState> {
             get(accounts::user_pages_route).post(accounts::grant_pages_route),
         )
         .route("/api/v1/account/pages", get(accounts::my_pages_route))
+        .route(
+            "/api/v1/admin/platform",
+            get(admin_platform::get_platform_route).put(admin_platform::put_platform_route),
+        )
+        .route("/api/v1/admin/platform/test", post(admin_platform::test_platform_route))
 }

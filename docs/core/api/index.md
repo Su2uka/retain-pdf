@@ -1017,6 +1017,71 @@ operation 列表响应包含 `operations`、`total`、`limit`、`offset` 和 `ha
 
 没有批量接口：前端逐个调用上面这些（以及发放页数、停用、启用），每个请求各自成功或失败。
 
+## 13.7 多用户：平台设置（翻译模型与 OCR）
+
+多用户模式下，所有网站账号的任务统一用平台的翻译模型和 OCR（平台出钱），客户端传来的模型、地址、
+密钥一律不认。只给多用户模式下的管理员（普通账号 403，单机模式 404）。
+
+- **来源**：管理后台保存过的优先；从没保存过就用 `RETAIN_PLATFORM_*` 环境变量（已有部署不受影响）。
+  第一次保存时以环境变量的值为底，没填的密钥沿用环境变量里的凭据。
+- **生效**：每次建任务时现读，保存后下一个任务就用新的，不用重启。已经提交的任务用提交那一刻的值。
+- **密钥**：存进凭据库，接口只返回是否已配置和末 4 位提示，永远不返回明文。换密钥会新建一条凭据，
+  排队中的任务仍用旧的；被换下来的旧凭据（管理后台建的、没任务再用）自动清掉，环境变量里的不碰。
+- **平台统一管的翻译参数**：模型、接口地址、协议、密钥、思考深度、单个任务的并发上限（用户填得更大
+  或没填，都按上限）。其余参数（翻译模式、公式、术语表、规则、精修、页范围、批大小）照用户提交的。
+
+### `GET /api/v1/admin/platform`
+
+```json
+{
+  "source": "database",
+  "translation": { "model": "deepseek-chat", "base_url": "https://api.deepseek.com/v1",
+                   "api_protocol": "openai", "thinking": "off", "max_workers": 4,
+                   "api_key_configured": true, "api_key_hint": "…1234" },
+  "ocr": { "provider": "mineru", "token_configured": true, "token_hint": "…9876" },
+  "ready": true,
+  "missing": [],
+  "updated_at": "2026-10-11T08:00:00Z",
+  "updated_by": { "user_id": "u_…", "username": "admin" },
+  "options": { "api_protocols": ["openai", "openai_responses", "anthropic"],
+               "thinking_levels": ["auto", "off", "low", "medium", "high", "max"],
+               "ocr_providers": ["mineru", "paddle"], "max_workers_limit": 64 }
+}
+```
+
+`source` 为 `database`（管理后台保存过）或 `environment`。`missing` 可能含 `translation_model`、
+`translation_base_url`、`translation_api_key`、`ocr_provider`、`ocr_token`（密钥在凭据库里找不到或
+OCR token 不是这个服务商的，也算缺）。`updated_at` / `updated_by` 只在 `source` 为 `database` 时有值。
+
+### `PUT /api/v1/admin/platform`
+
+请求体：
+
+```json
+{
+  "translation": { "model": "…", "base_url": "…", "api_protocol": "openai", "thinking": "off",
+                   "max_workers": 4, "api_key": "sk-…（选填）" },
+  "ocr": { "provider": "mineru", "token": "…（选填）" }
+}
+```
+
+非密钥字段整体替换（空串 = 不设）；`api_key` / `token` 不传或空串 = 保留原来的。返回同 GET。
+错误（400）：`INVALID_API_PROTOCOL`、`INVALID_THINKING`、`INVALID_MAX_WORKERS`（0～64，0 = 不限）、
+`INVALID_BASE_URL`（要 http(s)、不能带账号密码；内网地址默认不允许，部署时可用
+`RUST_API_ALLOW_PRIVATE_PROVIDER_URLS=1` 放开）、`INVALID_OCR_PROVIDER`（只能 `mineru` / `paddle`）、
+`OCR_TOKEN_REQUIRED`（换了 OCR 服务商必须同时填新 token——OCR 凭据带服务商标签）、`INVALID_SETTING`。
+
+### `POST /api/v1/admin/platform/test`
+
+请求体 `{ "target": "translation" | "ocr", 以及可选的 model、base_url、api_protocol、api_key、provider、token }`：
+没传的用已保存的值，实际请求一次服务商。返回 `{ target, ok, status, summary, hint }`，`summary` 是中文。
+`status` 例如 `ok`、`unauthorized`、`model_not_found`、`rate_limited`、`missing_input`（缺必填项，没有发请求）、
+`invalid_input`（地址不合规）。`target` 不对：400 `INVALID_TEST_TARGET`。
+
+环境变量（从没在管理后台保存过时生效）：`RETAIN_PLATFORM_TRANSLATION_MODEL`、`…_BASE_URL`、
+`…_API_PROTOCOL`、`…_THINKING`、`…_MAX_WORKERS`、`…_CREDENTIAL_REF`、`RETAIN_PLATFORM_OCR_PROVIDER`、
+`RETAIN_PLATFORM_OCR_CREDENTIAL_REF`。
+
 ## 14. 存储与所有权
 
 后端是书籍、PDF、产物和封面的唯一真源。前端不持久化真实文件。
