@@ -95,23 +95,28 @@ export function useBookDetailTranslate({
     }
     // 先切到处理 Tab，保证 bd-job-status-inner 在视口内再接进度
     onTranslateStarted?.();
-    await withBusy(
-      "translate",
-      async () => {
-        // promoteDocumentToJob：改详情 payload + silent attachJobProgress
-        // 不 openTranslationWorkflow
-        const result = await actions.submitDocument(documentId, payload);
-        if (result) {
-          onJobSubmitted?.({
-            ...result,
-            document_id: result.document_id || documentId,
-            workflow: result.workflow || payload.workflow || "book",
-          });
-        }
-        onTranslateStarted?.();
-      },
-      "发起翻译失败",
-    );
+    try {
+      await withBusy(
+        "translate",
+        async () => {
+          // promoteDocumentToJob：改详情 payload + silent attachJobProgress
+          // 不 openTranslationWorkflow
+          const result = await actions.submitDocument(documentId, payload);
+          if (result) {
+            onJobSubmitted?.({
+              ...result,
+              document_id: result.document_id || documentId,
+              workflow: result.workflow || payload.workflow || "book",
+            });
+          }
+          onTranslateStarted?.();
+        },
+        "发起翻译失败",
+      );
+    } catch {
+      // 失败原因（含额度不够的原话）已由 withBusy -> setError 显示在翻译表单和概览里；
+      // 这里吞掉，免得按钮回调留下未处理的 rejection（和同文件的保存 / 阅读状态一致）。
+    }
   }
 
   return {
