@@ -1,7 +1,7 @@
 //! 管理后台保存的平台设置在建任务时现读：保存后下一个任务就用新的，不用重启。
 
 use crate::config::PlatformModels;
-use crate::models::{now_iso, UploadRecord, WorkflowKind};
+use crate::models::domain::{now_iso, UploadRecord, WorkflowKind};
 use crate::services::platform_settings::{
     self, PlatformSource, SaveOcrSettings, SavePlatformSettingsInput, SaveTranslationSettings,
 };

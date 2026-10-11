@@ -14,10 +14,9 @@ use crate::error::AppError;
 use crate::models::api::ApiResponse;
 use crate::routes::common::{build_accounts_route_deps, ok_json, ApiJson, ApiPath};
 use crate::services::accounts::api::{
-    account_view, admin_view, AccountUserView, AccountsService, Principal, Role, SessionView,
-    SESSION_COOKIE,
+    account_view, admin_view, AccountUserView, AccountsService, PageQuotaView, Principal, Role,
+    SessionView, SESSION_COOKIE,
 };
-use crate::services::page_quota::{self, PageQuotaView};
 use crate::AppState;
 
 pub(super) fn require_multi(accounts: &AccountsService) -> Result<(), AppError> {
@@ -211,11 +210,7 @@ pub async fn my_pages_route(
     principal: Principal,
 ) -> Result<Json<ApiResponse<PageQuotaView>>, AppError> {
     let accounts = build_accounts_route_deps(&state);
-    if !accounts.mode().is_multi() || principal.is_admin() || principal.owner_filter().is_none() {
-        return Ok(ok_json(PageQuotaView::unlimited()));
-    }
-    let db = state.db.clone();
-    let view = tokio::task::spawn_blocking(move || page_quota::quota_view(&db, &principal.user_id))
+    let view = tokio::task::spawn_blocking(move || accounts.page_quota_for(&principal))
         .await
         .map_err(|_| AppError::internal("page quota task failed"))??;
     Ok(ok_json(view))
@@ -230,19 +225,9 @@ pub async fn user_pages_route(
     let accounts = build_accounts_route_deps(&state);
     require_multi(&accounts)?;
     require_admin(&principal)?;
-    let db = state.db.clone();
-    let view = tokio::task::spawn_blocking(move || -> Result<PageQuotaView, AppError> {
-        let user = db
-            .get_user(&user_id)
-            .map_err(|error| AppError::internal(format!("{error:#}")))?
-            .ok_or_else(|| crate::services::accounts::admin::user_not_found(&user_id))?;
-        if user.role == "admin" {
-            return Ok(PageQuotaView::unlimited());
-        }
-        page_quota::quota_view(&db, &user_id)
-    })
-    .await
-    .map_err(|_| AppError::internal("page quota task failed"))??;
+    let view = tokio::task::spawn_blocking(move || accounts.user_page_quota(&user_id))
+        .await
+        .map_err(|_| AppError::internal("page quota task failed"))??;
     Ok(ok_json(view))
 }
 
@@ -265,9 +250,8 @@ pub async fn grant_pages_route(
     let accounts = build_accounts_route_deps(&state);
     require_multi(&accounts)?;
     require_admin(&principal)?;
-    let db = state.db.clone();
     let balance = tokio::task::spawn_blocking(move || {
-        page_quota::grant_pages(&db, &principal.user_id, &user_id, input.delta, &input.note)
+        accounts.grant_pages(&principal.user_id, &user_id, input.delta, &input.note)
     })
     .await
     .map_err(|_| AppError::internal("page quota task failed"))??;

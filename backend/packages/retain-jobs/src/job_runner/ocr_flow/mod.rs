@@ -38,8 +38,6 @@ mod workspace;
 #[cfg(test)]
 mod parent_cancel_tests;
 
-pub use page_subset::parse_page_ranges;
-
 use super::cancel_registry::should_stop_ocr_child;
 use provider_transport::execute_provider_transport;
 pub use support::sync_parent_with_ocr_child;

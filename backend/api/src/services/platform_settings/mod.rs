@@ -642,5 +642,7 @@ pub async fn test(
     }
 }
 
+pub mod api;
+
 #[cfg(test)]
 mod tests;

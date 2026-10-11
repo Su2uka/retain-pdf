@@ -1,5 +1,7 @@
 #[path = "input/ocr.rs"]
 mod ocr;
+#[path = "input/page_ranges.rs"]
+mod page_ranges;
 #[path = "input/render.rs"]
 mod render;
 #[path = "input/request.rs"]
@@ -17,6 +19,7 @@ mod tests;
 mod translation;
 
 pub use ocr::OcrInput;
+pub use page_ranges::parse_page_ranges;
 pub use render::{
     RenderInput, DEFAULT_RENDER_ENGINE, DEFAULT_SOURCE_CLEANUP_STRATEGY, RENDER_ENGINES,
     SOURCE_CLEANUP_STRATEGIES,
