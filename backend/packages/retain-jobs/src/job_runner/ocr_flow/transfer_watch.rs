@@ -17,7 +17,7 @@ use std::time::Duration;
 use anyhow::Result;
 use tokio::time::{interval_at, Instant, MissedTickBehavior};
 
-use crate::job_runner::cancel_registry::is_cancel_requested_any;
+use crate::job_runner::cancel_registry::should_stop_ocr_child;
 use crate::job_runner::ProcessRuntimeDeps;
 use crate::models::domain::{now_iso, JobRuntimeState};
 
@@ -67,8 +67,9 @@ where
             biased;
             output = &mut transfer => return Ok(Watched::Finished(output)),
             _ = cancel_tick.tick() => {
-                if is_cancel_requested_any(
+                if should_stop_ocr_child(
                     deps.canceled_jobs.as_ref(),
+                    deps.db.as_ref(),
                     &job.job_id,
                     &parent_cancel_ids,
                 )
