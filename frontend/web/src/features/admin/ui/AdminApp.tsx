@@ -1,18 +1,30 @@
-// 管理后台整页（admin.html）：左边导航，右边账号列表 / 单个账号。
-// 看哪个账号记在地址栏 ?user=<user_id>，刷新、前进后退都对得上；列表一直挂着，返回时搜索和翻页还在。
+// 管理后台整页（admin.html）：左边导航，右边账号列表 / 单个账号 / 平台设置。
+// 位置记在地址栏：?view=platform 是平台设置，?user=<user_id> 是单个账号，都没有是账号列表；
+// 刷新、前进后退都对得上。账号列表一直挂着，从单个账号返回时搜索和翻页还在。
 import { useCallback, useEffect, useState } from "react";
 import { logout, type AuthSessionView } from "@retainpdf/api/auth";
 import { buildHomeUrl } from "@/platform/navigation/pages.js";
 import { defaultAdminApi, type AdminApi } from "../domain/admin-api.js";
 import { AdminUserDetailView } from "./AdminUserDetailView.jsx";
+import { AdminPlatformView } from "./AdminPlatformView.jsx";
 import { AdminUsersView } from "./AdminUsersView.jsx";
 
-function readUserParam(): string {
+type AdminRoute = { view: "accounts" | "platform"; userId: string };
+
+function readRoute(): AdminRoute {
   try {
-    return `${new URLSearchParams(globalThis.location?.search || "").get("user") || ""}`.trim();
+    const params = new URLSearchParams(globalThis.location?.search || "");
+    if (params.get("view") === "platform") return { view: "platform", userId: "" };
+    return { view: "accounts", userId: `${params.get("user") || ""}`.trim() };
   } catch {
-    return "";
+    return { view: "accounts", userId: "" };
   }
+}
+
+function routeUrl(route: AdminRoute): string {
+  if (route.view === "platform") return "?view=platform";
+  if (route.userId) return `?user=${encodeURIComponent(route.userId)}`;
+  return globalThis.location?.pathname || "./admin.html";
 }
 
 export function AdminApp({
@@ -27,22 +39,23 @@ export function AdminApp({
   afterLogout?: () => void;
 }) {
   const currentUserId = session.user?.user_id || "";
-  const [userId, setUserId] = useState(readUserParam);
+  const [route, setRoute] = useState(readRoute);
+  const { view, userId } = route;
   const [refreshKey, setRefreshKey] = useState(0);
   const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => {
-    const onPop = () => setUserId(readUserParam());
+    const onPop = () => setRoute(readRoute());
     globalThis.addEventListener?.("popstate", onPop);
     return () => globalThis.removeEventListener?.("popstate", onPop);
   }, []);
 
-  const openUser = useCallback((next: string) => {
-    setUserId(next);
-    const url = next ? `?user=${encodeURIComponent(next)}` : (globalThis.location?.pathname || "./admin.html");
-    globalThis.history?.pushState?.(null, "", url);
+  const navigate = useCallback((next: AdminRoute) => {
+    setRoute(next);
+    globalThis.history?.pushState?.(null, "", routeUrl(next));
     globalThis.scrollTo?.(0, 0);
   }, []);
+  const openUser = useCallback((next: string) => navigate({ view: "accounts", userId: next }), [navigate]);
 
   return (
     <div className="admin-app" data-admin-app="true">
@@ -52,7 +65,8 @@ export function AdminApp({
           <span>RetainPDF 管理后台</span>
         </div>
         <nav className="admin-nav" aria-label="管理后台">
-          <button type="button" className="admin-nav-item" aria-current="page" onClick={() => openUser("")}>账号</button>
+          <button type="button" className="admin-nav-item" data-admin-nav="accounts" aria-current={view === "accounts" ? "page" : undefined} onClick={() => openUser("")}>账号</button>
+          <button type="button" className="admin-nav-item" data-admin-nav="platform" aria-current={view === "platform" ? "page" : undefined} onClick={() => navigate({ view: "platform", userId: "" })}>平台设置</button>
         </nav>
         <div className="admin-sidebar-foot">
           <p className="admin-sub">当前：{session.user?.username || "—"}</p>
@@ -75,10 +89,11 @@ export function AdminApp({
         </div>
       </aside>
       <main className="admin-main">
-        <div hidden={Boolean(userId)}>
+        <div hidden={view !== "accounts" || Boolean(userId)}>
           <AdminUsersView api={api} currentUserId={currentUserId} onOpenUser={openUser} refreshKey={refreshKey} />
         </div>
-        {userId ? (
+        {view === "platform" ? <AdminPlatformView /> : null}
+        {view === "accounts" && userId ? (
           <AdminUserDetailView
             api={api}
             userId={userId}

@@ -118,6 +118,10 @@
       "types": "./dist/auth.d.ts",
       "import": "./dist/auth.js"
     },
+    "./admin-platform": {
+      "types": "./dist/admin-platform.d.ts",
+      "import": "./dist/admin-platform.js"
+    },
     "./usage": {
       "types": "./dist/usage.d.ts",
       "import": "./dist/usage.js"

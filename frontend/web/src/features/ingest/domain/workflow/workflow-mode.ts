@@ -4,6 +4,7 @@
 // 所有读取都经注入的 getter（developerConfigWithDefaults / getUploadState /
 // 凭据状态），不直接触碰 DOM 或全局状态。
 
+import { getApiAuthMode } from "@retainpdf/api/http";
 import { isOfficialDeepSeekBaseUrl } from "@/platform/config/providers.js";
 import {
   workflowHeadline as resolveWorkflowHeadline,
@@ -117,8 +118,13 @@ export function createWorkflowModeController({
     });
   }
 
+  // 多用户模式下模型和 OCR 由平台统一配（服务器上），浏览器里没有、也不需要 Key：
+  // 按钮、提示条、提交前检查都当凭据已就绪（和 actions/submit/readiness.ts 一致），也不查本机 DeepSeek 余额。
+  const multiUser = () => getApiAuthMode() === "multi";
+  const credentialsReady = () => multiUser() || Boolean(hasBrowserCredentials?.());
+
   function currentBudgetState(workflow = currentWorkflow()) {
-    if (isOcrOnlyMode()) {
+    if (isOcrOnlyMode() || multiUser()) {
       return { visible: false, blocking: false, tone: "", message: "", topUpUrl: "" };
     }
     const developerConfig = getDeveloperConfig() || {};
@@ -145,14 +151,13 @@ export function createWorkflowModeController({
     const workflow = isOcrOnlyMode() ? WORKFLOW_OCR : currentWorkflow();
     const uploadState = getUploadState();
     const budget = currentBudgetState(workflow);
-    const hasCreds = hasBrowserCredentials?.();
     const submitState = resolveSubmitControlState({
       workflow,
       isMock: configPort.isMock(),
       desktopMode: isDesktopMode(),
       uploadId: uploadState.uploadId,
       renderSourceJobId: currentRenderSourceJobId(),
-      hasBrowserCredentials: Boolean(hasCreds),
+      hasBrowserCredentials: credentialsReady(),
       budgetBlocking: Boolean(budget.blocking),
       workflowNeedsUpload,
       workflowNeedsCredentials,
@@ -175,7 +180,7 @@ export function createWorkflowModeController({
     updateCredentialGatePort?.({
       workflowNeedsCredentials: () => workflowNeedsCredentials(workflow),
       workflowNeedsUpload: () => workflowNeedsUpload(workflow),
-      hasCredentials: () => Boolean(hasBrowserCredentials?.()),
+      hasCredentials: credentialsReady,
       refreshSubmitControls,
     });
   }

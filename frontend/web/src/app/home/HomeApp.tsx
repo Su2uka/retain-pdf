@@ -211,8 +211,8 @@ function SettingsDialogSlot() {
     <SettingsDialog
       dialogStore={settingsHub.dialogStore}
       onOpenGlossaries={() => glossaries.dialogStore.open()}
-      onPrepareCredentialPanels={(options) => credentials?.feature?.prepareCredentialsPanels?.(options)}
-      credentialsWorkbenchSlot={<CredentialsWorkbench />}
+      onPrepareCredentialPanels={(options) => (multi ? undefined : credentials?.feature?.prepareCredentialsPanels?.(options))}
+      credentialsWorkbenchSlot={multi ? <AdminConsoleEntry section="platform" /> : <CredentialsWorkbench />}
       apiPaneSetupHintSlot={
         <p id={CREDENTIAL_DOM_IDS.browser.subtitle} className="muted">先配好接口再开始</p>
       }
