@@ -88,11 +88,11 @@ async fn list_searches_filters_sorts_and_pages_without_breaking_the_old_call() {
     assert_eq!(usernames(&all), old_order);
     assert_eq!(all["data"]["total"], 4);
 
-    let search = get(&state, &admin, "/api/v1/admin/users?q=AL").await;
+    let search = get(&state, &admin, "/api/v1/admin/users?q=AL&sort=username").await;
     assert_eq!(
         usernames(&search),
         vec!["albert", "alice"],
-        "同一秒建的按用户名排"
+        "按用户名排，不依赖建号是不是同一秒"
     );
     let admins = get(&state, &admin, "/api/v1/admin/users?role=admin").await;
     assert_eq!(usernames(&admins), vec!["root"]);
