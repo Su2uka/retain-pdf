@@ -1,5 +1,5 @@
 repo=https://github.com/wxyhgk/retain-pdf-rendering.git
-ref=main
-commit=60a2c0067a89b307fe595ffc7415ed5cbbff7afc
-synced_at=2026-10-09T05:51:47Z
+ref=81a609590964d41d88339851f9bfefe0cc6ec646
+commit=81a609590964d41d88339851f9bfefe0cc6ec646
+synced_at=2026-10-12T15:43:21Z
 paths=bin/rpr-retain.js bin/rpr-fit.js bin/rpr-layout-pdf.js src data/fonts package.json LICENSE
