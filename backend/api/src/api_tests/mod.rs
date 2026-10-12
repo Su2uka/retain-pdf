@@ -1,6 +1,7 @@
 mod accounts;
 mod admin_platform;
 mod admin_users;
+mod invites;
 mod agent_calculations;
 mod agent_capabilities;
 mod agent_runtime_sessions;
