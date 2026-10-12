@@ -373,3 +373,140 @@ fn anthropic_messages_url_accepts_the_sdk_style_base_url() {
         assert_eq!(anthropic_messages_url(base), expected, "{base}");
     }
 }
+
+/// 服务商根本没回 HTTP 响应时（连不上 / 超时 / 连接中途断开），提示不能把锅扣给 Key：
+/// 以前没匹配上几个关键词就报「翻译 API Key 校验失败」，开发环境里就撞到过一次——
+/// 同一个 Key 直接调 Anthropic 是好的。
+#[tokio::test]
+async fn transport_failures_never_blame_the_api_key() {
+    use super::deepseek::validate_deepseek_token_view;
+    use super::types::DeepSeekTokenValidationRequest;
+    use crate::config::DeepSeekRuntimeConfig;
+    use tokio::io::AsyncReadExt;
+
+    async fn probe(base_url: String) -> super::types::MineruTokenValidationView {
+        validate_deepseek_token_view(
+            DeepSeekTokenValidationRequest {
+                api_key: "sk-test".into(),
+                base_url,
+                model: "claude-opus-5-5".into(),
+                api_protocol: "anthropic".into(),
+            },
+            DeepSeekRuntimeConfig {
+                default_base_url: "https://api.deepseek.com/v1".into(),
+                balance_url: String::new(),
+                probe_timeout_secs: 1,
+                allow_private_urls: true,
+            },
+        )
+        .await
+        .unwrap()
+    }
+
+    // 连不上：端口上没人。
+    let closed = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let closed_addr = closed.local_addr().unwrap();
+    drop(closed);
+    // 超时：收下连接，一直不回。
+    let silent = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let silent_addr = silent.local_addr().unwrap();
+    tokio::spawn(async move {
+        let mut held = Vec::new();
+        while let Ok((socket, _)) = silent.accept().await {
+            held.push(socket);
+        }
+    });
+    // 中途断开：读完请求就关连接，不回任何东西。
+    let hangup = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let hangup_addr = hangup.local_addr().unwrap();
+    tokio::spawn(async move {
+        while let Ok((mut socket, _)) = hangup.accept().await {
+            let mut buf = [0u8; 4096];
+            let _ = socket.read(&mut buf).await;
+            drop(socket);
+        }
+    });
+
+    for (addr, expected) in [
+        (closed_addr, "连不上翻译 API"),
+        (silent_addr, "超时"),
+        (hangup_addr, "中途失败"),
+    ] {
+        let view = probe(format!("http://{addr}/v1")).await;
+        assert!(!view.ok);
+        assert_eq!(view.status, "network_error", "{expected}: {}", view.summary);
+        assert!(view.summary.contains(expected), "{expected}: {}", view.summary);
+        assert!(!view.summary.contains("Key"), "不能怪 Key：{}", view.summary);
+        assert!(view.operator_hint.as_deref().unwrap_or_default().contains("和 Key 无关"));
+        assert!(view.retryable);
+    }
+}
+
+async fn probe_anthropic(base_url: String, api_key: &str, model: &str) -> super::types::MineruTokenValidationView {
+    super::deepseek::validate_deepseek_token_view(
+        super::types::DeepSeekTokenValidationRequest {
+            api_key: api_key.into(),
+            base_url,
+            model: model.into(),
+            api_protocol: "anthropic".into(),
+        },
+        crate::config::DeepSeekRuntimeConfig {
+            default_base_url: "https://api.deepseek.com/v1".into(),
+            balance_url: String::new(),
+            probe_timeout_secs: 5,
+            allow_private_urls: true,
+        },
+    )
+    .await
+    .unwrap()
+}
+
+/// Key 里混进换行这种放不进请求头的字符：直说是 Key 的问题，不能说成地址不对、更不能说「和 Key 无关」。
+#[tokio::test]
+async fn api_key_with_a_newline_is_blamed_on_the_key() {
+    let view = probe_anthropic("http://127.0.0.1:9/v1".into(), "sk-ant-abc\ndef", "claude-opus-5-5").await;
+    assert!(!view.ok);
+    assert_eq!(view.status, "invalid_input");
+    assert!(view.summary.contains("API Key"), "{}", view.summary);
+    assert!(!view.retryable);
+}
+
+/// 不填模型时只查模型列表：Anthropic 也要按同一套地址规则补 /v1，不然官方写法会 404。
+#[tokio::test]
+async fn anthropic_models_probe_uses_the_same_v1_rule() {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    let server = tokio::spawn(async move {
+        let (mut socket, _) = listener.accept().await.unwrap();
+        let mut buf = vec![0u8; 8192];
+        let n = socket.read(&mut buf).await.unwrap();
+        let request_line = String::from_utf8_lossy(&buf[..n]).lines().next().unwrap_or_default().to_string();
+        let body = r#"{"data":[{"id":"claude-opus-5-5"}]}"#;
+        let reply = format!(
+            "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{body}",
+            body.len()
+        );
+        socket.write_all(reply.as_bytes()).await.unwrap();
+        request_line
+    });
+    let view = probe_anthropic(format!("http://{addr}"), "sk-ant-test", "").await;
+    assert_eq!(server.await.unwrap(), "GET /v1/models HTTP/1.1");
+    assert!(view.ok, "{} {}", view.status, view.summary);
+}
+
+/// MinerU 回 401 / 403 却没带错误码：就是 Token 不对，不该让人「稍后重试」。
+#[test]
+fn classify_probe_error_maps_bare_http_401_to_unauthorized() {
+    for text in ["MinerU HTTP 401: Unauthorized", "MinerU HTTP 403: forbidden"] {
+        let view = classify_probe_error(
+            text.to_string(),
+            "https://mineru.net".to_string(),
+            "2026-04-06T00:00:00Z".to_string(),
+        );
+        assert_eq!(view.status, "unauthorized", "{text}");
+        assert_eq!(view.summary, "MinerU Token 无效");
+        assert!(!view.retryable);
+    }
+}

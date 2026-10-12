@@ -350,8 +350,24 @@ def responses_usage(data: dict[str, Any]) -> dict[str, Any] | None:
     return mapped
 
 
+# 服务商拒 temperature 时的说法，比如 OpenAI「'temperature' is not supported with this model」
+# 「Only the default (1) value is supported」、Anthropic「`temperature` is deprecated for this model」。
+_TEMPERATURE_REJECTION_WORDS = (
+    "deprecat",
+    "unsupported",
+    "not supported",
+    "does not support",
+    "not allowed",
+    "only the default",
+    "cannot",
+)
+
+
 def looks_like_temperature_rejection(response_text: str) -> bool:
-    return "temperature" in (response_text or "").lower()
+    """光出现 temperature 这个词不算（比如网关把支持的参数列一遍）：误判一次，这个模型在进程里就再也不带
+    temperature 了。要同时有「不支持 / 已弃用」这类拒绝的说法。"""
+    text = (response_text or "").lower()
+    return "temperature" in text and any(word in text for word in _TEMPERATURE_REJECTION_WORDS)
 
 
 # ---------------------------------------------------------------------------
@@ -363,7 +379,7 @@ def anthropic_normalize_base_url(base_url: str) -> str:
     """地址填到 ``/v1`` 为止；也认官方 SDK 的写法（不带 ``/v1``，如 ``https://api.anthropic.com``，
     兼容服务的 ``https://x.example.com/anthropic`` 同理），以及误填的完整 ``/v1/messages``。
     以前不带 ``/v1`` 时会请求到 ``…/messages``，Anthropic 回 404。"""
-    normalized = (base_url or DEFAULT_ANTHROPIC_BASE_URL).strip().rstrip("/")
+    normalized = ((base_url or "").strip() or DEFAULT_ANTHROPIC_BASE_URL).rstrip("/")
     if normalized.endswith("/messages"):
         normalized = normalized[: -len("/messages")]
     if not normalized.endswith("/v1"):

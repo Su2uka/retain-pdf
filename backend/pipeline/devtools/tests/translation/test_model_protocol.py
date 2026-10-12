@@ -2,6 +2,7 @@
 from unittest import mock
 
 import pytest
+import requests
 
 from retainpdf_pipeline.translate.llm.providers.deepseek import client
 from retainpdf_pipeline.translate.llm.shared import model_wire
@@ -106,6 +107,44 @@ def test_anthropic_temperature_rejection_retries_without_it_and_remembers(thinki
     assert "temperature" not in session.post.call_args.kwargs["json"]
 
 
+def test_a_400_that_merely_mentions_temperature_is_not_a_rejection():
+    # 比如网关把支持的参数列一遍：不是在拒 temperature，不重试、也不能记住——否则这个模型就永远不带了。
+    other = _response(400, text='{"error":{"message":"max_tokens too large; allowed: temperature, top_p, max_tokens"}}')
+    with pytest.raises(requests.HTTPError):
+        _anthropic_call([other], thinking="off")
+    assert not model_wire.temperature_rejected(base_url="https://api.anthropic.com/v1", model="claude-opus-5-5")
+
+
+def test_temperature_is_remembered_only_after_the_retry_succeeds():
+    rejected = _response(400, text=ANTHROPIC_TEMPERATURE_REJECTED)
+    still_bad = _response(400, text='{"error":{"message":"messages: at least one message is required"}}')
+    with pytest.raises(requests.HTTPError):
+        _anthropic_call([rejected, still_bad], thinking="off")
+    assert not model_wire.temperature_rejected(base_url="https://api.anthropic.com/v1", model="claude-opus-5-5")
+
+
+def test_temperature_memo_is_per_model():
+    _anthropic_call([_response(400, text=ANTHROPIC_TEMPERATURE_REJECTED), _response(payload=ANTHROPIC_OK)])
+    _, session = _call(
+        [_response(payload=ANTHROPIC_OK)],
+        messages=[{"role": "user", "content": "Translate A"}],
+        api_key="k",
+        model="claude-sonnet-5",
+        base_url="https://api.anthropic.com/v1",
+        protocol="anthropic",
+        thinking="off",
+    )
+    assert session.post.call_args.kwargs["json"]["temperature"] == 0.2
+
+
+@pytest.mark.parametrize("thinking", ["low", "high"])
+def test_anthropic_never_sends_temperature_with_thinking(thinking):
+    _, session = _anthropic_call([_response(payload=ANTHROPIC_OK)], thinking=thinking)
+    body = session.post.call_args.kwargs["json"]
+    assert "thinking" in body or "output_config" in body
+    assert "temperature" not in body
+
+
 @pytest.mark.parametrize(
     "base",
     [
@@ -113,6 +152,7 @@ def test_anthropic_temperature_rejection_retries_without_it_and_remembers(thinki
         "https://api.anthropic.com/",
         "https://api.anthropic.com/v1",
         "https://api.anthropic.com/v1/messages",
+        "   ",
     ],
 )
 def test_anthropic_accepts_the_sdk_style_base_url(base):
