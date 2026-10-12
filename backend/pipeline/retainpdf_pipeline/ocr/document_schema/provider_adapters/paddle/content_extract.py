@@ -16,6 +16,9 @@ from retainpdf_pipeline.ocr.document_schema.protected_formula_tokens import (
 APPROX_TEXT_CHAR_WIDTH_PT = 5.2
 MIN_PSEUDO_LINE_PITCH_PT = 11.0
 TARGET_PSEUDO_LINE_PITCH_PT = 12.0
+# Paddle 的版面解析只给块、不给行。正好两行的正文段落高 22～24pt；以前要 2.2 倍最小行距（24.2pt）
+# 才估行数，两行段落全被当成一行，rpr_fit 引擎按「原文单行、不换行」排，字被缩到 4.8pt。
+TWO_LINE_MIN_HEIGHT_PITCHES = 1.8
 PSEUDO_TEXT_HEIGHT_SLACK_RATIO = 1.08
 BODYLIKE_SUBTYPES = {"body", "heading"}
 DOLLAR_MATH_RE = re.compile(
@@ -176,12 +179,17 @@ def _pseudo_line_count(*, bbox: list[float], text: str) -> int:
     text_len = _compact_text_len(text)
     if width_pt <= 0 or height_pt <= 0 or text_len < 72:
         return 0
-    if height_pt < MIN_PSEUDO_LINE_PITCH_PT * 2.2:
+    if height_pt < MIN_PSEUDO_LINE_PITCH_PT * TWO_LINE_MIN_HEIGHT_PITCHES:
         return 0
 
     chars_per_line = _estimated_chars_per_line(width_pt)
+    fits_on_one_line = text_len <= chars_per_line
+    if height_pt < MIN_PSEUDO_LINE_PITCH_PT * 2.2 and fits_on_one_line:
+        # 只有两行左右高、文字又一行放得下：多半是字号大的单行（标题之类），不拆。
+        return 0
     predicted_by_width = max(2, math.ceil(text_len / max(1, chars_per_line)))
-    max_lines_by_height = max(1, int(height_pt / MIN_PSEUDO_LINE_PITCH_PT))
+    # 走到这里时文字一行放不下（或块高已超过 2.2 倍行距），至少是两行。
+    max_lines_by_height = max(2, int(height_pt / MIN_PSEUDO_LINE_PITCH_PT))
     desired_by_height = max(2, round(height_pt / TARGET_PSEUDO_LINE_PITCH_PT))
     return min(max_lines_by_height, max(predicted_by_width, desired_by_height))
 
