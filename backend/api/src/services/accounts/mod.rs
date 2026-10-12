@@ -1,7 +1,7 @@
 //! 账号、登录、会话（多用户模式）。
 //!
-//! 不开放注册：管理员建账号，系统生成初始密码交给用户；用户名 + 密码登录，浏览器拿一个只有服务器能读
-//! 的会话 Cookie。密码存 Argon2id 哈希；会话令牌只存 sha256。单机模式下没有这些，所有请求都是固定的
+//! 不开放自由注册：管理员建账号（系统生成初始密码交给用户），或者发邀请码让对方自己注册（见
+//! invites.rs）；用户名 + 密码登录，浏览器拿一个只有服务器能读的会话 Cookie。密码存 Argon2id 哈希；会话令牌只存 sha256。单机模式下没有这些，所有请求都是固定的
 //! 本机用户（见 [`Principal::local`]）。
 
 use std::sync::Arc;
@@ -24,6 +24,7 @@ pub(crate) mod access;
 pub(crate) mod admin;
 pub(crate) mod api;
 mod console;
+mod invites;
 
 pub const SESSION_COOKIE: &str = "retain_session";
 const LOCK_AFTER_FAILURES: i64 = 5;
@@ -400,6 +401,12 @@ impl AccountsService {
         if user.status != "active" {
             return Err(AppError::account(StatusCode::FORBIDDEN, "ACCOUNT_DISABLED", "账号已停用，请联系管理员", json!({})));
         }
+        self.start_session(user)
+    }
+
+    /// 密码已经核对过（或刚凭邀请码注册）：记一次登录，发会话令牌。
+    pub(super) fn start_session(&self, user: UserRecord) -> Result<LoginOutcome, AppError> {
+        let now_at = now();
         self.db.record_login_success(&user.user_id, &now_at).map_err(db_error)?;
         let token = new_session_token();
         let max_age_secs = i64::from(self.config.session_ttl_days) * 86_400;

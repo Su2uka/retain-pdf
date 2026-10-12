@@ -51,7 +51,7 @@ pub(super) async fn send(
     build_app(state.clone()).oneshot(builder.body(body).unwrap()).await.unwrap()
 }
 
-fn session_cookie(response: &Response) -> String {
+pub(super) fn session_cookie(response: &Response) -> String {
     let raw = response.headers().get(header::SET_COOKIE).expect("set-cookie").to_str().unwrap();
     assert!(raw.contains("HttpOnly") && raw.contains("SameSite=Lax"), "{raw}");
     raw.split(';').next().unwrap().trim_start_matches("retain_session=").to_string()

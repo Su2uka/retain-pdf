@@ -115,6 +115,8 @@ fn event_uid_is_backfilled_for_legacy_schema_and_migrations_are_idempotent() {
          ALTER TABLE glossaries DROP COLUMN owner_user_id;
          ALTER TABLE collections DROP COLUMN owner_user_id;
          ALTER TABLE users DROP COLUMN deleted_at;
+         DROP INDEX users_by_invite;
+         ALTER TABLE users DROP COLUMN invite_id;
          PRAGMA user_version = 13;",
     )
     .unwrap();

@@ -136,6 +136,11 @@ pub(super) const MIGRATIONS: &[Migration] = &[
         name: "platform_settings",
         sql: include_str!("v25_platform_settings.sql"),
     },
+    Migration {
+        version: 26,
+        name: "invite_codes",
+        sql: include_str!("v26_invite_codes.sql"),
+    },
 ];
 
 #[cfg(test)]

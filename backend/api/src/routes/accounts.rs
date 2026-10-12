@@ -1,4 +1,4 @@
-//! 账号：会话状态、登录、退出、改密码（/api/v1/auth/*）、自己的页数额度（/api/v1/account/pages），
+//! 账号：会话状态、登录、邀请码注册、退出、改密码（/api/v1/auth/*）、自己的页数额度（/api/v1/account/pages），
 //! 以及管理员的账号管理和发放额度（/api/v1/admin/users*）。
 //! 单机模式下只有 /auth/session 有意义（永远是本机用户），其余返回 404。
 
@@ -85,6 +85,34 @@ pub async fn login_route(State(state): State<AppState>, ApiJson(input): ApiJson<
     let outcome = tokio::task::spawn_blocking(move || service.login(&input.username, &input.password))
         .await
         .map_err(|_| AppError::internal("login task failed"))??;
+    let mut response = Json(ApiResponse::ok(json!({ "user": account_view(&outcome.user) }))).into_response();
+    response
+        .headers_mut()
+        .insert(header::SET_COOKIE, session_cookie_header(&accounts, &outcome.token, outcome.max_age_secs));
+    Ok(response)
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RegisterInput {
+    pub invite_code: String,
+    pub username: String,
+    pub password: String,
+}
+
+/// POST /api/v1/auth/register（不需要登录）：凭邀请码注册普通账号，成功后和登录一样写会话 Cookie。
+pub async fn register_route(
+    State(state): State<AppState>,
+    ApiJson(input): ApiJson<RegisterInput>,
+) -> Result<Response, AppError> {
+    let accounts = build_accounts_route_deps(&state);
+    require_multi(&accounts)?;
+    let service = accounts.clone();
+    let outcome = tokio::task::spawn_blocking(move || {
+        service.register(&input.invite_code, &input.username, &input.password)
+    })
+    .await
+    .map_err(|_| AppError::internal("register task failed"))??;
     let mut response = Json(ApiResponse::ok(json!({ "user": account_view(&outcome.user) }))).into_response();
     response
         .headers_mut()

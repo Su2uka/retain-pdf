@@ -1,4 +1,5 @@
 pub mod accounts;
+pub mod admin_invites;
 pub mod admin_platform;
 pub mod admin_users;
 pub mod agent_calculations;

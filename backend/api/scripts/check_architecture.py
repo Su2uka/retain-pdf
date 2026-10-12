@@ -274,6 +274,9 @@ ROUTE_SERVICE_IMPORT_ALLOWLIST = {
     Path("src/routes/admin_users.rs"): (
         "crate::services::accounts::api::",
     ),
+    Path("src/routes/admin_invites.rs"): (
+        "crate::services::accounts::api::",
+    ),
     Path("src/routes/admin_platform.rs"): (
         "crate::services::accounts::api::",
         "crate::services::platform_settings::api::",
