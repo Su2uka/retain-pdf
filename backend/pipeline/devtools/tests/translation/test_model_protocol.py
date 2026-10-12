@@ -72,6 +72,62 @@ def test_anthropic_protocol_uses_messages_api():
     assert "thinking" not in body
 
 
+# claude-opus-5-5 原话（真实请求拿到的）：思考深度为「默认 / 关闭」时会带 temperature，被拒 400。
+ANTHROPIC_TEMPERATURE_REJECTED = (
+    '{"type":"error","error":{"type":"invalid_request_error",'
+    '"message":"`temperature` is deprecated for this model."}}'
+)
+
+
+def _anthropic_call(responses, *, thinking="auto", base_url="https://api.anthropic.com/v1"):
+    return _call(
+        responses,
+        messages=[{"role": "user", "content": "Translate A"}],
+        api_key="k",
+        model="claude-opus-5-5",
+        base_url=base_url,
+        protocol="anthropic",
+        thinking=thinking,
+    )
+
+
+@pytest.mark.parametrize("thinking", ["auto", "off"])
+def test_anthropic_temperature_rejection_retries_without_it_and_remembers(thinking):
+    rejected = _response(400, text=ANTHROPIC_TEMPERATURE_REJECTED)
+    content, session = _anthropic_call([rejected, _response(payload=ANTHROPIC_OK)], thinking=thinking)
+    assert content == "译文"
+    first, second = (call.kwargs["json"] for call in session.post.call_args_list)
+    assert first["temperature"] == 0.2
+    assert "temperature" not in second
+    # 记住了：同一个模型的下一次请求一开始就不带，不再先挨一次 400。
+    content, session = _anthropic_call([_response(payload=ANTHROPIC_OK)], thinking=thinking)
+    assert content == "译文"
+    assert session.post.call_count == 1
+    assert "temperature" not in session.post.call_args.kwargs["json"]
+
+
+@pytest.mark.parametrize(
+    "base",
+    [
+        "https://api.anthropic.com",
+        "https://api.anthropic.com/",
+        "https://api.anthropic.com/v1",
+        "https://api.anthropic.com/v1/messages",
+    ],
+)
+def test_anthropic_accepts_the_sdk_style_base_url(base):
+    # 官方 SDK 的地址不带 /v1；以前会请求到 https://api.anthropic.com/messages，回 404。
+    _, session = _anthropic_call([_response(payload=ANTHROPIC_OK)], base_url=base)
+    assert session.post.call_args.args[0] == "https://api.anthropic.com/v1/messages"
+
+
+def test_anthropic_compatible_proxy_follows_the_sdk_convention():
+    assert (
+        model_wire.anthropic_messages_url("https://proxy.example.com/anthropic")
+        == "https://proxy.example.com/anthropic/v1/messages"
+    )
+
+
 def test_anthropic_usage_is_recorded_in_openai_shape():
     diagnostics = mock.Mock()
     diagnostics.record_request_start.return_value = 1

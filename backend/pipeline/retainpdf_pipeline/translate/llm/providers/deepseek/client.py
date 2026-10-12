@@ -334,8 +334,9 @@ def request_chat_content(
             usage, model=model, base_url=base_url, protocol=profile.protocol, request_label=request_label
         )
 
-    # Responses 下推理模型可能整个不认 temperature：被 400 拒一次后就不再带。
-    send_temperature = True
+    # 推理模型（Responses）和新的 Claude（Anthropic）可能整个不认 temperature：被 400 拒一次后就不再带，
+    # 并且记住这个模型，后面的请求一开始就不带。
+    send_temperature = not model_wire.temperature_rejected(base_url=base_url, model=model)
 
     def build_body() -> dict[str, Any]:
         thinking_fields = thinking_candidates[thinking_index]
@@ -351,7 +352,7 @@ def request_chat_content(
             return model_wire.anthropic_body(
                 model=model,
                 messages=messages,
-                temperature=temperature,
+                temperature=temperature if send_temperature else None,
                 response_format=response_format,
                 thinking_fields=thinking_fields,
             )
@@ -509,12 +510,13 @@ def request_chat_content(
             )
             if (
                 rejected_400
-                and responses
+                and (responses or anthropic)
                 and send_temperature
                 and "temperature" in body
                 and model_wire.looks_like_temperature_rejection(str(exc))
             ):
                 send_temperature = False
+                model_wire.remember_temperature_rejected(base_url=base_url, model=model)
                 body = build_body()
                 if request_label:
                     print(f"{request_label}: temperature rejected after 400, retrying without it", flush=True)

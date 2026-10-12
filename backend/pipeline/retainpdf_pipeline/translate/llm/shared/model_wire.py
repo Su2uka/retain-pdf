@@ -66,6 +66,9 @@ class ConnectionProfile:
 
 _PROFILES_LOCK = threading.Lock()
 _PROFILES: dict[tuple[str, str], ConnectionProfile] = {}
+# 服务商明确拒过 temperature 的 (base_url, model)：记下来，后面的请求一开始就不带，
+# 不然一本书几百个请求每个都要先挨一次 400 再重试。
+_TEMPERATURE_REJECTED: set[tuple[str, str]] = set()
 
 
 def _profile_key(base_url: str, model: str) -> tuple[str, str]:
@@ -111,6 +114,17 @@ def register_stage_connections(
 def clear_registered_connections() -> None:
     with _PROFILES_LOCK:
         _PROFILES.clear()
+        _TEMPERATURE_REJECTED.clear()
+
+
+def temperature_rejected(*, base_url: str, model: str) -> bool:
+    with _PROFILES_LOCK:
+        return _profile_key(base_url, model) in _TEMPERATURE_REJECTED
+
+
+def remember_temperature_rejected(*, base_url: str, model: str) -> None:
+    with _PROFILES_LOCK:
+        _TEMPERATURE_REJECTED.add(_profile_key(base_url, model))
 
 
 def resolve_profile(*, base_url: str, model: str, protocol: Any = None, thinking: Any = None) -> ConnectionProfile:
@@ -346,9 +360,14 @@ def looks_like_temperature_rejection(response_text: str) -> bool:
 
 
 def anthropic_normalize_base_url(base_url: str) -> str:
+    """地址填到 ``/v1`` 为止；也认官方 SDK 的写法（不带 ``/v1``，如 ``https://api.anthropic.com``，
+    兼容服务的 ``https://x.example.com/anthropic`` 同理），以及误填的完整 ``/v1/messages``。
+    以前不带 ``/v1`` 时会请求到 ``…/messages``，Anthropic 回 404。"""
     normalized = (base_url or DEFAULT_ANTHROPIC_BASE_URL).strip().rstrip("/")
     if normalized.endswith("/messages"):
         normalized = normalized[: -len("/messages")]
+    if not normalized.endswith("/v1"):
+        normalized = f"{normalized}/v1"
     return normalized
 
 
@@ -396,7 +415,7 @@ def anthropic_body(
     *,
     model: str,
     messages: list[dict[str, Any]],
-    temperature: float,
+    temperature: float | None,
     response_format: dict[str, Any] | None,
     thinking_fields: dict[str, Any],
 ) -> dict[str, Any]:
@@ -405,7 +424,8 @@ def anthropic_body(
     - system 消息合并到顶层 ``system``；结构化输出改成 system 里的一句要求（返回的 JSON 由
       调用方照常解析，和 OpenAI 协议下 json_object 模式一样）。
     - 相邻同角色消息合并（Messages API 要求 user / assistant 交替、且以 user 开头）。
-    - 开思考时不传 temperature（Anthropic 要求思考时用默认温度）。
+    - 开思考时不传 temperature（Anthropic 要求思考时用默认温度）。``temperature=None`` 表示调用方
+      因为服务商拒绝而去掉了它（新模型如 claude-opus-5-5 已不再接受 temperature）。
     """
     system_parts: list[str] = []
     turns: list[dict[str, str]] = []
@@ -437,7 +457,7 @@ def anthropic_body(
         body["system"] = "\n\n".join(system_parts)
     if thinking_fields:
         body.update(thinking_fields)
-    else:
+    elif temperature is not None:
         body["temperature"] = max(0.0, min(1.0, float(temperature)))
     return body
 

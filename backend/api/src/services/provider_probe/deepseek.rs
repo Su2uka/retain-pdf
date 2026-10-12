@@ -63,7 +63,7 @@ pub(crate) async fn validate_deepseek_token_view(
 
     // Anthropic Messages API:`/messages` + x-api-key,max_tokens 必填;其余同 OpenAI 的最小请求。
     let request = if anthropic {
-        let url = format!("{}/messages", base_url.trim_end_matches('/'));
+        let url = anthropic_messages_url(&base_url);
         let body = serde_json::json!({
             "model": model,
             "messages": [{"role": "user", "content": "ping"}],
@@ -298,6 +298,21 @@ pub(super) fn responses_url(base_url: &str) -> String {
         .or_else(|| trimmed.strip_suffix("/chat/completions"))
         .unwrap_or(trimmed);
     format!("{root}/responses")
+}
+
+/// 地址填到 `/v1` 为止；也认官方 SDK 的写法（不带 `/v1`，如 `https://api.anthropic.com`）和误填的
+/// 完整 `/v1/messages`。规则与翻译流水线的 `model_wire.anthropic_normalize_base_url` 一致——两边要是
+/// 不一样，就会出现「检测通过、翻译 404」。
+pub(super) fn anthropic_messages_url(base_url: &str) -> String {
+    let mut base = base_url.trim().trim_end_matches('/');
+    if let Some(stripped) = base.strip_suffix("/messages") {
+        base = stripped;
+    }
+    if base.ends_with("/v1") {
+        format!("{base}/messages")
+    } else {
+        format!("{base}/v1/messages")
+    }
 }
 
 fn anthropic_auth(request: reqwest::RequestBuilder, api_key: &str) -> reqwest::RequestBuilder {
