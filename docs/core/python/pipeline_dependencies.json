@@ -689,6 +689,7 @@
         "devtools/tests/document_schema/test_ocr_retry_error_safety.py",
         "devtools/tests/document_schema/test_paddle_api_retry.py",
         "devtools/tests/translation/test_continuation_member_only.py",
+        "devtools/tests/translation/test_model_protocol.py",
         "devtools/tests/translation/test_rust_executor_client.py",
         "devtools/tests/translation/test_translation_batch_transport.py",
         "devtools/tests/translation/test_translation_run_diagnostics.py",
