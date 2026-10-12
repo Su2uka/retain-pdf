@@ -71,9 +71,11 @@ def _engine_text(item: dict) -> str:
     if not render_text.strip():
         return ""
     markdown = build_item_render_markdown(probe, render_text, list(probe.get("render_formula_map") or []))
+    # seed_render_fields 判定「逐行排」（目录、列表、术语表……）时写的是 _render_preserve_line_breaks；
+    # 以前这里读 preserve_line_breaks（译文条目里没有这个字段），目录整块被压成一段（#133）。
     return markdown_to_engine_text(
         sanitize_typst_markdown_for_compile(markdown),
-        preserve_line_breaks=bool(probe.get("preserve_line_breaks")),
+        preserve_line_breaks=bool(probe.get("_render_preserve_line_breaks")),
     )
 
 

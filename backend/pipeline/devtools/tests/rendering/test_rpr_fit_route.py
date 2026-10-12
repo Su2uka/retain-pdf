@@ -273,3 +273,36 @@ def test_vector_pages_get_no_raster_ink(tmp_path: Path) -> None:
     page = extract_drawings(source_pdf, [0])["0"]
     assert page["raster"] is False
     assert not any(entry.get("synthetic") == "raster-ink" for entry in page["drawings"])
+
+
+def test_table_of_contents_keeps_one_entry_per_line() -> None:
+    """目录逐行排：引擎文本里每个条目一行，不能被压成一段（#133，Paddle 把整页目录切成一个块）。"""
+    from retainpdf_pipeline.render.output.rpr_fit.renderer import _translation_items
+
+    source_lines = ["1 Introduction 4", "2 Architecture 7", "2.1 Overview ..... 7", "2.1.1 Multimodal Architecture ..... 8"]
+    item = {
+        "item_id": "p001-b001",
+        "page_idx": 0,
+        "block_idx": 1,
+        "block_type": "text",
+        "structure_role": "table_of_contents",
+        "semantic_role": "table_of_contents",
+        "text_flow": "preserve_lines",
+        "source_line_texts": source_lines,
+        "policy_translate": True,
+        "source_text": "\n".join(source_lines),
+        "protected_source_text": "\n".join(source_lines),
+        "translated_text": "1 引言 4\n2 架构 7\n2.1 概述 ..... 7\n2.1.1 多模态架构 ..... 8",
+        "protected_translated_text": "1 引言 4\n2 架构 7\n2.1 概述 ..... 7\n2.1.1 多模态架构 ..... 8",
+        "lines": [
+            {"bbox": [67, 117 + 20 * index, 528, 137 + 20 * index], "spans": [{"type": "text", "content": text}]}
+            for index, text in enumerate(source_lines)
+        ],
+    }
+    [entry] = _translation_items({0: [item]})
+    assert entry["translated_text"].split("\n") == [
+        "1 引言 4",
+        "2 架构 7",
+        "2.1 概述 ..... 7",
+        "2.1.1 多模态架构 ..... 8",
+    ]
