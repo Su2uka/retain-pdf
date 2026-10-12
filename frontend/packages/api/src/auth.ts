@@ -148,6 +148,13 @@ export function login(username: string, password: string, apiPrefix?: string): P
   return request("POST", "auth/login", { username, password }, apiPrefix);
 }
 
+/** 用邀请码注册（不用登录）。成功后和登录一样写好会话 Cookie，返回时已经是登录状态。
+ * 邀请码不分大小写、空格和连字符可有可无，原样提交。失败码：INVITE_INVALID / INVITE_REVOKED /
+ * INVITE_EXPIRED / INVITE_USED_UP / USERNAME_TAKEN / INVALID_USERNAME / WEAK_PASSWORD（message 都是中文）。 */
+export function register(inviteCode: string, username: string, password: string, apiPrefix?: string): Promise<{ user: AuthUser }> {
+  return request("POST", "auth/register", { invite_code: inviteCode, username, password }, apiPrefix);
+}
+
 export function logout(apiPrefix?: string): Promise<unknown> {
   return request("POST", "auth/logout", {}, apiPrefix);
 }
@@ -219,4 +226,62 @@ export function fetchAdminUserPages(userId: string, apiPrefix?: string): Promise
 /** delta 正数发放、负数扣减；note 选填，最多 200 字。 */
 export function adjustAdminUserPages(userId: string, delta: number, note = "", apiPrefix?: string): Promise<{ balance: number }> {
   return request("POST", `admin/users/${encodeURIComponent(userId)}/pages`, { delta, note }, apiPrefix);
+}
+
+// —— 邀请码（多用户模式、管理员）——
+
+/** active 可用 / used_up 用完 / expired 过期 / revoked 已作废。 */
+export type InviteStatus = "active" | "used_up" | "expired" | "revoked";
+
+export type InviteView = {
+  invite_id: string;
+  /** 形如 ABCD-EFGH-JKMN。 */
+  code: string;
+  status: InviteStatus | string;
+  max_uses: number;
+  used_count: number;
+  remaining_uses: number;
+  /** 注册时赠送的页数。 */
+  initial_pages: number;
+  note: string;
+  /** 空串 = 不过期。 */
+  expires_at: string;
+  /** 空串 = 没作废。 */
+  revoked_at: string;
+  created_by: string;
+  created_at: string;
+};
+
+/** 都可以不填：max_uses 1～1000（默认 1）、initial_pages 0～100000（默认 0）、
+ * expires_in_days 1～365（不填不过期）、note 最多 200 字。参数不对 400 INVALID_INVITE_INPUT，details.field 是字段名。 */
+export type CreateInviteInput = {
+  max_uses?: number;
+  initial_pages?: number;
+  expires_in_days?: number;
+  note?: string;
+};
+
+export type InviteDetail = {
+  invite: InviteView;
+  /** 用这个邀请码注册的账号，先注册的在前。 */
+  users: Array<{ user_id: string; username: string; created_at: string; deleted: boolean }>;
+};
+
+/** 新的在前。 */
+export function listInvites(apiPrefix?: string): Promise<{ invites: InviteView[] }> {
+  return request("GET", "admin/invites", undefined, apiPrefix);
+}
+
+export function createInvite(input: CreateInviteInput = {}, apiPrefix?: string): Promise<InviteView> {
+  return request("POST", "admin/invites", input, apiPrefix);
+}
+
+/** 找不到 404 INVITE_NOT_FOUND。 */
+export function fetchInvite(inviteId: string, apiPrefix?: string): Promise<InviteDetail> {
+  return request("GET", `admin/invites/${encodeURIComponent(inviteId)}`, undefined, apiPrefix);
+}
+
+/** 作废后不能再用来注册，已经注册的账号不受影响；重复作废不报错。 */
+export function revokeInvite(inviteId: string, apiPrefix?: string): Promise<InviteView> {
+  return request("POST", `admin/invites/${encodeURIComponent(inviteId)}/revoke`, {}, apiPrefix);
 }

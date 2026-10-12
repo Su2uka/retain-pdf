@@ -202,7 +202,7 @@ export function AdminUsersView({
     <section className="admin-section" data-admin-users="true">
       <header className="admin-section-head">
         <div>
-          <h1>账号</h1>
+          <h1>账号管理</h1>
           <p className="admin-sub">共 {total} 个{status === "deleted" ? "已删除的" : ""}账号。账号由管理员创建，初始密码只显示一次；删除是软删除，可以恢复。</p>
         </div>
         <button type="button" className="auth-primary" data-admin-action="new-user" onClick={() => { setCreating((v) => !v); setCreateError(""); }}>
@@ -221,6 +221,7 @@ export function AdminUsersView({
           </select>
           <button type="submit" className="auth-primary" disabled={createBusy}>{createBusy ? "正在创建…" : "创建"}</button>
           {createError ? <p className="auth-error" role="alert">{createError}</p> : null}
+          <p className="admin-sub admin-create-hint">也可以去「邀请码」页生成邀请码，让对方自己注册。</p>
         </form>
       ) : null}
 
