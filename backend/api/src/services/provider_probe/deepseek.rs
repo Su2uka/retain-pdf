@@ -396,33 +396,33 @@ async fn classify_deepseek_probe_response(
     }
 }
 
+/// 走到这里说明服务商根本没回 HTTP 响应（连不上、超时、连接中途断开、TLS 握手失败……），和 Key
+/// 无关。以前没匹配上几个关键词就兜底报「翻译 API Key 校验失败」，让人去查一个没问题的 Key。
+/// 按 reqwest 自己的错误分类判断，不再猜字符串。
 fn classify_deepseek_probe_transport_error(
     err: reqwest::Error,
     base_url: String,
     checked_at: String,
 ) -> MineruTokenValidationView {
     let error_text = err.to_string();
-    let lowered = error_text.to_lowercase();
-    let (status, summary) = if lowered.contains("timed out")
-        || lowered.contains("timeout")
-        || lowered.contains("failed to resolve")
-        || lowered.contains("dns")
-        || lowered.contains("connection")
-        || lowered.contains("connect")
-    {
-        ("network_error", "翻译 API 连通性校验失败")
+    let (status, summary) = if err.is_builder() {
+        ("invalid_input", "接口地址没法用来发起请求，请检查格式")
+    } else if err.is_timeout() {
+        ("network_error", "连接翻译 API 超时，请稍后重试")
+    } else if err.is_connect() {
+        ("network_error", "连不上翻译 API，请检查接口地址和服务器网络")
     } else {
-        ("provider_error", "翻译 API Key 校验失败")
+        ("network_error", "和翻译 API 的连接中途失败，请稍后重试")
     };
 
     MineruTokenValidationView {
         ok: false,
         status,
         summary: summary.to_string(),
-        retryable: true,
+        retryable: status == "network_error",
         provider_code: None,
-        provider_message: Some(error_text),
-        operator_hint: None,
+        provider_message: Some(error_text.clone()),
+        operator_hint: Some(format!("没有收到服务商的回复，和 Key 无关。底层错误：{error_text}")),
         trace_id: None,
         base_url,
         checked_at,

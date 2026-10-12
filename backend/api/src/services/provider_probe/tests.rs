@@ -373,3 +373,71 @@ fn anthropic_messages_url_accepts_the_sdk_style_base_url() {
         assert_eq!(anthropic_messages_url(base), expected, "{base}");
     }
 }
+
+/// 服务商根本没回 HTTP 响应时（连不上 / 超时 / 连接中途断开），提示不能把锅扣给 Key：
+/// 以前没匹配上几个关键词就报「翻译 API Key 校验失败」，开发环境里就撞到过一次——
+/// 同一个 Key 直接调 Anthropic 是好的。
+#[tokio::test]
+async fn transport_failures_never_blame_the_api_key() {
+    use super::deepseek::validate_deepseek_token_view;
+    use super::types::DeepSeekTokenValidationRequest;
+    use crate::config::DeepSeekRuntimeConfig;
+    use tokio::io::AsyncReadExt;
+
+    async fn probe(base_url: String) -> super::types::MineruTokenValidationView {
+        validate_deepseek_token_view(
+            DeepSeekTokenValidationRequest {
+                api_key: "sk-test".into(),
+                base_url,
+                model: "claude-opus-5-5".into(),
+                api_protocol: "anthropic".into(),
+            },
+            DeepSeekRuntimeConfig {
+                default_base_url: "https://api.deepseek.com/v1".into(),
+                balance_url: String::new(),
+                probe_timeout_secs: 1,
+                allow_private_urls: true,
+            },
+        )
+        .await
+        .unwrap()
+    }
+
+    // 连不上：端口上没人。
+    let closed = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let closed_addr = closed.local_addr().unwrap();
+    drop(closed);
+    // 超时：收下连接，一直不回。
+    let silent = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let silent_addr = silent.local_addr().unwrap();
+    tokio::spawn(async move {
+        let mut held = Vec::new();
+        while let Ok((socket, _)) = silent.accept().await {
+            held.push(socket);
+        }
+    });
+    // 中途断开：读完请求就关连接，不回任何东西。
+    let hangup = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let hangup_addr = hangup.local_addr().unwrap();
+    tokio::spawn(async move {
+        while let Ok((mut socket, _)) = hangup.accept().await {
+            let mut buf = [0u8; 4096];
+            let _ = socket.read(&mut buf).await;
+            drop(socket);
+        }
+    });
+
+    for (addr, expected) in [
+        (closed_addr, "连不上翻译 API"),
+        (silent_addr, "超时"),
+        (hangup_addr, "中途失败"),
+    ] {
+        let view = probe(format!("http://{addr}/v1")).await;
+        assert!(!view.ok);
+        assert_eq!(view.status, "network_error", "{expected}: {}", view.summary);
+        assert!(view.summary.contains(expected), "{expected}: {}", view.summary);
+        assert!(!view.summary.contains("Key"), "不能怪 Key：{}", view.summary);
+        assert!(view.operator_hint.as_deref().unwrap_or_default().contains("和 Key 无关"));
+        assert!(view.retryable);
+    }
+}

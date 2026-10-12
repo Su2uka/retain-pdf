@@ -146,9 +146,10 @@ pub(super) fn classify_probe_error(
         || lowered.contains("dns")
         || lowered.contains("connection")
     {
-        ("network_error", "MinerU 连通性校验失败", true)
+        ("network_error", "连接 MinerU 失败，请检查网络后重试", true)
     } else {
-        ("provider_error", "MinerU Token 校验失败", true)
+        // 没认出服务商的错误码：说不清是不是 Token 的问题，别把锅扣给 Token。
+        ("provider_error", "没能完成 MinerU 校验，请稍后重试", true)
     };
 
     MineruTokenValidationView {
@@ -157,8 +158,8 @@ pub(super) fn classify_probe_error(
         summary: summary.to_string(),
         retryable,
         provider_code,
-        provider_message: provider_message.or(Some(error_text)),
-        operator_hint: None,
+        provider_message: provider_message.or(Some(error_text.clone())),
+        operator_hint: Some(format!("没有拿到能判断 Token 好坏的回复。底层错误：{error_text}")),
         trace_id,
         base_url,
         checked_at,
@@ -206,7 +207,8 @@ pub(super) fn classify_paddle_probe_error(
             OcrErrorCategory::RemoteReadTimeout | OcrErrorCategory::ServiceUnavailable => {
                 "Paddle 连通性校验失败".to_string()
             }
-            _ => "Paddle Access Token 校验失败".to_string(),
+            // 服务商回了错误，但不是鉴权问题：别说成 Token 有问题。
+            _ => "Paddle 返回错误，校验没有通过".to_string(),
         };
         return MineruTokenValidationView {
             ok: false,
@@ -236,9 +238,9 @@ pub(super) fn classify_paddle_probe_error(
         || lowered.contains("dns")
         || lowered.contains("connection")
     {
-        ("network_error", "Paddle 连通性校验失败", true)
+        ("network_error", "连接 Paddle 失败，请检查网络后重试", true)
     } else {
-        ("provider_error", "Paddle Access Token 校验失败", true)
+        ("provider_error", "没能完成 Paddle 校验，请稍后重试", true)
     };
 
     MineruTokenValidationView {
@@ -247,8 +249,8 @@ pub(super) fn classify_paddle_probe_error(
         summary: summary.to_string(),
         retryable,
         provider_code: None,
-        provider_message: Some(error_text),
-        operator_hint: None,
+        provider_message: Some(error_text.clone()),
+        operator_hint: Some(format!("没有拿到能判断 Token 好坏的回复。底层错误：{error_text}")),
         trace_id: None,
         base_url,
         checked_at,
