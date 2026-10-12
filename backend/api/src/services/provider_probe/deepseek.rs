@@ -48,9 +48,29 @@ pub(crate) async fn validate_deepseek_token_view(
         .build()
         .map_err(|err| AppError::internal(format!("build deepseek probe client failed: {err}")))?;
 
+    // Key 里混进换行、全角空格之类放不进请求头的字符时，请求根本发不出去；先拦下来，直说是 Key 的问题。
+    if reqwest::header::HeaderValue::from_str(api_key).is_err() {
+        return Ok(MineruTokenValidationView {
+            ok: false,
+            status: "invalid_input",
+            summary: "API Key 里有换行、全角空格等不能用的字符，请重新复制粘贴".to_string(),
+            retryable: false,
+            provider_code: None,
+            provider_message: None,
+            operator_hint: None,
+            trace_id: None,
+            base_url,
+            checked_at,
+        });
+    }
+
     let model = payload.model.trim();
     if model.is_empty() {
-        let models_url = format!("{}/models", base_url.trim_end_matches('/'));
+        let models_url = if anthropic {
+            format!("{}/models", anthropic_v1_root(&base_url))
+        } else {
+            format!("{}/models", base_url.trim_end_matches('/'))
+        };
         let request = client.get(&models_url);
         let request = if anthropic { anthropic_auth(request, api_key) } else { request.bearer_auth(api_key) };
         let response = request.send().await;
@@ -304,14 +324,19 @@ pub(super) fn responses_url(base_url: &str) -> String {
 /// 完整 `/v1/messages`。规则与翻译流水线的 `model_wire.anthropic_normalize_base_url` 一致——两边要是
 /// 不一样，就会出现「检测通过、翻译 404」。
 pub(super) fn anthropic_messages_url(base_url: &str) -> String {
+    format!("{}/messages", anthropic_v1_root(base_url))
+}
+
+/// 规范到 `…/v1` 为止；`/messages`、`/models` 都接在它后面。
+fn anthropic_v1_root(base_url: &str) -> String {
     let mut base = base_url.trim().trim_end_matches('/');
     if let Some(stripped) = base.strip_suffix("/messages") {
         base = stripped;
     }
     if base.ends_with("/v1") {
-        format!("{base}/messages")
+        base.to_string()
     } else {
-        format!("{base}/v1/messages")
+        format!("{base}/v1")
     }
 }
 
@@ -405,21 +430,34 @@ fn classify_deepseek_probe_transport_error(
     checked_at: String,
 ) -> MineruTokenValidationView {
     let error_text = err.to_string();
-    let (status, summary) = if err.is_builder() {
-        ("invalid_input", "接口地址没法用来发起请求，请检查格式")
-    } else if err.is_timeout() {
-        ("network_error", "连接翻译 API 超时，请稍后重试")
+    if err.is_builder() {
+        // 地址和 Key 都提前校验过，这里几乎走不到；说不清是哪个，就都提一下。
+        return MineruTokenValidationView {
+            ok: false,
+            status: "invalid_input",
+            summary: "请求没法发出，请检查接口地址和 API Key 里有没有多余的字符".to_string(),
+            retryable: false,
+            provider_code: None,
+            provider_message: Some(error_text),
+            operator_hint: None,
+            trace_id: None,
+            base_url,
+            checked_at,
+        };
+    }
+    let summary = if err.is_timeout() {
+        "连接翻译 API 超时，请稍后重试"
     } else if err.is_connect() {
-        ("network_error", "连不上翻译 API，请检查接口地址和服务器网络")
+        "连不上翻译 API，请检查接口地址和服务器网络"
     } else {
-        ("network_error", "和翻译 API 的连接中途失败，请稍后重试")
+        "和翻译 API 的连接中途失败，请稍后重试"
     };
 
     MineruTokenValidationView {
         ok: false,
-        status,
+        status: "network_error",
         summary: summary.to_string(),
-        retryable: status == "network_error",
+        retryable: true,
         provider_code: None,
         provider_message: Some(error_text.clone()),
         operator_hint: Some(format!("没有收到服务商的回复，和 Key 无关。底层错误：{error_text}")),

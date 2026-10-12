@@ -460,6 +460,9 @@ def request_chat_content(
                 data: dict[str, Any] = response.json()
                 _record_usage(data.get("usage"))
                 content = data["choices"][0]["message"]["content"]
+            if not send_temperature:
+                # 不带 temperature 成功了：记住这个模型，后面的请求一开始就不带，免得每次先挨一次 400。
+                model_wire.remember_temperature_rejected(base_url=base_url, model=model)
             if request_label:
                 elapsed = time.perf_counter() - started
                 print(f"{request_label}: http ok in {elapsed:.2f}s", flush=True)
@@ -513,10 +516,10 @@ def request_chat_content(
                 and (responses or anthropic)
                 and send_temperature
                 and "temperature" in body
-                and model_wire.looks_like_temperature_rejection(str(exc))
+                and model_wire.looks_like_temperature_rejection(exc.response.text)
             ):
+                # 先不记：去掉 temperature 的重试真成功了，才说明确实是它的问题（见下面成功分支）。
                 send_temperature = False
-                model_wire.remember_temperature_rejected(base_url=base_url, model=model)
                 body = build_body()
                 if request_label:
                     print(f"{request_label}: temperature rejected after 400, retrying without it", flush=True)

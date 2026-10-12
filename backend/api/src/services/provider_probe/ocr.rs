@@ -140,7 +140,12 @@ pub(super) fn classify_probe_error(
     }
 
     let lowered = error_text.to_lowercase();
-    let (status, summary, retryable) = if lowered.contains("timed out")
+    // 服务商回了 401 / 403 却没带错误码（MineruResponseError 显示为「MinerU HTTP 401…」）：就是 Token 不对。
+    let (status, summary, retryable) = if lowered.starts_with("mineru http 401")
+        || lowered.starts_with("mineru http 403")
+    {
+        ("unauthorized", "MinerU Token 无效", false)
+    } else if lowered.contains("timed out")
         || lowered.contains("timeout")
         || lowered.contains("failed to resolve")
         || lowered.contains("dns")
