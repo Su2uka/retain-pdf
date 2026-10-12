@@ -79,6 +79,14 @@
   color: var(--ok);
 }
 
+/* 检测结果的补充说明：单独一行，底层错误可能很长，允许任意处断行 */
+.admin-test-hint {
+  flex-basis: 100%;
+  order: 1;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
 .admin-docs-link {
   margin-left: auto;
 }

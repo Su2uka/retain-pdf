@@ -107,7 +107,7 @@ test("界面：读回「还缺」、检测只带翻译那一段、保存前校�
   const calls = [];
   const api = {
     get: async () => EMPTY,
-    test: async (target, values) => { calls.push(["test", target, values]); return { target, ok: false, status: "unauthorized", summary: "Key 无效或已过期" }; },
+    test: async (target, values) => { calls.push(["test", target, values]); return { target, ok: false, status: "network_error", summary: "Key 无效或已过期", hint: "没有收到服务商的回复，和 Key 无关。底层错误：connection reset" }; },
     save: async (input) => {
       calls.push(["save", input]);
       return {
@@ -136,6 +136,7 @@ test("界面：读回「还缺」、检测只带翻译那一段、保存前校�
   setValue(inputs()[2], "sk-test-key");
   click(host.querySelector('[data-admin-test-target="translation"]'));
   await waitFor(() => host.querySelector('[data-admin-test="fail"]')?.textContent === "Key 无效或已过期", "检测结果");
+  assert.equal(host.querySelector("[data-admin-test-hint]")?.textContent, "没有收到服务商的回复，和 Key 无关。底层错误：connection reset", "补充说明也显示");
   const [, target, values] = calls.find(([name]) => name === "test");
   assert.equal(target, "translation");
   assert.equal(values.base_url, "https://api.deepseek.com/v1", "检测用表单里还没保存的值");
