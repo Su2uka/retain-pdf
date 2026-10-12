@@ -162,3 +162,46 @@ def test_unknown_message_types_are_ignored(
                 if "ok" in seen:
                     return
         pytest.fail("未知 type 把连接搞断了")
+
+
+# Windows 没有这几个模块。在子进程里把它们屏蔽掉，模拟 Windows 的导入环境（#143）。
+_WINDOWS_IMPORT_SIMULATION = """
+import sys
+for name in ("fcntl", "pty", "termios"):
+    sys.modules[name] = None  # 之后 import 它们会抛 ImportError，和 Windows 上一样
+
+import retainpdf_ai.app  # 以前在这里就崩：fx_terminal 无条件 import fcntl
+
+from pathlib import Path
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+from retainpdf_ai.config import Settings
+from retainpdf_ai.fx_terminal_routes import register_fx_terminal_routes
+
+root = Path(sys.argv[1])
+app = FastAPI()
+register_fx_terminal_routes(
+    app,
+    settings=Settings(api_keys=("k",), fx_shell_mode=True, fx_state_root=root / "fx", data_root=root / "data"),
+)
+with TestClient(app).websocket_connect("/v1/fx/terminal?api_key=k") as websocket:
+    message = websocket.receive_json()
+print(message["type"], message["reason"])
+"""
+
+
+def test_ai_service_starts_without_unix_only_modules(tmp_path: Path) -> None:
+    """Windows 桌面版：AI 服务要能起来，只有终端说明暂不支持，不能把整个服务带崩。"""
+    import subprocess
+    import sys
+
+    result = subprocess.run(
+        [sys.executable, "-c", _WINDOWS_IMPORT_SIMULATION, str(tmp_path)],
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert result.returncode == 0, result.stderr[-2000:]
+    kind, reason = result.stdout.strip().splitlines()[-1].split(" ", 1)
+    assert kind == "exit"
+    assert "Windows" in reason

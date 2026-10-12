@@ -28,7 +28,16 @@ from typing import Any
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 
 from .config import Settings
-from .fx_terminal import PtySession, build_terminal_launch, resumed_session_id
+
+# PTY 终端要用 pty / fcntl / termios，只有 Linux、macOS 有。Windows 上导入会失败——以前是无条件导入，
+# 整个 AI 服务在 Windows 桌面版上一启动就退出（#143），连 AI 问答都跟着不能用。现在导入失败只关掉终端：
+# 服务照常起来，有人连终端时回一条 exit 说明原因（前端会显示出来）。
+try:
+    from .fx_terminal import PtySession, build_terminal_launch, resumed_session_id
+except ImportError:  # Windows
+    PTY_UNAVAILABLE_REASON = "终端功能暂不支持 Windows，请在 macOS 或 Linux 上使用"
+else:
+    PTY_UNAVAILABLE_REASON = ""
 
 #: 正被活着的 PTY 占用的 fx 会话 id。
 #:
@@ -72,6 +81,11 @@ def register_fx_terminal_routes(
             websocket.query_params.get("api_key", ""),
         ):
             await websocket.close(code=_CLOSE_UNAUTHORIZED)
+            return
+        if PTY_UNAVAILABLE_REASON:
+            await websocket.accept()
+            await websocket.send_json({"type": "exit", "reason": PTY_UNAVAILABLE_REASON})
+            await websocket.close()
             return
         if not settings.fx_shell_mode:
             # 终端模式关着时不开 PTY。否则这条路会绕开 shell_mode 这个开关 ——
