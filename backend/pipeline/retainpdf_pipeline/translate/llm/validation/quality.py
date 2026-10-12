@@ -21,6 +21,7 @@ from retainpdf_pipeline.translate.llm.validation.math_safety import has_balanced
 from retainpdf_pipeline.translate.llm.validation.placeholder_tokens import placeholder_sequence
 from retainpdf_pipeline.translate.llm.validation.placeholder_tokens import placeholders
 from retainpdf_pipeline.translate.llm.validation.protocol_shell import looks_like_protocol_shell_output
+from retainpdf_pipeline.translate.llm.validation.self_correction import self_correction_leak
 from retainpdf_pipeline.translate.core.terms import GlossaryEntry
 from retainpdf_pipeline.translate.core.terms import matched_glossary_entries
 from retainpdf_pipeline.translate.core.terms import normalize_glossary_entries
@@ -240,6 +241,18 @@ def _review_translated_text(
                 kind="protocol_shell_output",
                 severity="error",
                 message="Translated output still contains JSON/protocol shell",
+            )
+        )
+    leaked = self_correction_leak(source_text, translated_text)
+    if leaked:
+        # 草稿 + 「Wait — … Correct it.」+ 改好的译文一起回来了：重译这一段，别把模型的自言自语排进 PDF。
+        issues.append(
+            TranslationQualityIssue(
+                item_id=item_id,
+                kind="self_correction_leak",
+                severity="error",
+                message="Translated output contains the model's own self-correction",
+                details={"leaked": leaked},
             )
         )
     truncation = _truncated_translation_issue(item_id, source_text, translated_text)

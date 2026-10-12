@@ -648,6 +648,7 @@
         "devtools/tests/translation/test_request_capture.py",
         "devtools/tests/translation/test_retrying_translator_test_support.py",
         "devtools/tests/translation/test_rust_executor_client.py",
+        "devtools/tests/translation/test_self_correction_leak.py",
         "devtools/tests/translation/test_standalone_fast_path.py",
         "devtools/tests/translation/test_translation_batch_metrics_contract.py",
         "devtools/tests/translation/test_translation_cache_context_contract.py",
