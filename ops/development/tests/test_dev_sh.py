@@ -132,6 +132,18 @@ def test_up_actually_uses_the_function_that_is_guarded(source: str) -> None:
     assert "--data-root" not in up_block, "参数又被内联回 cmd_up 了"
 
 
+def test_same_origin_is_an_option_of_up_not_a_second_launcher(source: str) -> None:
+    """同源转发收在 `up` 里,不再单独维护第二个启动脚本。
+
+    它绕的是 WSL2 的 localhost 转发按端口失效(40001 通、41000 不通),属于
+    特定环境的绕行,所以必须是**选项**而不是默认;默认仍走 serve_static。
+    """
+    up_block = source[source.index("cmd_up() {") : source.index("cmd_status() {")]
+    assert "serve_same_origin.py" in up_block, "同源选项没有接到静态服务上"
+    assert "serve_static.py" in up_block, "默认路径被换掉了 —— 同源应当是选项"
+    assert "--api-base" in up_block, "同源时没告诉代理后端在哪"
+
+
 def test_the_system_bash_is_the_one_that_has_this_trap() -> None:
     """把「为什么要上面那条」钉死,而不是只留一句注释。
 
