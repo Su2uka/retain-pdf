@@ -357,3 +357,19 @@ async fn responses_probe_keeps_model_errors_as_model_errors() {
 
     assert_eq!(view.status, "model_unavailable", "{}", view.summary);
 }
+
+/// 官方 SDK 的地址写法（不带 `/v1`）也要能用：以前会请求到 `…/messages`，Anthropic 回 404，
+/// 探针还误报成「模型不可用」。
+#[test]
+fn anthropic_messages_url_accepts_the_sdk_style_base_url() {
+    use super::deepseek::anthropic_messages_url;
+    for (base, expected) in [
+        ("https://api.anthropic.com", "https://api.anthropic.com/v1/messages"),
+        ("https://api.anthropic.com/", "https://api.anthropic.com/v1/messages"),
+        ("https://api.anthropic.com/v1", "https://api.anthropic.com/v1/messages"),
+        ("https://api.anthropic.com/v1/messages", "https://api.anthropic.com/v1/messages"),
+        ("https://proxy.example.com/anthropic", "https://proxy.example.com/anthropic/v1/messages"),
+    ] {
+        assert_eq!(anthropic_messages_url(base), expected, "{base}");
+    }
+}
