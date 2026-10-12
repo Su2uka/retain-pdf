@@ -44,6 +44,12 @@ export async function resolveAuthSession(apiPrefix) {
 export function login(username, password, apiPrefix) {
     return request("POST", "auth/login", { username, password }, apiPrefix);
 }
+/** 用邀请码注册（不用登录）。成功后和登录一样写好会话 Cookie，返回时已经是登录状态。
+ * 邀请码不分大小写、空格和连字符可有可无，原样提交。失败码：INVITE_INVALID / INVITE_REVOKED /
+ * INVITE_EXPIRED / INVITE_USED_UP / USERNAME_TAKEN / INVALID_USERNAME / WEAK_PASSWORD（message 都是中文）。 */
+export function register(inviteCode, username, password, apiPrefix) {
+    return request("POST", "auth/register", { invite_code: inviteCode, username, password }, apiPrefix);
+}
 export function logout(apiPrefix) {
     return request("POST", "auth/logout", {}, apiPrefix);
 }
@@ -102,4 +108,19 @@ export function fetchAdminUserPages(userId, apiPrefix) {
 /** delta 正数发放、负数扣减；note 选填，最多 200 字。 */
 export function adjustAdminUserPages(userId, delta, note = "", apiPrefix) {
     return request("POST", `admin/users/${encodeURIComponent(userId)}/pages`, { delta, note }, apiPrefix);
+}
+/** 新的在前。 */
+export function listInvites(apiPrefix) {
+    return request("GET", "admin/invites", undefined, apiPrefix);
+}
+export function createInvite(input = {}, apiPrefix) {
+    return request("POST", "admin/invites", input, apiPrefix);
+}
+/** 找不到 404 INVITE_NOT_FOUND。 */
+export function fetchInvite(inviteId, apiPrefix) {
+    return request("GET", `admin/invites/${encodeURIComponent(inviteId)}`, undefined, apiPrefix);
+}
+/** 作废后不能再用来注册，已经注册的账号不受影响；重复作废不报错。 */
+export function revokeInvite(inviteId, apiPrefix) {
+    return request("POST", `admin/invites/${encodeURIComponent(inviteId)}/revoke`, {}, apiPrefix);
 }

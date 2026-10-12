@@ -111,6 +111,17 @@ a.auth-secondary {
   cursor: pointer;
 }
 
+/* 段落里的文字按钮（「用邀请码注册」「去登录」）：和正文同字号、同行 */
+.auth-link.auth-inline-link {
+  display: inline;
+  font-size: inherit;
+}
+
+.auth-field small {
+  color: var(--muted);
+  font-size: 11px;
+}
+
 .auth-error {
   margin: 0;
   color: var(--danger);

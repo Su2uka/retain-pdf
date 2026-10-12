@@ -55,10 +55,15 @@ function TestLine({ state }: { state: TestState }) {
   if (state.busy) return <span className="admin-sub" role="status">正在检测…</span>;
   if (state.error) return <span className="auth-error" role="alert">{state.error}</span>;
   if (!state.result) return null;
+  const hint = `${state.result.hint || ""}`.trim();
   return (
-    <span className={state.result.ok ? "admin-test-ok" : "auth-error"} role="status" data-admin-test={state.result.ok ? "ok" : "fail"}>
-      {state.result.summary || (state.result.ok ? "连接成功" : "连接失败")}
-    </span>
+    <>
+      <span className={state.result.ok ? "admin-test-ok" : "auth-error"} role="status" data-admin-test={state.result.ok ? "ok" : "fail"}>
+        {state.result.summary || (state.result.ok ? "连接成功" : "连接失败")}
+      </span>
+      {/* 补充说明（如「没有收到服务商的回复，和 Key 无关。底层错误：…」），排查时用。 */}
+      {hint ? <span className="admin-test-hint" data-admin-test-hint="true">{hint}</span> : null}
+    </>
   );
 }
 

@@ -10,4 +10,5 @@ export { AccountPanel } from "./ui/AccountPanel.jsx";
 export { PageLedger } from "./ui/PageLedger.jsx";
 export { authErrorText, USERNAME_PATTERN } from "./domain/auth-errors.js";
 export { formatPageDelta, pageAdjustProblem, pageLedgerLabel } from "./domain/page-ledger.js";
+export { buildInviteLink } from "./domain/register.js";
 export { AuthSessionProvider, useAuthSession, useHomeTabVisible, useVisibleHomeTab } from "./ui/auth-session-context.jsx";

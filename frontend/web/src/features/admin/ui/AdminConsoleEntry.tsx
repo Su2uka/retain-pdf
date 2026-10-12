@@ -4,7 +4,7 @@ import { buildAdminUrl } from "@/platform/navigation/pages.js";
 
 const ENTRIES = {
   accounts: {
-    text: "建账号、重置密码、停用 / 删除、改身份、发放页数、查看每个账号的用量和任务，都在管理后台里。",
+    text: "建账号、生成邀请码、重置密码、停用 / 删除、改身份、发放页数、查看每个账号的用量和任务，都在管理后台里。",
     label: "打开管理后台",
   },
   platform: {
