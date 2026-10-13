@@ -6,7 +6,11 @@
 //!    （助手相关——助手能读全部数据、跑命令，等按用户隔离做完再开）。
 //! 2. 按路径参数：路径里出现任务 / 书 / 术语表 / 文件夹编号的，必须是自己的；别人的一律当不存在。
 //!
-//! 宁可错拒，不可错放：路径参数名不在下面的分类里就拒绝（测试会扫一遍所有路由，保证每个参数都分了类）。
+//! 宁可错拒，不可错放：
+//! - 路由不在下面列出的「网站账号能用的资源」里就当关闭（新加的接口默认网站账号看不到，要明确放开）；
+//! - 路径参数名不在下面的分类里就拒绝。
+//! 测试会扫一遍所有路由：每个参数都要分了类；登录就能用、路径里又没有资源编号的接口（列表、新建……）
+//! 只能靠处理函数自己按当前用户过滤，必须逐条登记、写明怎么隔离的。
 
 use crate::db::OwnedKind;
 
@@ -43,8 +47,26 @@ pub fn route_policy(method: &str, template: &str) -> RoutePolicy {
     {
         return RoutePolicy::AdminOnly;
     }
-    RoutePolicy::Signed
+    if SIGNED_FAMILIES.iter().any(|prefix| starts(prefix)) || template == "/api/v1/providers/ocr" {
+        return RoutePolicy::Signed;
+    }
+    RoutePolicy::Closed
 }
+
+/// 网站账号能用的资源（按路径段前缀）。不在这里的路由对网站账号关闭。
+const SIGNED_FAMILIES: &[&str] = &[
+    "/api/v1/account",
+    "/api/v1/auth",
+    "/api/v1/collections",
+    "/api/v1/documents",
+    "/api/v1/fonts",
+    "/api/v1/glossaries",
+    "/api/v1/jobs",
+    "/api/v1/library",
+    "/api/v1/search",
+    "/api/v1/uploads",
+    "/api/v1/usage",
+];
 
 /// 路径参数的分类。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -149,8 +171,10 @@ mod tests {
         assert_eq!(route_policy("GET", "/api/v1/ai/conversations"), RoutePolicy::Closed);
         assert_eq!(route_policy("GET", "/api/v1/documents/:document_id/agent-versions"), RoutePolicy::Closed);
         assert_eq!(route_policy("POST", "/api/v1/internal/model/jobs/:job_id/requests"), RoutePolicy::Closed);
-        // 前缀要按段比较，别把 /api/v1/aix 当成 /api/v1/ai。
-        assert_eq!(route_policy("GET", "/api/v1/aix"), RoutePolicy::Signed);
+        // 前缀要按段比较，别把 /api/v1/jobsx 当成 /api/v1/jobs。
+        assert_eq!(route_policy("GET", "/api/v1/jobsx"), RoutePolicy::Closed);
+        // 没列出来的新接口默认关闭。
+        assert_eq!(route_policy("GET", "/api/v1/reports"), RoutePolicy::Closed);
     }
 
     #[test]
@@ -180,9 +204,8 @@ mod tests {
         assert!(json_references("/api/v1/collections", &body).contains(&(OwnedKind::Collection, "p1".into())));
     }
 
-    /// 扫一遍路由源码，所有路径参数都必须分了类。新加路由带了新参数名，这里会红，提醒去决定它归谁。
-    #[test]
-    fn every_route_param_is_classified() {
+    /// 路由源码里写的全部路由模板（带出处），去重。
+    fn route_templates() -> Vec<(String, String)> {
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
         let mut files = vec![root.join("app/router.rs"), root.join("routes/model_requests.rs")];
         files.extend(
@@ -191,22 +214,79 @@ mod tests {
                 .map(|entry| entry.unwrap().path())
                 .filter(|path| path.extension().is_some_and(|ext| ext == "rs")),
         );
-        let mut seen = 0;
+        let mut templates = Vec::new();
         for file in files {
             let source = std::fs::read_to_string(&file).unwrap();
             for literal in source.split('"').skip(1).step_by(2).filter(|s| s.starts_with("/api/")) {
-                for segment in literal.split('/').filter(|s| s.starts_with(':') || s.starts_with('*')) {
-                    let name = &segment[1..];
-                    seen += 1;
-                    assert_ne!(
-                        classify_param(name),
-                        ParamClass::Unknown,
-                        "{}: route `{literal}` has unclassified path param `{name}`",
-                        file.display()
-                    );
-                }
+                templates.push((file.display().to_string(), literal.to_string()));
             }
         }
-        assert!(seen > 50, "route scan found too few params ({seen}); did the router move?");
+        templates.sort_by(|a, b| a.1.cmp(&b.1));
+        templates.dedup_by(|a, b| a.1 == b.1);
+        assert!(templates.len() > 100, "route scan found too few routes ({}); did the router move?", templates.len());
+        templates
+    }
+
+    fn path_params(template: &str) -> impl Iterator<Item = &str> {
+        template.split('/').filter(|s| s.starts_with(':') || s.starts_with('*')).map(|s| &s[1..])
+    }
+
+    /// 扫一遍路由源码，所有路径参数都必须分了类。新加路由带了新参数名，这里会红，提醒去决定它归谁。
+    #[test]
+    fn every_route_param_is_classified() {
+        for (file, template) in route_templates() {
+            for name in path_params(&template) {
+                assert_ne!(
+                    classify_param(name),
+                    ParamClass::Unknown,
+                    "{file}: route `{template}` has unclassified path param `{name}`"
+                );
+            }
+        }
+    }
+
+    /// 登录就能用、路径里又没有要核归属的编号的路由：中间件替它们做不了隔离（只能核查询串和
+    /// JSON 请求体里的编号），全靠处理函数按当前用户过滤或记归属。逐条写明怎么隔离的。
+    const SIGNED_WITHOUT_OWNED_PARAM: &[(&str, &str)] = &[
+        ("/api/v1/account/pages", "只返回当前用户自己的页额度（accounts::my_pages_route）"),
+        ("/api/v1/auth/login", "登录本身"),
+        ("/api/v1/auth/logout", "只清当前会话"),
+        ("/api/v1/auth/password", "只改当前用户的密码"),
+        ("/api/v1/auth/register", "注册本身"),
+        ("/api/v1/auth/session", "只返回当前会话"),
+        ("/api/v1/collections", "列表按 owner_filter 过滤；新建记 owner_id；parent_id 由中间件核归属"),
+        ("/api/v1/documents", "列表按 owner_filter 过滤（library_data::list_documents）"),
+        ("/api/v1/fonts", "字体是全站共用的，不含用户数据"),
+        ("/api/v1/glossaries", "列表按 owner_filter 过滤；新建记 owner_id"),
+        ("/api/v1/glossaries/import", "导入成新术语表，记 owner_id"),
+        ("/api/v1/glossaries/parse-csv", "只解析请求里的 CSV，不读不写存储"),
+        ("/api/v1/jobs", "列表按 owner_filter 过滤；新建时 upload_id 由中间件核归属，任务继承上传的归属"),
+        ("/api/v1/library/books", "列表按 owner_filter 过滤"),
+        ("/api/v1/providers/ocr", "只读 OCR 服务商清单，不含用户数据"),
+        ("/api/v1/search", "按 owner_filter 过滤"),
+        ("/api/v1/uploads", "上传记当前用户为 owner"),
+        ("/api/v1/usage", "按 owner_filter 过滤"),
+    ];
+
+    #[test]
+    fn every_signed_route_without_owned_param_is_reviewed() {
+        let templates = route_templates();
+        for (file, template) in &templates {
+            let signed = ["GET", "POST", "PUT", "PATCH", "DELETE"]
+                .iter()
+                .any(|method| route_policy(method, template) == RoutePolicy::Signed);
+            let owned = path_params(template).any(|name| matches!(classify_param(name), ParamClass::Owned(_)));
+            if signed && !owned {
+                assert!(
+                    SIGNED_WITHOUT_OWNED_PARAM.iter().any(|(listed, _)| listed == template),
+                    "{file}: route `{template}` is open to accounts but has no owned path param; make its \
+                     handler scope by the current user, then list it in SIGNED_WITHOUT_OWNED_PARAM"
+                );
+            }
+        }
+        // 登记表里不留已经不存在、或者已经不再是这种情况的条目。
+        for (listed, _) in SIGNED_WITHOUT_OWNED_PARAM {
+            assert!(templates.iter().any(|(_, template)| template == listed), "stale entry `{listed}`");
+        }
     }
 }

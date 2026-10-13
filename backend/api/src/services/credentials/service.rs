@@ -15,10 +15,13 @@ use crate::db::Db;
 use crate::error::AppError;
 use crate::models::domain::now_iso;
 
-const VAULT_SCHEMA: &str = "retainpdf_credential_vault_v1";
+// 文件格式（版本号、大小上限、路径、名字规则、读之前的安全检查）和任务运行时读密钥的一侧共用。
+use retain_data::credentials::{
+    is_valid_credential_ref, is_valid_name, is_valid_stored_secret, read_vault_bytes, vault_path,
+    VaultReadError, MAX_SECRET_BYTES, MAX_VAULT_BYTES, VAULT_SCHEMA,
+};
+
 const VAULT_LOCK_NAME: &str = ".credentials.lock";
-const MAX_VAULT_BYTES: u64 = 256 * 1024;
-const MAX_SECRET_BYTES: usize = 8192;
 const MANAGED_BY_LEGACY_JOB_IMPORT: &str = "legacy_job_import";
 const AI_RUNTIME_SCHEMA: &str = "retainpdf_ai_runtime_credentials_v1";
 const MAX_AI_RUNTIME_BYTES: u64 = 64 * 1024;
@@ -491,10 +494,6 @@ fn metadata(credential_ref: &str, credential: &StoredCredential) -> CredentialMe
     }
 }
 
-fn vault_path(data_root: &Path) -> PathBuf {
-    data_root.join("secrets").join("credentials.json")
-}
-
 fn ai_runtime_references_credential(
     data_root: &Path,
     credential_ref: &str,
@@ -550,41 +549,23 @@ fn ai_runtime_references_credential(
 }
 
 fn load_vault(data_root: &Path) -> Result<CredentialVault, AppError> {
-    let path = vault_path(data_root);
-    let metadata = match fs::symlink_metadata(&path) {
-        Ok(metadata) => metadata,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            return Ok(CredentialVault::default())
+    let bytes = match read_vault_bytes(data_root) {
+        Ok(Some(bytes)) => bytes,
+        Ok(None) => return Ok(CredentialVault::default()),
+        Err(VaultReadError::Unreadable) => return Err(AppError::internal("credential vault is unreadable")),
+        Err(VaultReadError::Unsafe) => return Err(AppError::internal("credential vault path is unsafe")),
+        Err(VaultReadError::Exposed) => {
+            return Err(AppError::internal("credential vault permissions must be 0600"))
         }
-        Err(_) => return Err(AppError::internal("credential vault is unreadable")),
     };
-    if metadata.file_type().is_symlink() || !metadata.is_file() || metadata.len() > MAX_VAULT_BYTES
-    {
-        return Err(AppError::internal("credential vault path is unsafe"));
-    }
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        if metadata.permissions().mode() & 0o077 != 0 {
-            return Err(AppError::internal(
-                "credential vault permissions must be 0600",
-            ));
-        }
-    }
-    let bytes =
-        fs::read(&path).map_err(|_| AppError::internal("credential vault is unreadable"))?;
     let vault: CredentialVault = serde_json::from_slice(&bytes)
         .map_err(|_| AppError::internal("credential vault is invalid"))?;
     if vault.schema != VAULT_SCHEMA
         || vault.credentials.iter().any(|(credential_ref, item)| {
-            validate_credential_ref(credential_ref).is_err()
-                || item.secret.is_empty()
-                || item.secret.len() > MAX_SECRET_BYTES
-                || validate_credential_ref_shape(&item.kind).is_err()
-                || item.managed_by.as_deref().is_some_and(|value| {
-                    value != MANAGED_BY_LEGACY_JOB_IMPORT
-                        || validate_credential_ref_shape(value).is_err()
-                })
+            !is_valid_credential_ref(credential_ref)
+                || !is_valid_stored_secret(&item.secret)
+                || !is_valid_name(&item.kind)
+                || item.managed_by.as_deref().is_some_and(|value| value != MANAGED_BY_LEGACY_JOB_IMPORT)
         })
     {
         return Err(AppError::internal("credential vault is invalid"));
@@ -718,28 +699,17 @@ fn acquire_vault_file_lock(data_root: &Path, exclusive: bool) -> Result<VaultFil
 }
 
 fn validate_credential_ref(value: &str) -> Result<(), AppError> {
-    if !value.starts_with("cred_") || validate_credential_ref_shape(value).is_err() {
+    if !is_valid_credential_ref(value) {
         return Err(AppError::bad_request("credential_ref is invalid"));
-    }
-    Ok(())
-}
-
-fn validate_credential_ref_shape(value: &str) -> Result<(), ()> {
-    if value.is_empty()
-        || value.len() > 64
-        || !value.bytes().all(|byte| {
-            byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'_' || byte == b'-'
-        })
-    {
-        return Err(());
     }
     Ok(())
 }
 
 fn validate_kind(value: &str) -> Result<String, AppError> {
     let value = value.trim().to_ascii_lowercase();
-    validate_credential_ref_shape(&value)
-        .map_err(|_| AppError::bad_request("credential kind is invalid"))?;
+    if !is_valid_name(&value) {
+        return Err(AppError::bad_request("credential kind is invalid"));
+    }
     Ok(value)
 }
 

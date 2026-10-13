@@ -42,18 +42,6 @@ async fn upload_domain_errors_preserve_http_envelopes() {
             "SERVICE_UNAVAILABLE",
             "PDF repair timed out",
         ),
-        (
-            UploadError::Internal("Failed to publish uploaded PDF"),
-            500,
-            "INTERNAL",
-            "Failed to publish uploaded PDF",
-        ),
-        (
-            UploadError::Io(std::io::Error::other("synthetic IO failure")),
-            500,
-            "INTERNAL",
-            "synthetic IO failure",
-        ),
     ];
     for (error, status, code, message) in cases {
         let response = crate::error::AppError::from(error).into_response();
@@ -65,6 +53,17 @@ async fn upload_domain_errors_preserve_http_envelopes() {
                 "error": {"code": code, "http_status": status, "details": {}}
             })
         );
+    }
+    // 内部失败只回编号，原因进日志。
+    for error in [
+        UploadError::Internal("Failed to publish uploaded PDF"),
+        UploadError::Io(std::io::Error::other("synthetic IO failure")),
+    ] {
+        let response = crate::error::AppError::from(error).into_response();
+        assert_eq!(response.status().as_u16(), 500);
+        let body = read_json(response).await;
+        assert_eq!(body["error"]["code"], "INTERNAL");
+        assert!(body["message"].as_str().unwrap().starts_with("internal server error (ref "));
     }
 }
 

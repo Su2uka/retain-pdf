@@ -1,3 +1,6 @@
+use std::sync::atomic::{AtomicU32, Ordering};
+use std::time::{SystemTime, UNIX_EPOCH};
+
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::Json;
@@ -506,18 +509,39 @@ impl IntoResponse for AppError {
             AppError::TranslationRevision { .. } => unreachable!("handled above"),
             AppError::Account { .. } => unreachable!("handled above"),
         };
-        let body = ErrorBody {
-            code,
-            message: self.to_string(),
-            error: StructuredError::empty(stable_code, status),
+        let body = match &self {
+            AppError::Internal(detail) => {
+                let error_id = log_internal_error(detail);
+                ErrorBody {
+                    code,
+                    message: format!("internal server error (ref {error_id})"),
+                    error: StructuredError::with_details(stable_code, status, json!({ "error_id": error_id })),
+                }
+            }
+            _ => ErrorBody {
+                code,
+                message: self.to_string(),
+                error: StructuredError::empty(stable_code, status),
+            },
         };
         (status, Json(body)).into_response()
     }
 }
 
+/// 500 的原因只写日志、不回给调用方：底层报错里常带服务器上的路径、SQL、上游的返回……
+/// 回给调用方一个编号，凭它在日志里找到原因。
+fn log_internal_error(detail: &str) -> String {
+    static NEXT: AtomicU32 = AtomicU32::new(0);
+    let millis = SystemTime::now().duration_since(UNIX_EPOCH).map(|elapsed| elapsed.as_millis()).unwrap_or(0);
+    let error_id = format!("{millis:x}-{:04x}", NEXT.fetch_add(1, Ordering::Relaxed) & 0xffff);
+    tracing::error!(error_id = %error_id, "internal error: {detail}");
+    error_id
+}
+
 impl From<anyhow::Error> for AppError {
     fn from(value: anyhow::Error) -> Self {
-        Self::Internal(value.to_string())
+        // 带上整条原因链：只进日志，不回给调用方。
+        Self::Internal(format!("{value:#}"))
     }
 }
 
@@ -660,12 +684,6 @@ mod tests {
                 50300,
                 "SERVICE_UNAVAILABLE",
             ),
-            (
-                AppError::internal("internal"),
-                StatusCode::INTERNAL_SERVER_ERROR,
-                50000,
-                "INTERNAL",
-            ),
         ];
 
         for (error, expected_status, expected_legacy_code, expected_stable_code) in cases {
@@ -678,6 +696,22 @@ mod tests {
             assert_eq!(payload["error"]["http_status"], status.as_u16());
             assert_eq!(payload["error"]["details"], serde_json::json!({}));
         }
+    }
+
+    #[tokio::test]
+    async fn internal_error_hides_detail_behind_reference() {
+        let (status, payload) =
+            response_json(AppError::internal("open /srv/data/jobs/j1/secret.pdf: permission denied")).await;
+        assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
+        assert_eq!(payload["code"], 50000);
+        assert_eq!(payload["error"]["code"], "INTERNAL");
+        let error_id = payload["error"]["details"]["error_id"].as_str().unwrap().to_string();
+        assert!(!error_id.is_empty());
+        assert_eq!(payload["message"], format!("internal server error (ref {error_id})"));
+        assert!(!payload.to_string().contains("/srv/data"));
+
+        let (_, again) = response_json(AppError::internal("other")).await;
+        assert_ne!(again["error"]["details"]["error_id"], payload["error"]["details"]["error_id"]);
     }
 
     #[tokio::test]

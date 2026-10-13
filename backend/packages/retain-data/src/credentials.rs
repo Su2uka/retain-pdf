@@ -5,9 +5,67 @@ use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
 
-const VAULT_SCHEMA: &str = "retainpdf_credential_vault_v1";
-const MAX_VAULT_BYTES: u64 = 256 * 1024;
-const MAX_SECRET_BYTES: usize = 8192;
+// 凭据库的文件格式只在这里定义一次：这里只读（任务运行时取密钥），写在 API 的凭据服务里，
+// 两边共用下面这些常量和检查，免得改了一边、另一边按旧格式读写把库读错或写坏。
+
+pub const VAULT_SCHEMA: &str = "retainpdf_credential_vault_v1";
+pub const MAX_VAULT_BYTES: u64 = 256 * 1024;
+pub const MAX_SECRET_BYTES: usize = 8192;
+
+pub fn vault_path(data_root: &Path) -> PathBuf {
+    data_root.join("secrets").join("credentials.json")
+}
+
+/// 读凭据库文件之前的安全检查失败。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VaultReadError {
+    Unreadable,
+    /// 是符号链接、不是普通文件，或者太大。
+    Unsafe,
+    /// 别人能读（权限不是 0600）。
+    Exposed,
+}
+
+/// 读出凭据库文件的原始内容；文件不存在时是 `None`。不解析内容（读写两边的结构不一样）。
+pub fn read_vault_bytes(data_root: &Path) -> Result<Option<Vec<u8>>, VaultReadError> {
+    let path = vault_path(data_root);
+    let metadata = match fs::symlink_metadata(&path) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(_) => return Err(VaultReadError::Unreadable),
+    };
+    if metadata.file_type().is_symlink() || !metadata.is_file() || metadata.len() > MAX_VAULT_BYTES
+    {
+        return Err(VaultReadError::Unsafe);
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        if metadata.permissions().mode() & 0o077 != 0 {
+            return Err(VaultReadError::Exposed);
+        }
+    }
+    fs::read(path).map(Some).map_err(|_| VaultReadError::Unreadable)
+}
+
+/// 凭据编号：`cred_` 开头，其余同 [`is_valid_name`]。
+pub fn is_valid_credential_ref(value: &str) -> bool {
+    value.starts_with("cred_") && is_valid_name(value)
+}
+
+/// 编号、种类这类名字：1–64 个小写字母、数字、`_`、`-`。
+pub fn is_valid_name(value: &str) -> bool {
+    !value.is_empty()
+        && value.len() <= 64
+        && value.bytes().all(|byte| {
+            byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'_' || byte == b'-'
+        })
+}
+
+/// 存进库里的密钥：非空，不超过上限。
+pub fn is_valid_stored_secret(value: &str) -> bool {
+    !value.is_empty() && value.len() <= MAX_SECRET_BYTES
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ResolvedCredential {
@@ -83,34 +141,19 @@ pub fn resolve_credential(
 }
 
 fn load_vault(data_root: &Path) -> Result<CredentialVault, CredentialResolveError> {
-    let path = vault_path(data_root);
-    let metadata = fs::symlink_metadata(&path).map_err(|error| {
-        if error.kind() == std::io::ErrorKind::NotFound {
-            CredentialResolveError::NotFound
-        } else {
-            CredentialResolveError::VaultUnreadable
-        }
-    })?;
-    if metadata.file_type().is_symlink() || !metadata.is_file() || metadata.len() > MAX_VAULT_BYTES
-    {
-        return Err(CredentialResolveError::VaultUnsafe);
-    }
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        if metadata.permissions().mode() & 0o077 != 0 {
-            return Err(CredentialResolveError::VaultUnsafe);
-        }
-    }
-    let bytes = fs::read(path).map_err(|_| CredentialResolveError::VaultUnreadable)?;
+    let bytes = read_vault_bytes(data_root)
+        .map_err(|error| match error {
+            VaultReadError::Unreadable => CredentialResolveError::VaultUnreadable,
+            VaultReadError::Unsafe | VaultReadError::Exposed => CredentialResolveError::VaultUnsafe,
+        })?
+        .ok_or(CredentialResolveError::NotFound)?;
     let vault: CredentialVault =
         serde_json::from_slice(&bytes).map_err(|_| CredentialResolveError::VaultInvalid)?;
     if vault.schema != VAULT_SCHEMA
         || vault.credentials.iter().any(|(reference, item)| {
-            validate_credential_ref(reference).is_err()
-                || !valid_shape(&item.kind)
-                || item.secret.is_empty()
-                || item.secret.len() > MAX_SECRET_BYTES
+            !is_valid_credential_ref(reference)
+                || !is_valid_name(&item.kind)
+                || !is_valid_stored_secret(&item.secret)
         })
     {
         return Err(CredentialResolveError::VaultInvalid);
@@ -118,23 +161,11 @@ fn load_vault(data_root: &Path) -> Result<CredentialVault, CredentialResolveErro
     Ok(vault)
 }
 
-fn vault_path(data_root: &Path) -> PathBuf {
-    data_root.join("secrets").join("credentials.json")
-}
-
 fn validate_credential_ref(value: &str) -> Result<(), CredentialResolveError> {
-    if !value.starts_with("cred_") || !valid_shape(value) {
+    if !is_valid_credential_ref(value) {
         return Err(CredentialResolveError::InvalidReference);
     }
     Ok(())
-}
-
-fn valid_shape(value: &str) -> bool {
-    !value.is_empty()
-        && value.len() <= 64
-        && value.bytes().all(|byte| {
-            byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'_' || byte == b'-'
-        })
 }
 
 #[cfg(test)]
