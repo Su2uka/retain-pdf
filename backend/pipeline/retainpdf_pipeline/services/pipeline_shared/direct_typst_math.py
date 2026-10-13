@@ -18,8 +18,8 @@ from __future__ import annotations
 import re
 import unicodedata
 
-from retainpdf_pipeline.foundation.shared.latex_commands import mitex_rewrite_database
-from retainpdf_pipeline.foundation.shared.latex_source_repair import (
+from retainpdf_math.registry import mitex_rewrite_database
+from retainpdf_math.source_repair import (
     collapse_doubled_command_backslashes,
 )
 
@@ -208,7 +208,7 @@ def normalize_direct_typst_translation(text: str) -> str:
     return _MULTI_SPACE_RE.sub(" ", "".join(chunks))
 
 
-# 渲染不了的写法 → 提示给模型替换。规则在 foundation/shared/latex_commands.json，
+# 渲染不了的写法 → 提示给模型替换。规则在 retainpdf_math 的 latex_commands.json，
 # 每一条的 pipeline 状态都由真编译闸门验证过；往里加东西之前先让闸门实测一次——
 # 渲染失败更可能是版本脱节，而不是覆盖度不足（0.2.6 吐旧版 Typst 符号名，曾被误读成
 # 「mitex 不支持」，长出一整批降级规则）。

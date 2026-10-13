@@ -2,7 +2,7 @@
 import pytest
 
 
-from retainpdf_pipeline.render.layout.inline_content.fallback.latex_normalizer import normalize_formula_for_latex_math
+from retainpdf_math.normalize import normalize_formula_for_latex_math
 from retainpdf_pipeline.render.layout.inline_content.fallback.png_renderer import compile_formula_png
 from retainpdf_pipeline.render.layout.inline_content.fallback.png_renderer import convert_latexish_to_typst
 

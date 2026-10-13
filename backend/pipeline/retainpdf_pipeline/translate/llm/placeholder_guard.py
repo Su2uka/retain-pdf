@@ -46,8 +46,8 @@ from retainpdf_pipeline.translate.llm.validation.errors import SuspiciousKeepOri
 from retainpdf_pipeline.translate.llm.validation.errors import TranslationProtocolError
 from retainpdf_pipeline.translate.llm.validation.errors import TruncatedTranslationError
 from retainpdf_pipeline.translate.llm.validation.errors import UnexpectedPlaceholderError
-from retainpdf_pipeline.translate.llm.validation.math_safety import UNESCAPED_INLINE_DOLLAR_RE
-from retainpdf_pipeline.translate.llm.validation.math_safety import has_balanced_inline_math_delimiters
+from retainpdf_math.spans import UNESCAPED_INLINE_DOLLAR_RE
+from retainpdf_math.spans import has_balanced_inline_math_delimiters
 from retainpdf_pipeline.translate.llm.validation.placeholder_tokens import ALIAS_PLACEHOLDER_RE
 from retainpdf_pipeline.translate.llm.validation.placeholder_tokens import FORMAL_PLACEHOLDER_RE
 from retainpdf_pipeline.translate.llm.validation.placeholder_tokens import PLACEHOLDER_RE
