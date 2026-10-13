@@ -10,6 +10,7 @@ use super::{attach_job_paths, JobPersistDeps};
 pub(super) struct RenderArtifactInputs {
     pub(super) source_pdf_path: std::path::PathBuf,
     pub(super) translations_dir: std::path::PathBuf,
+    pub(super) normalized_document_path: Option<std::path::PathBuf>,
 }
 
 pub(super) fn prepare_render_job_from_artifacts(
@@ -59,6 +60,7 @@ pub(super) fn prepare_render_job_from_artifacts(
         RenderArtifactInputs {
             source_pdf_path: render_inputs.source_pdf_path,
             translations_dir: render_inputs.translations_dir,
+            normalized_document_path: render_inputs.normalized_document_path,
         },
     ))
 }

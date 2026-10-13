@@ -151,6 +151,7 @@ def run_render_stage(
     render_prewarm_manifest_path: Path | None = None,
     artifacts_dir: Path | None = None,
     render_engine: str = "typst",
+    document_path: Path | None = None,
 ) -> dict:
     """artifacts_dir 给了就在其中写排版 fit 报告（fit_report.v1.json）；报告只读不改排版。"""
     render_plan = build_render_plan(
@@ -162,6 +163,7 @@ def run_render_stage(
         end_page=end_page,
         render_mode=render_mode,
         translated_pages_map=translated_pages_map,
+        document_path=document_path,
     )
     reset_render_page_progress()
     emit_stage_transition(

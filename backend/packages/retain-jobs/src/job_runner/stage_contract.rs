@@ -26,6 +26,26 @@ pub(super) struct OcrReadyInputs {
 pub(super) struct TranslationReadyInputs {
     pub(super) source_pdf_path: PathBuf,
     pub(super) translations_dir: PathBuf,
+    /// 任务记录里的 OCR 归一化文档（document.v1.json）。渲染要用它；没记录或文件不在了时为 None，
+    /// 由渲染端按老约定（译文目录的上一级 ocr/normalized/）去找。
+    pub(super) normalized_document_path: Option<PathBuf>,
+}
+
+/// 渲染要用的 OCR 归一化文档：任务记录里写的那份（文件在才算）。
+///
+/// 渲染端以前只按「译文目录的上一级 ocr/normalized/document.v1.json」推算。译文被复制进新任务、
+/// OCR 文档还留在原任务时（例：重新渲染出的新任务），推算落到新任务下空的 ocr/，rpr_fit 找不到
+/// 文档、回退 Typst。所以把记录里的准确路径交给渲染端。
+pub(super) fn normalized_document_for_render(artifacts: Option<&JobArtifacts>, data_root: &Path) -> Option<PathBuf> {
+    let artifacts = artifacts?;
+    optional_file(
+        data_root,
+        artifacts.normalized_document_json.as_deref(),
+        "normalized_document_json",
+        "render",
+    )
+    .ok()
+    .flatten()
 }
 
 pub(super) fn ocr_ready_inputs_for_translation(
@@ -76,6 +96,7 @@ pub(super) fn translation_ready_inputs_for_render(
     Ok(TranslationReadyInputs {
         source_pdf_path,
         translations_dir,
+        normalized_document_path: normalized_document_for_render(Some(artifacts), data_root),
     })
 }
 

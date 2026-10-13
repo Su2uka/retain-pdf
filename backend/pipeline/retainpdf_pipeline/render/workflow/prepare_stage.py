@@ -33,8 +33,15 @@ from retainpdf_pipeline.render.render_plan import plan_pages
 from retainpdf_pipeline.render.workflow.prewarm_entry import build_source_render_preprocess_pages
 
 
-def document_path_for_render(translations_dir: Path) -> Path:
-    """渲染阶段读的 document.v1（与 executor 同一约定；步骤指纹含路径，必须一致）。"""
+def document_path_for_render(translations_dir: Path, *, explicit: Path | None = None) -> Path:
+    """渲染阶段读的 document.v1（与 executor 同一约定；步骤指纹含路径，必须一致）。
+
+    explicit：spec 里给的准确位置（Rust 按任务记录写）。以前只按「译文目录的上一级 ocr/normalized/」推算——
+    译文被复制进新任务、OCR 文档还在原任务时（重新渲染出的新任务），推算落到新任务下空的 ocr/，rpr_fit 找不到
+    文档、回退 Typst。渲染准备和渲染两边都从各自的 spec 拿到同一个路径。
+    """
+    if explicit is not None:
+        return Path(explicit)
     return Path(translations_dir).parent / "ocr" / "normalized" / "document.v1.json"
 
 
@@ -47,11 +54,12 @@ def run_render_prepare(
     render_mode: str,
     render_engine: str,
     math_mode: str = "direct_typst",
+    document_path: Path | None = None,
 ) -> dict[str, object]:
     started = time.perf_counter()
     prepare_dir = Path(translations_dir).parent / ARTIFACTS_DIR_NAME / PREPARE_DIR_NAME
     store = PrepareStore(prepare_dir)
-    document_path = document_path_for_render(translations_dir)
+    document_path = document_path_for_render(translations_dir, explicit=document_path)
     pages = build_source_render_preprocess_pages(
         source_json_path=document_path,
         start_page=start_page,
@@ -147,6 +155,7 @@ def main(argv: list[str] | None = None) -> int:
         render_mode=spec.params.render_mode,
         render_engine=spec.params.engine,
         math_mode=spec.params.math_mode,
+        document_path=spec.inputs.source_json,
     )
     print(f"render prepare: {json.dumps(report, ensure_ascii=False)}", flush=True)
     return 0
