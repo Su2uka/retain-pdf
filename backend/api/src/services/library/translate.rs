@@ -5,8 +5,8 @@ use crate::models::api::JobSubmissionView;
 use crate::models::domain::WorkflowKind;
 use crate::models::request::CreateJobInput;
 use crate::services::jobs::JobsFacade;
-use crate::services::job_validation::{validate_ocr_credential_reference, validate_provider_credentials};
-use crate::services::ocr_artifact_reuse::{reusable_ocr_coverage, validate_ocr_artifact_reuse};
+use crate::services::jobs::validation::{validate_ocr_credential_reference, validate_provider_credentials};
+use crate::services::jobs::ocr_artifact_reuse::{reusable_ocr_coverage, validate_ocr_artifact_reuse};
 
 use super::translate_plan::{contiguous_runs, plan_segments, SegmentPlan};
 

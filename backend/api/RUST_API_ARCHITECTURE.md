@@ -508,11 +508,11 @@ routes/library*.rs, collections.rs
 
 当前关键分工：
 
-- [src/services/job_snapshot_factory.rs](src/services/job_snapshot_factory.rs)
+- [src/services/jobs/snapshot_factory.rs](src/services/jobs/snapshot_factory.rs)
   负责 job snapshot / command 组装
-- [src/services/job_launcher.rs](src/services/job_launcher.rs)
+- [src/services/jobs/launcher.rs](src/services/jobs/launcher.rs)
   负责 job 持久化与执行启动
-- [src/services/runtime_gateway.rs](src/services/runtime_gateway.rs)
+- [src/services/jobs/runtime_gateway.rs](src/services/jobs/runtime_gateway.rs)
   负责 services 侧 runtime 能力收口
 - [src/services/jobs](src/services/jobs)
   负责 jobs 相关业务
@@ -828,8 +828,8 @@ routes/library*.rs, collections.rs
 2. `routes/jobs/create.rs`
 3. `services/jobs/facade/mod.rs`
 4. `services/jobs/creation.rs`
-5. `services/job_snapshot_factory.rs`
-6. `services/job_launcher.rs`
+5. `services/jobs/snapshot_factory.rs`
+6. `services/jobs/launcher.rs`
 7. `job_runner/lifecycle.rs`
 8. `worker_command.rs`
 9. `job_runner/process_runner.rs`

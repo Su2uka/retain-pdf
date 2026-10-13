@@ -8,7 +8,7 @@ use crate::ocr_provider::{
 use crate::services::credentials::{
     acquire_credential_usage_lock, get_or_create_managed_credential, CredentialUsageLock,
 };
-use crate::services::job_validation::map_credential_reference_error;
+use crate::services::jobs::validation::map_credential_reference_error;
 
 use crate::services::jobs::deps::JobSubmitDeps;
 

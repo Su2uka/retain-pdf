@@ -41,7 +41,7 @@ desktop (Electron)
 
 | 关口 | 结论 | 依据 |
 |---|---|---|
-| 接缝大小 | **3 个操作，58 行** | `backend/api/src/services/runtime_gateway.rs` 全部公开面：`JobRuntimeLauncher::launch`、`RuntimeControl::{request_cancel,clear_cancel}`、`terminate_runtime_process` |
+| 接缝大小 | **3 个操作，58 行** | `backend/api/src/services/jobs/runtime_gateway.rs` 全部公开面：`JobRuntimeLauncher::launch`、`RuntimeControl::{request_cancel,clear_cancel}`、`terminate_runtime_process` |
 | 注入点 | **现成** | launcher 本就是 `Arc<dyn Fn(String)>` 策略对象，换实现即可，非侵入 |
 | 调用点 | **2 处** | `backend/api/src/app/jobs.rs`（装配）、`backend/api/src/services/jobs/control.rs`（取消/终止） |
 | 实时进度 | **已全走 DB** | `backend/api/src/services/jobs/live_stage/combined_events.rs` 读 `db.list_job_events`，壳无需任何内存态即可服务 SSE/查询 |
@@ -110,7 +110,7 @@ desktop (Electron)
     `crate::process::` 直取。壳对 job_runner 的引用因此从 **5 个文件收敛
     到 2 个**，且两处恰好就是 InProcess 落点本身：
     `backend/api/src/app/jobs.rs`（spawn_job + ProcessRuntimeDeps）与
-    `backend/api/src/services/runtime_gateway.rs`（取消注册表）。
+    `backend/api/src/services/jobs/runtime_gateway.rs`（取消注册表）。
   - **门禁焊死**：`backend/api/scripts/check_architecture.py` 新增
     `check_job_runner_boundary`，
     壳内除上述两文件外引用 `job_runner::` 即红。已用故意越界验证它**真会咬**

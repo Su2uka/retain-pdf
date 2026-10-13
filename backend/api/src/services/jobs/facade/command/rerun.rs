@@ -4,14 +4,14 @@ use crate::models::domain::{now_iso, JobSnapshot, JobStatusKind, WorkflowKind};
 use crate::models::request::{CreateJobInput, JobSourceInput};
 use crate::services::jobs::stage_plan::resume_plan;
 use crate::services::jobs::translation_request_recovery::load_translation_request_recovery;
-use crate::services::managed_credential_gc::cleanup_deleted_job_credentials;
+use crate::services::jobs::managed_credential_gc::cleanup_deleted_job_credentials;
 
 use super::super::super::creation::create_translation_job;
 use super::super::super::query::load_job_or_404;
 use super::super::JobsFacade;
 use super::ocr_ambiguity::ambiguous_ocr_dispatch;
 use super::stage_retry_overrides::{apply_retry_overrides, discard_ocr_secret_sources};
-use crate::services::job_launcher::start_job_execution;
+use crate::services::jobs::launcher::start_job_execution;
 
 impl<'a> JobsFacade<'a> {
     /// `overrides` 只会带换过的模型 key（路由层已校验）：续跑出新任务时替换原任务的旧凭据，

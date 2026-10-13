@@ -1,7 +1,7 @@
 use crate::config::{JobRunnerConfig, JobSnapshotRuntimeConfig};
 use crate::db::Db;
-use crate::services::job_launcher::JobLaunchDeps;
-use crate::services::runtime_gateway::{JobRuntime, RuntimeControl};
+use crate::services::jobs::launcher::JobLaunchDeps;
+use crate::services::jobs::runtime_gateway::{JobRuntime, RuntimeControl};
 use crate::services::uploads::UploadService;
 use std::path::Path;
 

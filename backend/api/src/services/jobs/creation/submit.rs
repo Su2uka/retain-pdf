@@ -2,7 +2,7 @@ use crate::db::PipelineDispatchRecord;
 use crate::error::AppError;
 use crate::models::domain::JobSnapshot;
 use crate::models::request::CreateJobInput;
-use crate::services::job_launcher::{link_new_job_to_document, start_job_execution};
+use crate::services::jobs::launcher::{link_new_job_to_document, start_job_execution};
 use serde_json::Value;
 
 use super::job_builders::{build_ocr_job_snapshot, build_translation_job_snapshot};
@@ -15,7 +15,7 @@ use crate::services::uploads::UploadedPdfInput;
 fn platform_input(deps: &JobSubmitDeps<'_>, input: &CreateJobInput) -> Result<CreateJobInput, AppError> {
     let mut input = input.clone();
     if let Some(source) = deps.launcher.platform {
-        crate::services::job_launcher::apply_platform_models_to_input(&mut input, &source.resolve()?)?;
+        crate::services::jobs::launcher::apply_platform_models_to_input(&mut input, &source.resolve()?)?;
     }
     Ok(input)
 }

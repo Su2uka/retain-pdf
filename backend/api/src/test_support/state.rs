@@ -58,7 +58,7 @@ pub(crate) fn assemble_app_state(config: Arc<AppConfig>) -> AppState {
         canceled_jobs: Arc::new(RwLock::new(HashSet::new())),
         job_slots: Arc::new(Semaphore::new(1)),
         job_drivers: Arc::default(),
-        job_runtime: Arc::new(crate::services::runtime_gateway::JobRuntime::in_process(
+        job_runtime: Arc::new(crate::services::jobs::runtime_gateway::JobRuntime::in_process(
             Arc::new(RwLock::new(HashSet::new())),
         )),
         agent_capabilities: Arc::new(

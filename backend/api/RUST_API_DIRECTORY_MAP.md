@@ -28,7 +28,7 @@
 
 - `ai_supervisor.rs`、`jobsd_supervisor.rs`：子进程启动、探活、退避重启和退出回收。
 - `app/server.rs` 持有 shutdown 通道并等待监督任务结束；`app/state.rs` 给 AI 网关注入状态读取函数。
-- `services/health_api.rs` 保留 HTTP 健康状态投影；任务控制接口 `services/runtime_gateway.rs` 不属于进程监督器，不随目录名搬迁。
+- `services/health_api.rs` 保留 HTTP 健康状态投影；任务控制接口 `services/jobs/runtime_gateway.rs` 不属于进程监督器，不随目录名搬迁。
 - 当前状态仍由进程级原子量持有；本批不改变默认启动方式和 in-process/remote 语义。
 
 ### `src/app`
@@ -200,11 +200,11 @@ jobs 的依赖装配由 `app/jobs.rs` 完成；依赖定义在 `services/jobs/de
   Agent 计算记录与产物接口，内部只依赖数据库和目录，不接收完整配置。
 - [`src/services/library/api.rs`](src/services/library/api.rs)
   图书馆接口入口（见上）。
-- [`src/services/job_snapshot_factory.rs`](src/services/job_snapshot_factory.rs)
+- [`src/services/jobs/snapshot_factory.rs`](src/services/jobs/snapshot_factory.rs)
   job snapshot/command 构造边界。
-- [`src/services/job_launcher.rs`](src/services/job_launcher.rs)
+- [`src/services/jobs/launcher.rs`](src/services/jobs/launcher.rs)
   job 持久化与启动边界。
-- [`src/services/runtime_gateway.rs`](src/services/runtime_gateway.rs)
+- [`src/services/jobs/runtime_gateway.rs`](src/services/jobs/runtime_gateway.rs)
   services 访问 runtime 能力的收口层。
 - [`src/services/ai/api.rs`](src/services/ai/api.rs)
   Rust 到受监督 AI sidecar 的 HTTP 代理入口。

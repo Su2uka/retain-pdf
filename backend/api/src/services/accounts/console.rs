@@ -1,6 +1,6 @@
 //! 管理后台与页数额度的取数（多用户模式）。路由只经 `accounts::api` 调这里，不直接碰库。
 //!
-//! 改身份、软删除与恢复在 admin.rs；计费规则本身在 services::page_quota。
+//! 改身份、软删除与恢复在 admin.rs；计费规则本身在 services::accounts::page_quota。
 
 use std::collections::BTreeMap;
 
@@ -10,7 +10,7 @@ use super::admin::user_not_found;
 use super::{admin_view, db_error, AccountsService, AdminUserView, Principal};
 use crate::db::{OwnerJobRow, UserListQuery, UserStats};
 use crate::error::AppError;
-use crate::services::page_quota::{self, PageQuotaView};
+use crate::services::accounts::page_quota::{self, PageQuotaView};
 
 #[derive(Serialize)]
 pub struct AdminUserListItem {

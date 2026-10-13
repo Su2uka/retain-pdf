@@ -166,8 +166,8 @@ Rust 路由：
 主要代码：
 
 - [`src/services/jobs/creation`](src/services/jobs/creation)
-- [`src/services/job_snapshot_factory.rs`](src/services/job_snapshot_factory.rs)
-- [`src/services/job_launcher.rs`](src/services/job_launcher.rs)
+- [`src/services/jobs/snapshot_factory.rs`](src/services/jobs/snapshot_factory.rs)
+- [`src/services/jobs/launcher.rs`](src/services/jobs/launcher.rs)
 
 注意：
 

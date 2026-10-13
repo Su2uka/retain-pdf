@@ -8,4 +8,4 @@ pub use super::{
     SessionView, SESSION_COOKIE,
 };
 pub use crate::db::{UserListQuery, UserSortKey, UserStatusFilter};
-pub use crate::services::page_quota::PageQuotaView;
+pub use crate::services::accounts::page_quota::PageQuotaView;

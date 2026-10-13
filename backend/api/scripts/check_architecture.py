@@ -96,7 +96,7 @@ ALLOWED_APPSTATE_FILES = {
 # （纯 OS 进程工具已迁往 retain-proc，用 crate::process::，不算越界。）
 JOB_RUNNER_IMPORT_ALLOWLIST = {
     Path("src/app/jobs.rs"),
-    Path("src/services/runtime_gateway.rs"),
+    Path("src/services/jobs/runtime_gateway.rs"),
 }
 
 APPSTATE_GUARDED_DIRS = [
@@ -643,9 +643,9 @@ def check_service_model_facade_boundaries(errors: list[str]) -> None:
         SRC_ROOT / "services" / "fonts",
         SRC_ROOT / "services" / "credentials",
         SRC_ROOT / "services" / "agent_calculations",
-        SRC_ROOT / "services" / "job_snapshot_factory.rs",
-        SRC_ROOT / "services" / "job_validation.rs",
-        SRC_ROOT / "services" / "job_launcher.rs",
+        SRC_ROOT / "services" / "jobs" / "snapshot_factory.rs",
+        SRC_ROOT / "services" / "jobs" / "validation.rs",
+        SRC_ROOT / "services" / "jobs" / "launcher.rs",
         SRC_ROOT / "services" / "jobs" / "downloads",
         SRC_ROOT / "services" / "jobs" / "creation",
         SRC_ROOT / "services" / "jobs" / "presentation",
@@ -1285,7 +1285,7 @@ def check_job_runner_boundary(errors: list[str]) -> None:
         if "job_runner::" in text:
             errors.append(
                 f"{rel_path}: shell code must reach the job runtime through "
-                f"services/runtime_gateway.rs (ADR-002); use crate::process:: for "
+                f"services/jobs/runtime_gateway.rs (ADR-002); use crate::process:: for "
                 f"generic process utilities"
             )
 
@@ -1331,11 +1331,11 @@ def check_worker_command_boundary(errors: list[str]) -> None:
                     f"{rel_path}: job_runner must request WorkerStageCommand instead of direct {token}"
                 )
 
-    snapshot_factory_path = SRC_ROOT / "services" / "job_snapshot_factory.rs"
+    snapshot_factory_path = SRC_ROOT / "services" / "jobs" / "snapshot_factory.rs"
     snapshot_factory_text = route_source_without_tests(snapshot_factory_path)
     if "crate::worker_command" in snapshot_factory_text or "build_ocr_command" in snapshot_factory_text:
         errors.append(
-            "src/services/job_snapshot_factory.rs: snapshot creation must not build worker commands"
+            "src/services/jobs/snapshot_factory.rs: snapshot creation must not build worker commands"
         )
 
     child_creation_path = abs_src(Path("src/job_runner/translation_flow_child.rs"))
@@ -1365,8 +1365,6 @@ def check_protocol_docs(errors: list[str]) -> None:
 # 按模块对登记（不按文件路径，挪文件不用改这里）。下面是加这条规则时已经存在的环，只许删、不许加；
 # 环拆开后，这里对应的条目也要删（留着会报「已不在环里」）。
 KNOWN_SERVICE_CYCLE_EDGES = {
-    ("accounts", "page_quota"),
-    ("page_quota", "accounts"),
     ("derived_artifacts", "merge"),
     ("download_generation", "jobs"),
     ("jobs", "derived_artifacts"),
