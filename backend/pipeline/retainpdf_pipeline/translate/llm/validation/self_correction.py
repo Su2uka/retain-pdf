@@ -48,19 +48,25 @@ def _present_in_source(match_text: str, source_text: str) -> bool:
     return bool(needle) and needle in re.sub(r"\s+", " ", source_text).lower()
 
 
-def self_correction_leak(source_text: str, translated_text: str) -> str:
-    """译文里混进了模型的自我纠正就返回那句话（截断），否则返回空字符串。"""
-    translated = str(translated_text or "")
-    source = str(source_text or "")
-    if not translated.strip() or not _CJK_RE.search(translated):
-        return ""
+def _leak_position(source: str, translated: str, *, require_cjk: bool = True) -> int | None:
+    """自我纠正话术在译文里的位置（第一处，落在那句话的第一个字上），没有时 None。
+
+    require_cjk：判断「这是不是一段混进了自言自语的译文」时要求有汉字（纯英文归 english_residue 管）；
+    切出改好的那一版时，剩下的可能是纯英文的自言自语，不能因为没汉字就放过。
+    """
+    if not translated.strip() or (require_cjk and not _CJK_RE.search(translated)):
+        return None
+    positions = []
     for match in _CORRECTION_PHRASE_RE.finditer(translated):
         if not _present_in_source(match.group(0), source):
-            return _snippet(translated, match.start())
+            positions.append(match.start())
+            break
     for match in _ZH_CORRECTION_RE.finditer(translated):
-        return _snippet(translated, match.start())
+        positions.append(match.start())
+        break
     for match in _PARAGRAPH_START_RE.finditer(translated):
-        start = match.start() + (1 if translated[match.start()] == "\n" else 0)
+        # 跳过前面的换行和空白（`\n\nWait` 要落在 W 上，不然「切掉这一行」切掉的是空行）
+        start = match.start() + len(match.group(0)) - len(match.group(0).lstrip())
         paragraph = translated[start:].split("\n", 1)[0]
         marker = match.group(0).strip()
         if _present_in_source(marker, source):
@@ -68,7 +74,34 @@ def self_correction_leak(source_text: str, translated_text: str) -> str:
         # 段首的 Wait / 等等 还要看这一段在不在说「改 / 译」，单独一个「等等，」可能是正常译文
         if re.match(r"\s*(?:等等|稍等|抱歉)", paragraph) and not _ZH_TRANSLATION_WORD_RE.search(paragraph):
             continue
-        return _snippet(translated, start)
+        positions.append(start)
+        break
+    return min(positions) if positions else None
+
+
+def self_correction_leak(source_text: str, translated_text: str) -> str:
+    """译文里混进了模型的自我纠正就返回那句话（截断），否则返回空字符串。"""
+    translated = str(translated_text or "")
+    position = _leak_position(str(source_text or ""), translated)
+    return "" if position is None else _snippet(translated, position)
+
+
+def text_after_self_correction(source_text: str, translated_text: str) -> str:
+    """模型纠正之后给的那一版：最后一处自言自语所在行之后的内容；纠正之后什么都没写时返回空字符串。
+
+    真实例子：先把原文抄一遍，再「Wait — the instruction says output only the translation. Let me correct
+    that.」，最后才是译文。取出来的仍要走完整校验，过了才用——这里只负责切，不负责信。
+    """
+    source = str(source_text or "")
+    remainder = str(translated_text or "")
+    for _ in range(5):  # 偶尔纠正不止一次
+        position = _leak_position(source, remainder, require_cjk=False)
+        if position is None:
+            return remainder.strip()
+        line_end = remainder.find("\n", position)
+        if line_end < 0:
+            return ""
+        remainder = remainder[line_end + 1 :]
     return ""
 
 
@@ -78,4 +111,4 @@ def _snippet(text: str, start: int, limit: int = 120) -> str:
     return text[line_start:].strip().split("\n", 1)[0][:limit]
 
 
-__all__ = ["self_correction_leak"]
+__all__ = ["self_correction_leak", "text_after_self_correction"]
