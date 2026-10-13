@@ -1361,6 +1361,144 @@ def check_protocol_docs(errors: list[str]) -> None:
             )
 
 
+# services 之间不准成环：成了环，改其中任何一个都得连着改另外几个——「牵一发而动全身」的来源。
+# 按模块对登记（不按文件路径，挪文件不用改这里）。下面是加这条规则时已经存在的环，只许删、不许加；
+# 环拆开后，这里对应的条目也要删（留着会报「已不在环里」）。
+KNOWN_SERVICE_CYCLE_EDGES = {
+    ("accounts", "page_quota"),
+    ("page_quota", "accounts"),
+    ("derived_artifacts", "merge"),
+    ("download_generation", "jobs"),
+    ("jobs", "derived_artifacts"),
+    ("jobs", "download_generation"),
+    ("jobs", "merge"),
+    ("merge", "derived_artifacts"),
+    ("merge", "jobs"),
+}
+
+
+def _rust_use_paths(tree: str) -> list[str]:
+    """Expand a use tree such as `a::{b, c::{d, e}}` into flat paths."""
+    tree = tree.strip()
+    brace = tree.find("{")
+    if brace < 0:
+        return [tree]
+    prefix = tree[:brace].rstrip(":").strip()
+    body = tree[brace + 1 : tree.rfind("}")]
+    parts, current, depth = [], "", 0
+    for char in body:
+        depth += (char == "{") - (char == "}")
+        if char == "," and depth == 0:
+            parts.append(current)
+            current = ""
+        else:
+            current += char
+    parts.append(current)
+    paths = []
+    for part in parts:
+        part = part.strip()
+        if part:
+            paths.extend(f"{prefix}::{sub}" if prefix else sub for sub in _rust_use_paths(part))
+    return paths
+
+
+def service_dependency_edges() -> dict[tuple[str, str], Path]:
+    """(from, to) top-level services modules -> one file that creates the edge. Tests excluded."""
+    edges: dict[tuple[str, str], Path] = {}
+    services_root = SRC_ROOT / "services"
+    for path in scan_rs_files(services_root):
+        relative = path.relative_to(SRC_ROOT)
+        if "tests" in relative.parts or path.name == "tests.rs" or path.name.endswith("_tests.rs"):
+            continue
+        module_path = list(relative.with_suffix("").parts)
+        if module_path[-1] == "mod":
+            module_path = module_path[:-1]
+        if len(module_path) < 2:
+            continue
+        source = rust_boundary_source(path)
+        candidates = []
+        for match in re.finditer(r"\buse\s+([^;]+);", source):
+            candidates.extend(_rust_use_paths(match.group(1)))
+        candidates.extend(re.findall(r"(?<![:\w])crate::services::[A-Za-z_0-9:]+", source))
+        for candidate in candidates:
+            segments = [segment.strip() for segment in candidate.split("::") if segment.strip()]
+            if segments and segments[0] == "pub":
+                segments = segments[1:]
+            if not segments:
+                continue
+            if segments[0] == "crate":
+                absolute = segments[1:]
+            elif segments[0] in ("super", "self"):
+                absolute = list(module_path)
+                while segments and segments[0] in ("super", "self"):
+                    if segments[0] == "super":
+                        absolute = absolute[:-1]
+                    segments = segments[1:]
+                absolute += segments
+            else:
+                continue
+            if len(absolute) >= 2 and absolute[0] == "services" and absolute[1] != module_path[1]:
+                edges.setdefault((module_path[1], absolute[1]), rel(path))
+    return edges
+
+
+def _strongly_connected(nodes: set[str], edges: set[tuple[str, str]]) -> list[set[str]]:
+    graph: dict[str, list[str]] = {node: [] for node in nodes}
+    for source, target in edges:
+        graph[source].append(target)
+    index: dict[str, int] = {}
+    low: dict[str, int] = {}
+    stack: list[str] = []
+    on_stack: set[str] = set()
+    groups: list[set[str]] = []
+
+    def visit(node: str) -> None:
+        index[node] = low[node] = len(index)
+        stack.append(node)
+        on_stack.add(node)
+        for target in sorted(graph[node]):
+            if target not in index:
+                visit(target)
+                low[node] = min(low[node], low[target])
+            elif target in on_stack:
+                low[node] = min(low[node], index[target])
+        if low[node] == index[node]:
+            group = set()
+            while True:
+                member = stack.pop()
+                on_stack.discard(member)
+                group.add(member)
+                if member == node:
+                    break
+            if len(group) > 1:
+                groups.append(group)
+
+    for node in sorted(nodes):
+        if node not in index:
+            visit(node)
+    return groups
+
+
+def check_service_dependency_cycles(errors: list[str]) -> None:
+    edges = service_dependency_edges()
+    nodes = {module for edge in edges for module in edge}
+    cycle_edges: set[tuple[str, str]] = set()
+    for group in _strongly_connected(nodes, set(edges)):
+        for edge in sorted(edge for edge in edges if edge[0] in group and edge[1] in group):
+            cycle_edges.add(edge)
+            if edge not in KNOWN_SERVICE_CYCLE_EDGES:
+                errors.append(
+                    f"{edges[edge]}: services::{edge[0]} -> services::{edge[1]} closes a dependency cycle "
+                    f"among {sorted(group)}; depend in one direction only (move the shared piece down or "
+                    "pass it in)"
+                )
+    for edge in sorted(KNOWN_SERVICE_CYCLE_EDGES - cycle_edges):
+        errors.append(
+            f"KNOWN_SERVICE_CYCLE_EDGES lists services::{edge[0]} -> services::{edge[1]}, which is no "
+            "longer part of a cycle; remove it"
+        )
+
+
 def main() -> int:
     errors: list[str] = []
     check_appstate_boundaries(errors)
@@ -1398,6 +1536,7 @@ def main() -> int:
     check_job_runner_boundary(errors)
     check_worker_command_boundary(errors)
     check_protocol_docs(errors)
+    check_service_dependency_cycles(errors)
 
     if errors:
         print("rust_api architecture check failed:", file=sys.stderr)
