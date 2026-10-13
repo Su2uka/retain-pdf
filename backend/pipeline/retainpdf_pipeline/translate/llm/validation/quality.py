@@ -18,6 +18,7 @@ from retainpdf_pipeline.translate.llm.validation.english_residue import should_f
 from retainpdf_pipeline.translate.llm.validation.english_residue import unit_source_text
 from retainpdf_pipeline.translate.llm.validation.math_safety import dropped_latex_commands
 from retainpdf_pipeline.translate.llm.validation.math_safety import has_balanced_inline_math_delimiters
+from retainpdf_pipeline.translate.llm.validation.math_safety import unbalanced_brace_math_spans
 from retainpdf_pipeline.translate.llm.validation.placeholder_tokens import placeholder_sequence
 from retainpdf_pipeline.translate.llm.validation.placeholder_tokens import placeholders
 from retainpdf_pipeline.translate.llm.validation.protocol_shell import looks_like_protocol_shell_output
@@ -221,6 +222,18 @@ def _review_translated_text(
                 message="Translated output has unbalanced inline math delimiters",
             )
         )
+    if is_direct_math_mode(item):
+        broken = unbalanced_brace_math_spans(source_text, translated_text)
+        if broken:
+            issues.append(
+                TranslationQualityIssue(
+                    item_id=item_id,
+                    kind="math_braces_unbalanced",
+                    severity="error",
+                    message="公式里的花括号不配对，渲染器解析不了：" + "；".join(f"${span}$" for span in broken[:3]),
+                    details={"formulas": broken[:5]},
+                )
+            )
     if is_direct_math_mode(item):
         dropped = dropped_latex_commands(source_text, translated_text)
         if dropped:
