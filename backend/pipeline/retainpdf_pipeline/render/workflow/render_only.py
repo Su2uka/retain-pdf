@@ -49,6 +49,7 @@ def _args_from_spec(spec: RenderStageSpec) -> SimpleNamespace:
         source_pdf=str(spec.inputs.source_pdf),
         translations_dir=str(spec.inputs.translations_dir),
         translation_manifest=str(spec.inputs.translation_manifest or ""),
+        source_json=str(spec.inputs.source_json or ""),
         start_page=spec.params.start_page,
         end_page=spec.params.end_page,
         render_mode=spec.params.render_mode,
@@ -137,6 +138,7 @@ def main() -> None:
             render_prewarm_manifest_path=prewarm_manifest_path_from_artifacts_dir(job_dirs.artifacts_dir),
             artifacts_dir=job_dirs.artifacts_dir,
             render_engine=args.render_engine,
+            document_path=Path(args.source_json).resolve() if args.source_json.strip() else None,
         )
         elapsed = time.perf_counter() - started
         save_json(

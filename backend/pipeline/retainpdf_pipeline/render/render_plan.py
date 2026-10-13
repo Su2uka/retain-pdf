@@ -55,6 +55,7 @@ def build_render_plan(
     end_page: int,
     render_mode: str,
     translated_pages_map: dict[int, list[dict]] | None = None,
+    document_path: Path | None = None,
 ) -> RenderPlan:
     from retainpdf_pipeline.render.render_inputs import resolve_render_inputs
 
@@ -62,6 +63,7 @@ def build_render_plan(
         source_pdf_path=source_pdf_path,
         translations_dir=translations_dir,
         translation_manifest_path=translation_manifest_path,
+        document_path=document_path,
     )
     auto_pages_map = translated_pages_map
     if render_mode == "auto" and auto_pages_map is None:

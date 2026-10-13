@@ -196,6 +196,7 @@ fn render_command_with_refine(
         WorkerStageCommand::Render {
             source_pdf_path,
             translations_dir,
+            source_json_path: None,
             refine,
         },
     )
@@ -289,6 +290,34 @@ fn translate_only_command_uses_translation_stage_command() {
         "translate spec should no longer carry render_prewarm_* params"
     );
     assert!(!spec_json.contains("sk-test"));
+}
+
+/// 渲染配置带上 OCR 归一化文档的准确位置：译文被复制进新任务、OCR 文档还在原任务时，渲染端不再按
+/// 「译文目录的上一级 ocr/normalized/」推算（会落到新任务下空的 ocr/，rpr_fit 找不到文档回退 Typst）。
+#[test]
+fn render_spec_carries_the_normalized_document_when_known() {
+    let config = test_config();
+    let request = build_request(WorkflowKind::Render);
+    let job_paths = build_paths(config.as_ref());
+    let with_document = read_spec_from_command(
+        &build_worker_stage_command(
+            &config.worker_command_runtime(),
+            &request,
+            &job_paths,
+            WorkerStageCommand::Render {
+                source_pdf_path: Path::new("/tmp/source.pdf"),
+                translations_dir: Path::new("/tmp/new-job/translated"),
+                source_json_path: Some(Path::new("/tmp/source-job/ocr/normalized/document.v1.json")),
+                refine: super::RenderRefine::Off,
+            },
+        )
+        .expect("build render command"),
+    );
+    assert_eq!(with_document["inputs"]["source_json"], "/tmp/source-job/ocr/normalized/document.v1.json");
+    assert_eq!(with_document["inputs"]["translations_dir"], "/tmp/new-job/translated");
+
+    let without = render_spec_with_refine(&request, super::RenderRefine::Off);
+    assert!(without["inputs"].get("source_json").is_none(), "{}", without["inputs"]);
 }
 
 #[test]

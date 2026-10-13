@@ -174,6 +174,8 @@ pub(super) async fn run_render_stage_after_translation(
     source_pdf_path: &Path,
 ) -> Result<JobRuntimeState> {
     ensure_translations_dir_ready(&job_paths.translated_dir, &job.job_id)?;
+    let normalized_document_path =
+        crate::job_runner::stage_contract::normalized_document_for_render(job.artifacts.as_ref(), &deps.persist.data_root);
     job.command = build_worker_stage_command(
         &deps.worker_command_runtime(),
         &job.request_payload,
@@ -181,6 +183,7 @@ pub(super) async fn run_render_stage_after_translation(
         WorkerStageCommand::Render {
             source_pdf_path,
             translations_dir: &job_paths.translated_dir,
+            source_json_path: normalized_document_path.as_deref(),
             // 紧跟翻译的渲染：按任务的 translation.refine 决定是否先精修（默认 off）。
             refine: RenderRefine::AfterTranslation,
         },

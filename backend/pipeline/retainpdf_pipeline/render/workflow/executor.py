@@ -185,7 +185,7 @@ def execute_render_plan(
             f"sync pages={len(document_analysis.pages)} elapsed={time.perf_counter() - analysis_started:.2f}s",
             flush=True,
         )
-    protected_pages = _protected_pages_for_render(render_plan.render_inputs.translations_dir)
+    protected_pages = _protected_pages_for_render(render_plan.render_inputs)
     render_source_sync_cache_written = False
     if render_source_pdf is None:
         prepare_progress.step(2)
@@ -389,7 +389,7 @@ def execute_render_plan(
         no_cache=no_cache,
         visual_cover_page_indices=cover_fallback_plan.page_indices,
         render_engine=render_engine,
-        document_path=_document_path_for_render(render_plan.render_inputs.translations_dir),
+        document_path=_document_path_for_render(render_plan.render_inputs),
         prepare_dir=prepare_dir,
     )
     prepare_progress.finish()
@@ -496,9 +496,11 @@ def _dispatch_typst_render_mode(
     )
 
 
-def _document_path_for_render(translations_dir: Path) -> Path:
-    return document_path_for_render(translations_dir)
+def _document_path_for_render(render_inputs) -> Path:
+    # 任务记录里的准确位置优先；老 spec 没有时按译文目录推算。
+    return document_path_for_render(render_inputs.translations_dir, explicit=render_inputs.document_path)
 
 
-def _protected_pages_for_render(translations_dir: Path) -> dict[int, list[dict]]:
-    return protected_pages_from_document_path(_document_path_for_render(translations_dir))
+def _protected_pages_for_render(render_inputs) -> dict[int, list[dict]]:
+    # 和 rpr_fit 读同一份 OCR 文档：以前按译文目录推算，文档不在那儿时这里静默拿到空表。
+    return protected_pages_from_document_path(_document_path_for_render(render_inputs))

@@ -37,6 +37,7 @@ pub(super) async fn run_render_job_from_artifacts(
         WorkerStageCommand::Render {
             source_pdf_path: &render_inputs.source_pdf_path,
             translations_dir: &render_inputs.translations_dir,
+            source_json_path: render_inputs.normalized_document_path.as_deref(),
             refine,
         },
     )?;

@@ -44,6 +44,8 @@ pub enum WorkerStageCommand<'a> {
     Render {
         source_pdf_path: &'a Path,
         translations_dir: &'a Path,
+        /// OCR 归一化文档；None 时渲染端按译文目录推算（老约定）。
+        source_json_path: Option<&'a Path>,
         refine: RenderRefine,
     },
     /// 与翻译并行的渲染准备（辅助进程，不是任务阶段：不改任务状态，失败不影响任务）。
@@ -92,6 +94,7 @@ pub fn build_worker_stage_command(
         WorkerStageCommand::Render {
             source_pdf_path,
             translations_dir,
+            source_json_path,
             refine,
         } => build_render_only_command(
             config,
@@ -99,6 +102,7 @@ pub fn build_worker_stage_command(
             job_paths,
             source_pdf_path,
             translations_dir,
+            source_json_path,
             &refine,
         ),
         WorkerStageCommand::RenderPrepare {
@@ -142,6 +146,7 @@ fn build_render_only_command(
     job_paths: &JobPaths,
     source_pdf_path: &Path,
     translations_dir: &Path,
+    source_json_path: Option<&Path>,
     refine: &RenderRefine,
 ) -> Result<Vec<String>> {
     let spec_path = write_render_stage_spec(
@@ -149,6 +154,7 @@ fn build_render_only_command(
         job_paths,
         source_pdf_path,
         translations_dir,
+        source_json_path,
         refine,
     )?;
     Ok(build_render_only_entrypoint(config, &spec_path))

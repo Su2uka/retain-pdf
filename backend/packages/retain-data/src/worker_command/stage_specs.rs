@@ -227,6 +227,7 @@ pub(crate) fn write_render_stage_spec(
     job_paths: &JobPaths,
     source_pdf_path: &Path,
     translations_dir: &Path,
+    source_json_path: Option<&Path>,
     refine: &RenderRefine,
 ) -> Result<PathBuf> {
     ensure_specs_dir(job_paths)?;
@@ -276,6 +277,12 @@ pub(crate) fn write_render_stage_spec(
             "refine": render_refine_params(request, refine),
         },
     });
+    let mut payload = payload;
+    if let Some(source_json_path) = source_json_path {
+        // OCR 归一化文档的准确位置。渲染准备（write_render_prepare_stage_spec）同样带它，渲染端两边用同一个
+        // 路径（准备步骤的指纹含路径）；不带时渲染端按译文目录推算。
+        payload["inputs"]["source_json"] = json!(source_json_path);
+    }
     let content = serde_json::to_string_pretty(&payload)?;
     fs::write(&spec_path, content)
         .with_context(|| format!("write render stage spec: {}", spec_path.display()))?;

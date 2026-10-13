@@ -428,6 +428,8 @@ class RenderStageInputs:
     source_pdf: Path
     translations_dir: Path
     translation_manifest: Path | None
+    # OCR 归一化文档的准确位置（Rust 按任务记录写；老 spec 没有）。没有时渲染端按译文目录推算。
+    source_json: Path | None = None
 
 
 RENDER_REFINE_MODES = ("off", "review_only", "review_and_fix", "editorial")
@@ -582,6 +584,7 @@ class RenderStageSpec:
             translation_manifest=_optional_path(
                 inputs_payload.get("translation_manifest")
             ),
+            source_json=_optional_path(inputs_payload.get("source_json")),
         )
         if not inputs.source_pdf.exists():
             raise RuntimeError(f"source pdf not found: {inputs.source_pdf}")
