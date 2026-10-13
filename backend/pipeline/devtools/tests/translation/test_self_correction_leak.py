@@ -76,3 +76,59 @@ def test_validation_raises_so_the_item_is_retranslated():
     item = _caption_item("p015-b022", REPEAT_SOURCE)
     with pytest.raises(TranslationProtocolError):
         validate_batch_result([item], {"p015-b022": {"decision": "translate", "translated_text": REPEAT_OUTPUT}})
+
+
+# ---------------------------------------------------------------- 拆外壳 / 部分接受不能把自言自语收下
+
+from retainpdf_pipeline.translate.llm.shared.orchestration.direct_typst_salvage import (  # noqa: E402
+    try_salvage_direct_typst_protocol_shell_error,
+)
+from retainpdf_pipeline.translate.llm.validation.self_correction import text_after_self_correction  # noqa: E402
+
+# 真实输出（续接段落，p005-b013）：先抄原文，再自言自语，最后才是译文。以前被「部分接受」整段收下。
+ECHO_SOURCE = (
+    "in adaptive mode, such that reactions are removed from further evaluation as soon as a TS is found and validated."
+)
+ECHO_OUTPUT = (
+    ECHO_SOURCE
+    + "\n\nWait — the instruction says output only the translation. Let me correct that.\n\n"
+    + "以自适应模式运行，即一旦找到并验证过渡态，便将该反应移出后续评估。"
+)
+
+
+def test_text_after_self_correction():
+    assert text_after_self_correction(ECHO_SOURCE, ECHO_OUTPUT) == "以自适应模式运行，即一旦找到并验证过渡态，便将该反应移出后续评估。"
+    assert text_after_self_correction(ALLENE_SOURCE, ALLENE_OUTPUT).startswith("图12.16 丙二烯")
+    assert text_after_self_correction("x", "正常译文。") == "正常译文。"
+    assert text_after_self_correction("x", "草稿。\nWait — I need to correct my reply.") == ""
+
+
+def _salvage(source: str, output: str):
+    item = {
+        "item_id": "p005-b013",
+        "block_type": "text",
+        "math_mode": "direct_typst",
+        "metadata": {"structure_role": "body"},
+        "translation_unit_protected_source_text": source,
+    }
+    exc = TranslationProtocolError("p005-b013", source_text=source, translated_text=output)
+    return try_salvage_direct_typst_protocol_shell_error(
+        item,
+        exc=exc,
+        context=None,
+        diagnostics=None,
+        route_path=["block_level", "direct_typst", "protocol_shell_unwrap"],
+        output_mode_path=["plain_text"],
+        allow_partial_accept=True,
+    )
+
+
+def test_salvage_keeps_only_the_corrected_translation():
+    entry = _salvage(ECHO_SOURCE, ECHO_OUTPUT)["p005-b013"]
+    assert entry["translated_text"] == "以自适应模式运行，即一旦找到并验证过渡态，便将该反应移出后续评估。"
+    assert entry["translation_diagnostics"]["degradation_reason"] == "self_correction_salvaged"
+
+
+def test_nothing_after_the_correction_means_retranslate_not_partial_accept():
+    output = "这是一段足够长的中文草稿译文，汉字数量超过了部分接受的门槛。\n\nWait — I need to correct my reply."
+    assert _salvage(ECHO_SOURCE, output) is None

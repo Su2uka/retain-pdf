@@ -111,6 +111,7 @@
       "devtools/tests/translation/test_prompt_protocol_assembly.py",
       "devtools/tests/translation/test_promptfoo_case_tools.py",
       "devtools/tests/translation/test_protected_token_restore.py",
+      "devtools/tests/translation/test_self_correction_leak.py",
       "devtools/tests/translation/test_structured_errors_protocol.py",
       "devtools/tests/translation/test_translation_abstract_groups.py",
       "devtools/tests/translation/test_translation_agent_repair_pipeline.py",
