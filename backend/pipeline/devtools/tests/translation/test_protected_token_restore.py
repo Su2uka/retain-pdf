@@ -37,7 +37,7 @@ from retainpdf_pipeline.translate.llm.shared.cache import (  # noqa: E402
 from retainpdf_pipeline.translate.llm.shared.orchestration.metadata import (  # noqa: E402
     restore_runtime_term_tokens,
 )
-from retainpdf_pipeline.translate.llm.validation.math_safety import (  # noqa: E402
+from retainpdf_math.checks import (  # noqa: E402
     dropped_latex_commands,
 )
 

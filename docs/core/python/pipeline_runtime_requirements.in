@@ -3,4 +3,5 @@ PyMuPDF
 fontTools
 pikepdf
 requests
+retainpdf_math
 urllib3

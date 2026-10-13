@@ -15,7 +15,8 @@
   清单的矩阵用例恰好带空格，测不到。
 
 所以规则集中到 latex_commands.json，下面只做派生和查询，三道闸门
-（tests/rendering/test_latex_command_registry.py + 前端同名测试）盯着它不跑偏。
+（backend/pipeline/devtools/tests/rendering/test_latex_command_registry.py + 前端同名测试）盯着它不跑偏。
+现在它和公式检查、渲染前改写一起在公式包 retainpdf_math 里。
 
 三列状态都是**实测**出来的，不是断言：
 

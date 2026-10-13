@@ -20,6 +20,7 @@ dependencies = [
   # Object、Page、Rectangle 和内容流解析，7→10 之间都没动过。
   "pikepdf==10.13.0.post1",
   "requests==2.32.5",
+  "retainpdf-math",
   "urllib3==2.5.0",
 ]
 
@@ -33,6 +34,9 @@ test = [
 [project.scripts]
 retainpdf-pipeline = "retainpdf_pipeline.entrypoints.console:main"
 
+[tool.uv.sources]
+retainpdf-math = { workspace = true }
+
 [tool.setuptools.packages.find]
 where = ["."]
 include = [
@@ -44,6 +48,3 @@ namespaces = true
 "retainpdf_pipeline" = ["*.json", "*.md"]
 "retainpdf_pipeline.translate.prompts" = ["*.txt", "*.md"]
 "retainpdf_pipeline.ocr.document_schema" = ["*.json"]
-# latex_commands.py 用 Path(__file__).with_name("latex_commands.json") 读登记表，
-# 漏声明这一项会让 wheel 丢掉该 json，OCR worker 在 import 期就 FileNotFoundError。
-"retainpdf_pipeline.foundation.shared" = ["*.json"]

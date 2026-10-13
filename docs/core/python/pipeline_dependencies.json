@@ -7,6 +7,7 @@
     "fontTools",
     "pikepdf",
     "requests",
+    "retainpdf_math",
     "urllib3"
   ],
   "test_only_python_packages": [
@@ -104,6 +105,7 @@
       "devtools/tests/translation/test_group_neighbor_leak_trimming.py",
       "devtools/tests/translation/test_group_split_sentence_boundaries.py",
       "devtools/tests/translation/test_math_brace_balance.py",
+      "devtools/tests/translation/test_math_render_check.py",
       "devtools/tests/translation/test_partial_results_stay_out_of_the_cache.py",
       "devtools/tests/translation/test_prompt_input_snapshot.py",
       "devtools/tests/translation/test_prompt_protocol_assembly.py",
@@ -137,7 +139,6 @@
       "retainpdf_pipeline/foundation/config/layout.py",
       "retainpdf_pipeline/foundation/config/output_layout.py",
       "retainpdf_pipeline/foundation/shared/job_dirs.py",
-      "retainpdf_pipeline/foundation/shared/latex_commands.py",
       "retainpdf_pipeline/foundation/shared/stage_specs.py",
       "retainpdf_pipeline/foundation/shared/structured_errors.py",
       "retainpdf_pipeline/ocr/mineru_provider/mineru_job.py",
@@ -265,7 +266,6 @@
       "retainpdf_pipeline/translate/llm/shared/prompt_protocols.py",
       "retainpdf_pipeline/translate/llm/shared/usage_ledger.py",
       "retainpdf_pipeline/translate/llm/validation/english_residue.py",
-      "retainpdf_pipeline/translate/llm/validation/math_safety.py",
       "retainpdf_pipeline/translate/services/agents/repair_pipeline.py",
       "retainpdf_pipeline/translate/services/context/session_context.py",
       "retainpdf_pipeline/translate/services/policy/config.py",
@@ -639,6 +639,7 @@
         "devtools/tests/translation/test_garbled_reconstruction_outcomes.py",
         "devtools/tests/translation/test_json_smart_quotes.py",
         "devtools/tests/translation/test_math_brace_balance.py",
+        "devtools/tests/translation/test_math_render_check.py",
         "devtools/tests/translation/test_model_protocol.py",
         "devtools/tests/translation/test_page_local_optimization.py",
         "devtools/tests/translation/test_pipeline_events_protocol.py",
@@ -701,6 +702,34 @@
       ],
       "runtime_required": true,
       "devtool_required": true
+    },
+    {
+      "import_name": "retainpdf_math",
+      "package_name": "retainpdf_math",
+      "runtime_files": [
+        "retainpdf_pipeline/render/layout/inline_content/__init__.py",
+        "retainpdf_pipeline/render/layout/inline_content/core/inline_math.py",
+        "retainpdf_pipeline/render/layout/inline_content/core/markdown.py",
+        "retainpdf_pipeline/render/layout/inline_content/fallback/placeholder_markdown.py",
+        "retainpdf_pipeline/render/layout/inline_content/fallback/png_renderer.py",
+        "retainpdf_pipeline/render/layout/payload/formula_cost.py",
+        "retainpdf_pipeline/render/output/typst/shared.py",
+        "retainpdf_pipeline/services/pipeline_shared/direct_typst_math.py",
+        "retainpdf_pipeline/translate/llm/placeholder_guard.py",
+        "retainpdf_pipeline/translate/llm/validation/__init__.py",
+        "retainpdf_pipeline/translate/llm/validation/quality.py"
+      ],
+      "devtool_files": [],
+      "test_files": [
+        "devtools/tests/rendering/test_latex_command_registry.py",
+        "devtools/tests/rendering/test_latex_source_repair.py",
+        "devtools/tests/translation/test_formula_math_normalization.py",
+        "devtools/tests/translation/test_math_brace_balance.py",
+        "devtools/tests/translation/test_math_render_check.py",
+        "devtools/tests/translation/test_protected_token_restore.py"
+      ],
+      "runtime_required": true,
+      "devtool_required": false
     },
     {
       "import_name": "urllib3",

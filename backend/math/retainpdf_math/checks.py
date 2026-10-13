@@ -1,16 +1,19 @@
+"""不用渲染器就能判断的公式问题：花括号不配对、翻译时丢了 LaTeX 命令。"""
+
 from __future__ import annotations
 
 import collections
 import re
 
-from retainpdf_pipeline.foundation.shared.latex_commands import command_aliases
-from retainpdf_pipeline.foundation.shared.latex_commands import expected_to_drift
+from retainpdf_math.registry import command_aliases
+from retainpdf_math.registry import expected_to_drift
+from retainpdf_math.spans import compact_tex
+from retainpdf_math.spans import math_spans
 
 
-UNESCAPED_INLINE_DOLLAR_RE = re.compile(r"(?<!\\)\$")
 LATEX_COMMAND_RE = re.compile(r"\\([A-Za-z]+)")
 
-# 什么算丢失、哪些拼法等价——规则在 foundation/shared/latex_commands.json，这里只消费。
+# 什么算丢失、哪些拼法等价——规则在 latex_commands.json（registry.py），这里只消费。
 # 第一版把这两张表手写在本文件里，于是和提示词的「不许替换」清单对不上：`\pmb` 在
 # 这里被当成 `\mathbf` 的等价拼法折叠掉，而提示词明令禁止那个替换。登记表的一致性
 # 闸门现在盯着这类矛盾。
@@ -24,16 +27,6 @@ def _semantic_commands(text: str) -> collections.Counter:
         for name in LATEX_COMMAND_RE.findall(text or "")
         if name not in EXPECTED_TO_DRIFT
     )
-
-
-def has_balanced_inline_math_delimiters(text: str) -> bool:
-    return len(UNESCAPED_INLINE_DOLLAR_RE.findall(text or "")) % 2 == 0
-
-
-def _math_spans(text: str) -> list[str]:
-    """`$...$` / `$$...$$` 里的内容（按未转义的 `$` 切开，奇数段就是公式）。"""
-    parts = UNESCAPED_INLINE_DOLLAR_RE.split(text or "")
-    return [part for index, part in enumerate(parts) if index % 2 == 1 and part.strip()]
 
 
 def _braces_balanced(tex: str) -> bool:
@@ -61,11 +54,11 @@ def unbalanced_brace_math_spans(source_text: str, translated_text: str) -> list[
     MathJax 解析失败，PDF 里只能把 LaTeX 原样当文字排出来。原文本来就不配对的（OCR 带来的）不算，
     免得重试也修不好。
     """
-    source_unbalanced = {re.sub(r"\s+", "", span) for span in _math_spans(source_text) if not _braces_balanced(span)}
+    source_unbalanced = {compact_tex(span) for span in math_spans(source_text) if not _braces_balanced(span)}
     return [
         span
-        for span in _math_spans(translated_text)
-        if not _braces_balanced(span) and re.sub(r"\s+", "", span) not in source_unbalanced
+        for span in math_spans(translated_text)
+        if not _braces_balanced(span) and compact_tex(span) not in source_unbalanced
     ]
 
 
@@ -97,8 +90,6 @@ __all__ = [
     "COMMAND_ALIASES",
     "EXPECTED_TO_DRIFT",
     "LATEX_COMMAND_RE",
-    "UNESCAPED_INLINE_DOLLAR_RE",
     "dropped_latex_commands",
-    "has_balanced_inline_math_delimiters",
     "unbalanced_brace_math_spans",
 ]

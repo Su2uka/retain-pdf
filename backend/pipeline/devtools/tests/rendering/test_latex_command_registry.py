@@ -1,6 +1,6 @@
 """LaTeX 命令登记表的三道闸门。
 
-表本身在 foundation/shared/latex_commands.json，派生逻辑在同目录的 .py。这里负责
+表本身在 backend/math/retainpdf_math/latex_commands.json，派生逻辑在同目录的 registry.py。这里负责
 不让它跑偏——一张没人验证的表比没有表更危险，因为它看起来权威。
 
 一致性闸（纯逻辑，秒级）抓的是表**内部**的自相矛盾，也就是当初把规则拆散在八个
@@ -27,10 +27,10 @@ from devtools.tests.rendering.mitex_probe import TYPST_BIN  # noqa: E402
 from devtools.tests.rendering.mitex_probe import compile_native  # noqa: E402
 from devtools.tests.rendering.mitex_probe import compile_pipeline  # noqa: E402
 from devtools.tests.rendering.mitex_probe import png_digest  # noqa: E402
-from retainpdf_pipeline.foundation.shared.latex_commands import command_by_name  # noqa: E402
-from retainpdf_pipeline.foundation.shared.latex_commands import latex_commands  # noqa: E402
-from retainpdf_pipeline.foundation.shared.latex_commands import supported_commands  # noqa: E402
-from retainpdf_pipeline.foundation.shared.latex_commands import unsupported_commands  # noqa: E402
+from retainpdf_math.registry import command_by_name  # noqa: E402
+from retainpdf_math.registry import latex_commands  # noqa: E402
+from retainpdf_math.registry import supported_commands  # noqa: E402
+from retainpdf_math.registry import unsupported_commands  # noqa: E402
 
 STATES = {"supported", "unsupported"}
 _skip_without_typst = pytest.mark.skipif(not TYPST_BIN, reason="没有可用的 typst 二进制")

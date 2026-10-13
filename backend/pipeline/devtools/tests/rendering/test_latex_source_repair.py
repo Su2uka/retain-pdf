@@ -21,7 +21,7 @@ import pytest
 
 from devtools.tests.rendering.mitex_probe import TYPST_BIN  # noqa: E402
 from devtools.tests.rendering.mitex_probe import compile_pipeline  # noqa: E402
-from retainpdf_pipeline.foundation.shared.latex_source_repair import (  # noqa: E402
+from retainpdf_math.source_repair import (  # noqa: E402
     collapse_doubled_command_backslashes,
 )
 from retainpdf_pipeline.services.pipeline_shared.direct_typst_math import (  # noqa: E402

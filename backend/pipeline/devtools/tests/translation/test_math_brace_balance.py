@@ -8,7 +8,7 @@ import pytest
 from retainpdf_pipeline.translate.llm.result_validator import validate_batch_result
 from retainpdf_pipeline.translate.llm.shared.orchestration.direct_typst_repair import build_direct_typst_repair_messages
 from retainpdf_pipeline.translate.llm.validation.errors import MathDelimiterError
-from retainpdf_pipeline.translate.llm.validation.math_safety import unbalanced_brace_math_spans
+from retainpdf_math.checks import unbalanced_brace_math_spans
 from retainpdf_pipeline.translate.services.quality import review_translation_item
 
 SOURCE = (

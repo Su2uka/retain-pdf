@@ -103,7 +103,7 @@ def _handle_quality_issue(
             source_text=state.source_text,
             translated_text=state.translated_text,
         )
-    if issue.kind == "math_braces_unbalanced":
+    if issue.kind in {"math_braces_unbalanced", "math_unrenderable"}:
         raise MathDelimiterError(
             state.item_id,
             source_text=state.source_text,

@@ -1,7 +1,7 @@
 """清洗器有没有在悄悄降级还能渲染的 LaTeX。
 
 编译覆盖已经搬进 test_latex_command_registry.py——那边从登记表
-（foundation/shared/latex_commands.json）派生用例，正反两向都钉：说能渲染的必须
+（backend/math/retainpdf_math/latex_commands.json）派生用例，正反两向都钉：说能渲染的必须
 真能编译，说渲染不了的必须真的失败。手写一份清单会和登记表漂移，正是规则散在八处
 时的老毛病。
 
