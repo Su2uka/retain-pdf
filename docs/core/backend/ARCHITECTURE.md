@@ -87,7 +87,7 @@ Docker 使用 `/data`，桌面端传入应用数据目录；`services/data/` 不
 | `db/jobs.db` | Rust/retain-data 的 SQLite 权威状态；remote jobsd 通过 WAL 访问同一库 |
 | `jobs/<job_id>/` | stage spec、provider 快照、checkpoint 与发布产物 |
 | `uploads/`、`downloads/` | 受管理的输入和派生下载 |
-| `secrets/credentials.json` | Rust 管理的凭据 vault；位于 SQLite 外，要求受限权限且不回显明文 |
+| `secrets/credentials.json` | Rust 管理的凭据 vault；位于 SQLite 外，要求受限权限且不回显明文。文件格式（版本号、大小上限、编号规则、读前安全检查）只在 `retain-data::credentials` 定义，任务运行时读密钥和 API 凭据服务写入都用它 |
 | `secrets/ai-runtime.json` | AI runtime/模型配置及 provider 凭据；监督模式与 Rust 共用 data root，文件权限受限 |
 | `agent-runtime/fx/` | 仅在 `RETAIN_AI_FX_STATE_ROOT` 指向此处时保存 FX 子进程状态；开发启动器会显式设置，不替代 Rust conversation/operation 真值 |
 
