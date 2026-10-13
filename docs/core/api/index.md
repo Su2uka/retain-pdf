@@ -41,7 +41,9 @@
 - `40900`：状态冲突
 - `42900`：模型或外部服务限流
 - `50200`：模型或外部服务失败
-- `50000`：内部错误
+- `50000`：内部错误。原因不回给调用方（底层报错里常带服务器路径、SQL、上游返回），`message` 是
+  `internal server error (ref <编号>)`，`error.details.error_id` 是同一个编号；拿编号去后端日志里搜
+  `error_id=<编号>` 就能找到完整原因。
 
 `X-API-Key` 是访问 Rust API 的后端白名单 key，不是 OCR Provider token，也不是模型 API key。
 
@@ -893,6 +895,20 @@ operation 列表响应包含 `operations`、`total`、`limit`、`offset` 和 `ha
 该接口属于 simple app，通常监听 `42000`。它接受 multipart 扁平字段，适合脚本直接上传 PDF 并创建后台翻译任务。
 
 该接口返回 `ApiResponse<JobSubmissionView>`，不会等待 Python OCR / 翻译 / 渲染完成，也不会同步返回 ZIP。
+
+## 13.4 多用户：网站账号能访问什么
+
+只在多用户模式下生效；单机模式、`X-API-Key`（内部服务）不受这些限制。
+
+- **开放给网站账号的资源**只有：`account`、`auth`、`collections`、`documents`、`fonts`、`glossaries`、
+  `jobs`、`library`、`search`、`uploads`、`usage`（都在 `/api/v1/` 下），以及 `GET /api/v1/providers/ocr`。
+  不在这里面的接口对网站账号**一律关闭**（回 404，看起来就是没有这个接口），新加的接口也默认关闭。
+- **只给管理员**（普通账号 403）：`credentials`、`sync`、`backups`、`admin`、其余 `providers`、
+  `POST /api/v1/fonts/upload`。
+- **这一期对网站账号关闭**（管理员也一样）：`ai`、`assets`、`internal`、`translate/bundle`、旧别名 `ocr`、
+  `.../agent-versions`、`.../agent-workspace`。
+- **数据只看自己的**：路径、查询串、JSON 请求体里出现的任务 / 书 / 术语表 / 文件夹 / 上传编号必须是自己的，
+  别人的一律当不存在（404）；列表和搜索只返回自己的。管理员的网站会话也一样（见 13.6）。
 
 ## 13.5 多用户：页数额度
 

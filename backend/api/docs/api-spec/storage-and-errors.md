@@ -70,6 +70,28 @@ The legacy numeric top-level codes continue to use these values and ranges:
 These ranges are compatibility metadata, not the new dispatch key. Consumers
 should use `error.code`.
 
+### Internal errors
+
+A generic `INTERNAL` error never returns its cause. Underlying messages often
+carry server paths, SQL, or upstream responses, so the response is:
+
+```json
+{
+  "code": 50000,
+  "message": "internal server error (ref 19a3f0c2b41-0007)",
+  "error": {
+    "code": "INTERNAL",
+    "http_status": 500,
+    "details": { "error_id": "19a3f0c2b41-0007" }
+  }
+}
+```
+
+The full cause (for `anyhow` errors, the whole context chain) is logged with
+`tracing::error!` under the same `error_id`. Domain errors that deliberately
+use status 500 with their own stable code and a safe message (for example
+`CREDENTIAL_VAULT_UNAVAILABLE`) are unchanged.
+
 ### Framework and routing rejections
 
 Public JSON, query-string, path-parameter, and multipart input extractors

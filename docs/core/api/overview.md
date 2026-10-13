@@ -66,7 +66,7 @@ OCR-only 使用独立入口 `POST /api/v1/ocr/jobs`，支持 multipart 上传文
 - `40100`：鉴权失败。
 - `40400`：资源不存在。
 - `40900`：状态冲突。
-- `50000`：服务内部错误。
+- `50000`：服务内部错误（原因只进日志，响应里是 `error.details.error_id` 编号）。
 
 前端会自动 unwrap `{code, message, data}`；新接口文档应继续保持这个包裹格式。
 
