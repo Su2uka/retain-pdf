@@ -43,18 +43,6 @@ def canonicalize_batch_result(batch: list[dict], result: dict[str, dict[str, str
         canonical[item_id] = result_entry(decision, translated_text)
         if isinstance(payload, dict) and payload.get("final_status"):
             canonical[item_id]["final_status"] = str(payload.get("final_status", "") or canonical[item_id]["final_status"])
-        if isinstance(payload, dict) and isinstance(payload.get("member_translations"), list):
-            members = payload["member_translations"]
-            if item is not None and decision != KEEP_ORIGIN_LABEL:
-                # 成员分段要和整组译文一起还原，否则 apply 层「分段能拼回整组」的校验对不上。
-                group_source = unit_source_text(item).strip()
-                members = [
-                    {**entry, "translated_text": restore_bracket_citations(group_source, str(entry.get("translated_text", "") or ""))}
-                    if isinstance(entry, dict) and entry.get("translated_text")
-                    else entry
-                    for entry in members
-                ]
-            canonical[item_id]["member_translations"] = members
     return canonical
 
 

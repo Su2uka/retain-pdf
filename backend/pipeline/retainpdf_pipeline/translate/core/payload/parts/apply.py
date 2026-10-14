@@ -95,40 +95,6 @@ def _join_prefix_and_tail(prefix: str, tail: str) -> str:
     return f"{left} {right}"
 
 
-def _structured_group_member_chunks(raw_result, items: list[dict]) -> list[str] | None:
-    if not isinstance(raw_result, dict) or len(items) <= 1:
-        return None
-    raw_members = raw_result.get("member_translations")
-    if raw_members is None:
-        raw_members = raw_result.get("translations")
-    if not isinstance(raw_members, list):
-        return None
-
-    by_item_id: dict[str, str] = {}
-    for entry in raw_members:
-        if not isinstance(entry, dict):
-            continue
-        item_id = str(entry.get("item_id", "") or "").strip()
-        translated_text = str(entry.get("translated_text", "") or "").strip()
-        if item_id and translated_text:
-            by_item_id[item_id] = translated_text
-
-    chunks: list[str] = []
-    for item in items:
-        item_id = str(item.get("item_id", "") or "").strip()
-        chunk = by_item_id.get(item_id, "")
-        if not chunk:
-            return None
-        chunks.append(chunk)
-    return chunks
-
-
-def _structured_chunks_reconstruct_group(chunks: list[str], protected_group_text: str) -> bool:
-    compact_group = re.sub(r"[\s，,、]+", "", str(protected_group_text or ""))
-    compact_chunks = re.sub(r"[\s，,、]+", "", "".join(chunks))
-    return bool(compact_group) and compact_chunks == compact_group
-
-
 def _group_source_text(items: list[dict]) -> str:
     first = items[0]
     return str(
@@ -179,17 +145,10 @@ def apply_group_translated_entry(
     formula_map = items[0].get("translation_unit_formula_map") or items[0].get("group_formula_map", [])
     protected_map = items[0].get("translation_unit_protected_map") or items[0].get("group_protected_map") or formula_map
     restored = restore_protected_tokens(protected_translated_text, protected_map)
-    member_chunks = _structured_group_member_chunks(raw_result, items)
-    rejected_structured_chunks = False
-    if member_chunks is not None and not _structured_chunks_reconstruct_group(
-        member_chunks,
-        protected_translated_text,
-    ):
-        member_chunks = None
-        rejected_structured_chunks = True
-    structured_member_chunks = member_chunks is not None
-    if member_chunks is None:
-        member_chunks = split_group_protected_translation(protected_translated_text, items)
+    # 模型只翻整段，切回各框由程序做（公式不可拆、`$` 不成对不切，见 group_split）。
+    # 不让模型按原来的分界返回各框译文：英文在句中断栏时中文语序对不上，模型会把半句挪走、
+    # 再把剩下那块原样抄回英文（20261014022104-4120a5 p001-b0013）。
+    member_chunks = split_group_protected_translation(protected_translated_text, items)
     for item, member_protected_text in zip(items, member_chunks):
         if not item.get("should_translate", True):
             clear_translation_fields(item)
@@ -201,13 +160,6 @@ def apply_group_translated_entry(
         item["protected_translated_text"] = member_protected_text
         item["translated_text"] = restore_protected_tokens(member_protected_text, protected_map)
         diagnostics = result_diagnostics_for_item(metadata, item)
-        if structured_member_chunks:
-            diagnostics = dict(diagnostics or {})
-            diagnostics["group_member_translation_source"] = "structured"
-        elif rejected_structured_chunks:
-            diagnostics = dict(diagnostics or {})
-            diagnostics["group_member_translation_source"] = "source_weighted_fallback"
-            diagnostics["group_member_translation_fallback_reason"] = "inconsistent_structured_members"
         if diagnostics:
             item["translation_diagnostics"] = diagnostics
         set_final_status(item, str(metadata.get("final_status", "") or TRANSLATED_STATUS))

@@ -63,10 +63,6 @@ class TranslationContinuationFastPathTests(unittest.TestCase):
 
         with mock.patch.object(
             module,
-            "translate_continuation_group_members",
-            side_effect=module.TranslationProtocolError("__cg__:cg-028-037"),
-        ), mock.patch.object(
-            module,
             "translate_single_item_plain_text",
             side_effect=module.TranslationProtocolError("__cg__:cg-028-037"),
         ), mock.patch.object(
@@ -100,7 +96,8 @@ class TranslationContinuationFastPathTests(unittest.TestCase):
             "protocol_shell_repeated",
         )
 
-    def test_continuation_group_prefers_structured_member_route(self):
+    def test_continuation_group_is_translated_as_one_full_text(self):
+        """模型只翻整段，切回各框由程序做；不再要求模型按原来的分界返回各框译文。"""
         module = import_module(
             "retainpdf_pipeline.translate.llm.shared.orchestration.fallbacks"
         )
@@ -123,23 +120,15 @@ class TranslationContinuationFastPathTests(unittest.TestCase):
 
         with mock.patch.object(
             module,
-            "translate_continuation_group_members",
+            "translate_single_item_plain_text",
             return_value={
                 "__cg__:cg-010-001": {
                     "decision": "translate",
                     "translated_text": "这句话开始并继续。",
                     "final_status": "translated",
-                    "member_translations": [
-                        {"item_id": "p010-b001", "translated_text": "这句话开始"},
-                        {"item_id": "p010-b002", "translated_text": "并继续。"},
-                    ],
                 }
             },
-        ) as group_mock, mock.patch.object(
-            module,
-            "translate_single_item_plain_text",
-            side_effect=AssertionError("legacy route should not run"),
-        ):
+        ) as plain_mock:
             result = module.translate_single_item_plain_text_with_retries(
                 item,
                 api_key="",
@@ -151,11 +140,10 @@ class TranslationContinuationFastPathTests(unittest.TestCase):
             )
 
         payload = result["__cg__:cg-010-001"]
-        group_mock.assert_called_once()
+        plain_mock.assert_called_once()
         self.assertEqual(payload["translated_text"], "这句话开始并继续。")
-        self.assertEqual(payload["member_translations"][0]["item_id"], "p010-b001")
-        self.assertEqual(payload["translation_diagnostics"]["route_path"], ["block_level", "continuation_group_members"])
-        self.assertEqual(payload["translation_diagnostics"]["output_mode_path"], ["json", "member_translations"])
+        self.assertNotIn("member_translations", payload)
+        self.assertNotIn("continuation_group_members", payload["translation_diagnostics"]["route_path"])
 
     def test_abstract_aggregate_group_uses_one_full_text_translation(self):
         module = import_module(
@@ -195,10 +183,6 @@ class TranslationContinuationFastPathTests(unittest.TestCase):
 
         with mock.patch.object(
             module,
-            "translate_continuation_group_members",
-            side_effect=AssertionError("abstract groups must not request member translations"),
-        ) as group_mock, mock.patch.object(
-            module,
             "translate_single_item_plain_text",
             return_value=aggregate_result,
         ) as plain_mock:
@@ -212,7 +196,6 @@ class TranslationContinuationFastPathTests(unittest.TestCase):
                 diagnostics=None,
             )
 
-        group_mock.assert_not_called()
         plain_mock.assert_called_once()
         self.assertEqual(result[item["item_id"]]["translated_text"], "完整摘要作为一段连贯文本进行翻译。")
 

@@ -4,7 +4,6 @@ from retainpdf_pipeline.translate.core.context import TranslationItemContext
 from retainpdf_pipeline.translate.core.context import build_item_context
 from retainpdf_pipeline.translate.llm.shared.prompt_protocols import batch_json_user_prompt
 from retainpdf_pipeline.translate.llm.shared.prompt_protocols import direct_typst_batch_user_prompt as _direct_typst_batch_user_prompt
-from retainpdf_pipeline.translate.llm.shared.prompt_protocols import group_member_json_user_prompt as _group_member_json_user_prompt
 from retainpdf_pipeline.translate.llm.shared.prompt_protocols import protocol_system_prompt
 from retainpdf_pipeline.translate.llm.shared.prompt_protocols import single_user_prompt
 
@@ -74,24 +73,3 @@ def build_single_item_fallback_messages(
         structured_decision=structured_decision,
     )
     return _messages(system_prompt, user_prompt)
-
-
-def build_group_member_messages(
-    item: dict,
-    domain_guidance: str = "",
-    mode: str = "fast",
-    target_language_name: str = "简体中文",
-) -> list[dict[str, str]]:
-    item_context = _item_context(item)
-    system_prompt = protocol_system_prompt(
-        "group",
-        domain_guidance=domain_guidance,
-        mode=mode,
-        response_style="json",
-        target_language_name=target_language_name,
-        direct_typst=_item_math_mode(item_context) == "direct_typst",
-    )
-    return _messages(
-        system_prompt,
-        _group_member_json_user_prompt(item_context, target_language_name=target_language_name),
-    )

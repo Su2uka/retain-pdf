@@ -6,7 +6,6 @@ import json
 import pytest
 
 from retainpdf_pipeline.translate.llm.shared.prompt_building import (
-    build_group_member_messages,
     build_messages,
     build_single_item_fallback_messages,
 )
@@ -68,21 +67,3 @@ def test_batch_protocol_separators_and_style(math_mode, mode, style):
     if math_mode == "direct_typst":
         expected += "\n\n" + direct_math_guidance()
     assert messages[0]["content"] == expected
-
-
-@pytest.mark.parametrize("math_mode", ["placeholder", "direct_typst"])
-@pytest.mark.parametrize("mode", ["fast", "sci"])
-def test_group_protocol_is_json_and_preserves_member_order(math_mode, mode):
-    item = _item(math_mode)
-    item["translation_unit_member_ids"] = ["p002-b", "p001-a"]
-    before = deepcopy(item)
-    messages = build_group_member_messages(item, mode=mode)
-    expected = build_translation_system_prompt(mode=mode, response_style="json")
-    expected += ('\n\nReturn only valid JSON. Required schema: '
-                 '{"member_translations":[{"item_id":"...","translated_text":"..."}]}. '
-                 'Every member_id from the request must appear exactly once.')
-    if math_mode == "direct_typst":
-        expected += "\n" + direct_math_guidance()
-    assert messages[0]["content"] == expected
-    assert json.loads(messages[1]["content"])["group"]["member_ids"] == item["translation_unit_member_ids"]
-    assert item == before

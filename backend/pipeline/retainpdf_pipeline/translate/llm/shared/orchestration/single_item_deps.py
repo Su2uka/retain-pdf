@@ -8,7 +8,6 @@ from typing import Callable
 class SingleItemFlowDeps:
     translate_plain_fn: Callable
     translate_unstructured_fn: Callable
-    translate_group_members_fn: Callable | None
     formula_segment_translator_fn: Callable
     stable_placeholder_text_fn: Callable
     sentence_level_fallback_fn: Callable

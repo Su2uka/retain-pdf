@@ -55,22 +55,6 @@ def test_extract_direct_typst_protocol_text_handles_item_id_mapping() -> None:
     assert extract_direct_typst_protocol_text(raw, item_id="p014-b004") == "示例 4.2：水分子单点能计算的 Q-CHEM 输入。"
 
 
-def test_canonicalize_batch_result_preserves_group_member_translations() -> None:
-    item = _body_item()
-    item["item_id"] = "__cg__:cg-014-001"
-    item["translation_unit_id"] = "__cg__:cg-014-001"
-    payload = result_entry("translate", "合并后的译文。")
-    payload["member_translations"] = [
-        {"item_id": "p014-b004", "translated_text": "第一段译文。"},
-        {"item_id": "p014-b005", "translated_text": "第二段译文。"},
-    ]
-
-    result = canonicalize_batch_result([item], {item["item_id"]: payload})
-
-    assert result[item["item_id"]]["translated_text"] == "合并后的译文。"
-    assert result[item["item_id"]]["member_translations"] == payload["member_translations"]
-
-
 def test_repeated_direct_typst_protocol_shell_marks_body_failed(retry_sleep) -> None:
     item = _body_item()
 

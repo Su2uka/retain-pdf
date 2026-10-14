@@ -31,12 +31,10 @@ from retainpdf_pipeline.translate.llm.shared.orchestration.single_item_routes im
 from retainpdf_pipeline.translate.llm.shared.orchestration.single_item_routes import try_tagged_placeholder_route
 from retainpdf_pipeline.translate.llm.shared.orchestration.tagged_placeholder import translate_stable_placeholder_text
 from retainpdf_pipeline.translate.llm.shared.orchestration.transport import plain_text_timeout_seconds
-from retainpdf_pipeline.translate.llm.shared.orchestration.transport import defer_transport_retry
 from retainpdf_pipeline.translate.llm.shared.provider_runtime import DEFAULT_BASE_URL
 from retainpdf_pipeline.translate.llm.shared.provider_runtime import DEFAULT_MODEL
 from retainpdf_pipeline.translate.llm.shared.provider_runtime import is_transport_error
 from retainpdf_pipeline.translate.llm.shared.provider_runtime import translate_batch_once
-from retainpdf_pipeline.translate.llm.shared.provider_runtime import translate_continuation_group_members
 from retainpdf_pipeline.translate.llm.shared.provider_runtime import translate_single_item_plain_text
 from retainpdf_pipeline.translate.llm.shared.provider_runtime import translate_single_item_plain_text_unstructured
 from retainpdf_pipeline.translate.llm.shared.provider_runtime import unwrap_translation_shell
@@ -83,7 +81,6 @@ def _default_flow_deps() -> SingleItemFlowDeps:
     return SingleItemFlowDeps(
         translate_plain_fn=translate_single_item_plain_text,
         translate_unstructured_fn=translate_single_item_plain_text_unstructured,
-        translate_group_members_fn=translate_continuation_group_members,
         formula_segment_translator_fn=translate_single_item_formula_segment_text_with_retries,
         stable_placeholder_text_fn=translate_single_item_stable_placeholder_text,
         sentence_level_fallback_fn=_sentence_level_fallback,
@@ -135,55 +132,6 @@ def translate_single_item_plain_text_with_retries(
     flow_deps = deps or _default_flow_deps()
     single_item_translator = flow_deps.single_item_translator_fn or translate_single_item_plain_text_with_retries
     route = select_single_item_route(item, context=context)
-    if (
-        str(item.get("item_id", "") or "").startswith("__cg__:")
-        and str(item.get("translation_unit_id", "") or "").startswith("__cg__:")
-        and str(item.get("translation_group_strategy", "") or "").strip() != "aggregate_geometry"
-        and flow_deps.translate_group_members_fn is not None
-    ):
-        try:
-            group_result = flow_deps.translate_group_members_fn(
-                item,
-                api_key=api_key,
-                model=model,
-                base_url=base_url,
-                request_label=f"{request_label} group-members" if request_label else "",
-                domain_guidance=context.prompt_system_guidance,
-                mode=context.mode,
-                target_language_name=context.target_language_name,
-                diagnostics=diagnostics,
-                timeout_s=plain_text_timeout_seconds(
-                    item,
-                    context=context,
-                    transport_tail_retry=not allow_transport_tail_defer,
-                ),
-                http_retry_attempts=1,
-            )
-            return attach_result_metadata(
-                restore_runtime_term_tokens(group_result, item=item),
-                item=item,
-                context=context,
-                route_path=["block_level", "continuation_group_members"],
-                output_mode_path=["json", "member_translations"],
-            )
-        except Exception as exc:
-            # A network timeout is not evidence that the member protocol is
-            # unsuitable. Do not repeat it through the aggregate/legacy route.
-            if is_transport_error(exc):
-                if allow_transport_tail_defer:
-                    defer_transport_retry(
-                        item,
-                        route_path=["block_level", "continuation_group_members"],
-                        cause=exc,
-                        request_label=request_label,
-                        diagnostics=diagnostics,
-                    )
-                raise
-            if request_label:
-                print(
-                    f"{request_label}: continuation group member route failed, fallback to legacy route: {type(exc).__name__}: {exc}",
-                    flush=True,
-                )
     if route.direct_typst:
         return translate_direct_typst_route(
             item,

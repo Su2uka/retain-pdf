@@ -86,45 +86,17 @@ class TranslationItemContext:
     scoped_terms_guidance: str = field(init=False, default="")
     prompt_is_reference: bool = field(init=False, default=False)
     prompt_is_title: bool = field(init=False, default=False)
-    prompt_member_ids: tuple[str, ...] = field(init=False, default=())
-    prompt_member_sources: tuple[tuple[str, str], ...] = field(init=False, default=())
     prompt_raw_direct_typst: bool = field(init=False, default=False)
-    prompt_member_ids_error: str | None = field(init=False, default=None)
-    prompt_member_sources_error: str | None = field(init=False, default=None)
 
     def __post_init__(self) -> None:
         # Snapshot only the historical prompt reads. Keep raw_item for callers
         # that still need it, including direct construction of this context.
         raw = self.raw_item or {}
-        # Optional group metadata must not make ordinary single-item context
-        # construction fail. This is extraction, not member-protocol validation.
-        member_ids_error = members_error = None
-        try:
-            member_ids = tuple(raw.get("translation_unit_member_ids", []))
-        except TypeError as exc:
-            member_ids, member_ids_error = (), str(exc)
-        try:
-            members = tuple(raw.get("translation_unit_members", []))
-        except TypeError as exc:
-            members, members_error = (), str(exc)
         values = {
             "scoped_terms_guidance": str(raw.get("_scoped_terms_guidance", "") or "").strip(),
             "prompt_is_reference": item_is_reference_compatible(raw),
             "prompt_is_title": item_is_title_like(raw),
-            "prompt_member_ids": tuple(
-                str(member_id or "").strip()
-                for member_id in member_ids
-                if str(member_id or "").strip()
-            ),
-            "prompt_member_sources": tuple(
-                (str(member.get("item_id", "") or "").strip(),
-                 str(member.get("protected_source_text", "") or member.get("source_text", "") or "").strip())
-                for member in members
-                if isinstance(member, dict) and str(member.get("item_id", "") or "").strip()
-            ),
             "prompt_raw_direct_typst": str(raw.get("math_mode", "") or "").strip() == "direct_typst",
-            "prompt_member_ids_error": member_ids_error,
-            "prompt_member_sources_error": members_error,
         }
         for name, value in values.items():
             object.__setattr__(self, name, value)
