@@ -6,6 +6,7 @@ import random
 import socket
 import threading
 import time
+import uuid
 from typing import Any
 from urllib.parse import urlparse
 
@@ -28,6 +29,7 @@ HTTP_RETRY_BACKOFF_MAX_SECS = 20
 HTTP_RATE_LIMIT_WAIT_MAX_SECS = 300
 DNS_PREWARM_TIMEOUT_MS = 50
 _THREAD_LOCAL = threading.local()
+_OPENCODE_SESSION_ID = f"retainpdf-{uuid.uuid4()}"
 _TRANSPORT_RETRY_MARKERS = (
     "temporary failure in name resolution",
     "name resolution",
@@ -110,8 +112,16 @@ def chat_completions_url(base_url: str) -> str:
     return f"{normalize_base_url(base_url)}/chat/completions"
 
 
-def build_headers(api_key: str) -> dict[str, str]:
+def build_headers(api_key: str, base_url: str = "") -> dict[str, str]:
     headers = {"Content-Type": "application/json"}
+    if hostname_from_base_url(base_url) == "opencode.ai":
+        diagnostics = get_active_translation_run_diagnostics()
+        session_id = (
+            f"retainpdf-{os.getpid()}-{diagnostics.run_started_at}"
+            if diagnostics is not None else _OPENCODE_SESSION_ID
+        )
+        headers["User-Agent"] = "RetainPDF/1.0"
+        headers["x-opencode-session"] = session_id
     if api_key.strip():
         headers["Authorization"] = f"Bearer {api_key.strip()}"
     return headers
