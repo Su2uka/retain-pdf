@@ -77,3 +77,23 @@ Compose 实际读取的是：
 - `ops/deployment/docker/delivery/docker/auth.local.json`
 
 不是仓库根目录下的 `docker/*.env`。
+
+## OpenCode Go compatibility
+
+Select **OpenCode Go** in the API provider menu, or configure
+`translation.provider = "opencode"` in the shared config. The preset supplies
+the API URL, `deepseek-v4.1-flash`, the OpenAI protocol and 5 workers. Credentials
+and model overrides are stored in a separate OpenCode profile.
+
+For an OpenAI-compatible OpenCode Go connection, use the provider API model ID
+(e.g. `deepseek-v4.1-flash`) rather than the OpenCode CLI's
+`opencode-go/` provider prefix. The base URL excludes `/chat/completions`,
+for example `https://opencode.ai/inference/go/v1`.
+
+The API probe, translation transports and reading assistant identify themselves
+with a RetainPDF User-Agent and send `x-opencode-session` on requests to the exact
+`opencode.ai` host. Translation requests reuse the session within a task, including
+concurrent requests and retries; assistant tool rounds reuse it within an ask.
+Other provider hosts receive no OpenCode-specific headers. No credential is used
+as a session identifier. Follow the provider's current usage terms:
+https://opencode.ai/docs/go/#where-can-i-use-it.

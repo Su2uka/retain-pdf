@@ -321,8 +321,15 @@ impl ModelExecutor {
             return Ok(());
         }
         let queue_ms = started.elapsed().as_millis() as u64;
-        let upstream =
-            transport::execute(&pool.client, &pool.url, &secret, profile, request, queue_ms);
+        let upstream = transport::execute(
+            &pool.client,
+            &pool.url,
+            &secret,
+            profile,
+            request,
+            queue_ms,
+            job,
+        );
         let canceled = async {
             loop {
                 tokio::time::sleep(Duration::from_millis(200)).await;

@@ -247,7 +247,7 @@ def _scan_external_commands(scripts_root: Path) -> dict[str, list[str]]:
             except Exception:
                 continue
             if any(marker in text for marker in markers):
-                refs.append(str(path.relative_to(scripts_root)))
+                refs.append(path.relative_to(scripts_root).as_posix())
         if refs:
             results[command] = sorted(refs)
     return results
@@ -263,7 +263,7 @@ def _build_report(services_root: Path) -> dict[str, object]:
         refs = raw_hits[import_name]
         buckets: dict[str, list[str]] = defaultdict(list)
         for hit in refs:
-            buckets[_classify_importer(hit.importer)].append(str(hit.importer.relative_to(scripts_root)))
+            buckets[_classify_importer(hit.importer)].append(hit.importer.relative_to(scripts_root).as_posix())
         package_name = IMPORT_TO_PACKAGE.get(import_name, import_name)
         entry = {
             "import_name": import_name,
@@ -290,8 +290,8 @@ def _build_report(services_root: Path) -> dict[str, object]:
         "ai/pyproject.toml",
     ]
     return {
-        "services_root": str(services_root),
-        "scripts_root": str(scripts_root),
+        "services_root": services_root.as_posix(),
+        "scripts_root": scripts_root.as_posix(),
         "runtime_python_packages": runtime_packages,
         "test_only_python_packages": test_only_packages,
         "external_commands": _scan_external_commands(scripts_root),
@@ -373,10 +373,10 @@ def _render_markdown(report: dict[str, object]) -> str:
             "",
             "## Generated Outputs",
             "",
-            f"- `{output_dir / 'pipeline_dependencies.json'}`",
-            f"- `{output_dir / 'pipeline_dependencies.md'}`",
-            f"- `{output_dir / 'pipeline_runtime_requirements.in'}`",
-            f"- `{output_dir / 'pipeline_test_requirements.in'}`",
+            f"- `{(output_dir / 'pipeline_dependencies.json').as_posix()}`",
+            f"- `{(output_dir / 'pipeline_dependencies.md').as_posix()}`",
+            f"- `{(output_dir / 'pipeline_runtime_requirements.in').as_posix()}`",
+            f"- `{(output_dir / 'pipeline_test_requirements.in').as_posix()}`",
         ]
     )
     lines.append("")

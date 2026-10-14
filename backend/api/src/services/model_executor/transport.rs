@@ -51,6 +51,7 @@ pub(super) async fn execute(
     profile: &ModelConnection,
     request: &ModelRequest,
     queue_ms: u64,
+    session_id: &str,
 ) -> Outcome {
     let start = Instant::now();
     let mut receipt = Receipt {
@@ -66,6 +67,10 @@ pub(super) async fn execute(
                 client
                     .post(url.clone())
                     .bearer_auth(secret)
+                    .headers(crate::services::model_provider_headers::opencode_headers(
+                        url.as_str(),
+                        session_id,
+                    ))
                     .json(&body)
                     .send(),
             )

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import uuid
+from urllib.parse import urlsplit
 from collections.abc import Callable, Iterable
 from typing import Any
 
@@ -199,6 +201,9 @@ def build_deepseek_chat_fn(
 
         return missing_key
     headers = {"Authorization": f"Bearer {api_key}"}
+    if urlsplit(settings.llm_base_url).hostname == "opencode.ai":
+        headers["User-Agent"] = "RetainPDF/1.0"
+        headers["x-opencode-session"] = f"retainpdf-ai-{uuid.uuid4()}"
     # 流式要显式要用量（stream_options）。个别中转不认这个字段、回 400：记下来，这次和之后都不再带。
     stream_usage = {"supported": True}
 
