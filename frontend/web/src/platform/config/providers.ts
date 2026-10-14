@@ -56,6 +56,7 @@ export const QWEN_TRANSLATION_BASE_URL = "https://dashscope.aliyuncs.com/compati
 export const ANTHROPIC_TRANSLATION_BASE_URL = "https://api.anthropic.com/v1";
 export const OPENAI_TRANSLATION_BASE_URL = "https://api.openai.com/v1";
 export const ZHIPU_TRANSLATION_BASE_URL = "https://open.bigmodel.cn/api/paas/v4";
+export const OPENCODE_GO_TRANSLATION_BASE_URL = "https://opencode.ai/inference/go/v1";
 
 export const TRANSLATION_PROVIDER_OPTIONS = [
   {
@@ -117,6 +118,18 @@ export const TRANSLATION_PROVIDER_OPTIONS = [
     billingLabel: "智谱充值",
   },
   {
+    id: "opencode",
+    label: "OpenCode Go",
+    protocol: "openai",
+    baseUrl: OPENCODE_GO_TRANSLATION_BASE_URL,
+    defaultModel: "deepseek-v4.1-flash",
+    defaultWorkers: 5,
+    maxWorkers: 100,
+    logoUrl: "",
+    docsUrl: "https://opencode.ai/docs/go/",
+    docsLabel: "OpenCode Go 文档",
+  },
+  {
     id: "custom",
     label: "自定义 API",
     protocol: "openai",
@@ -171,6 +184,12 @@ export function inferTranslationProvider(baseUrl = "") {
   try {
     const parsed = new URL(raw);
     const normalizedPath = parsed.pathname.replace(/\/+$/, "");
+    if (
+      parsed.hostname.toLowerCase() === "opencode.ai"
+      && ["/inference/go/v1", "/zen/go/v1"].includes(normalizedPath.replace(/\/chat\/completions$/, ""))
+    ) {
+      return "opencode";
+    }
     if (
       parsed.hostname.toLowerCase() === "dashscope.aliyuncs.com"
       && normalizedPath === "/compatible-mode/v1"

@@ -80,6 +80,11 @@ Compose 实际读取的是：
 
 ## OpenCode Go compatibility
 
+Select **OpenCode Go** in the API provider menu, or configure
+`translation.provider = "opencode"` in the shared config. The preset supplies
+the API URL, `deepseek-v4.1-flash`, the OpenAI protocol and 5 workers. Credentials
+and model overrides are stored in a separate OpenCode profile.
+
 For an OpenAI-compatible OpenCode Go connection, use the provider API model ID
 (e.g. `deepseek-v4.1-flash`) rather than the OpenCode CLI's
 `opencode-go/` provider prefix. The base URL excludes `/chat/completions`,

@@ -61,6 +61,15 @@ pub const MODEL_PROVIDERS: &[ModelProvider] = &[
         protocol: "openai",
     },
     ModelProvider {
+        id: "opencode",
+        label: "OpenCode Go",
+        base_url: "https://opencode.ai/inference/go/v1",
+        default_model: "deepseek-v4.1-flash",
+        default_workers: 5,
+        max_workers: 100,
+        protocol: "openai",
+    },
+    ModelProvider {
         id: "custom",
         label: "自定义 API",
         base_url: "",

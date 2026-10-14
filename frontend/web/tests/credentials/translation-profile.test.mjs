@@ -48,3 +48,21 @@ test("dialogDataset：只在对象带 dataset 时返回", () => {
   assert.equal(dialogDataset(null), undefined);
   assert.equal(dialogDataset(false), undefined);
 });
+
+
+test("OpenCode Go preset：默认连接、模型、并发与地址识别", async () => {
+  const { inferTranslationProvider, normalizeTranslationProvider } = await import("../../src/platform/config/providers.js");
+  const defaults = translationProfileDefaults("opencode");
+  assert.equal(normalizeTranslationProvider("opencode"), "opencode");
+  assert.equal(defaults.baseUrl, "https://opencode.ai/inference/go/v1");
+  assert.equal(defaults.model, "deepseek-v4.1-flash");
+  assert.equal(defaults.workers, 5);
+  assert.equal(defaults.apiProtocol, "openai");
+  for (const path of ["/inference/go/v1", "/zen/go/v1", "/inference/go/v1/chat/completions"]) {
+    assert.equal(inferTranslationProvider(`https://opencode.ai${path}`), "opencode");
+  }
+  assert.equal(inferTranslationProvider("https://opencode.ai.example/inference/go/v1"), "custom");
+  const profile = normalizeTranslationProfile("opencode", {apiKey: "test-key", workers: 101});
+  assert.equal(profile.apiKey, "test-key");
+  assert.equal(profile.workers, 5);
+});
