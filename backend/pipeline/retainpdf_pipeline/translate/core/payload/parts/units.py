@@ -109,6 +109,51 @@ def _reset_group_item_to_single(item: dict, *, reason: str) -> None:
     item["group_split_reason"] = reason
 
 
+# 跨栏 / 跨页断词：OCR 有时把前一块末尾的半个词补全、还补了句号（"…ab initio calculations."），
+# 后一块开头却仍留着后半截（"tions in order to…"）。原样拼起来，模型看到的是一句话在
+# "calculations." 处结束、后面跟着一个乱码残片——这一块整个被当成残片原样交回了英文
+# （20261014022104-4120a5 p001-b0013）。后半截正好是前一个词的结尾时，删掉残片和多出来的句号。
+_TRAILING_WORD_RE = re.compile(r"([A-Za-z]+)(\.?)$")
+_LEADING_FRAGMENT_RE = re.compile(r"([a-z]+)(?=[\s,;:]|$)")
+_MIN_FRAGMENT_CHARS = 3
+_MIN_WORD_HEAD_CHARS = 3
+
+
+def _drop_duplicated_word_tail(prev: str, nxt: str) -> tuple[str, str]:
+    word = _TRAILING_WORD_RE.search(prev)
+    fragment = _LEADING_FRAGMENT_RE.match(nxt)
+    if not word or not fragment:
+        return prev, nxt
+    whole, tail = word.group(1), fragment.group(1)
+    if len(tail) < _MIN_FRAGMENT_CHARS or len(whole) < len(tail) + _MIN_WORD_HEAD_CHARS:
+        return prev, nxt
+    if not whole.lower().endswith(tail):
+        return prev, nxt
+    return prev[: word.end(1)], nxt[fragment.end(1) :].lstrip()
+
+
+def join_member_sources(chunks: list[str]) -> str:
+    """把一组成员的原文拼成一段话：断词处修好再拼。
+
+    - 前一块以连字符收尾（"SF-EOM-" / "calcula-"）：直接接上，不加空格。
+    - 后一块开头是前一块最后一个词的后半截：删掉残片和 OCR 多补的句号。
+    """
+    joined = ""
+    for chunk in chunks:
+        chunk = chunk.strip()
+        if not chunk:
+            continue
+        if not joined:
+            joined = chunk
+            continue
+        joined, chunk = _drop_duplicated_word_tail(joined, chunk)
+        if not chunk:
+            continue
+        separator = "" if joined.endswith("-") and chunk[:1].isalnum() else " "
+        joined = f"{joined}{separator}{chunk}"
+    return joined
+
+
 def _formula_segment_count(source_text: str) -> int:
     placeholder_count = len(PROTECTED_FORMULA_RE.findall(source_text or ""))
     if placeholder_count <= 0:
@@ -190,7 +235,7 @@ def _build_group_translation_unit(unit_id: str, items: list[dict]) -> dict | Non
         protected_map.extend(remapped_tokens)
         protected_chunks.append(remapped_source.strip())
 
-    combined_source = " ".join(chunk for chunk in protected_chunks if chunk).strip()
+    combined_source = join_member_sources(protected_chunks)
     if not combined_source:
         for item in items:
             _reset_group_item_to_single(item, reason="empty_continuation_group")

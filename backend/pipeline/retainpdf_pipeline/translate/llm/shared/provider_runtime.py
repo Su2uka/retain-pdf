@@ -27,7 +27,6 @@ parse_translation_payload = _RUNTIME.parse_translation_payload
 translate_batch_once = _RUNTIME.translate_batch_once
 translate_single_item_plain_text = _RUNTIME.translate_single_item_plain_text
 translate_single_item_plain_text_unstructured = _RUNTIME.translate_single_item_plain_text_unstructured
-translate_continuation_group_members = _RUNTIME.translate_continuation_group_members
 translate_single_item_tagged_text = _RUNTIME.translate_single_item_tagged_text
 translate_single_item_with_decision = _RUNTIME.translate_single_item_with_decision
 
@@ -49,7 +48,6 @@ __all__ = [
     "parse_translation_payload",
     "request_chat_content",
     "translate_batch_once",
-    "translate_continuation_group_members",
     "translate_single_item_plain_text",
     "translate_single_item_plain_text_unstructured",
     "translate_single_item_tagged_text",

@@ -18,9 +18,6 @@ from retainpdf_pipeline.translate.llm.providers.deepseek.translation_client impo
 from retainpdf_pipeline.translate.llm.providers.deepseek.translation_client import (
     translate_single_item_plain_text_unstructured as deepseek_translate_single_item_plain_text_unstructured,
 )
-from retainpdf_pipeline.translate.llm.providers.deepseek.translation_client import (
-    translate_continuation_group_members as deepseek_translate_continuation_group_members,
-)
 from retainpdf_pipeline.translate.llm.providers.deepseek.translation_client import translate_single_item_tagged_text as deepseek_translate_single_item_tagged_text
 from retainpdf_pipeline.translate.llm.providers.deepseek.translation_client import translate_single_item_with_decision as deepseek_translate_single_item_with_decision
 from retainpdf_pipeline.translate.llm.shared.provider_protocol import ChatCompletionsUrlFn
@@ -56,7 +53,6 @@ class TranslationProviderRuntime:
     translate_batch_once: TranslateBatchFn
     translate_single_item_plain_text: TranslateSingleFn
     translate_single_item_plain_text_unstructured: TranslateSingleFn
-    translate_continuation_group_members: TranslateSingleFn
     translate_single_item_tagged_text: TranslateSingleFn
     translate_single_item_with_decision: TranslateSingleFn
 
@@ -79,7 +75,6 @@ DEEPSEEK_RUNTIME = TranslationProviderRuntime(
     translate_batch_once=deepseek_translate_batch_once,
     translate_single_item_plain_text=deepseek_translate_single_item_plain_text,
     translate_single_item_plain_text_unstructured=deepseek_translate_single_item_plain_text_unstructured,
-    translate_continuation_group_members=deepseek_translate_continuation_group_members,
     translate_single_item_tagged_text=deepseek_translate_single_item_tagged_text,
     translate_single_item_with_decision=deepseek_translate_single_item_with_decision,
 )

@@ -2,12 +2,23 @@ from __future__ import annotations
 
 import re
 
+from retainpdf_pipeline.services.pipeline_shared.direct_typst_math import has_balanced_unescaped_dollars
+
 TOKEN_RE = re.compile(r"(<[futnvc]\d+-[0-9a-z]{3}/>|\[\[FORMULA_\d+]]|\s+|[A-Za-z0-9_\-./]+|[\u4e00-\u9fff]|.)")
 INLINE_MATH_SPAN_RE = re.compile(r"(?<!\\)\$(?:\\.|[^$\\\n])+(?<!\\)\$")
 MATH_AWARE_TOKEN_RE = re.compile(
     rf"(<[futnvc]\d+-[0-9a-z]{{3}}/>|\[\[FORMULA_\d+]]|\s+|{INLINE_MATH_SPAN_RE.pattern}|[A-Za-z0-9_\-./]+|[\u4e00-\u9fff]|.)"
 )
 SPLIT_PUNCTUATION = "。！？；，、,.!?;:)]}）】」』"
+# 续段在句中断栏时按比例找切点：切在句末、分句标点之后，比切在两个汉字之间好读；
+# 下一块不能以标点开头。奖励以 token 长度计（一个汉字 1 分），句末最多让切点挪 6 个字。
+_SENTENCE_BREAK_PUNCTUATION = "。！？；.!?;"
+_CLAUSE_BREAK_PUNCTUATION = "，、：,:"
+_SENTENCE_BREAK_BONUS = 6.0
+_CLAUSE_BREAK_BONUS = 4.0
+_CLOSER_BREAK_BONUS = 2.0
+_LEADING_PUNCTUATION_PENALTY = 6.0
+_LEADING_PUNCTUATION = "，。、；：！？）】」』,.;:!?)]}"
 # 句末判断：句号类标点后面允许跟收尾的引号 / 括号。
 _SENTENCE_CLOSERS = "\"'”’)]}）】」』"
 _CJK_SENTENCE_END = "。！？"
@@ -105,9 +116,34 @@ def _sentence_boundary_probe(
     return min(candidates, key=lambda probe: abs(prefix_costs[probe] - target_cost))
 
 
+def _direct_typst(items: list[dict]) -> bool:
+    return any(str(item.get("math_mode", "") or "").strip() == "direct_typst" for item in items)
+
+
+def _break_score_adjustment(tokens: list[str], probe: int) -> float:
+    """切在 ``tokens[:probe]`` 之后的加减分：负数更好。"""
+    adjustment = 0.0
+    prev = tokens[probe - 1].rstrip() if 0 < probe <= len(tokens) else ""
+    if prev.endswith(tuple(_SENTENCE_BREAK_PUNCTUATION)):
+        adjustment -= _SENTENCE_BREAK_BONUS
+    elif prev.endswith(tuple(_CLAUSE_BREAK_PUNCTUATION)):
+        adjustment -= _CLAUSE_BREAK_BONUS
+    elif prev.endswith(SPLIT_PUNCTUATION):
+        adjustment -= _CLOSER_BREAK_BONUS
+    following = next((token for token in tokens[probe:] if not token.isspace()), "")
+    if following[:1] and following[:1] in _LEADING_PUNCTUATION:
+        adjustment += _LEADING_PUNCTUATION_PENALTY
+    return adjustment
+
+
 def split_group_protected_translation(protected_text: str, items: list[dict]) -> list[str]:
     if len(items) <= 1:
         return [str(protected_text or "").strip()]
+    if _direct_typst(items) and not has_balanced_unescaped_dollars(str(protected_text or "")):
+        # 公式以 `$…$` 原样写在译文里；`$` 不成对时认不出公式边界，任何切点都可能把一个
+        # 公式切成两半，两边都渲染坏。整段放进第一个框（内容和公式完整，大不了挤一点），
+        # 其余框留空。占位符模式的公式是 <f1-abc/>，那里的 `$` 只是普通字符。
+        return [str(protected_text or "").strip()] + [""] * (len(items) - 1)
     tokens = tokenize_group_translation(protected_text)
     if not tokens:
         return [""] * len(items)
@@ -161,10 +197,7 @@ def split_group_protected_translation(protected_text: str, items: list[dict]) ->
             if probe <= cursor:
                 continue
             probe_cost = cumulative_target_cost + sum(token_costs[cursor:probe])
-            score = abs(probe_cost - target_cost)
-            prev = tokens[probe - 1].rstrip() if probe - 1 < len(tokens) else ""
-            if prev.endswith(SPLIT_PUNCTUATION):
-                score -= 2.0
+            score = abs(probe_cost - target_cost) + _break_score_adjustment(tokens, probe)
             if best_score is None or score < best_score:
                 best = probe
                 best_score = score

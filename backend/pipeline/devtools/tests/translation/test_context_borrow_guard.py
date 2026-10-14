@@ -11,15 +11,8 @@
 
 from __future__ import annotations
 
-import json
-
-
 from retainpdf_pipeline.translate.prompt_loader import load_prompt
-from retainpdf_pipeline.translate.llm.shared.prompt_protocols import (
-    HALF_SENTENCE_NO_BORROW_GUARD,
-    group_member_json_user_prompt,
-)
-from retainpdf_pipeline.translate.core.context import build_item_context
+from retainpdf_pipeline.translate.llm.shared.prompt_protocols import HALF_SENTENCE_NO_BORROW_GUARD
 from retainpdf_pipeline.translate.llm.validation.quality import review_translation_item
 
 
@@ -70,27 +63,6 @@ def test_plain_text_prompt_adds_no_borrow_guard_for_half_sentence() -> None:
     assert "当前原文是不完整片段；译文必须保持同等不完整，不要用后文上下文补全。" in user_prompt
     assert HALF_SENTENCE_NO_BORROW_GUARD in user_prompt
     assert "后文上下文（仅供理解，禁止翻译进输出）" in user_prompt
-
-
-def test_group_member_prompt_forbids_borrowing_for_incomplete_fragment() -> None:
-    item_context = build_item_context(
-        {
-            "item_id": "__cg__:cg-023-001",
-            "translation_unit_member_ids": ["p023-b006", "p023-b007"],
-            "translation_unit_members": [
-                {"item_id": "p023-b006", "protected_source_text": HALF_SENTENCE_SOURCE},
-                {"item_id": "p023-b007", "protected_source_text": "for this transformation."},
-            ],
-            "continuation_group": "cg-023-001",
-            "translation_unit_protected_source_text": f"{HALF_SENTENCE_SOURCE} for this transformation.",
-            "protected_source_text": f"{HALF_SENTENCE_SOURCE} for this transformation.",
-            "translation_context_after": CAPTION_CONTEXT,
-            "metadata": {"structure_role": "body"},
-        }
-    )
-    payload = json.loads(group_member_json_user_prompt(item_context))
-    assert "never borrow words from neighboring context" in payload["task"]
-    assert "equally incomplete" in payload["task"]
 
 
 def test_quality_flags_scheme_number_borrowed_from_caption() -> None:

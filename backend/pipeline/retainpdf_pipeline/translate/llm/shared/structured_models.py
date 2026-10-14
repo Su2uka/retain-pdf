@@ -129,34 +129,6 @@ TRANSLATION_SINGLE_DECISION_RESPONSE_SCHEMA = {
 }
 
 
-TRANSLATION_GROUP_MEMBER_RESPONSE_SCHEMA = {
-    "type": "json_schema",
-    "json_schema": {
-        "name": "translation_group_member_response",
-        "strict": True,
-        "schema": {
-            "type": "object",
-            "additionalProperties": False,
-            "properties": {
-                "member_translations": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "additionalProperties": False,
-                        "properties": {
-                            "item_id": {"type": "string"},
-                            "translated_text": {"type": "string"},
-                        },
-                        "required": ["item_id", "translated_text"],
-                    },
-                },
-            },
-            "required": ["member_translations"],
-        },
-    },
-}
-
-
 FORMULA_SEGMENT_RESPONSE_SCHEMA = {
     "type": "json_schema",
     "json_schema": {

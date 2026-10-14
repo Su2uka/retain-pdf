@@ -35,13 +35,6 @@ class _OutputProtocol:
 
 
 def _output_protocol(kind: str, response_style: str, *, sci_decision: bool = False) -> _OutputProtocol:
-    if kind == "group":
-        return _OutputProtocol(
-            "json",
-            "Return only valid JSON. Required schema: "
-            '{"member_translations":[{"item_id":"...","translated_text":"..."}]}. '
-            "Every member_id from the request must appear exactly once.",
-        )
     if kind == "batch":
         instruction = (
             load_prompt("translation_output_json.txt")
@@ -367,75 +360,6 @@ def batch_json_user_prompt(
     return json.dumps(user_payload, ensure_ascii=False)
 
 
-def group_member_json_user_prompt(
-    item: TranslationItemContext,
-    *,
-    target_language_name: str = DEFAULT_TARGET_LANGUAGE_NAME,
-) -> str:
-    if item.prompt_member_ids_error is not None:
-        raise TypeError(item.prompt_member_ids_error)
-    member_ids = list(item.prompt_member_ids)
-    if not member_ids:
-        member_ids = [item.item_id]
-    if item.prompt_member_sources_error is not None:
-        raise TypeError(item.prompt_member_sources_error)
-    member_source_by_id = dict(item.prompt_member_sources)
-    user_payload: dict[str, Any] = {
-        "task": (
-            f"Translate the continuation group into {_target_language_name(target_language_name)}. "
-            "Return one translated fragment per member_id, following the supplied member source boundaries. "
-            "Read all members together for continuity, but return only the member translations. "
-            "Do not repeat the full group translation in a member and do not add text from neighboring context. "
-            "If a member source text is an incomplete fragment, keep its translation equally incomplete; "
-            "never borrow words from neighboring context to complete it."
-        ),
-        "group": {
-            "item_id": item.item_id,
-            "continuation_group": item.continuation_group,
-            "member_ids": member_ids,
-            "members": [
-                {
-                    "item_id": member_id,
-                    "source_text": member_source_by_id.get(member_id, ""),
-                }
-                for member_id in member_ids
-            ],
-        },
-        "output_schema": {
-            "member_translations": [
-                {"item_id": "member id from member_ids", "translated_text": "translation for this member only"}
-            ],
-        },
-    }
-    # Older units may not carry individual source fragments. Keep their
-    # aggregate as a compatibility input rather than sending empty sources.
-    if any(not member_source_by_id.get(mid) for mid in member_ids):
-        user_payload["group"]["combined_source_text"] = item.source_for_prompt()
-    if item.style_hint:
-        user_payload["group"]["style_hint"] = item.style_hint
-    if guidance := _role_guidance(item):
-        user_payload["group"]["role_guidance"] = guidance
-    terms_guidance = _scoped_terms_guidance(item)
-    if terms_guidance:
-        user_payload["group"]["terms_note"] = terms_guidance
-    if item.prompt_raw_direct_typst:
-        if not has_balanced_unescaped_dollars(item.source_for_prompt()):
-            user_payload["group"]["math_delimiter_note"] = MATH_DELIMITER_DAMAGE_HINT
-        rewrites = find_mitex_rewrites(item.source_for_prompt())
-        if rewrites:
-            pairs = "；".join(f"`{command}` 改用 `{preferred}`" for command, preferred in rewrites)
-            user_payload["group"]["math_rewrite_note"] = (
-                f"渲染器不支持本段公式中的部分 LaTeX 写法，请在译文公式中替换：{pairs}。"
-            )
-    context_before = item.context_before_for_prompt()
-    context_after = item.context_after_for_prompt()
-    if context_before:
-        user_payload["context_before"] = f"仅供理解，禁止翻译进输出：{context_before}"
-    if context_after:
-        user_payload["context_after"] = f"仅供理解，禁止翻译进输出：{context_after}"
-    return json.dumps(user_payload, ensure_ascii=False)
-
-
 __all__ = [
     "HALF_SENTENCE_NO_BORROW_GUARD",
     "batch_json_user_prompt",
@@ -443,6 +367,5 @@ __all__ = [
     "direct_math_guidance",
     "direct_typst_batch_user_prompt",
     "direct_typst_single_user_prompt",
-    "group_member_json_user_prompt",
     "plain_text_single_user_prompt",
 ]
