@@ -15,7 +15,11 @@ pub(crate) fn opencode_headers(base_url: &str, session_id: &str) -> HeaderMap {
             USER_AGENT,
             HeaderValue::from_static(concat!("RetainPDF/", env!("CARGO_PKG_VERSION"))),
         );
-        let session = format!("retainpdf-{:x}", Sha256::digest(session_id.as_bytes()));
+        let digest: String = Sha256::digest(session_id.as_bytes())
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect();
+        let session = format!("retainpdf-{digest}");
         headers.insert(
             "x-opencode-session",
             HeaderValue::from_str(&session).expect("hex session identifier"),
