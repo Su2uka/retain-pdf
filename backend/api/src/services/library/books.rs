@@ -8,10 +8,10 @@ use crate::models::api::{
     LibraryBookListView, LibraryDeleteResultView, ListJobsQuery,
 };
 use crate::models::domain::{JobSnapshot, JobStatusKind, WorkflowKind};
-use crate::services::book_projection::{
+use super::book_projection::{
     build_library_book_detail_view, build_library_book_list_view,
 };
-use crate::services::managed_credential_gc::cleanup_deleted_job_credentials;
+use crate::services::jobs::managed_credential_gc::cleanup_deleted_job_credentials;
 
 pub fn list_library_books(
     db: &Db,

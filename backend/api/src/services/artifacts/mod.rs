@@ -9,7 +9,8 @@ pub(crate) use presentation::build_artifacts_display;
 pub use registry::{find_registry_artifact, list_registry_for_job, resolve_registry_artifact};
 pub use response::{artifact_is_direct_downloadable, artifact_resource_path};
 pub(crate) use titles::{
-    document_title, document_titles_for, job_display_title, source_url_file_name, DocumentTitles,
+    display_title, document_titles_for, job_display_title, job_upload_id, source_file_name,
+    source_url_file_name, DocumentTitles,
 };
 
 #[cfg(test)]

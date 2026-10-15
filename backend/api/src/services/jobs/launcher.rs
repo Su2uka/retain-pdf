@@ -18,7 +18,7 @@ pub struct JobLaunchDeps<'a> {
     /// 多用户模式：所有任务改用平台的模型和 OCR（见 [`apply_platform_models`]），建任务时现读，
     /// 管理后台改了下一个任务就生效。单机模式为 None。
     pub platform: Option<PlatformSource<'a>>,
-    /// 多用户模式：新任务开跑前按页预扣（见 [`crate::services::page_quota`]）。单机模式为 false。
+    /// 多用户模式：新任务开跑前按页预扣（见 [`crate::services::accounts::page_quota`]）。单机模式为 false。
     pub page_quota: bool,
 }
 
@@ -157,10 +157,10 @@ pub fn start_job_execution(
     }
     // 所有「建任务即开跑」的入口都经过这里（内部派生的 OCR 子任务、OCR 歧义恢复不经过，正好不计费）。
     // 预扣放在落库之前：余额不够就不留下任务行。
-    let reserved = deps.page_quota && crate::services::page_quota::reserve_for_job(deps.db, &job)?;
+    let reserved = deps.page_quota && crate::services::accounts::page_quota::reserve_for_job(deps.db, &job)?;
     if let Err(error) = persist_job_with_resources(deps.db, deps.data_root, deps.output_root, &job) {
         if reserved {
-            crate::services::page_quota::release_for_job(deps.db, &job.job_id);
+            crate::services::accounts::page_quota::release_for_job(deps.db, &job.job_id);
         }
         return Err(error.into());
     }

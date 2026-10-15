@@ -4,7 +4,7 @@ use crate::db::Db;
 use crate::error::AppError;
 use crate::job_events::cas_persist_job_with_resources;
 use crate::models::domain::{now_iso, JobSnapshot, JobStatusKind, WorkflowKind};
-use crate::services::runtime_gateway::terminate_runtime_process;
+use crate::services::jobs::runtime_gateway::terminate_runtime_process;
 
 use super::query::load_job_or_404;
 use crate::services::jobs::deps::ControlDeps;
@@ -219,7 +219,7 @@ mod tests {
         let job_runner = crate::config::JobRunnerConfig::default();
         let canceled_jobs = std::sync::Arc::new(RwLock::new(HashSet::new()));
         let job_runtime =
-            crate::services::runtime_gateway::JobRuntime::in_process(canceled_jobs.clone());
+            crate::services::jobs::runtime_gateway::JobRuntime::in_process(canceled_jobs.clone());
 
         let deps = ControlDeps::new(&db, &job_runner, &data_root, &output_root, &job_runtime);
 

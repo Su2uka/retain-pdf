@@ -19,11 +19,11 @@ mod live;
 mod metadata;
 
 use live::{build_live_projection, project_live_stage};
-use metadata::{
-    build_book_summary, derive_display_name, page_count_for_library, source_file_name,
-    source_url_file_name, upload_id,
+use metadata::build_book_summary;
+use crate::services::artifacts::{
+    display_title, document_titles_for, job_upload_id, source_file_name, source_url_file_name,
+    DocumentTitles,
 };
-use crate::services::artifacts::{document_titles_for, DocumentTitles};
 
 pub(crate) fn build_library_book_list_view(
     db: &Db,
@@ -32,7 +32,7 @@ pub(crate) fn build_library_book_list_view(
     base_url: &str,
 ) -> Result<LibraryBookListView, AppError> {
     let jobs = list_books_filtered(db, query)?;
-    let ids: Vec<_> = jobs.iter().filter_map(upload_id).collect();
+    let ids: Vec<_> = jobs.iter().filter_map(job_upload_id).collect();
     let uploads = db.get_uploads(&ids).unwrap_or_default();
     let titles = document_titles_for(db, uploads.values());
     let live_stages = if query.include_live_stage != Some(false) {
@@ -44,7 +44,7 @@ pub(crate) fn build_library_book_list_view(
     let items = jobs
         .iter()
         .map(|job| {
-            let upload = upload_id(job).and_then(|id| uploads.get(id));
+            let upload = job_upload_id(job).and_then(|id| uploads.get(id));
             let document_id = book_document_id(db, job, upload);
             build_library_book_list_item(
                 data_root,
@@ -67,13 +67,13 @@ pub(crate) fn build_library_book_detail_view(
     job: &JobSnapshot,
     base_url: &str,
 ) -> LibraryBookDetailView {
-    let ids: Vec<_> = upload_id(job).into_iter().collect();
+    let ids: Vec<_> = job_upload_id(job).into_iter().collect();
     let uploads = db.get_uploads(&ids).unwrap_or_default();
-    let upload = upload_id(job).and_then(|id| uploads.get(id));
+    let upload = job_upload_id(job).and_then(|id| uploads.get(id));
     let document_id = book_document_id(db, job, upload);
     let mut summaries = SummaryCache::default();
     let titles = document_titles_for(db, upload);
-    let display_name = derive_display_name(upload, job, &titles);
+    let display_name = display_title(upload, job, &titles);
     let summary = build_book_summary(upload, &mut summaries, job, data_root, &display_name)
         .with_cover_url(library_image_url(job, document_id.as_deref(), data_root, base_url, "cover"))
         .with_thumbnail_url(library_image_url(job, document_id.as_deref(), data_root, base_url, "thumbnail"));
@@ -116,7 +116,7 @@ fn build_library_book_list_item(
     summaries: &mut SummaryCache,
     live_stage: Option<&LiveStageSnapshot>,
 ) -> LibraryBookListItemView {
-    let display_name = derive_display_name(upload, job, titles);
+    let display_name = display_title(upload, job, titles);
     let live = project_live_stage(job, live_stage);
     let (output_pdf_ready, markdown_ready, bundle_ready) = job_readiness(job, data_root);
     LibraryBookListItemView {
@@ -126,7 +126,7 @@ fn build_library_book_list_item(
         display_name,
         source_file_name: source_file_name(upload, job),
         authors: None,
-        page_count: page_count_for_library(upload, summaries, job, data_root),
+        page_count: summaries.book_page_count(upload, job, data_root),
         status: job.status.clone(),
         stage: live.stage,
         stage_detail: live.stage_detail,

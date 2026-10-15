@@ -55,9 +55,9 @@ mod tests { fn fixture() { let runtime: ProcessRuntimeDeps; } }
     def test_shared_artifact_display_cannot_reintroduce_business_cycles(self):
         self.assertEqual([], self.check_sources({
             "services/jobs/presentation/detail_projection.rs": "use crate::services::artifacts::build_artifacts_display;",
-            "services/book_projection.rs": "use crate::services::artifacts::build_artifacts_display; use crate::services::jobs::job_readiness;",
+            "services/library/book_projection.rs": "use crate::services::artifacts::build_artifacts_display; use crate::services::jobs::job_readiness;",
             "services/artifacts/presentation.rs": "use crate::models::api::{ArtifactLinksView, ArtifactDisplayItemView};",
-            "services/jobs/event_feed/batch_tests.rs": "use crate::services::book_projection;",
+            "services/jobs/event_feed/batch_tests.rs": "use crate::services::library::book_projection;",
         }, checks.check_shared_artifact_presentation))
         for path in ("services/jobs/presentation/detail_projection.rs", "services/jobs/query/nested.rs"):
             self.assertTrue(self.check_sources(
@@ -75,7 +75,7 @@ mod tests { fn fixture() { let runtime: ProcessRuntimeDeps; } }
                 checks.check_shared_artifact_presentation,
             ))
         self.assertTrue(self.check_sources(
-            {"services/book_projection/artifacts.rs": ""},
+            {"services/library/book_projection/artifacts.rs": ""},
             checks.check_shared_artifact_presentation,
         ))
 
@@ -552,6 +552,58 @@ class FailureCatalogueCoverageTests(unittest.TestCase):
                 checks.check_failure_catalogue_covers_python_codes(errors)
         self.assertEqual(1, len(errors))
         self.assertIn("恢复目录不见了", errors[0])
+
+
+class ServiceDependencyCycleTests(unittest.TestCase):
+    check_sources = UploadBoundaryTests.check_sources
+
+    def run_check(self, sources, known=frozenset()):
+        with patch.object(checks, "KNOWN_SERVICE_CYCLE_EDGES", set(known)):
+            return self.check_sources(sources, checks.check_service_dependency_cycles)
+
+    def test_one_way_dependencies_pass(self):
+        self.assertEqual([], self.run_check({
+            "services/jobs/query.rs": "use crate::services::artifacts::build;",
+            "services/library/mod.rs": "use crate::services::{jobs::JobQueries, artifacts};",
+        }))
+
+    def test_cycle_is_found_through_grouped_relative_and_inline_paths(self):
+        for back_edge in (
+            "use crate::services::{library::{api::Books}};",
+            "use super::super::super::library::api::Books;",
+            "fn f() { crate::services::library::api::load(); }",
+        ):
+            with self.subTest(back_edge=back_edge):
+                errors = self.run_check({
+                    "services/library/mod.rs": "use crate::services::jobs::JobQueries;",
+                    "services/jobs/query/read.rs": back_edge,
+                })
+                self.assertEqual(2, len(errors), errors)
+                self.assertTrue(all("closes a dependency cycle" in error for error in errors))
+
+    def test_tests_comments_and_strings_do_not_count(self):
+        self.assertEqual([], self.run_check({
+            "services/library/mod.rs": "use crate::services::jobs::JobQueries;",
+            "services/jobs/tests.rs": "use crate::services::library::api::Books;",
+            "services/jobs/query.rs": '''
+                // use crate::services::library::api::Books;
+                const NOTE: &str = "crate::services::library::x";
+                fn real() {}
+#[cfg(test)]
+mod tests { use crate::services::library::api::Books; }
+            ''',
+        }))
+
+    def test_known_cycles_are_frozen_and_must_shrink(self):
+        sources = {
+            "services/library/mod.rs": "use crate::services::jobs::JobQueries;",
+            "services/jobs/query.rs": "use crate::services::library::api::Books;",
+        }
+        known = {("library", "jobs"), ("jobs", "library")}
+        self.assertEqual([], self.run_check(sources, known))
+        errors = self.run_check({"services/library/mod.rs": sources["services/library/mod.rs"]}, known)
+        self.assertEqual(2, len(errors), errors)
+        self.assertTrue(all("no longer part of a cycle" in error for error in errors))
 
 
 if __name__ == "__main__":

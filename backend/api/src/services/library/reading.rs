@@ -8,7 +8,7 @@ use std::path::Path;
 
 use crate::error::AppError;
 use crate::models::api::DocumentRecord;
-use crate::services::collection_workspace::{ensure_collection_workspace, CollectionWorkspace, ReadingBook};
+use super::collection_workspace::{ensure_collection_workspace, CollectionWorkspace, ReadingBook};
 use crate::services::derived_artifacts::DerivedArtifactDeps;
 use crate::services::merge::coverage::{translation_coverage, TranslationCoverageView};
 use crate::services::merge::reading::{resolve_reading_target, DocumentReadingView, ReadingTarget};

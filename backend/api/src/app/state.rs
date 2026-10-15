@@ -9,7 +9,7 @@ use super::jobs::reconcile_owned_runtime;
 use crate::config::AppConfig;
 use crate::db::Db;
 use crate::services::agent_capabilities::AgentCapabilityAuthority;
-use crate::services::runtime_gateway::{JobDriverRegistry, JobRuntime};
+use crate::services::jobs::runtime_gateway::{JobDriverRegistry, JobRuntime};
 use crate::services::uploads::{UploadService, UploadServiceConfig};
 
 #[derive(Clone)]

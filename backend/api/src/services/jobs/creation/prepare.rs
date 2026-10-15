@@ -3,13 +3,13 @@ use crate::models::domain::{JobSnapshot, ResolvedJobSpec, UploadRecord, Workflow
 use crate::models::request::CreateJobInput;
 use crate::ocr_provider::uses_paddle_official_cli;
 use crate::services::glossaries::resolve_task_glossary_request;
-use crate::services::job_validation::{
+use crate::services::jobs::validation::{
     validate_mineru_upload_limits, validate_ocr_credential_reference,
     validate_ocr_provider_request, validate_provider_credentials, validate_render_options,
     validate_translation_modes,
     validate_translation_credential_reference, validate_translation_credentials,
 };
-use crate::services::ocr_artifact_reuse::validate_ocr_artifact_reuse;
+use crate::services::jobs::ocr_artifact_reuse::validate_ocr_artifact_reuse;
 
 use crate::services::jobs::deps::SnapshotBuildDeps;
 

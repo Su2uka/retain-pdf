@@ -3,7 +3,7 @@ use crate::models::api::{
     AmbiguousRequestPolicy, RetryStageKind, RetryStageRequest, RetryStageSubmissionView,
     StageActionsView,
 };
-use crate::services::job_launcher::{link_new_job_to_document, start_job_execution};
+use crate::services::jobs::launcher::{link_new_job_to_document, start_job_execution};
 use crate::services::jobs::stage_plan::stage_plan;
 use crate::services::jobs::translation_request_recovery::load_translation_request_recovery;
 

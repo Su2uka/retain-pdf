@@ -10,17 +10,14 @@ use crate::models::api::{
     OcrJobSummaryView, PublicResolvedJobSpec,
 };
 use crate::models::domain::{JobFailureInfo, JobRuntimeInfo, JobSnapshot, OcrProviderDiagnostics};
-use crate::services::artifacts::build_artifacts_display;
+use crate::services::artifacts::{build_artifacts_display, display_title, job_upload_id};
 
 use super::super::job_readiness;
 use super::super::live_stage::load_live_stage_snapshot;
 use super::super::stage_view::build_job_stage_view;
 use super::super::summary_loaders::SummaryCache;
 use super::contracts::build_job_contracts_view;
-use super::helpers::{
-    build_book_summary, build_ocr_job_summary, derive_display_name, job_failure_to_legacy_view,
-    upload_id,
-};
+use super::helpers::{build_book_summary, build_ocr_job_summary, job_failure_to_legacy_view};
 use super::security::{redacted_error, redacted_log_tail};
 
 pub(super) struct DetailCoreProjection {
@@ -143,11 +140,11 @@ pub(super) fn build_summary_projection(
     job: &JobSnapshot,
     base_url: &str,
 ) -> DetailSummaryProjection {
-    let upload = upload_id(job).and_then(|id| db.get_upload(id).ok());
+    let upload = job_upload_id(job).and_then(|id| db.get_upload(id).ok());
     let upload = upload.as_ref();
     let mut summaries = SummaryCache::default();
     let titles = crate::services::artifacts::document_titles_for(db, upload);
-    let display_name = derive_display_name(upload, job, &titles);
+    let display_name = display_title(upload, job, &titles);
     let cover_url = super::helpers::cover_url(job, data_root, base_url);
     DetailSummaryProjection {
         book: build_book_summary(

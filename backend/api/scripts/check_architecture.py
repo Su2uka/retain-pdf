@@ -96,7 +96,7 @@ ALLOWED_APPSTATE_FILES = {
 # （纯 OS 进程工具已迁往 retain-proc，用 crate::process::，不算越界。）
 JOB_RUNNER_IMPORT_ALLOWLIST = {
     Path("src/app/jobs.rs"),
-    Path("src/services/runtime_gateway.rs"),
+    Path("src/services/jobs/runtime_gateway.rs"),
 }
 
 APPSTATE_GUARDED_DIRS = [
@@ -314,7 +314,7 @@ OCR_FLOW_ALLOWED_RAW_TOKEN_FILES = {
 DOWNLOADS_ROOT = SRC_ROOT / "services" / "jobs" / "downloads"
 STAGE_VIEW_CONSUMER_ROOTS = (
     SRC_ROOT / "services" / "jobs" / "presentation",
-    SRC_ROOT / "services" / "book_projection",
+    SRC_ROOT / "services" / "library" / "book_projection",
 )
 WORKER_COMMAND_FACADE = abs_src(Path("src/worker_command.rs"))
 
@@ -643,9 +643,9 @@ def check_service_model_facade_boundaries(errors: list[str]) -> None:
         SRC_ROOT / "services" / "fonts",
         SRC_ROOT / "services" / "credentials",
         SRC_ROOT / "services" / "agent_calculations",
-        SRC_ROOT / "services" / "job_snapshot_factory.rs",
-        SRC_ROOT / "services" / "job_validation.rs",
-        SRC_ROOT / "services" / "job_launcher.rs",
+        SRC_ROOT / "services" / "jobs" / "snapshot_factory.rs",
+        SRC_ROOT / "services" / "jobs" / "validation.rs",
+        SRC_ROOT / "services" / "jobs" / "launcher.rs",
         SRC_ROOT / "services" / "jobs" / "downloads",
         SRC_ROOT / "services" / "jobs" / "creation",
         SRC_ROOT / "services" / "jobs" / "presentation",
@@ -676,8 +676,8 @@ def check_service_model_facade_boundaries(errors: list[str]) -> None:
         SRC_ROOT / "services" / "provider_probe.rs",
         SRC_ROOT / "services" / "ai",
         SRC_ROOT / "services" / "uploads",
-        SRC_ROOT / "services" / "book_projection",
-        SRC_ROOT / "services" / "book_projection.rs",
+        SRC_ROOT / "services" / "library" / "book_projection",
+        SRC_ROOT / "services" / "library" / "book_projection.rs",
     )
     for root in scoped_roots:
         paths = [root] if root.is_file() else scan_rs_files(root)
@@ -901,8 +901,8 @@ def check_shared_artifact_presentation(errors: list[str]) -> None:
             for token in PROVIDER_RAW_INTERNAL_TOKENS:
                 if token in route_source_without_tests(path):
                     errors.append(f"{relative}: shared artifact presentation must not interpret provider raw token '{token}'")
-    if (SRC_ROOT / "services" / "book_projection" / "artifacts.rs").exists():
-        errors.append("services/book_projection/artifacts.rs: shared artifact display belongs in services/artifacts/presentation.rs")
+    if (SRC_ROOT / "services" / "library" / "book_projection" / "artifacts.rs").exists():
+        errors.append("services/library/book_projection/artifacts.rs: shared artifact display belongs in services/artifacts/presentation.rs")
 
 
 def check_runtime_deps_module_boundary(errors: list[str]) -> None:
@@ -1020,7 +1020,7 @@ def check_stage_view_projection_boundary(errors: list[str]) -> None:
     allowed = {
         Path("src/services/jobs/presentation/detail_projection.rs"),
         Path("src/services/jobs/presentation/listing.rs"),
-        Path("src/services/book_projection/live.rs"),
+        Path("src/services/library/book_projection/live.rs"),
     }
     forbidden_tokens = (
         "public_stage_for_raw_stage(",
@@ -1051,7 +1051,7 @@ def check_stage_view_projection_boundary(errors: list[str]) -> None:
 def check_job_readiness_boundary(errors: list[str]) -> None:
     scoped_roots = (
         SRC_ROOT / "services" / "jobs" / "presentation",
-        SRC_ROOT / "services" / "book_projection",
+        SRC_ROOT / "services" / "library" / "book_projection",
     )
     for root in scoped_roots:
         for path in scan_rs_files(root):
@@ -1285,7 +1285,7 @@ def check_job_runner_boundary(errors: list[str]) -> None:
         if "job_runner::" in text:
             errors.append(
                 f"{rel_path}: shell code must reach the job runtime through "
-                f"services/runtime_gateway.rs (ADR-002); use crate::process:: for "
+                f"services/jobs/runtime_gateway.rs (ADR-002); use crate::process:: for "
                 f"generic process utilities"
             )
 
@@ -1331,11 +1331,11 @@ def check_worker_command_boundary(errors: list[str]) -> None:
                     f"{rel_path}: job_runner must request WorkerStageCommand instead of direct {token}"
                 )
 
-    snapshot_factory_path = SRC_ROOT / "services" / "job_snapshot_factory.rs"
+    snapshot_factory_path = SRC_ROOT / "services" / "jobs" / "snapshot_factory.rs"
     snapshot_factory_text = route_source_without_tests(snapshot_factory_path)
     if "crate::worker_command" in snapshot_factory_text or "build_ocr_command" in snapshot_factory_text:
         errors.append(
-            "src/services/job_snapshot_factory.rs: snapshot creation must not build worker commands"
+            "src/services/jobs/snapshot_factory.rs: snapshot creation must not build worker commands"
         )
 
     child_creation_path = abs_src(Path("src/job_runner/translation_flow_child.rs"))
@@ -1359,6 +1359,142 @@ def check_protocol_docs(errors: list[str]) -> None:
             errors.append(
                 f"API_SPEC.md: stale protocol token '{token}' must not appear in the external API spec"
             )
+
+
+# services 之间不准成环：成了环，改其中任何一个都得连着改另外几个——「牵一发而动全身」的来源。
+# 按模块对登记（不按文件路径，挪文件不用改这里）。下面是加这条规则时已经存在的环，只许删、不许加；
+# 环拆开后，这里对应的条目也要删（留着会报「已不在环里」）。
+KNOWN_SERVICE_CYCLE_EDGES = {
+    ("derived_artifacts", "merge"),
+    ("download_generation", "jobs"),
+    ("jobs", "derived_artifacts"),
+    ("jobs", "download_generation"),
+    ("jobs", "merge"),
+    ("merge", "derived_artifacts"),
+    ("merge", "jobs"),
+}
+
+
+def _rust_use_paths(tree: str) -> list[str]:
+    """Expand a use tree such as `a::{b, c::{d, e}}` into flat paths."""
+    tree = tree.strip()
+    brace = tree.find("{")
+    if brace < 0:
+        return [tree]
+    prefix = tree[:brace].rstrip(":").strip()
+    body = tree[brace + 1 : tree.rfind("}")]
+    parts, current, depth = [], "", 0
+    for char in body:
+        depth += (char == "{") - (char == "}")
+        if char == "," and depth == 0:
+            parts.append(current)
+            current = ""
+        else:
+            current += char
+    parts.append(current)
+    paths = []
+    for part in parts:
+        part = part.strip()
+        if part:
+            paths.extend(f"{prefix}::{sub}" if prefix else sub for sub in _rust_use_paths(part))
+    return paths
+
+
+def service_dependency_edges() -> dict[tuple[str, str], Path]:
+    """(from, to) top-level services modules -> one file that creates the edge. Tests excluded."""
+    edges: dict[tuple[str, str], Path] = {}
+    services_root = SRC_ROOT / "services"
+    for path in scan_rs_files(services_root):
+        relative = path.relative_to(SRC_ROOT)
+        if "tests" in relative.parts or path.name == "tests.rs" or path.name.endswith("_tests.rs"):
+            continue
+        module_path = list(relative.with_suffix("").parts)
+        if module_path[-1] == "mod":
+            module_path = module_path[:-1]
+        if len(module_path) < 2:
+            continue
+        source = rust_boundary_source(path)
+        candidates = []
+        for match in re.finditer(r"\buse\s+([^;]+);", source):
+            candidates.extend(_rust_use_paths(match.group(1)))
+        candidates.extend(re.findall(r"(?<![:\w])crate::services::[A-Za-z_0-9:]+", source))
+        for candidate in candidates:
+            segments = [segment.strip() for segment in candidate.split("::") if segment.strip()]
+            if segments and segments[0] == "pub":
+                segments = segments[1:]
+            if not segments:
+                continue
+            if segments[0] == "crate":
+                absolute = segments[1:]
+            elif segments[0] in ("super", "self"):
+                absolute = list(module_path)
+                while segments and segments[0] in ("super", "self"):
+                    if segments[0] == "super":
+                        absolute = absolute[:-1]
+                    segments = segments[1:]
+                absolute += segments
+            else:
+                continue
+            if len(absolute) >= 2 and absolute[0] == "services" and absolute[1] != module_path[1]:
+                edges.setdefault((module_path[1], absolute[1]), rel(path))
+    return edges
+
+
+def _strongly_connected(nodes: set[str], edges: set[tuple[str, str]]) -> list[set[str]]:
+    graph: dict[str, list[str]] = {node: [] for node in nodes}
+    for source, target in edges:
+        graph[source].append(target)
+    index: dict[str, int] = {}
+    low: dict[str, int] = {}
+    stack: list[str] = []
+    on_stack: set[str] = set()
+    groups: list[set[str]] = []
+
+    def visit(node: str) -> None:
+        index[node] = low[node] = len(index)
+        stack.append(node)
+        on_stack.add(node)
+        for target in sorted(graph[node]):
+            if target not in index:
+                visit(target)
+                low[node] = min(low[node], low[target])
+            elif target in on_stack:
+                low[node] = min(low[node], index[target])
+        if low[node] == index[node]:
+            group = set()
+            while True:
+                member = stack.pop()
+                on_stack.discard(member)
+                group.add(member)
+                if member == node:
+                    break
+            if len(group) > 1:
+                groups.append(group)
+
+    for node in sorted(nodes):
+        if node not in index:
+            visit(node)
+    return groups
+
+
+def check_service_dependency_cycles(errors: list[str]) -> None:
+    edges = service_dependency_edges()
+    nodes = {module for edge in edges for module in edge}
+    cycle_edges: set[tuple[str, str]] = set()
+    for group in _strongly_connected(nodes, set(edges)):
+        for edge in sorted(edge for edge in edges if edge[0] in group and edge[1] in group):
+            cycle_edges.add(edge)
+            if edge not in KNOWN_SERVICE_CYCLE_EDGES:
+                errors.append(
+                    f"{edges[edge]}: services::{edge[0]} -> services::{edge[1]} closes a dependency cycle "
+                    f"among {sorted(group)}; depend in one direction only (move the shared piece down or "
+                    "pass it in)"
+                )
+    for edge in sorted(KNOWN_SERVICE_CYCLE_EDGES - cycle_edges):
+        errors.append(
+            f"KNOWN_SERVICE_CYCLE_EDGES lists services::{edge[0]} -> services::{edge[1]}, which is no "
+            "longer part of a cycle; remove it"
+        )
 
 
 def main() -> int:
@@ -1398,6 +1534,7 @@ def main() -> int:
     check_job_runner_boundary(errors)
     check_worker_command_boundary(errors)
     check_protocol_docs(errors)
+    check_service_dependency_cycles(errors)
 
     if errors:
         print("rust_api architecture check failed:", file=sys.stderr)

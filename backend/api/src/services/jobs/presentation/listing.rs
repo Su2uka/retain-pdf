@@ -4,8 +4,7 @@ use super::super::live_stage::{load_live_stage_snapshots, LiveStageSnapshot};
 use super::super::query::list_jobs_filtered;
 use super::super::stage_view::build_job_stage_view;
 use super::super::summary_loaders::SummaryCache;
-use super::helpers::{cover_url, derive_display_name, job_path_prefix};
-use super::helpers::{page_count_for_job, source_file_name, thumbnail_url, upload_id};
+use super::helpers::{cover_url, job_path_prefix, thumbnail_url};
 use crate::config::limits::MAX_JOB_LIMIT;
 use crate::db::Db;
 use crate::job_failure::classify_job_failure;
@@ -15,6 +14,7 @@ use crate::models::api::{
     JobListItemView, JobListView, ListDocumentJobsQuery, ListJobsQuery,
 };
 use crate::models::domain::{JobFailureInfo, JobSnapshot, UploadRecord};
+use crate::services::artifacts::{display_title, job_upload_id, source_file_name};
 
 pub fn build_job_list_view(
     db: &Db,
@@ -69,7 +69,7 @@ fn build_job_list_items(
     base_url: &str,
     include_live_stage: bool,
 ) -> Vec<JobListItemView> {
-    let ids: Vec<_> = jobs.iter().filter_map(upload_id).collect();
+    let ids: Vec<_> = jobs.iter().filter_map(job_upload_id).collect();
     // Upload metadata was always optional: an unavailable record falls back to
     // job artifacts and the source URL, without retrying per display field.
     let uploads = db.get_uploads(&ids).unwrap_or_default();
@@ -84,7 +84,7 @@ fn build_job_list_items(
     let mut summaries = SummaryCache::default();
     jobs.iter()
         .map(|job| {
-            let upload = upload_id(job).and_then(|id| uploads.get(id));
+            let upload = job_upload_id(job).and_then(|id| uploads.get(id));
             build_job_list_item_view(
                 data_root,
                 job,
@@ -115,7 +115,7 @@ fn build_job_list_item_view(
     let thumbnail_url = thumbnail_url(job, data_root, base_url);
     JobListItemView {
         job_id: job.job_id.clone(),
-        display_name: derive_display_name(upload, job, titles),
+        display_name: display_title(upload, job, titles),
         workflow: job.workflow.clone(),
         status: job.status.clone(),
         completion_note: crate::services::jobs::stage_view::terminal_completion_note(job),
@@ -140,7 +140,7 @@ fn build_job_list_item_view(
         stage_snapshot: stage.stage_snapshot,
         background_snapshots: stage.background_snapshots,
         stages: stage.stages,
-        page_count: page_count_for_job(upload, summaries, job, data_root),
+        page_count: summaries.book_page_count(upload, job, data_root),
         source_file_name: source_file_name(upload, job),
         cover_url,
         thumbnail_url,

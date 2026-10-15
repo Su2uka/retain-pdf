@@ -6,72 +6,8 @@ use crate::models::api::{
     OcrJobSummaryView,
 };
 use crate::models::domain::{JobFailureInfo, JobSnapshot, UploadRecord};
+use crate::services::artifacts::source_file_name;
 use crate::storage_paths::resolve_source_pdf;
-
-/// 书名：所属文档的标题优先（和书籍详情一致），其次上传文件名，最后 job_id。
-pub(super) fn derive_display_name(
-    upload: Option<&UploadRecord>,
-    job: &JobSnapshot,
-    titles: &crate::services::artifacts::DocumentTitles,
-) -> String {
-    if let Some(title) = crate::services::artifacts::document_title(upload, titles) {
-        return title;
-    }
-    if let Some(source_file_name) = source_file_name(upload, job) {
-        return source_file_name;
-    }
-
-    job.job_id.clone()
-}
-
-pub(super) fn upload_id(job: &JobSnapshot) -> Option<&str> {
-    job.upload_id
-        .as_deref()
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-}
-
-pub(super) fn source_file_name(upload: Option<&UploadRecord>, job: &JobSnapshot) -> Option<String> {
-    if let Some(upload) = upload {
-        let file_name = upload.filename.trim();
-        if !file_name.is_empty() {
-            return Some(file_name.to_string());
-        }
-    }
-
-    if let Some(name) = source_url_file_name(&job.request_payload.source.source_url) {
-        return Some(name);
-    }
-
-    None
-}
-
-pub(super) fn upload_book_stats(upload: Option<&UploadRecord>) -> (Option<i64>, Option<u64>) {
-    match upload {
-        Some(upload) => (Some(upload.page_count as i64), Some(upload.bytes)),
-        None => (None, None),
-    }
-}
-
-pub(super) fn page_count_for_job(
-    upload: Option<&UploadRecord>,
-    summaries: &mut SummaryCache,
-    job: &JobSnapshot,
-    data_root: &Path,
-) -> Option<i64> {
-    upload_book_stats(upload)
-        .0
-        .or_else(|| {
-            job.artifacts
-                .as_ref()
-                .and_then(|artifacts| artifacts.pages_processed)
-        })
-        .or_else(|| {
-            summaries
-                .normalization(job, data_root)
-                .and_then(|summary| summary.page_count.or(summary.pages_seen))
-        })
-}
 
 pub(super) fn build_book_summary(
     upload: Option<&UploadRecord>,
@@ -81,19 +17,17 @@ pub(super) fn build_book_summary(
     base_url: &str,
     display_name: &str,
 ) -> BookSummaryView {
-    let (upload_page_count, upload_size) = upload_book_stats(upload);
     BookSummaryView {
         title: display_name.to_string(),
         authors: None,
-        page_count: upload_page_count
-            .or_else(|| page_count_for_job(upload, summaries, job, data_root)),
+        page_count: summaries.book_page_count(upload, job, data_root),
         source_language: Some(job.request_payload.ocr.language.clone())
             .filter(|value| !value.trim().is_empty()),
         target_language: None,
         source_file_name: source_file_name(upload, job),
         cover_url: cover_url(job, data_root, base_url),
         thumbnail_url: thumbnail_url(job, data_root, base_url),
-        file_size_bytes: upload_size,
+        file_size_bytes: upload.map(|record| record.bytes),
     }
 }
 
@@ -111,9 +45,6 @@ fn job_image_url(job: &JobSnapshot, base_url: &str, kind: &str) -> String {
         &format!("{}/{}/{}", job.workflow.job_api_prefix(), job.job_id, kind),
     )
 }
-
-// 来源 URL 取文件名：共享的那一份在 services::artifacts（书名规则都在那里）。
-pub(super) use crate::services::artifacts::source_url_file_name;
 
 pub(super) fn job_path_prefix(job: &JobSnapshot) -> &'static str {
     job.workflow.job_api_prefix()
@@ -164,6 +95,7 @@ pub(super) fn job_failure_to_legacy_view(failure: &JobFailureInfo) -> JobFailure
 mod tests {
     use super::*;
     use crate::models::domain::{CreateJobInput, JobArtifacts};
+    use crate::services::artifacts::{display_title, source_url_file_name};
 
     #[test]
     fn optional_upload_metadata_keeps_display_and_page_count_precedence() {
@@ -192,26 +124,26 @@ mod tests {
             content_hash: String::new(),
         };
         let mut summaries = SummaryCache::default();
-        assert_eq!(derive_display_name(Some(&upload), &job, &Default::default()), "upload.pdf");
+        assert_eq!(display_title(Some(&upload), &job, &Default::default()), "upload.pdf");
         // A stored zero is still metadata, not a signal to substitute artifacts.
         assert_eq!(
-            page_count_for_job(Some(&upload), &mut summaries, &job, &root),
+            summaries.book_page_count(Some(&upload), &job, &root),
             Some(0)
         );
         assert_eq!(
-            page_count_for_job(None, &mut summaries, &job, &root),
+            summaries.book_page_count(None, &job, &root),
             Some(5)
         );
         job.artifacts.as_mut().unwrap().pages_processed = None;
         assert_eq!(
-            page_count_for_job(None, &mut summaries, &job, &root),
+            summaries.book_page_count(None, &job, &root),
             Some(9)
         );
         upload.filename = " ".into();
-        assert_eq!(derive_display_name(Some(&upload), &job, &Default::default()), "source.pdf");
+        assert_eq!(display_title(Some(&upload), &job, &Default::default()), "source.pdf");
         assert_eq!(source_file_name(None, &job), Some("source.pdf".into()));
         job.request_payload.source.source_url.clear();
-        assert_eq!(derive_display_name(None, &job, &Default::default()), "job-fallback");
+        assert_eq!(display_title(None, &job, &Default::default()), "job-fallback");
         std::fs::remove_dir_all(root).unwrap();
     }
 
