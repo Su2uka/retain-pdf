@@ -6,6 +6,7 @@
 - [工程评价与后续执行计划](./工程评价与后续执行计划.md)
 - [轻量模型执行器迁移进度](./model-executor-rollout.md)
 - [Rust API 业务目录与边界统一迁移计划](./api-boundary-migration.md)
+- [Rust API 整理记录（2026-10 起）](./api-reorg/README.md)
 - [前端迁移计划与审计](./frontend-migration/README.md)
 - [架构与 API 契约任务台账](./architecture_tasks.csv)
 - [2026-04-15 Rust API 去耦任务清单](./250415_task.csv)
