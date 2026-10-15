@@ -13,11 +13,9 @@ use crate::test_support::config::TestDirs;
 use crate::test_support::state::assemble_app_state;
 use crate::AppState;
 
-use super::bundle::create_translation_bundle_job;
 use super::job_builders::{build_ocr_job_snapshot, build_translation_job_snapshot};
-use super::submit::create_translation_job;
+use super::submit::{submit_job, NewJob};
 use crate::services::jobs::deps::{JobSubmitDeps, SnapshotBuildDeps};
-use crate::services::uploads::UploadedPdfInput;
 
 pub(super) fn test_state(test_name: &str) -> AppState {
     // 服务层测试按服务层的旧约定：python 而非 python3、无 API key。
@@ -35,6 +33,11 @@ pub(super) fn test_state(test_name: &str) -> AppState {
 
 fn snapshot_context<'a>(state: &'a AppState) -> SnapshotBuildDeps<'a> {
     SnapshotBuildDeps::new(state.db.as_ref(), state.config.job_snapshot_runtime())
+}
+
+/// 照 `POST /jobs` 的样子建一个任务。
+pub(super) fn submit_input(deps: &JobSubmitDeps<'_>, input: &CreateJobInput) -> Result<JobSnapshot, AppError> {
+    submit_job(deps, NewJob::new(input.clone()))
 }
 
 pub(super) fn submit_context<'a>(state: &'a AppState) -> JobSubmitDeps<'a> {
@@ -136,7 +139,7 @@ fn create_translation_job_rejects_missing_upload_id_for_translate_workflow() {
     let state = test_state("translate-missing-upload");
     let input = base_translation_input(WorkflowKind::Translate);
 
-    let err = create_translation_job(&submit_context(&state), &input)
+    let err = submit_input(&submit_context(&state), &input)
         .expect_err("missing upload should fail");
     match err {
         AppError::BadRequest(message) => assert_eq!(message, "upload_id is required"),
@@ -151,7 +154,7 @@ fn create_translation_job_allows_translate_workflow_from_existing_artifact_job()
     let mut input = base_translation_input(WorkflowKind::Translate);
     input.source.artifact_job_id = "ocr-source-job".to_string();
 
-    let job = create_translation_job(&submit_context(&state), &input)
+    let job = submit_input(&submit_context(&state), &input)
         .expect("create translate job from artifact source");
 
     assert_eq!(job.workflow, WorkflowKind::Translate);
@@ -184,7 +187,7 @@ fn create_translation_job_persists_reference_instead_of_translation_secret() {
     input.translation.api_key.clear();
     input.translation.credential_ref = credential_ref.clone();
 
-    let job = create_translation_job(&submit_context(&state), &input)
+    let job = submit_input(&submit_context(&state), &input)
         .expect("create translate job with credential reference");
 
     assert_eq!(
@@ -207,7 +210,7 @@ fn create_translation_job_imports_legacy_translation_secret_before_persistence()
     input.translation.api_key = secret.to_string();
     input.translation.credential_ref.clear();
 
-    let job = create_translation_job(&submit_context(&state), &input)
+    let job = submit_input(&submit_context(&state), &input)
         .expect("create translate job with legacy inline credential");
 
     assert!(job.request_payload.translation.api_key.is_empty());
@@ -238,9 +241,9 @@ fn repeated_legacy_translation_secret_reuses_managed_credential() {
     input.source.artifact_job_id = "ocr-source-job-managed-translation".to_string();
     input.translation.api_key = "sk-shared-legacy-translation".to_string();
 
-    let first = create_translation_job(&submit_context(&state), &input)
+    let first = submit_input(&submit_context(&state), &input)
         .expect("create first translated job");
-    let second = create_translation_job(&submit_context(&state), &input)
+    let second = submit_input(&submit_context(&state), &input)
         .expect("create second translated job");
 
     assert_eq!(
@@ -261,7 +264,7 @@ fn create_book_job_imports_legacy_ocr_secret_before_persistence() {
     input.ocr.provider = "mineru".to_string();
     input.ocr.mineru_token = secret.to_string();
 
-    let job = create_translation_job(&submit_context(&state), &input)
+    let job = submit_input(&submit_context(&state), &input)
         .expect("create book job with legacy OCR credential");
 
     assert!(job.request_payload.ocr.mineru_token.is_empty());
@@ -290,7 +293,7 @@ fn artifact_reuse_discards_unused_ocr_secret() {
     input.source.artifact_job_id = "ocr-source-with-artifacts".to_string();
     input.ocr.mineru_token = "unused-legacy-ocr-secret".to_string();
 
-    let job = create_translation_job(&submit_context(&state), &input)
+    let job = submit_input(&submit_context(&state), &input)
         .expect("create translation job that reuses OCR artifacts");
 
     assert!(job.request_payload.ocr.credential_ref.is_empty());
@@ -312,7 +315,7 @@ fn render_job_discards_all_unused_provider_credentials_before_persistence() {
     input.ocr.credential_ref = "cred_invalid_ocr_but_unused".to_string();
     input.ocr.mineru_token = "unused-render-ocr-secret".to_string();
 
-    let job = create_translation_job(&submit_context(&state), &input)
+    let job = submit_input(&submit_context(&state), &input)
         .expect("create render job without resolving unused credentials");
 
     assert!(job.request_payload.translation.api_key.is_empty());
@@ -342,7 +345,7 @@ fn create_translation_job_rejects_paddle_cli_artifact_source() {
 
     let mut input = base_translation_input(WorkflowKind::Translate);
     input.source.artifact_job_id = "paddle-cli-source-job".to_string();
-    let err = create_translation_job(&submit_context(&state), &input)
+    let err = submit_input(&submit_context(&state), &input)
         .expect_err("CLI OCR artifact must not feed translation/render");
 
     match err {
@@ -390,7 +393,7 @@ fn create_translation_job_rejects_artifact_job_with_missing_ocr_files() {
     let mut input = base_translation_input(WorkflowKind::Translate);
     input.source.artifact_job_id = "missing-ocr-source-job".to_string();
 
-    let err = create_translation_job(&submit_context(&state), &input)
+    let err = submit_input(&submit_context(&state), &input)
         .expect_err("missing OCR files should fail before launch");
     match err {
         AppError::OcrArtifactReuse { code, reason, .. } => {
@@ -406,7 +409,7 @@ fn create_translation_job_rejects_missing_artifact_job_for_render_workflow() {
     let state = test_state("render-missing-artifact");
     let input = base_translation_input(WorkflowKind::Render);
 
-    let err = create_translation_job(&submit_context(&state), &input)
+    let err = submit_input(&submit_context(&state), &input)
         .expect_err("missing artifact job should fail");
     match err {
         AppError::BadRequest(message) => assert_eq!(
@@ -417,25 +420,22 @@ fn create_translation_job_rejects_missing_artifact_job_for_render_workflow() {
     }
 }
 
+/// `/translate/bundle` 的门面，任务只落库不真跑。
+fn bundle_facade(state: &AppState) -> crate::services::jobs::JobsFacade<'_> {
+    crate::app::build_jobs_facade_with_launcher(state, JobRuntimeLauncher::new(Arc::new(|_| {})))
+}
+
 #[tokio::test]
 async fn create_translation_bundle_job_returns_queued_job_without_waiting() {
     let state = test_state("bundle-job-async");
     let mut input = base_translation_input(WorkflowKind::Book);
     input.ocr.poll_timeout = 1;
 
-    let job = create_translation_bundle_job(
-        &crate::services::jobs::deps::BundleBuildDeps {
-            submit: submit_context(&state),
-        },
-        input,
-        UploadedPdfInput {
-            filename: "input.pdf".to_string(),
-            bytes: build_test_pdf_bytes(),
-            developer_mode: false,
-        },
-    )
-    .await
-    .expect("bundle endpoint should create async job");
+    let submission = bundle_facade(&state)
+        .create_translation_bundle_submission("http://retain.test", input, "input.pdf".to_string(), build_test_pdf_bytes(), false)
+        .await
+        .expect("bundle endpoint should create async job");
+    let job = state.db.get_job(&submission.job_id).expect("persisted job");
 
     assert_eq!(job.workflow, WorkflowKind::Book);
     assert_eq!(job.status, crate::models::JobStatusKind::Queued);
@@ -458,19 +458,16 @@ async fn bundle_job_failure_preserves_published_upload() {
     let state = test_state("bundle-failure-preserves-upload");
     let bytes = build_test_pdf_bytes();
     let hash = crate::db::documents::sha256_hex(&bytes);
-    let error = create_translation_bundle_job(
-        &crate::services::jobs::deps::BundleBuildDeps {
-            submit: submit_context(&state),
-        },
-        base_translation_input(WorkflowKind::Ocr),
-        UploadedPdfInput {
-            filename: "published.pdf".into(),
+    let error = bundle_facade(&state)
+        .create_translation_bundle_submission(
+            "http://retain.test",
+            base_translation_input(WorkflowKind::Ocr),
+            "published.pdf".into(),
             bytes,
-            developer_mode: false,
-        },
-    )
-    .await
-    .expect_err("bundle rejects OCR workflow after publication");
+            false,
+        )
+        .await
+        .expect_err("bundle rejects OCR workflow after publication");
     assert_eq!(error.to_string(), "use /api/v1/ocr/jobs for workflow=ocr");
     let entries = std::fs::read_dir(&state.config.uploads_dir)
         .unwrap()

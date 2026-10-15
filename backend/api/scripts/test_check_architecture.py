@@ -648,5 +648,44 @@ mod tests { fn f() { resolve_output_pdf(job, root); } }
         self.assertIn("remove it from KNOWN_ARTIFACT_PATH_READERS", errors[0])
 
 
+class JobEntryOwnershipTests(unittest.TestCase):
+    check_sources = UploadBoundaryTests.check_sources
+
+    def run_check(self, sources):
+        return self.check_sources(sources, checks.check_job_entry_ownership)
+
+    def test_the_entry_module_may_persist_and_launch(self):
+        self.assertEqual([], self.run_check({
+            "services/jobs/creation/submit.rs": """
+                fn f() {
+                    persist_job_with_resources(db, a, b, &job)?;
+                    deps.db.create_ocr_recovery_job_state(d, &job, r, None)?;
+                    deps.runtime.launch(job.job_id.clone());
+                }
+            """,
+        }))
+
+    def test_other_modules_are_rejected(self):
+        for path, body in (
+            ("services/jobs/facade/command/rerun.rs", "fn f() { persist_job_with_resources(db, a, b, &job); }"),
+            ("services/jobs/facade/command/x.rs", "fn f() { self.db.create_ocr_recovery_job_state(d, &j, r, None); }"),
+            ("services/library/translate.rs", "fn f() { deps.launcher.runtime.launch(id); }"),
+            ("routes/jobs/create.rs", "fn f() { deps.runtime . launch(id); }"),
+        ):
+            with self.subTest(path=path):
+                errors = self.run_check({path: body})
+                self.assertEqual(1, len(errors), errors)
+                self.assertIn("submit_job", errors[0])
+
+    def test_cas_writes_tests_and_comments_do_not_count(self):
+        self.assertEqual([], self.run_check({
+            "services/jobs/control.rs": "fn f() { cas_persist_job_with_resources(db, a, b, &job, &[]); }",
+            "services/jobs/creation/tests.rs": "fn f() { persist_job_with_resources(db, a, b, &job); }",
+            "services/jobs/x.rs": """
+                // persist_job_with_resources(db, a, b, &job)
+                const NOTE: &str = "runtime.launch(id)";
+            """,
+        }))
+
 if __name__ == "__main__":
     unittest.main()

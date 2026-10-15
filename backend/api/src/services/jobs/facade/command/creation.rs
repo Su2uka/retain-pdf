@@ -1,46 +1,62 @@
 use crate::error::AppError;
 use crate::models::api::JobSubmissionView;
-use crate::models::domain::{JobStatusKind, WorkflowKind};
+use crate::models::domain::{JobStatusKind, UploadRecord, WorkflowKind};
 use crate::models::request::CreateJobInput;
 
-use super::super::super::creation::{
-    create_ocr_job, create_ocr_job_from_upload, create_translation_bundle_job, create_translation_job,
-};
+use super::super::super::creation::{submit_job, NewJob};
 use super::super::JobsFacade;
-use crate::services::jobs::deps::BundleBuildDeps;
 use crate::services::uploads::UploadedPdfInput;
 
 impl<'a> JobsFacade<'a> {
+    /// `POST /jobs`：已经上传过的文件（`source.upload_id`）或已有任务的产物（`source.artifact_job_id`）。
     pub fn create_submission(
         &self,
         base_url: &str,
         request: &CreateJobInput,
     ) -> Result<JobSubmissionView, AppError> {
-        let workflow = request.workflow.clone();
-        // 只做 OCR 也走 /jobs（已上传的文件）；带文件一起传的旧入口 /ocr/jobs 照旧。
-        let job = if matches!(workflow, WorkflowKind::Ocr) {
-            create_ocr_job(&self.command.submit, request)?
-        } else {
-            create_translation_job(&self.command.submit, request)?
-        };
-        Ok(self.build_submission_view(base_url, &job, JobStatusKind::Queued, workflow))
+        let job = submit_job(&self.command.submit, NewJob::new(request.clone()))?;
+        Ok(self.build_submission_view(base_url, &job, JobStatusKind::Queued, request.workflow.clone()))
     }
 
+    /// 书库发起的提交（`/documents/:id/translate`、`/ocr`）：请求已经绑好这本书的上传。
+    pub(crate) fn create_document_submission(
+        &self,
+        base_url: &str,
+        request: &CreateJobInput,
+        document_id: &str,
+    ) -> Result<JobSubmissionView, AppError> {
+        let job = submit_job(
+            &self.command.submit,
+            NewJob::new(request.clone()).for_document(document_id),
+        )?;
+        Ok(self.build_submission_view(base_url, &job, JobStatusKind::Queued, request.workflow.clone()))
+    }
+
+    /// `POST /ocr/jobs`：只做 OCR，文件可以随请求一起传，也可以给已有的上传。
     pub async fn create_ocr_submission(
         &self,
         base_url: &str,
         request: &CreateJobInput,
         upload: Option<(String, Vec<u8>, bool)>,
     ) -> Result<JobSubmissionView, AppError> {
-        let upload = upload.map(|(filename, bytes, developer_mode)| UploadedPdfInput {
-            filename,
-            bytes,
-            developer_mode,
-        });
-        let job = create_ocr_job_from_upload(&self.command.submit, request, upload).await?;
+        let mut request = request.clone();
+        request.workflow = WorkflowKind::Ocr;
+        let mut new_job = NewJob::new(request);
+        if let Some((filename, bytes, developer_mode)) = upload {
+            new_job = new_job.with_upload(
+                self.store_upload(UploadedPdfInput {
+                    filename,
+                    bytes,
+                    developer_mode,
+                })
+                .await?,
+            );
+        }
+        let job = submit_job(&self.command.submit, new_job)?;
         Ok(self.build_submission_view(base_url, &job, JobStatusKind::Queued, WorkflowKind::Ocr))
     }
 
+    /// `POST /translate/bundle`：文件随请求一起传，一步建翻译任务。
     pub async fn create_translation_bundle_submission(
         &self,
         base_url: &str,
@@ -49,19 +65,23 @@ impl<'a> JobsFacade<'a> {
         bytes: Vec<u8>,
         developer_mode: bool,
     ) -> Result<JobSubmissionView, AppError> {
-        let workflow = request.workflow.clone();
-        let job = create_translation_bundle_job(
-            &BundleBuildDeps {
-                submit: self.command.submit.clone(),
-            },
-            request,
-            UploadedPdfInput {
+        // 先存文件：任务建不成，上传也留着（之后可以用 upload_id 再提交）。
+        let upload = self
+            .store_upload(UploadedPdfInput {
                 filename,
                 bytes,
                 developer_mode,
-            },
-        )
-        .await?;
+            })
+            .await?;
+        if matches!(request.workflow, WorkflowKind::Ocr) {
+            return Err(AppError::bad_request("use /api/v1/ocr/jobs for workflow=ocr"));
+        }
+        let workflow = request.workflow.clone();
+        let job = submit_job(&self.command.submit, NewJob::new(request).with_upload(upload))?;
         Ok(self.build_submission_view(base_url, &job, JobStatusKind::Queued, workflow))
+    }
+
+    async fn store_upload(&self, file: UploadedPdfInput) -> Result<UploadRecord, AppError> {
+        Ok(self.command.submit.uploads.store(file).await?)
     }
 }

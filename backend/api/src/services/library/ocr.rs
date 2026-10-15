@@ -28,20 +28,9 @@ pub async fn ocr_document(
     }
 
     request.workflow = WorkflowKind::Ocr;
-    let upload_id = upload.upload_id;
-    request.source.upload_id = upload_id.clone();
+    request.source.upload_id = upload.upload_id;
     request.source.source_url.clear();
     request.source.artifact_job_id.clear();
 
-    let submission = jobs.create_ocr_submission(base_url, &request, None).await?;
-    let linked_document_id = deps
-        .db
-        .link_job_to_document(&submission.job_id, &upload_id)?
-        .ok_or_else(|| AppError::internal("failed to bind OCR job to document"))?;
-    if linked_document_id != document_id {
-        return Err(AppError::internal(
-            "OCR job was bound to an unexpected document",
-        ));
-    }
-    Ok(submission)
+    jobs.create_document_submission(base_url, &request, document_id)
 }

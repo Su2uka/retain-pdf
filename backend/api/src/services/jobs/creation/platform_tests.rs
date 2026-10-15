@@ -7,8 +7,7 @@ use crate::services::platform_settings::{
 };
 use crate::test_support::pdf::build_test_pdf_bytes;
 
-use super::submit::create_translation_job;
-use super::tests::{base_translation_input, submit_context, test_state};
+use super::tests::{base_translation_input, submit_context, submit_input, test_state};
 
 fn settings(model: &str, api_key: Option<&str>) -> SavePlatformSettingsInput {
     settings_with_thinking(model, api_key, "low")
@@ -74,7 +73,7 @@ fn saved_platform_settings_apply_to_the_next_job_without_restart() {
     input.translation.workers = 20;
 
     save(settings("platform-model-a", Some("sk-platform-key-1234")));
-    let first = create_translation_job(&deps, &input).expect("first job");
+    let first = submit_input(&deps, &input).expect("first job");
     let t = &first.request_payload.translation;
     assert_eq!(
         (t.model.as_str(), t.thinking.as_str(), t.workers),
@@ -86,7 +85,7 @@ fn saved_platform_settings_apply_to_the_next_job_without_restart() {
     );
 
     save(settings("platform-model-b", None));
-    let second = create_translation_job(&deps, &input).expect("second job");
+    let second = submit_input(&deps, &input).expect("second job");
     assert_eq!(second.request_payload.translation.model, "platform-model-b");
     assert_eq!(
         first.request_payload.translation.model, "platform-model-a",
@@ -137,7 +136,7 @@ fn default_platform_thinking_passes_job_validation() {
         let mut input = base_translation_input(WorkflowKind::Book);
         input.source.upload_id = "up-1".into();
         input.translation.thinking = asked.into();
-        let job = create_translation_job(&deps, &input).unwrap_or_else(|error| panic!("thinking={asked:?}: {error:?}"));
+        let job = submit_input(&deps, &input).unwrap_or_else(|error| panic!("thinking={asked:?}: {error:?}"));
         assert_eq!(job.request_payload.translation.thinking, "auto", "thinking={asked:?}");
     }
 }

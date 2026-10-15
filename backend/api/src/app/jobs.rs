@@ -65,6 +65,14 @@ pub fn build_jobs_facade_from_state(state: &AppState) -> JobsFacade<'_> {
             spawn_job(build_process_runtime_deps(&runtime_state), job_id)
         }))
     };
+    build_jobs_facade_with_launcher(state, runtime_launcher)
+}
+
+/// 同上，任务交给 `runtime_launcher` 发射。测试用它换一个只记下任务编号、不真跑的发射器。
+pub(crate) fn build_jobs_facade_with_launcher(
+    state: &AppState,
+    runtime_launcher: JobRuntimeLauncher,
+) -> JobsFacade<'_> {
     let launcher = JobLaunchDeps::new(
         state.db.as_ref(),
         &state.config.data_root,

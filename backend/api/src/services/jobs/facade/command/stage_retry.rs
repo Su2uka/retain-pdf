@@ -3,11 +3,10 @@ use crate::models::api::{
     AmbiguousRequestPolicy, RetryStageKind, RetryStageRequest, RetryStageSubmissionView,
     StageActionsView,
 };
-use crate::services::jobs::launcher::{link_new_job_to_document, start_job_execution};
 use crate::services::jobs::stage_plan::stage_plan;
 use crate::services::jobs::translation_request_recovery::load_translation_request_recovery;
 
-use super::super::super::creation::{create_ocr_ambiguity_recovery_job, create_translation_job};
+use super::super::super::creation::{relaunch_in_place, submit_job, NewJob};
 use super::super::super::query::load_job_or_404;
 use super::super::JobsFacade;
 use super::ocr_ambiguity::ambiguous_ocr_dispatch;
@@ -134,7 +133,7 @@ impl<'a> JobsFacade<'a> {
             job.request_payload.translation.reviewer_api_key.clear();
             job.request_payload.runtime.job_id = job.job_id.clone();
             job.sync_runtime_state();
-            let job = start_job_execution(&self.command.submit.launcher, job)?;
+            let job = relaunch_in_place(&self.command.submit.launcher, job)?;
             return Ok(build_retry_stage_submission_view(
                 base_url,
                 source_job_id,
@@ -156,24 +155,16 @@ impl<'a> JobsFacade<'a> {
         request_input.translation.accepted_ambiguous_request_risk =
             request.ambiguous_request_policy == AmbiguousRequestPolicy::AcceptDuplicateRisk;
         let workflow = request_input.workflow.clone();
-        let job = match ambiguous_ocr.as_ref() {
-            Some(dispatch) => create_ocr_ambiguity_recovery_job(
-                &self.command.submit,
-                &request_input,
-                dispatch,
-                "accept_duplicate_risk",
-                None,
-            )?,
-            None => {
-                let job = create_translation_job(&self.command.submit, &request_input)?;
-                // OCR 重试只带 upload_id / source_url、不带 artifact_job_id：start_job_execution
-                // 按 upload 关联不上时，归属从源任务继承（同一个实现，只是多给一个来源）。
-                if request_input.source.artifact_job_id.trim().is_empty() {
-                    link_new_job_to_document(self.command.db, &job, Some(source_job_id));
-                }
-                job
-            }
-        };
+        let reuses_artifacts = !request_input.source.artifact_job_id.trim().is_empty();
+        let mut new_job = NewJob::new(request_input);
+        if let Some(dispatch) = ambiguous_ocr.as_ref() {
+            new_job = new_job.resolving_ocr_ambiguity(dispatch, "accept_duplicate_risk", None);
+        } else if !reuses_artifacts {
+            // OCR 重试只带 upload_id / source_url、不带 artifact_job_id：按 upload 归不到书时，
+            // 归属从源任务继承。
+            new_job = new_job.derived_from(source_job_id);
+        }
+        let job = submit_job(&self.command.submit, new_job)?;
         Ok(build_retry_stage_submission_view(
             base_url,
             source_job_id,
@@ -222,11 +213,11 @@ impl<'a> JobsFacade<'a> {
             }
             return Err(AppError::bad_request(plan.disabled_reason));
         }
-        // 换了 key 后带来的明文 key 先导入凭据库；锁持有到 start_job_execution 落库之后。
+        // 换了 key 后带来的明文 key 先导入凭据库；锁持有到 relaunch_in_place 落库之后。
         let (overrides, _credential_usage) =
             import_inline_refine_keys(&request.overrides, self.command.control.data_root)?;
         let job = prepare_in_place_refine_job(source_job, &overrides, self.command.control.data_root)?;
-        // 覆盖必须在启动之前写好：start_job_execution 之后运行时随时可能读它。
+        // 覆盖必须在启动之前写好：relaunch_in_place 之后运行时随时可能读它。
         let job_paths = crate::storage_paths::JobPaths::for_job(
             self.command.control.output_root,
             &job.job_id,
@@ -235,7 +226,7 @@ impl<'a> JobsFacade<'a> {
             .map_err(|error| {
                 AppError::internal(format!("failed to stage refine override: {error:#}"))
             })?;
-        let job = match start_job_execution(&self.command.submit.launcher, job) {
+        let job = match relaunch_in_place(&self.command.submit.launcher, job) {
             Ok(job) => job,
             Err(error) => {
                 let _ = crate::worker_command::refine_override::clear_refine_override(&job_paths);

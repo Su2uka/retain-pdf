@@ -1,5 +1,5 @@
 mod cancel;
-mod common;
+pub(crate) mod common;
 mod render_engine;
 mod rerun;
 mod resume;

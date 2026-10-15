@@ -39,13 +39,6 @@ impl<'a> JobSubmitDeps<'a> {
 }
 
 #[derive(Clone)]
-pub(crate) struct BundleBuildDeps<'a> {
-    pub(crate) submit: JobSubmitDeps<'a>,
-}
-
-impl<'a> BundleBuildDeps<'a> {}
-
-#[derive(Clone)]
 pub(crate) struct ControlDeps<'a> {
     pub(crate) db: &'a Db,
     pub(crate) job_runner: &'a JobRunnerConfig,

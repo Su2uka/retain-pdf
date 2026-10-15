@@ -8,7 +8,7 @@ use crate::models::api::{
 };
 use crate::services::jobs::stage_plan::stage_plan;
 
-use super::super::super::creation::create_ocr_ambiguity_recovery_job;
+use super::super::super::creation::{submit_job, NewJob};
 use super::super::super::query::load_job_or_404;
 use super::super::JobsFacade;
 use super::stage_retry_request::build_retry_request;
@@ -68,12 +68,14 @@ impl<'a> JobsFacade<'a> {
                 }
                 let receipt = build_bound_receipt(&source_dispatch, &request)?;
                 let request_input = build_retry_request(&source_job, &RetryStageKind::Ocr)?;
-                let job = create_ocr_ambiguity_recovery_job(
+                let workflow = request_input.workflow.clone();
+                let job = submit_job(
                     &self.command.submit,
-                    &request_input,
-                    &source_dispatch,
-                    "bind_existing_receipt",
-                    Some(&receipt),
+                    NewJob::new(request_input).resolving_ocr_ambiguity(
+                        &source_dispatch,
+                        "bind_existing_receipt",
+                        Some(&receipt),
+                    ),
                 )?;
                 build_retry_stage_submission_view(
                     base_url,
@@ -86,7 +88,7 @@ impl<'a> JobsFacade<'a> {
                         "translation".to_string(),
                         "render".to_string(),
                     ],
-                    request_input.workflow,
+                    workflow,
                     AmbiguousRequestPolicy::Block,
                 )
             }
