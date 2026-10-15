@@ -54,12 +54,15 @@ cargo test -p rust_api -p retain-jobs -p retain-db -p retain-data -p retain-core
 
 ## 接口快照与架构检查
 
-- 接口清单 `backend/api/docs/routes.txt`、文件出口返回 `backend/api/docs/file-responses.txt` 是钉住对外行为的快照。
-  有意改了才重新生成：
+- 三份快照钉住对外行为：接口清单 `backend/api/docs/routes.txt`、文件出口返回 `backend/api/docs/file-responses.txt`、
+  建任务各入口的结果 `backend/api/docs/submissions.txt`。有意改了才重新生成：
   `UPDATE_ROUTES=1 cargo test -p rust_api --lib route_manifest`、
-  `UPDATE_FILE_RESPONSES=1 cargo test -p rust_api --lib file_responses`。重新生成后看 diff，只该有预期的改动。
+  `UPDATE_FILE_RESPONSES=1 cargo test -p rust_api --lib file_responses`、
+  `UPDATE_SUBMISSIONS=1 cargo test -p rust_api --lib submissions`。重新生成后看 diff，只该有预期的改动。
 - 加路由、加 service 前先读 `check_architecture.py` 的规则：新的路由文件要进白名单（按完整 import 字符串匹配）；
   新的路径参数要在 `services/accounts/access.rs` 的 `classify_param` 里归类，否则多用户模式下 403 "not cleared"。
+- 建新任务只走 `services/jobs/creation/submit.rs` 的 `submit_job`，原地重跑已有任务走 `relaunch_in_place`；
+  别处直接落库或发射任务，`check_job_entry_ownership` 会报错。
 - 产物文件路径只许出口模块拼（`services/jobs/downloads`、`services/library/media.rs`、`services/artifacts`、
   `services/derived_artifacts`）。`KNOWN_ARTIFACT_PATH_READERS` 是冻结的现状名单，只许减不许加。
 

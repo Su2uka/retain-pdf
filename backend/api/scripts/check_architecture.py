@@ -1559,6 +1559,31 @@ def check_artifact_path_ownership(errors: list[str]) -> None:
         )
 
 
+# 建任务只有一个入口：services/jobs/creation/submit.rs 的 `submit_job`（新任务）和
+# `relaunch_in_place`（原地重跑已有任务）。补默认值、换平台模型、校验、凭据入库、预扣页额度、
+# 落库、归属到书、发射，都只在那里写一次。以前五个入口各抄一遍，抄漏了就出事（例如一键翻译没先换
+# 平台模型，用户自带的 key 进了服务器的凭据库）。别处要建任务，调 submit_job。
+JOB_ENTRY_PRIMITIVE = re.compile(
+    r"\bpersist_job_with_resources\s*\(|\bcreate_ocr_recovery_job_state\s*\(|\bruntime\s*\.\s*launch\s*\("
+)
+JOB_ENTRY_OWNER = Path("src/services/jobs/creation/submit.rs")
+
+
+def check_job_entry_ownership(errors: list[str]) -> None:
+    for root in (SRC_ROOT / "services", SRC_ROOT / "routes", SRC_ROOT / "app"):
+        for path in scan_rs_files(root):
+            if path.stem == "tests" or path.stem.endswith("_tests"):
+                continue
+            relative = rel(path)
+            if relative == JOB_ENTRY_OWNER:
+                continue
+            if JOB_ENTRY_PRIMITIVE.search(rust_boundary_source(path)):
+                errors.append(
+                    f"{relative}: persists or launches a new job itself; create jobs through "
+                    "services::jobs::creation::submit_job (or relaunch_in_place for an existing job)"
+                )
+
+
 def main() -> int:
     errors: list[str] = []
     check_appstate_boundaries(errors)
@@ -1598,6 +1623,7 @@ def main() -> int:
     check_protocol_docs(errors)
     check_service_dependency_cycles(errors)
     check_artifact_path_ownership(errors)
+    check_job_entry_ownership(errors)
 
     if errors:
         print("rust_api architecture check failed:", file=sys.stderr)

@@ -32,8 +32,7 @@ pub fn translate_document(
             "source.upload_id does not match this document's stored upload",
         ));
     }
-    let upload_id = upload.upload_id;
-    request.source.upload_id = upload_id.clone();
+    request.source.upload_id = upload.upload_id;
     request.source.source_url.clear();
 
     if matches!(request.workflow, WorkflowKind::Ocr | WorkflowKind::Render) {
@@ -46,7 +45,7 @@ pub fn translate_document(
     // （见 `translate_plan`）。一段且覆盖得住就落到下面原来那条路，行为不变。
     if reuses_ocr && !request.translation.page_ranges.is_empty() {
         if let Some(segments) = split_plan(deps, document_id, document.page_count, &request)? {
-            return submit_segments(jobs, deps, document_id, &upload_id, &request, &segments, base_url);
+            return submit_segments(jobs, deps, document_id, &request, &segments, base_url);
         }
     }
     if reuses_ocr {
@@ -65,28 +64,7 @@ pub fn translate_document(
         request.runtime.render_after_translation = true;
     }
 
-    submit_bound(jobs, deps, document_id, &upload_id, &request, base_url)
-}
-
-fn submit_bound(
-    jobs: &JobsFacade<'_>,
-    deps: &LibraryDeps<'_>,
-    document_id: &str,
-    upload_id: &str,
-    request: &CreateJobInput,
-    base_url: &str,
-) -> Result<JobSubmissionView, AppError> {
-    let submission = jobs.create_submission(base_url, request)?;
-    let linked_document_id = deps
-        .db
-        .link_job_to_document(&submission.job_id, upload_id)?
-        .ok_or_else(|| AppError::internal("failed to bind translation job to document"))?;
-    if linked_document_id != document_id {
-        return Err(AppError::internal(
-            "translation job was bound to an unexpected document",
-        ));
-    }
-    Ok(submission)
+    jobs.create_document_submission(base_url, &request, document_id)
 }
 
 /// 需要拆分时返回各段的计划；一段且所选 OCR 覆盖得住时返回 `None`（走原来的单任务路径）。
@@ -141,7 +119,6 @@ fn submit_segments(
     jobs: &JobsFacade<'_>,
     deps: &LibraryDeps<'_>,
     document_id: &str,
-    upload_id: &str,
     request: &CreateJobInput,
     segments: &[SegmentPlan],
     base_url: &str,
@@ -171,7 +148,7 @@ fn submit_segments(
     }
     let mut submissions = Vec::new();
     for (_, segment_request) in &ordered {
-        submissions.push(submit_bound(jobs, deps, document_id, upload_id, segment_request, base_url)?);
+        submissions.push(jobs.create_document_submission(base_url, segment_request, document_id)?);
     }
     let mut submissions = submissions.into_iter();
     let mut first = submissions

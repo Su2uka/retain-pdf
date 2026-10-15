@@ -5,7 +5,7 @@ mod query;
 mod replay;
 
 pub(crate) use command::{
-    BundleBuildDeps, CommandJobsDeps, ControlDeps, JobSubmitDeps, SnapshotBuildDeps,
+    CommandJobsDeps, ControlDeps, JobSubmitDeps, SnapshotBuildDeps,
 };
 pub(crate) use query::QueryJobsDeps;
 pub(crate) use replay::ReplayDeps;

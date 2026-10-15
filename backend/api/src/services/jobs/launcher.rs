@@ -2,7 +2,6 @@ use std::path::Path;
 
 use crate::db::Db;
 use crate::error::AppError;
-use crate::job_events::persist_job_with_resources;
 use crate::config::PlatformModels;
 use crate::models::domain::JobSnapshot;
 use crate::services::platform_settings::PlatformSource;
@@ -136,42 +135,9 @@ fn apply_platform_models_to(
     Ok(())
 }
 
-pub fn start_job_execution(
-    deps: &JobLaunchDeps<'_>,
-    mut job: JobSnapshot,
-) -> Result<JobSnapshot, AppError> {
-    if let Some(source) = deps.platform {
-        apply_platform_models(&mut job, &source.resolve()?)?;
-    }
-    // The new contract must never silently use the legacy Python transport.
-    // Worker rollout is a separate, explicit gate while migration is in flight.
-    if job
-        .request_payload
-        .translation
-        .execution_connection
-        .is_some()
-        && (std::env::var("RETAIN_MODEL_EXECUTOR_ENABLED").as_deref() != Ok("1")
-            || std::env::var("RETAIN_MODEL_WORKER_ENABLED").as_deref() != Ok("1"))
-    {
-        return Err(AppError::ServiceUnavailable("Rust model worker rollout is not enabled; execution_connection will not fall back to Python transport".into()));
-    }
-    // 所有「建任务即开跑」的入口都经过这里（内部派生的 OCR 子任务、OCR 歧义恢复不经过，正好不计费）。
-    // 预扣放在落库之前：余额不够就不留下任务行。
-    let reserved = deps.page_quota && crate::services::accounts::page_quota::reserve_for_job(deps.db, &job)?;
-    if let Err(error) = persist_job_with_resources(deps.db, deps.data_root, deps.output_root, &job) {
-        if reserved {
-            crate::services::accounts::page_quota::release_for_job(deps.db, &job.job_id);
-        }
-        return Err(error.into());
-    }
-    link_new_job_to_document(deps.db, &job, None);
-    deps.runtime.launch(job.job_id.clone());
-    Ok(job)
-}
-
 /// 新任务归到哪本书：写 `jobs.document_id`，并把书卡（`documents.active_job_id`）指向它。
 ///
-/// 所有「建任务即开跑」的入口都要经过这里 —— 主页卡片靠 active_job_id 找运行中任务，
+/// 建任务的唯一入口（creation::submit_job）落库后调它 —— 主页卡片靠 active_job_id 找运行中任务，
 /// 「这本书的任务」（list_jobs_for_document / 阅读页的打开计划 / 全文索引 / 删书级联）
 /// 靠 jobs.document_id。以前只有带 upload_id 的任务在这里关联；重新渲染、重试、继续/重跑
 /// 这些从已有任务派生出来的任务只带 `source.artifact_job_id`，各入口各补一半（有的只改

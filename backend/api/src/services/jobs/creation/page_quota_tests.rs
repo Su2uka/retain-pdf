@@ -2,13 +2,12 @@
 
 use crate::error::AppError;
 use crate::models::domain::{now_iso, JobStatusKind, UploadRecord, WorkflowKind};
-use crate::services::jobs::launcher::start_job_execution;
+use super::submit::relaunch_in_place;
 use crate::services::jobs::deps::JobSubmitDeps;
 use crate::test_support::pdf::build_test_pdf_bytes;
 use crate::AppState;
 
-use super::submit::create_translation_job;
-use super::tests::{base_translation_input, submit_context, test_state};
+use super::tests::{base_translation_input, submit_context, submit_input, test_state};
 
 fn quota_context(state: &AppState) -> JobSubmitDeps<'_> {
     let mut deps = submit_context(state);
@@ -69,12 +68,12 @@ fn submit_reserves_pages_and_failure_refunds_them() {
         .unwrap();
 
     let job =
-        create_translation_job(&quota_context(&state), &book_input(&upload)).expect("first job");
+        submit_input(&quota_context(&state), &book_input(&upload)).expect("first job");
     let charge = state.db.page_charge(&job.job_id).unwrap().expect("charged");
     assert_eq!((charge.pages, charge.status.as_str()), (3, "reserved"));
     assert_eq!(state.db.page_balance("u_alice").unwrap(), 2);
 
-    let error = create_translation_job(&quota_context(&state), &book_input(&upload))
+    let error = submit_input(&quota_context(&state), &book_input(&upload))
         .expect_err("only 2 pages left");
     match error {
         AppError::Account {
@@ -116,7 +115,7 @@ fn ocr_only_jobs_charge_the_selected_pages() {
     let mut input = book_input(&upload);
     input.workflow = WorkflowKind::Ocr;
     input.ocr.page_ranges = "2-4".to_string();
-    let job = super::submit::create_ocr_job(&quota_context(&state), &input).expect("ocr job");
+    let job = submit_input(&quota_context(&state), &input).expect("ocr job");
     assert_eq!(state.db.page_charge(&job.job_id).unwrap().unwrap().pages, 3);
     assert_eq!(state.db.page_balance("u_alice").unwrap(), 7);
 }
@@ -131,7 +130,7 @@ fn admins_local_uploads_and_single_mode_are_not_charged() {
     let alice_upload = seed_owned_upload(&state, "up-alice", "u_alice", 3);
 
     for upload in [&admin_upload, &local_upload] {
-        let job = create_translation_job(&quota_context(&state), &book_input(upload))
+        let job = submit_input(&quota_context(&state), &book_input(upload))
             .expect("exempt job");
         assert!(
             state.db.page_charge(&job.job_id).unwrap().is_none(),
@@ -139,7 +138,7 @@ fn admins_local_uploads_and_single_mode_are_not_charged() {
         );
     }
     // 单机模式（没开额度）：账号余额是 0 也照样能建。
-    let job = create_translation_job(&submit_context(&state), &book_input(&alice_upload))
+    let job = submit_input(&submit_context(&state), &book_input(&alice_upload))
         .expect("single mode");
     assert!(state.db.page_charge(&job.job_id).unwrap().is_none());
 }
@@ -155,9 +154,9 @@ fn rerendering_a_refunded_job_charges_it_again_but_a_paid_one_stays_free() {
         .unwrap();
     let deps = quota_context(&state);
 
-    let failed = create_translation_job(&deps, &book_input(&upload)).expect("job");
+    let failed = submit_input(&deps, &book_input(&upload)).expect("job");
     set_status(&state, &failed.job_id, JobStatusKind::Failed);
-    let paid = create_translation_job(&deps, &book_input(&upload)).expect("job");
+    let paid = submit_input(&deps, &book_input(&upload)).expect("job");
     set_status(&state, &paid.job_id, JobStatusKind::Succeeded);
     assert_eq!(state.db.page_balance("u_alice").unwrap(), 3);
 
@@ -168,7 +167,7 @@ fn rerendering_a_refunded_job_charges_it_again_but_a_paid_one_stays_free() {
         job.request_payload.source.upload_id.clear();
         job.request_payload.source.artifact_job_id = job_id.to_string();
         job.status = JobStatusKind::Queued;
-        start_job_execution(&deps.launcher, job).expect("rerender")
+        relaunch_in_place(&deps.launcher, job).expect("rerender")
     };
     rerender(&paid.job_id);
     assert_eq!(

@@ -6,12 +6,11 @@ use crate::services::jobs::stage_plan::resume_plan;
 use crate::services::jobs::translation_request_recovery::load_translation_request_recovery;
 use crate::services::jobs::managed_credential_gc::cleanup_deleted_job_credentials;
 
-use super::super::super::creation::create_translation_job;
+use super::super::super::creation::{relaunch_in_place, submit_job, NewJob};
 use super::super::super::query::load_job_or_404;
 use super::super::JobsFacade;
 use super::ocr_ambiguity::ambiguous_ocr_dispatch;
 use super::stage_retry_overrides::{apply_retry_overrides, discard_ocr_secret_sources};
-use crate::services::jobs::launcher::start_job_execution;
 
 impl<'a> JobsFacade<'a> {
     /// `overrides` 只会带换过的模型 key（路由层已校验）：续跑出新任务时替换原任务的旧凭据，
@@ -59,7 +58,7 @@ impl<'a> JobsFacade<'a> {
                 self.command.control.output_root,
                 &job.job_id,
             )?;
-            let job = start_job_execution(&self.command.submit.launcher, job)?;
+            let job = relaunch_in_place(&self.command.submit.launcher, job)?;
             return Ok(self.build_submission_view(
                 base_url,
                 &job,
@@ -90,8 +89,8 @@ impl<'a> JobsFacade<'a> {
         let mut request = build_rerun_request(&source_job, self.command.control.data_root)?;
         apply_retry_overrides(&mut request, overrides)?;
         let workflow = request.workflow.clone();
-        let job = create_translation_job(&self.command.submit, &request)?;
-        // 归属（jobs.document_id + 书卡）由 start_job_execution 沿 artifact_job_id 继承。
+        // 归属（jobs.document_id + 书卡）沿 artifact_job_id 继承。
+        let job = submit_job(&self.command.submit, NewJob::new(request))?;
         Ok(self.build_submission_view(base_url, &job, JobStatusKind::Queued, workflow))
     }
 }
