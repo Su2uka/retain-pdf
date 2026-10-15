@@ -6,7 +6,7 @@
 
 pub use super::documents::{get_document, list_documents, patch_document};
 pub(crate) use super::reading::{collection_agent_workspace, document_reading, document_translation_coverage};
-pub use crate::services::collection_workspace::CollectionWorkspace;
+pub use super::collection_workspace::CollectionWorkspace;
 pub use crate::services::merge::coverage::TranslationCoverageView;
 pub use crate::services::merge::reading::DocumentReadingView;
 

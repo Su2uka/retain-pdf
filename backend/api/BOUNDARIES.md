@@ -115,12 +115,13 @@ loading that is needed outside presentation belongs in a sibling module under
 ## Shared Job Projection Helpers
 
 These modules are shared inside the jobs service and, where needed, by sibling
-service projections such as `book_projection`:
+service projections such as `library::book_projection`:
 
 - `src/services/jobs/live_stage.rs`: combined event loading, canonical event
   projection, and live progress snapshots.
 - `src/services/jobs/summary_loaders.rs`: normalized/translation summary file
-  readers.
+  readers, plus `SummaryCache::book_page_count` (the one page-count rule for
+  job lists, job detail and the bookshelf).
 
 They are intentionally outside `presentation` so library/book projections do not
 depend on job view internals.
@@ -129,6 +130,11 @@ Shared artifact display belongs to `services/artifacts/presentation.rs`, exposed
 only through `services::artifacts::build_artifacts_display`. It consumes
 `ArtifactLinksView` without loading jobs, files, or database records. Both book
 and job views may depend on it; jobs must not import `book_projection` back.
+
+The book title / upload id / source file name rules live once in
+`services/artifacts/titles.rs` (`display_title`, `job_upload_id`,
+`source_file_name`); job and book projections call them instead of keeping
+their own copies.
 
 ## Runner leaf dependencies
 

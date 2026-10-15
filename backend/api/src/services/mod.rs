@@ -6,10 +6,6 @@ pub mod agent_runtime_session_api;
 pub(crate) mod agent_runtime_sessions;
 pub(crate) mod ai;
 pub mod artifacts;
-pub(crate) mod book_projection;
-pub mod collection_workspace;
-#[cfg(all(test, unix))]
-mod collection_workspace_tests;
 pub mod credentials;
 pub(crate) mod derived_artifacts;
 pub mod document_operation_api;

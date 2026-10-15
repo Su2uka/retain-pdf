@@ -3,8 +3,9 @@
 //! 书籍详情、书架卡片、任务列表、下载文件名用的都是这一个规则：所属文档的标题优先（会被
 //! 自动改名 / 手改），其次上传文件名（或来源 URL 的文件名），最后才是 job_id。
 //!
-//! 放在 artifacts（共享展示）而不是 book_projection：jobs 不能依赖 book_projection
-//! （check_architecture.py），而任务列表和下载命名都要用它。
+//! 放在 artifacts（共享展示）而不是 library::book_projection：jobs 不能依赖 book_projection
+//! （check_architecture.py），而任务列表和下载命名都要用它。规则只写这一份，任务列表、
+//! 任务详情、书架都调这里，不要在别处再抄一遍。
 
 use std::collections::HashMap;
 
@@ -32,17 +33,42 @@ pub(crate) fn document_titles_for<'a>(
     db.document_titles(&ids).unwrap_or_default()
 }
 
+/// 书名：所属文档的标题优先，其次上传文件名（或来源 URL 的文件名），最后 job_id。
+pub(crate) fn display_title(
+    upload: Option<&UploadRecord>,
+    job: &JobSnapshot,
+    titles: &DocumentTitles,
+) -> String {
+    document_title(upload, titles)
+        .or_else(|| source_file_name(upload, job))
+        .unwrap_or_else(|| job.job_id.clone())
+}
+
 /// 单个任务的书名（下载文件名用）。
 pub(crate) fn job_display_title(db: &Db, job: &JobSnapshot) -> String {
-    let upload_id = job.upload_id.as_deref().map(str::trim).filter(|id| !id.is_empty());
+    let upload_id = job_upload_id(job);
     let ids: Vec<&str> = upload_id.into_iter().collect();
     let uploads = db.get_uploads(&ids).unwrap_or_default();
     let upload = upload_id.and_then(|id| uploads.get(id));
     let titles = document_titles_for(db, upload);
-    document_title(upload, &titles)
-        .or_else(|| upload.map(|u| u.filename.trim().to_string()).filter(|name| !name.is_empty()))
+    display_title(upload, job, &titles)
+}
+
+/// 任务挂的上传编号，空白当没有。
+pub(crate) fn job_upload_id(job: &JobSnapshot) -> Option<&str> {
+    job.upload_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+}
+
+/// 源文件名：上传文件名优先，没有就取来源 URL 的最后一段。
+pub(crate) fn source_file_name(upload: Option<&UploadRecord>, job: &JobSnapshot) -> Option<String> {
+    upload
+        .map(|upload| upload.filename.trim())
+        .filter(|name| !name.is_empty())
+        .map(str::to_string)
         .or_else(|| source_url_file_name(&job.request_payload.source.source_url))
-        .unwrap_or_else(|| job.job_id.clone())
 }
 
 /// 来源 URL 的最后一段（去掉 `#…` 和 `?…`）。书架、任务列表、下载命名共用这一份。

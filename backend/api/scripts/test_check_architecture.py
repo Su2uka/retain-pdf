@@ -55,9 +55,9 @@ mod tests { fn fixture() { let runtime: ProcessRuntimeDeps; } }
     def test_shared_artifact_display_cannot_reintroduce_business_cycles(self):
         self.assertEqual([], self.check_sources({
             "services/jobs/presentation/detail_projection.rs": "use crate::services::artifacts::build_artifacts_display;",
-            "services/book_projection.rs": "use crate::services::artifacts::build_artifacts_display; use crate::services::jobs::job_readiness;",
+            "services/library/book_projection.rs": "use crate::services::artifacts::build_artifacts_display; use crate::services::jobs::job_readiness;",
             "services/artifacts/presentation.rs": "use crate::models::api::{ArtifactLinksView, ArtifactDisplayItemView};",
-            "services/jobs/event_feed/batch_tests.rs": "use crate::services::book_projection;",
+            "services/jobs/event_feed/batch_tests.rs": "use crate::services::library::book_projection;",
         }, checks.check_shared_artifact_presentation))
         for path in ("services/jobs/presentation/detail_projection.rs", "services/jobs/query/nested.rs"):
             self.assertTrue(self.check_sources(
@@ -75,7 +75,7 @@ mod tests { fn fixture() { let runtime: ProcessRuntimeDeps; } }
                 checks.check_shared_artifact_presentation,
             ))
         self.assertTrue(self.check_sources(
-            {"services/book_projection/artifacts.rs": ""},
+            {"services/library/book_projection/artifacts.rs": ""},
             checks.check_shared_artifact_presentation,
         ))
 

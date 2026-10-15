@@ -214,7 +214,7 @@ fn library_metadata_keeps_upload_artifact_and_summary_fallback_order() {
         content_hash: String::new(),
     };
     let mut summaries = SummaryCache::default();
-    let title = derive_display_name(Some(&upload), &job, &Default::default());
+    let title = display_title(Some(&upload), &job, &Default::default());
     let summary = build_book_summary(Some(&upload), &mut summaries, &job, &test.root, &title);
     assert_eq!(summary.title, "Uploaded.pdf");
     assert_eq!(summary.source_file_name.as_deref(), Some("Uploaded.pdf"));
@@ -223,13 +223,13 @@ fn library_metadata_keeps_upload_artifact_and_summary_fallback_order() {
     assert_eq!(summaries.read_attempts(), 0);
 
     assert_eq!(
-        page_count_for_library(None, &mut summaries, &job, &test.root),
+        summaries.book_page_count(None, &job, &test.root),
         Some(7)
     );
     assert_eq!(summaries.read_attempts(), 0);
     job.artifacts.as_mut().unwrap().pages_processed = None;
     assert_eq!(
-        page_count_for_library(None, &mut summaries, &job, &test.root),
+        summaries.book_page_count(None, &job, &test.root),
         Some(15)
     );
     assert_eq!(source_file_name(None, &job).as_deref(), Some("source.pdf"));
@@ -237,13 +237,13 @@ fn library_metadata_keeps_upload_artifact_and_summary_fallback_order() {
     std::fs::write(&report_path, r#"{"defaults":{"pages_seen":23}}"#).unwrap();
     job.job_id = "another-job-sharing-report".into();
     assert_eq!(
-        page_count_for_library(None, &mut summaries, &job, &test.root),
+        summaries.book_page_count(None, &job, &test.root),
         Some(15)
     );
     assert_eq!(summaries.read_attempts(), 1);
     let mut next_request = SummaryCache::default();
     assert_eq!(
-        page_count_for_library(None, &mut next_request, &job, &test.root),
+        next_request.book_page_count(None, &job, &test.root),
         Some(23)
     );
     assert_eq!(next_request.read_attempts(), 1);

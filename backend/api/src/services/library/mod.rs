@@ -5,7 +5,11 @@
 pub(crate) mod api;
 
 mod assets;
+pub(crate) mod book_projection;
 mod books;
+mod collection_workspace;
+#[cfg(all(test, unix))]
+mod collection_workspace_tests;
 mod collections;
 mod conversations;
 mod documents;

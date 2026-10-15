@@ -157,7 +157,9 @@ jobs 的依赖装配由 `app/jobs.rs` 完成；依赖定义在 `services/jobs/de
   改文档、馆藏翻译入口、收藏、全文检索、资产、会话、合集业务时进这里；
   **不要** 把逻辑写回 `routes/library_*`。
 - 子模块：
-  - `books.rs` — library books 列表/详情/删除（投影委托 `book_projection`）
+  - `books.rs` — library books 列表/详情/删除（投影委托 `book_projection/`）
+  - `book_projection.rs` + `book_projection/` — 书架列表 / 书籍详情投影；书名、页数规则调 `services::artifacts` 和 `SummaryCache`，不另抄
+  - `collection_workspace.rs` — 文件夹级 agent 工作区（把一个合集的书物化成目录，给 AI 服务读）
   - `documents.rs` / `media.rs` — 文档 CRUD 与 source.pdf/cover/thumbnail
   - `translate.rs` — 绑定文档 upload 后调 `JobsFacade::create_submission`
   - `favorites.rs` / `search.rs` — 锚点收藏与 blocks FTS

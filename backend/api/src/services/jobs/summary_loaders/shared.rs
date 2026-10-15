@@ -6,7 +6,7 @@ use serde_json::Value;
 use crate::models::api::{
     GlossaryUsageSummaryView, InvocationSummaryView, NormalizationSummaryView,
 };
-use crate::models::domain::JobSnapshot;
+use crate::models::domain::{JobSnapshot, UploadRecord};
 use crate::storage_paths::{
     resolve_data_path, resolve_normalization_report, resolve_translation_manifest,
 };
@@ -38,6 +38,27 @@ impl SummaryCache {
                 serde_json::from_str(&text).ok()
             })
             .as_ref()
+    }
+
+    /// 书的页数：上传记录里的页数优先（存的 0 也算数，不换别的来源），其次产物里的
+    /// pages_processed，最后读规范化报告。任务列表、任务详情、书架共用这一份。
+    pub(crate) fn book_page_count(
+        &mut self,
+        upload: Option<&UploadRecord>,
+        job: &JobSnapshot,
+        data_root: &Path,
+    ) -> Option<i64> {
+        upload
+            .map(|record| i64::from(record.page_count))
+            .or_else(|| {
+                job.artifacts
+                    .as_ref()
+                    .and_then(|artifacts| artifacts.pages_processed)
+            })
+            .or_else(|| {
+                self.normalization(job, data_root)
+                    .and_then(|summary| summary.page_count.or(summary.pages_seen))
+            })
     }
 
     pub(crate) fn normalization(

@@ -314,7 +314,7 @@ OCR_FLOW_ALLOWED_RAW_TOKEN_FILES = {
 DOWNLOADS_ROOT = SRC_ROOT / "services" / "jobs" / "downloads"
 STAGE_VIEW_CONSUMER_ROOTS = (
     SRC_ROOT / "services" / "jobs" / "presentation",
-    SRC_ROOT / "services" / "book_projection",
+    SRC_ROOT / "services" / "library" / "book_projection",
 )
 WORKER_COMMAND_FACADE = abs_src(Path("src/worker_command.rs"))
 
@@ -676,8 +676,8 @@ def check_service_model_facade_boundaries(errors: list[str]) -> None:
         SRC_ROOT / "services" / "provider_probe.rs",
         SRC_ROOT / "services" / "ai",
         SRC_ROOT / "services" / "uploads",
-        SRC_ROOT / "services" / "book_projection",
-        SRC_ROOT / "services" / "book_projection.rs",
+        SRC_ROOT / "services" / "library" / "book_projection",
+        SRC_ROOT / "services" / "library" / "book_projection.rs",
     )
     for root in scoped_roots:
         paths = [root] if root.is_file() else scan_rs_files(root)
@@ -901,8 +901,8 @@ def check_shared_artifact_presentation(errors: list[str]) -> None:
             for token in PROVIDER_RAW_INTERNAL_TOKENS:
                 if token in route_source_without_tests(path):
                     errors.append(f"{relative}: shared artifact presentation must not interpret provider raw token '{token}'")
-    if (SRC_ROOT / "services" / "book_projection" / "artifacts.rs").exists():
-        errors.append("services/book_projection/artifacts.rs: shared artifact display belongs in services/artifacts/presentation.rs")
+    if (SRC_ROOT / "services" / "library" / "book_projection" / "artifacts.rs").exists():
+        errors.append("services/library/book_projection/artifacts.rs: shared artifact display belongs in services/artifacts/presentation.rs")
 
 
 def check_runtime_deps_module_boundary(errors: list[str]) -> None:
@@ -1020,7 +1020,7 @@ def check_stage_view_projection_boundary(errors: list[str]) -> None:
     allowed = {
         Path("src/services/jobs/presentation/detail_projection.rs"),
         Path("src/services/jobs/presentation/listing.rs"),
-        Path("src/services/book_projection/live.rs"),
+        Path("src/services/library/book_projection/live.rs"),
     }
     forbidden_tokens = (
         "public_stage_for_raw_stage(",
@@ -1051,7 +1051,7 @@ def check_stage_view_projection_boundary(errors: list[str]) -> None:
 def check_job_readiness_boundary(errors: list[str]) -> None:
     scoped_roots = (
         SRC_ROOT / "services" / "jobs" / "presentation",
-        SRC_ROOT / "services" / "book_projection",
+        SRC_ROOT / "services" / "library" / "book_projection",
     )
     for root in scoped_roots:
         for path in scan_rs_files(root):

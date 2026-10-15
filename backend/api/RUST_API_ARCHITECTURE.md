@@ -518,7 +518,7 @@ routes/library*.rs, collections.rs
   负责 jobs 相关业务
 - [src/services/library](src/services/library)
   负责图书馆域业务（见 2.3）
-- [src/services/book_projection](src/services/book_projection)
+- [src/services/library/book_projection.rs](src/services/library/book_projection.rs)
   负责 library books 投影（由 `library/books` 调用）
 - [src/services/artifacts/presentation.rs](src/services/artifacts/presentation.rs)
   只将 `ArtifactLinksView` 转为公共产物展示数据，通过 `services::artifacts` 的
