@@ -52,5 +52,8 @@ def test_shared_layout_resolves_probes_and_unchanged_baseline():
     # 2026-10-09:提示词去重并补「术语 / 引用 / 标点」三条中文体例(0b015660)。逐例审阅:28 个用例
     # 的 system 消息都只变在这几行;9 个 placeholder 用例的 user 消息只变在 task 说明(删去与 system
     # 重复的要求);prompt_hash 随之变化,成员与其它指纹不变。
+    # 2026-10-15:续接组不再让模型按原分界逐框返回(d132915d,删了 build_group_member_messages),
+    # 整段交给模型、程序切回各框,走逐段请求。逐例审阅:只有 4 个 */group 用例变,且只变 messages
+    # (system 的输出协议、user 换成逐段提示词);engine_identity 与成员不变,其余 24 个一字未动。
     baseline = HERE / "fixtures/refactor_baseline.json"
-    assert hashlib.sha256(baseline.read_bytes()).hexdigest() == "5eb61b90d6a3163bc637b0d52422e462f87edee265ae1950930bf9cfcf6a5649"
+    assert hashlib.sha256(baseline.read_bytes()).hexdigest() == "f2c8aa9b202124f4b925ae26aaf27fdbcd1a5b538a25a8512a14bfd26b20a0cf"

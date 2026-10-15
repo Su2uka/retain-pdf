@@ -19,7 +19,7 @@ sys.path.insert(0, str(PIPELINE))
 
 from retainpdf_pipeline.translate.core.payload.parts.units import _build_group_translation_unit
 from retainpdf_pipeline.translate.llm.shared.prompt_building import (
-    build_group_member_messages, build_messages, build_single_item_fallback_messages,
+    build_messages, build_single_item_fallback_messages,
 )
 
 
@@ -44,29 +44,20 @@ def reconstruct(items, unit_id, content, *, mode="fast", target_language_name="�
             return "batch", build_messages(
                 batch, response_style="tagged", mode=mode, target_language_name=target_language_name,
             )
-    try:
-        payload = json.loads(content)
-    except ValueError:
-        return None
-    if not isinstance(payload, dict) or not isinstance(payload.get("member_translations"), list):
-        return None
-    ids = [m.get("item_id") for m in payload["member_translations"] if isinstance(m, dict)]
-    if not ids or len(ids) != len(set(ids)) or not all(i in items for i in ids):
-        return None
-    first = items[ids[0]]
-    ordered_ids = first.get("translation_unit_member_ids", [])
-    if set(ordered_ids) != set(ids):
-        return None
-    group_id = first.get("translation_unit_id", "")
-    if not group_id.startswith("__cg__:"):
-        return None
-    if any(items[i].get("translation_unit_id") != group_id for i in ids):
-        return None
-    group = _build_group_translation_unit(group_id, [deepcopy(items[i]) for i in ordered_ids])
-    if group is not None and unit_hash([group]) == unit_id:
-        return "group", build_group_member_messages(
-            group, mode=mode, target_language_name=target_language_name,
-        )
+    # 续接组整段翻译、返回纯文本，内容里认不出成员；只按保存下来的成员关系重建单元，
+    # 哈希对得上才算。
+    group_ids = sorted({str(item.get("translation_unit_id", "")) for item in items.values()
+                        if str(item.get("translation_unit_id", "")).startswith("__cg__:")})
+    for group_id in group_ids:
+        members = [item for item in items.values() if item.get("translation_unit_id") == group_id]
+        ordered_ids = members[0].get("translation_unit_member_ids", [])
+        if not ordered_ids or set(ordered_ids) != {item["item_id"] for item in members}:
+            continue
+        group = _build_group_translation_unit(group_id, [deepcopy(items[i]) for i in ordered_ids])
+        if group is not None and unit_hash([group]) == unit_id:
+            return "group", build_single_item_fallback_messages(
+                group, mode=mode, target_language_name=target_language_name,
+            )
     return None
 
 

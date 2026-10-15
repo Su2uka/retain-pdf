@@ -26,6 +26,9 @@ TRANSLATIONS = {
     "p002-b002": "对照实验证实了所报告的化学稳定性。",
 }
 
+# 跨页续接组的成员，按阅读顺序。
+CROSS_PAGE_GROUP = ("p001-b003", "p002-b000")
+
 
 def document():
     pages = []
@@ -41,7 +44,7 @@ def document():
                          layout_role="paragraph", semantic_role="body", structure_role="body",
                          policy={"translate": True},
                          source={"raw_type": "text"}, metadata={})
-            if identity in {"p001-b003", "p002-b000"}:
+            if identity in CROSS_PAGE_GROUP:
                 block["continuation_hint"] = dict(source="provider", group_id="io-cross-page",
                     role="start" if page_idx == 0 else "end", scope="cross_page",
                     reading_order=page_idx, confidence=1.0)
