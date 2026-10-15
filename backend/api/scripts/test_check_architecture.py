@@ -606,5 +606,47 @@ mod tests { use crate::services::library::api::Books; }
         self.assertTrue(all("no longer part of a cycle" in error for error in errors))
 
 
+
+class ArtifactPathOwnershipTests(unittest.TestCase):
+    check_sources = UploadBoundaryTests.check_sources
+
+    def run_check(self, sources, known=frozenset()):
+        with patch.object(checks, "KNOWN_ARTIFACT_PATH_READERS", {Path(p) for p in known}):
+            return self.check_sources(sources, checks.check_artifact_path_ownership)
+
+    def test_exit_modules_may_build_paths(self):
+        self.assertEqual([], self.run_check({
+            "services/jobs/downloads/files.rs": "fn f() { resolve_output_pdf(job, root); }",
+            "services/derived_artifacts/word.rs": "use crate::storage_paths::resolve_source_pdf;",
+            "services/artifacts/bundle.rs": "fn f() { resolve_markdown_path(job, root); }",
+        }))
+
+    def test_new_readers_are_rejected(self):
+        for path in ("services/library/new.rs", "routes/jobs/files.rs"):
+            with self.subTest(path=path):
+                errors = self.run_check({path: "fn f() { resolve_output_pdf(job, root); }"})
+                self.assertEqual(1, len(errors), errors)
+                self.assertIn("builds artifact paths itself", errors[0])
+
+    def test_tests_comments_and_strings_do_not_count(self):
+        self.assertEqual([], self.run_check({
+            "services/library/tests.rs": "fn f() { resolve_output_pdf(job, root); }",
+            "services/library/x.rs": '''
+                // resolve_output_pdf(job, root)
+                const NOTE: &str = "resolve_source_pdf";
+#[cfg(test)]
+mod tests { fn f() { resolve_output_pdf(job, root); } }
+            ''',
+        }))
+
+    def test_known_readers_are_frozen_and_must_shrink(self):
+        source = {"services/library/metadata_suggestions.rs": "fn f() { resolve_source_pdf(job, root); }"}
+        known = {"src/services/library/metadata_suggestions.rs"}
+        self.assertEqual([], self.run_check(source, known))
+        errors = self.run_check({}, known)
+        self.assertEqual(1, len(errors), errors)
+        self.assertIn("remove it from KNOWN_ARTIFACT_PATH_READERS", errors[0])
+
+
 if __name__ == "__main__":
     unittest.main()

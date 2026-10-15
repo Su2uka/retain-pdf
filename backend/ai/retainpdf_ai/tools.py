@@ -99,7 +99,7 @@ def _markdown_asset_url(
     if not path.is_file():
         return ""
     encoded = "/".join(quote(part, safe="") for part in rel.split("/"))
-    url = f"/api/v1/jobs/{job_id}/markdown/images/{encoded}"
+    url = f"/api/v1/jobs/{job_id}/files/output/ocr/images/{encoded}"
     document = str(document_id or "").strip()
     return f"{url}?doc={quote(document, safe='')}" if document else url
 
