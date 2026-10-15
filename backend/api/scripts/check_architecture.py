@@ -74,11 +74,6 @@ ALLOWED_APPSTATE_FILES = {
     Path("src/routes/glossaries.rs"),
     Path("src/routes/health.rs"),
     Path("src/routes/common.rs"),
-    Path("src/routes/jobs/control.rs"),
-    Path("src/routes/jobs/create.rs"),
-    Path("src/routes/jobs/download.rs"),
-    Path("src/routes/jobs/query.rs"),
-    Path("src/routes/jobs/translation_debug.rs"),
     Path("src/routes/providers.rs"),
     Path("src/routes/sync.rs"),
     Path("src/routes/backups.rs"),
@@ -229,12 +224,13 @@ ROUTE_SERVICE_IMPORT_ALLOWLIST = {
     Path("src/routes/download_response/files.rs"): (
         "crate::services::jobs::{Disposition, DocumentDownloadKind, FileDownload, JobFile, JobScope}",
     ),
-    Path("src/routes/jobs/download.rs"): (
-        "crate::services::jobs::{Disposition, DocumentDownloadKind, JobFile}",
-    ),
-    # /jobs/:id/files/<组>/<文件名>：路由只说组，文件名的翻译在 services::jobs。
+    # /jobs/:id/files/<组>/<文件名>：路由只说组，文件名的翻译在 services::jobs；旧地址只说要哪个文件。
     Path("src/routes/jobs/files.rs"): (
-        "crate::services::jobs::FileGroup",
+        "crate::services::jobs::{Disposition, FileGroup, JobFile}",
+    ),
+    # AI 写的文件只按固定名字读，不走 files 的出口。
+    Path("src/routes/jobs/ai.rs"): (
+        "crate::services::jobs::DocumentDownloadKind",
     ),
     Path("src/routes/download_response/markdown.rs"): (
         "crate::services::jobs::{Disposition, JobFile, JobScope, MarkdownDownload}",
@@ -257,10 +253,12 @@ ROUTE_SERVICE_IMPORT_ALLOWLIST = {
     Path("src/routes/common/fonts.rs"): (
         "crate::services::fonts::api::FontApiDeps",
     ),
-    Path("src/routes/quality.rs"): (
+    # 报告：质量报告、单个任务的模型用量各有自己的服务。
+    Path("src/routes/jobs/reports.rs"): (
         "crate::services::quality::api::",
+        "crate::services::usage::api::",
     ),
-    Path("src/routes/job_data.rs"): (
+    Path("src/routes/jobs/data.rs"): (
         "crate::services::job_data::api::",
     ),
     Path("src/routes/common/job_data.rs"): (
@@ -305,7 +303,7 @@ ARTIFACT_BOUNDARY_FILES = {
     Path("src/services/artifacts/registry.rs"),
     Path("src/services/artifacts/response.rs"),
     Path("src/services/artifacts/presentation.rs"),
-    Path("src/routes/jobs/download.rs"),
+    Path("src/routes/jobs/files.rs"),
 }
 
 PROVIDER_RAW_INTERNAL_TOKENS = (
@@ -413,17 +411,43 @@ def check_multipart_field_buffering(errors: list[str]) -> None:
 
 
 def check_jobs_route_deps_dedup(errors: list[str]) -> None:
+    # 只读的类只能用只读的依赖；混着读和写的类，只有列出来的写操作（和它们的响应 helper）
+    # 可以拿完整的任务门面。
     narrow_modules = (
-        Path("src/routes/jobs/query/read"),
-        Path("src/routes/jobs/query/diagnostics"),
-        Path("src/routes/jobs/download"),
+        Path("src/routes/jobs/files"),
+        Path("src/routes/jobs/reports"),
+        Path("src/routes/jobs/reader"),
+        Path("src/routes/jobs/data"),
+        Path("src/routes/jobs/ai"),
         Path("src/routes/download_response"),
     )
     mixed_modules = {
-        Path("src/routes/jobs/query/reader"): {"reader_ai_chat"},
-        Path("src/routes/jobs/translation_debug"): {
+        Path("src/routes/jobs/lifecycle"): {"create_job", "create_ocr_job", "translate_bundle"},
+        Path("src/routes/jobs/actions"): {
+            "get_stage_actions",
+            "stage_actions_response",
+            "cancel_job",
+            "cancel_ocr_job",
+            "cancel_job_response",
+            "rerun_job",
+            "rerun_job_response",
+            "resume_job",
+            "resume_job_response",
+            "retry_stage",
+            "retry_stage_response",
+            "resolve_ocr_ambiguity",
+            "resolve_ocr_ambiguity_response",
+        },
+        # 边翻边看的版面和单页读的是运行中的状态，要完整门面。
+        Path("src/routes/jobs/progress"): {
+            "get_live_translation_layout",
+            "get_live_translation_page",
+        },
+        Path("src/routes/jobs/translations"): {
             "replay_translation_item_route",
+            "replay_translation_item_response",
             "revise_translation_item_route",
+            "revise_translation_item_response",
         },
     }
     full_capabilities = r"build_jobs_route_deps|build_jobs_facade_from_state|jobs_facade|JobsFacade|JobsRouteDeps"

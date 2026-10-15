@@ -132,10 +132,10 @@ Translation 阶段的正式输入和输出固定为：
 
 Rust API 对应暴露了：
 
-- `GET /api/v1/jobs/{job_id}/translation/diagnostics`
-- `GET /api/v1/jobs/{job_id}/translation/items`
-- `GET /api/v1/jobs/{job_id}/translation/items/{item_id}`
-- `POST /api/v1/jobs/{job_id}/translation/items/{item_id}/replay`
+- `GET /api/v1/jobs/{job_id}/reports/translation`
+- `GET /api/v1/jobs/{job_id}/translations`
+- `GET /api/v1/jobs/{job_id}/translations/{item_id}`
+- `POST /api/v1/jobs/{job_id}/translations/{item_id}/replay`
 
 ## 子目录与边界
 

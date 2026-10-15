@@ -1,5 +1,7 @@
 # Translation Debug API
 
+> 地址已按 9 类整理（新地址如 `/jobs/{job_id}/translations`），旧地址还能用。新旧对照见 [任务接口分类](../01-任务/04-任务接口分类.md)。
+
 这些接口用于排查翻译缺失、错误输出、模型异常和 replay。
 
 ## Diagnostics

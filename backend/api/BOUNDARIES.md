@@ -47,6 +47,21 @@ AI routes follow the same boundary:
 - public routes must never mint Agent capabilities or expose internal operation
   manifests, cursor endpoints, workspace paths, or credentials.
 
+## Job Routes
+
+`/api/v1/jobs/**` is split into nine categories, one file each, with the same
+name in the router (`src/app/router/jobs/`) and the handlers
+(`src/routes/jobs/`): `lifecycle`, `actions`, `progress`, `files`, `reports`,
+`reader`, `translations`, `data`, `ai` (prefixes `/jobs/:job_id/actions/…` and
+so on). A new job endpoint goes into the category that answers its question;
+do not add top-level `/jobs/:job_id/<name>` paths.
+
+Each legacy path is registered right below its new path, marked `// 旧地址`,
+and points at the same handler, so both return exactly the same thing. Paths
+are written out in full: `docs/routes.txt` and the path-parameter
+classification test read the router sources. Legacy paths are removed only
+after route usage shows no callers.
+
 ## Library Facade
 
 Files under `src/services/library/**` implement library-domain use cases.
@@ -56,7 +71,7 @@ search, assets, conversations, collections).
 
 - Routes use `build_library_route_deps` (`LibraryDeps` + `JobsFacade`).
 - Translate-from-library binds a document's stored upload, then creates jobs
-  only via `JobsFacade::create_submission`.
+  only via `JobsFacade::create_document_submission`.
 - Cover/thumbnail generation uses `derived_artifacts` inside `library/media`,
   not from routes.
 - Library DTOs are re-exported through `models::api`; do not import

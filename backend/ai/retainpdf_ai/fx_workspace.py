@@ -203,7 +203,7 @@ def build_collection_workspace_instructions(workspace: Path) -> str:
 
 这一条和单本书工作区不一样，别照抄。
 
-界面上那条产物列表只认 `/api/v1/jobs/<任务>/board`，也就是**某一本书**的画板。
+界面上那条产物列表只认 `/api/v1/jobs/<任务>/ai/board`，也就是**某一本书**的画板。
 合集这一级**没有对应的端点**，所以 `./board/` 里的东西没有任何呈现路径 ——
 写进去等于白写，而且你不会收到任何错误。
 

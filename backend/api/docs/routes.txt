@@ -1,7 +1,7 @@
 # 全部 HTTP 路由：方法 路径 多用户下网站账号的访问策略（signed 登录可用 / admin 只给管理员 /
 # closed 关闭 / public 不需要登录）。由 src/api_tests/route_manifest.rs 生成，不要手改：
 #   UPDATE_ROUTES=1 cargo test -p rust_api --lib route_manifest
-# 166 条路径，194 个接口
+# 193 条路径，223 个接口
 GET    /api/v1/account/pages  signed
 GET    /api/v1/admin/invites  admin
 POST   /api/v1/admin/invites  admin
@@ -115,6 +115,17 @@ POST   /api/v1/internal/model/jobs/:job_id/requests/:operation_id/cancel  closed
 GET    /api/v1/jobs  signed
 POST   /api/v1/jobs  signed
 GET    /api/v1/jobs/:job_id  signed
+GET    /api/v1/jobs/:job_id/actions  signed
+POST   /api/v1/jobs/:job_id/actions/cancel  signed
+POST   /api/v1/jobs/:job_id/actions/rerun  signed
+POST   /api/v1/jobs/:job_id/actions/resolve-ocr-ambiguity  signed
+GET    /api/v1/jobs/:job_id/actions/resume  signed
+POST   /api/v1/jobs/:job_id/actions/resume  signed
+POST   /api/v1/jobs/:job_id/actions/retry-stage  signed
+GET    /api/v1/jobs/:job_id/ai/board  signed
+GET    /api/v1/jobs/:job_id/ai/board/:name  signed
+GET    /api/v1/jobs/:job_id/ai/canvas  signed
+GET    /api/v1/jobs/:job_id/ai/reading-path  signed
 GET    /api/v1/jobs/:job_id/artifacts  signed
 GET    /api/v1/jobs/:job_id/artifacts-manifest  signed
 GET    /api/v1/jobs/:job_id/artifacts/:artifact_key  signed
@@ -145,12 +156,25 @@ POST   /api/v1/jobs/:job_id/ocr/resolve-ambiguity  signed
 GET    /api/v1/jobs/:job_id/pdf  signed
 GET    /api/v1/jobs/:job_id/pdf/side-by-side  signed
 GET    /api/v1/jobs/:job_id/preview/pages/:page  signed
+GET    /api/v1/jobs/:job_id/progress/events  signed
+GET    /api/v1/jobs/:job_id/progress/layout  signed
+GET    /api/v1/jobs/:job_id/progress/pages/:page  signed
+GET    /api/v1/jobs/:job_id/progress/stream  signed
 GET    /api/v1/jobs/:job_id/quality-items  signed
 GET    /api/v1/jobs/:job_id/quality-summary  signed
+GET    /api/v1/jobs/:job_id/reader/markdown  signed
 GET    /api/v1/jobs/:job_id/reader/metadata  signed
 GET    /api/v1/jobs/:job_id/reader/regions  signed
 GET    /api/v1/jobs/:job_id/reading-path  signed
 GET    /api/v1/jobs/:job_id/render/fit-report  signed
+GET    /api/v1/jobs/:job_id/reports/failure  signed
+GET    /api/v1/jobs/:job_id/reports/layout-fit  signed
+GET    /api/v1/jobs/:job_id/reports/quality  signed
+GET    /api/v1/jobs/:job_id/reports/quality/items  signed
+GET    /api/v1/jobs/:job_id/reports/refine  signed
+GET    /api/v1/jobs/:job_id/reports/translation  signed
+GET    /api/v1/jobs/:job_id/reports/translation-qa  signed
+GET    /api/v1/jobs/:job_id/reports/usage  signed
 POST   /api/v1/jobs/:job_id/rerun  signed
 POST   /api/v1/jobs/:job_id/resume  signed
 GET    /api/v1/jobs/:job_id/resume-plan  signed
@@ -165,6 +189,11 @@ POST   /api/v1/jobs/:job_id/translation/items/:item_id/replay  signed
 GET    /api/v1/jobs/:job_id/translation/items/:item_id/revisions  signed
 GET    /api/v1/jobs/:job_id/translation/qa  signed
 GET    /api/v1/jobs/:job_id/translation/refine-report  signed
+GET    /api/v1/jobs/:job_id/translations  signed
+GET    /api/v1/jobs/:job_id/translations/:item_id  signed
+PATCH  /api/v1/jobs/:job_id/translations/:item_id  signed
+POST   /api/v1/jobs/:job_id/translations/:item_id/replay  signed
+GET    /api/v1/jobs/:job_id/translations/:item_id/revisions  signed
 GET    /api/v1/jobs/:job_id/usage  signed
 GET    /api/v1/library/books  signed
 DELETE /api/v1/library/books/:job_id  signed

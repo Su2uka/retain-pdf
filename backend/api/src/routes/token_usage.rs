@@ -1,4 +1,4 @@
-//! 模型用量（token）：一个任务、一本书、全部。读的都是磁盘上的台账，放到阻塞线程里做。
+//! 模型用量（token）：一本书、全部。一个任务的用量在 jobs::reports。读的都是磁盘上的台账，放到阻塞线程里做。
 
 use axum::extract::State;
 use axum::Json;
@@ -7,7 +7,7 @@ use crate::auth::Principal;
 use crate::error::AppError;
 use crate::models::api::ApiResponse;
 use crate::routes::common::{build_usage_route_deps, ok_json, ApiPath};
-use crate::services::usage::api::{all_usage_view, document_usage_view, job_usage_view, UsageSummaryView};
+use crate::services::usage::api::{all_usage_view, document_usage_view, UsageSummaryView};
 use crate::AppState;
 
 async fn blocking<T: Send + 'static>(
@@ -16,15 +16,6 @@ async fn blocking<T: Send + 'static>(
     tokio::task::spawn_blocking(work)
         .await
         .map_err(|_| AppError::internal("usage summary task failed"))?
-}
-
-/// GET /api/v1/jobs/:job_id/usage
-pub async fn job_usage_route(
-    State(state): State<AppState>,
-    ApiPath(job_id): ApiPath<String>,
-) -> Result<Json<ApiResponse<UsageSummaryView>>, AppError> {
-    let deps = build_usage_route_deps(&state);
-    Ok(ok_json(blocking(move || job_usage_view(&deps, &job_id)).await?))
 }
 
 /// GET /api/v1/documents/:document_id/usage —— 这本书的全部任务，加上问这本书时助手花的。

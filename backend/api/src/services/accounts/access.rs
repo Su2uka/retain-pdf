@@ -213,14 +213,7 @@ mod tests {
 
     /// 路由源码里写的全部路由模板（带出处），去重。
     fn route_templates() -> Vec<(String, String)> {
-        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
-        let mut files = vec![root.join("app/router.rs"), root.join("routes/model_requests.rs")];
-        files.extend(
-            std::fs::read_dir(root.join("app/router"))
-                .unwrap()
-                .map(|entry| entry.unwrap().path())
-                .filter(|path| path.extension().is_some_and(|ext| ext == "rs")),
-        );
+        let files = crate::test_support::routes::router_source_files();
         let mut templates = Vec::new();
         for file in files {
             let source = std::fs::read_to_string(&file).unwrap();

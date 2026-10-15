@@ -24,6 +24,7 @@ mod job_data;
 pub(crate) mod jobs_common;
 mod merged_reading;
 mod jobs_control_contract;
+mod job_categories;
 mod jobs_create;
 mod jobs_detail;
 mod jobs_diagnostics;

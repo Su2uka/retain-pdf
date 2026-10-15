@@ -1,3 +1,5 @@
+//! 进度：跑到哪了（`/jobs/:id/progress/…`）。事件列表、实时推送，边翻边看的版面和单页。
+
 use std::collections::VecDeque;
 use std::convert::Infallible;
 use std::time::Duration;
@@ -11,13 +13,47 @@ use futures_util::stream::{self, Stream};
 use crate::app::build_jobs_facade_from_state;
 use crate::error::AppError;
 use crate::models::api::{
-    ApiResponse, LiveTranslationCommitEventView, LiveTranslationEventsQuery,
-    LiveTranslationLayoutView, LiveTranslationPageView,
+    ApiResponse, JobEventListView, ListJobEventsQuery, LiveTranslationCommitEventView,
+    LiveTranslationEventsQuery, LiveTranslationLayoutView, LiveTranslationPageView,
 };
 use crate::routes::common::{ok_json, run_job_query, ApiPath, ApiQuery};
 use crate::AppState;
 
 const EVENT_BATCH_LIMIT: u32 = 128;
+
+pub async fn get_job_events(
+    State(state): State<AppState>,
+    ApiPath(job_id): ApiPath<String>,
+    ApiQuery(query): ApiQuery<ListJobEventsQuery>,
+) -> Result<Json<ApiResponse<JobEventListView>>, AppError> {
+    let key = format!(
+        "events:all:{job_id}:{:?}:{}:{:?}",
+        query.start, query.limit, query.cursor
+    );
+    Ok(ok_json(
+        run_job_query(&state, key, move |jobs| {
+            jobs.job_events_view(&job_id, &query, false)
+        })
+        .await?,
+    ))
+}
+
+pub async fn get_ocr_job_events(
+    State(state): State<AppState>,
+    ApiPath(job_id): ApiPath<String>,
+    ApiQuery(query): ApiQuery<ListJobEventsQuery>,
+) -> Result<Json<ApiResponse<JobEventListView>>, AppError> {
+    let key = format!(
+        "events:ocr:{job_id}:{:?}:{}:{:?}",
+        query.start, query.limit, query.cursor
+    );
+    Ok(ok_json(
+        run_job_query(&state, key, move |jobs| {
+            jobs.job_events_view(&job_id, &query, true)
+        })
+        .await?,
+    ))
+}
 
 pub async fn get_live_translation_layout(
     State(state): State<AppState>,

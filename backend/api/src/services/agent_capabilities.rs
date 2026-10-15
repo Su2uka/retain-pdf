@@ -475,22 +475,30 @@ fn requested_action<'a>(
         ("POST", ["api", "v1", "internal", "agent", "operations", _, "cancel"]) => {
             document(Action::OperationCancel)
         }
+        // 任务接口的新地址（按类分前缀）和旧地址给同一档权限；旧版命令行还在用旧地址。
         (
             "GET",
-            ["api", "v1", "jobs", job_id, "translation", "qa" | "refine-report"]
+            ["api", "v1", "jobs", job_id, "reports", "translation-qa" | "refine" | "layout-fit"]
+            | ["api", "v1", "jobs", job_id, "translation", "qa" | "refine-report"]
             | ["api", "v1", "jobs", job_id, "render", "fit-report"]
             // 通用取数（只读，限这本书）。
             | ["api", "v1", "jobs", job_id, "data"]
             | ["api", "v1", "jobs", job_id, "data", _]
+            | ["api", "v1", "jobs", job_id, "translations", _]
+            | ["api", "v1", "jobs", job_id, "translations", _, "revisions"]
             | ["api", "v1", "jobs", job_id, "translation", "items", _]
             | ["api", "v1", "jobs", job_id, "translation", "items", _, "revisions"],
         ) => Some((Action::TranslationRead, RequestScope::Job(*job_id))),
-        ("PATCH", ["api", "v1", "jobs", job_id, "translation", "items", _]) => {
-            Some((Action::TranslationRevise, RequestScope::Job(*job_id)))
-        }
-        ("POST", ["api", "v1", "jobs", job_id, "retry-stage"]) => {
-            Some((Action::TranslationRetry, RequestScope::Job(*job_id)))
-        }
+        (
+            "PATCH",
+            ["api", "v1", "jobs", job_id, "translations", _]
+            | ["api", "v1", "jobs", job_id, "translation", "items", _],
+        ) => Some((Action::TranslationRevise, RequestScope::Job(*job_id))),
+        (
+            "POST",
+            ["api", "v1", "jobs", job_id, "actions", "retry-stage"]
+            | ["api", "v1", "jobs", job_id, "retry-stage"],
+        ) => Some((Action::TranslationRetry, RequestScope::Job(*job_id))),
         ("GET", ["api", "v1", "glossaries"] | ["api", "v1", "glossaries", _]) => {
             Some((Action::GlossaryRead, RequestScope::AnyJob))
         }
@@ -666,6 +674,14 @@ mod tests {
             ),
             ("PATCH", "/api/v1/jobs/job-a/translation/items/p1-b2", Action::TranslationRevise),
             ("POST", "/api/v1/jobs/job-a/retry-stage", Action::TranslationRetry),
+            // 新地址，同一档权限。
+            ("GET", "/api/v1/jobs/job-a/reports/translation-qa", Action::TranslationRead),
+            ("GET", "/api/v1/jobs/job-a/reports/refine", Action::TranslationRead),
+            ("GET", "/api/v1/jobs/job-a/reports/layout-fit", Action::TranslationRead),
+            ("GET", "/api/v1/jobs/job-a/translations/p1-b2", Action::TranslationRead),
+            ("GET", "/api/v1/jobs/job-a/translations/p1-b2/revisions", Action::TranslationRead),
+            ("PATCH", "/api/v1/jobs/job-a/translations/p1-b2", Action::TranslationRevise),
+            ("POST", "/api/v1/jobs/job-a/actions/retry-stage", Action::TranslationRetry),
         ] {
             assert_eq!(
                 requested_action(method, path),
@@ -681,6 +697,14 @@ mod tests {
         assert!(requested_action("DELETE", "/api/v1/jobs/job-a").is_none());
         assert!(requested_action("GET", "/api/v1/jobs/job-a").is_none());
         assert!(requested_action("POST", "/api/v1/jobs/job-a/translation/items/p1/replay").is_none());
+        assert!(requested_action("POST", "/api/v1/jobs/job-a/translations/p1/replay").is_none());
+        assert!(requested_action("GET", "/api/v1/jobs/job-a/translations").is_none());
+        for path in ["/api/v1/jobs/job-a/reports/usage", "/api/v1/jobs/job-a/reports/failure", "/api/v1/jobs/job-a/reports/quality"] {
+            assert!(requested_action("GET", path).is_none(), "{path}");
+        }
+        for path in ["/api/v1/jobs/job-a/actions/cancel", "/api/v1/jobs/job-a/actions/rerun"] {
+            assert!(requested_action("POST", path).is_none(), "{path}");
+        }
         assert!(requested_action("DELETE", "/api/v1/glossaries/g-1").is_none());
     }
 

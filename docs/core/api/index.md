@@ -337,6 +337,10 @@ Reader 宿主接入 job/artifact、Markdown、区域、页面元数据和实时�
 
 ## 6. 任务查询与事件
 
+> `/jobs/{job_id}` 下的接口已按 9 类分前缀（`actions`、`progress`、`files`、`reports`、`reader`、
+> `translations`、`data`、`ai`），本节写的是旧地址，仍然可用。新旧对照见
+> [任务接口分类](../../api/01-任务/04-任务接口分类.md)。
+
 任务查询：
 
 - `GET /api/v1/jobs?limit=20&offset=0&status=&workflow=&provider=`

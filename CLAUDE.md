@@ -61,6 +61,8 @@ cargo test -p rust_api -p retain-jobs -p retain-db -p retain-data -p retain-core
   `UPDATE_SUBMISSIONS=1 cargo test -p rust_api --lib submissions`。重新生成后看 diff，只该有预期的改动。
 - 加路由、加 service 前先读 `check_architecture.py` 的规则：新的路由文件要进白名单（按完整 import 字符串匹配）；
   新的路径参数要在 `services/accounts/access.rs` 的 `classify_param` 里归类，否则多用户模式下 403 "not cleared"。
+- `/jobs` 的路由和处理函数按 9 类分文件（`app/router/jobs/`、`routes/jobs/`，同名）。新接口放进对应的类，
+  不要再加 `/jobs/:job_id/<名字>` 这种顶层地址；旧地址紧跟在新地址下面、行尾标 `// 旧地址`。
 - 建新任务只走 `services/jobs/creation/submit.rs` 的 `submit_job`，原地重跑已有任务走 `relaunch_in_place`；
   别处直接落库或发射任务，`check_job_entry_ownership` 会报错。
 - 产物文件路径只许出口模块拼（`services/jobs/downloads`、`services/library/media.rs`、`services/artifacts`、

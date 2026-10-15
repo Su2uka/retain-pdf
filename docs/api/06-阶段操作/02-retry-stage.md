@@ -1,5 +1,7 @@
 # retry-stage
 
+> 地址已按 9 类整理（新地址如 `/jobs/{job_id}/actions/retry-stage`），旧地址还能用。新旧对照见 [任务接口分类](../01-任务/04-任务接口分类.md)。
+
 ## 接口
 
 ```http

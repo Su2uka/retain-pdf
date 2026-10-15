@@ -1,3 +1,5 @@
+//! 操作：能对任务做什么、去做（`/jobs/:id/actions/…`）。取消、重跑、续跑、重试某一阶段、OCR 拿不准时由用户选。
+
 use axum::body::Bytes;
 use axum::extract::State;
 use axum::http::HeaderMap;
@@ -7,16 +9,15 @@ use serde_json::Value;
 
 use crate::error::AppError;
 use crate::models::api::{
-    ApiResponse, JobSubmissionView, OcrAmbiguityResolutionRequest, OcrAmbiguityResolutionView,
-    RetryStageRequest, RetryStageSubmissionView, StageActionsView,
+    ApiResponse, JobResumePlanView, JobSubmissionView, OcrAmbiguityResolutionRequest,
+    OcrAmbiguityResolutionView, RetryStageRequest, RetryStageSubmissionView, StageActionsView,
 };
 use crate::AppState;
 
-use super::super::json_response::{
-    rerun_job_response, resolve_ocr_ambiguity_response, resume_job_response, retry_stage_response,
-    stage_actions_response,
+use crate::routes::common::{
+    build_jobs_query_route_deps, build_jobs_route_deps, jobs_facade, ok_json, request_base_url,
+    ApiJson, ApiPath, JobsRouteDeps,
 };
-use crate::routes::common::{build_jobs_route_deps, ApiJson, ApiPath};
 
 pub async fn get_stage_actions(
     State(state): State<AppState>,
@@ -107,4 +108,98 @@ pub async fn resolve_ocr_ambiguity(
     ApiJson(request): ApiJson<OcrAmbiguityResolutionRequest>,
 ) -> Result<Json<ApiResponse<OcrAmbiguityResolutionView>>, AppError> {
     resolve_ocr_ambiguity_response(build_jobs_route_deps(&state), &headers, &job_id, request)
+}
+
+pub async fn get_resume_plan(
+    State(state): State<AppState>,
+    ApiPath(job_id): ApiPath<String>,
+) -> Result<Json<ApiResponse<JobResumePlanView>>, AppError> {
+    let deps = build_jobs_query_route_deps(&state);
+    Ok(ok_json(deps.jobs.resume_plan_view(&job_id)?))
+}
+
+pub async fn cancel_ocr_job(
+    State(state): State<AppState>,
+    ApiPath(job_id): ApiPath<String>,
+    headers: HeaderMap,
+) -> Result<Json<ApiResponse<JobSubmissionView>>, AppError> {
+    cancel_job_response(build_jobs_route_deps(&state), &headers, &job_id, true).await
+}
+
+pub async fn cancel_job(
+    State(state): State<AppState>,
+    ApiPath(job_id): ApiPath<String>,
+    headers: HeaderMap,
+) -> Result<Json<ApiResponse<JobSubmissionView>>, AppError> {
+    cancel_job_response(build_jobs_route_deps(&state), &headers, &job_id, false).await
+}
+
+fn stage_actions_response(
+    deps: JobsRouteDeps<'_>,
+    headers: &HeaderMap,
+    job_id: &str,
+) -> Result<Json<ApiResponse<StageActionsView>>, AppError> {
+    let base_url = request_base_url(headers, deps.default_port, &deps.bind_host);
+    Ok(ok_json(
+        jobs_facade(deps).stage_actions_view(&base_url, job_id)?,
+    ))
+}
+
+async fn cancel_job_response(
+    deps: JobsRouteDeps<'_>,
+    headers: &HeaderMap,
+    job_id: &str,
+    ocr_only: bool,
+) -> Result<Json<ApiResponse<JobSubmissionView>>, AppError> {
+    let base_url = request_base_url(headers, deps.default_port, &deps.bind_host);
+    Ok(ok_json(
+        jobs_facade(deps)
+            .cancel_submission(&base_url, job_id, ocr_only)
+            .await?,
+    ))
+}
+
+fn rerun_job_response(
+    deps: JobsRouteDeps<'_>,
+    headers: &HeaderMap,
+    job_id: &str,
+    overrides: &serde_json::Value,
+) -> Result<Json<ApiResponse<JobSubmissionView>>, AppError> {
+    let base_url = request_base_url(headers, deps.default_port, &deps.bind_host);
+    Ok(ok_json(
+        jobs_facade(deps).rerun_submission(&base_url, job_id, overrides)?,
+    ))
+}
+
+fn resume_job_response(
+    deps: JobsRouteDeps<'_>,
+    headers: &HeaderMap,
+    job_id: &str,
+    overrides: &serde_json::Value,
+) -> Result<Json<ApiResponse<JobSubmissionView>>, AppError> {
+    rerun_job_response(deps, headers, job_id, overrides)
+}
+
+fn retry_stage_response(
+    deps: JobsRouteDeps<'_>,
+    headers: &HeaderMap,
+    job_id: &str,
+    request: RetryStageRequest,
+) -> Result<Json<ApiResponse<RetryStageSubmissionView>>, AppError> {
+    let base_url = request_base_url(headers, deps.default_port, &deps.bind_host);
+    Ok(ok_json(
+        jobs_facade(deps).retry_stage_submission(&base_url, job_id, request)?,
+    ))
+}
+
+fn resolve_ocr_ambiguity_response(
+    deps: JobsRouteDeps<'_>,
+    headers: &HeaderMap,
+    job_id: &str,
+    request: OcrAmbiguityResolutionRequest,
+) -> Result<Json<ApiResponse<OcrAmbiguityResolutionView>>, AppError> {
+    let base_url = request_base_url(headers, deps.default_port, &deps.bind_host);
+    Ok(ok_json(
+        jobs_facade(deps).resolve_ocr_ambiguity_submission(&base_url, job_id, request)?,
+    ))
 }

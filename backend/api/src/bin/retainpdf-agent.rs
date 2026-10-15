@@ -329,16 +329,16 @@ fn parse_translation_command(args: &[String]) -> Result<AgentCommand, CliFailure
             }
             Ok(AgentCommand::Get { path })
         }
-        "qa" => report("translation/qa"),
-        "refine-report" => report("translation/refine-report"),
-        "fit-report" => report("render/fit-report"),
+        "qa" => report("reports/translation-qa"),
+        "refine-report" => report("reports/refine"),
+        "fit-report" => report("reports/layout-fit"),
         "item" | "revisions" => {
             require_only_flags(&flags, &["--job-id", "--item-id"])?;
             let job_id = require_identifier(&flags, "--job-id")?;
             let item_id = require_identifier(&flags, "--item-id")?;
             let suffix = if action == "revisions" { "/revisions" } else { "" };
             Ok(AgentCommand::Get {
-                path: format!("/api/v1/jobs/{job_id}/translation/items/{item_id}{suffix}"),
+                path: format!("/api/v1/jobs/{job_id}/translations/{item_id}{suffix}"),
             })
         }
         "revise" => {
@@ -347,7 +347,7 @@ fn parse_translation_command(args: &[String]) -> Result<AgentCommand, CliFailure
             let item_id = require_identifier(&flags, "--item-id")?;
             Ok(AgentCommand::Send {
                 method: Method::PATCH,
-                path: format!("/api/v1/jobs/{job_id}/translation/items/{item_id}"),
+                path: format!("/api/v1/jobs/{job_id}/translations/{item_id}"),
                 request_file: require_request_file(&flags)?,
             })
         }
@@ -355,7 +355,7 @@ fn parse_translation_command(args: &[String]) -> Result<AgentCommand, CliFailure
             require_only_flags(&flags, &["--job-id", "--request"])?;
             let job_id = require_identifier(&flags, "--job-id")?;
             Ok(AgentCommand::Post {
-                path: format!("/api/v1/jobs/{job_id}/retry-stage"),
+                path: format!("/api/v1/jobs/{job_id}/actions/retry-stage"),
                 request_file: require_request_file(&flags)?,
             })
         }
@@ -639,32 +639,32 @@ mod tests {
     #[test]
     fn translation_commands_map_to_one_fixed_request_each() {
         let qa = parse_command(args(&["translation", "qa", "--job-id", "job-1"])).expect("qa");
-        assert!(matches!(qa, AgentCommand::Get { path } if path == "/api/v1/jobs/job-1/translation/qa"));
+        assert!(matches!(qa, AgentCommand::Get { path } if path == "/api/v1/jobs/job-1/reports/translation-qa"));
         let refine = parse_command(args(&["translation", "refine-report", "--job-id", "job-1"]))
             .expect("refine report");
         assert!(matches!(refine, AgentCommand::Get { path }
-            if path == "/api/v1/jobs/job-1/translation/refine-report"));
+            if path == "/api/v1/jobs/job-1/reports/refine"));
         let fit = parse_command(args(&["translation", "fit-report", "--job-id", "job-1"]))
             .expect("fit report");
-        assert!(matches!(fit, AgentCommand::Get { path } if path == "/api/v1/jobs/job-1/render/fit-report"));
+        assert!(matches!(fit, AgentCommand::Get { path } if path == "/api/v1/jobs/job-1/reports/layout-fit"));
         let history = parse_command(args(&[
             "translation", "revisions", "--job-id", "job-1", "--item-id", "p003-b004",
         ]))
         .expect("revisions");
         assert!(matches!(history, AgentCommand::Get { path }
-            if path == "/api/v1/jobs/job-1/translation/items/p003-b004/revisions"));
+            if path == "/api/v1/jobs/job-1/translations/p003-b004/revisions"));
         let revise = parse_command(args(&[
             "translation", "revise", "--job-id", "job-1", "--item-id", "p003-b004",
             "--request", "requests/r.json",
         ]))
         .expect("revise");
         assert!(matches!(revise, AgentCommand::Send { method, path, .. }
-            if method == Method::PATCH && path == "/api/v1/jobs/job-1/translation/items/p003-b004"));
+            if method == Method::PATCH && path == "/api/v1/jobs/job-1/translations/p003-b004"));
         let retry = parse_command(args(&[
             "translation", "retry-stage", "--job-id", "job-1", "--request", "requests/r.json",
         ]))
         .expect("retry");
-        assert!(matches!(retry, AgentCommand::Post { path, .. } if path == "/api/v1/jobs/job-1/retry-stage"));
+        assert!(matches!(retry, AgentCommand::Post { path, .. } if path == "/api/v1/jobs/job-1/actions/retry-stage"));
         let update = parse_command(args(&[
             "glossary", "update", "--glossary-id", "glossary-1", "--request", "requests/g.json",
         ]))
