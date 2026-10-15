@@ -1,14 +1,12 @@
-use axum::http::{header, HeaderMap, HeaderValue};
+use axum::http::{header, HeaderMap};
 use axum::response::{IntoResponse, Response};
 
 use crate::error::AppError;
 use crate::models::api::{to_absolute_url, MarkdownQuery, MarkdownView};
 use crate::routes::common::ok_json;
-use crate::services::jobs::MarkdownDownload;
+use crate::services::jobs::{Disposition, JobFile, JobScope, MarkdownDownload};
 
-use super::files::file_download_response;
 use crate::routes::common::{request_base_url, JobsDownloadRouteDeps};
-use crate::routes::job_helpers::file_etag;
 
 pub async fn markdown_response(
     deps: &JobsDownloadRouteDeps<'_>,
@@ -23,17 +21,15 @@ pub async fn markdown_response(
     //
     // 非 raw 仍走 JSON,那条路要把正文塞进 JSON 字段,没法流式给。
     if query.raw {
-        let download = deps.downloads.markdown_raw_download(&job_id)?;
-        let etag = file_etag(&download.path);
-        let mut response = file_download_response(download, headers).await?;
-        if let Some(etag) = etag {
-            response.headers_mut().insert(
-                header::ETAG,
-                HeaderValue::from_str(&etag)
-                    .map_err(|error| AppError::internal(error.to_string()))?,
-            );
-        }
-        return Ok(response);
+        return super::files::job_file_response(
+            deps,
+            headers,
+            &job_id,
+            JobScope::Any,
+            JobFile::OcrMarkdown,
+            Disposition::Inline,
+        )
+        .await;
     }
     let markdown = deps.downloads.markdown_document(job_id).await?;
     markdown_download_response(

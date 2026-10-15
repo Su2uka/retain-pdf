@@ -10,7 +10,7 @@ use crate::models::api::PagePreviewQuery;
 use crate::models::domain::{CreateJobInput, JobArtifacts, JobSnapshot};
 use crate::services::download_generation::DownloadGeneration;
 
-use super::JobDownloads;
+use super::{Disposition, JobDownloads, JobFile, JobScope};
 
 const JOB_ID: &str = "preview-job";
 
@@ -124,8 +124,8 @@ async fn same_normalized_preview_shares_cache_miss_and_keeps_runtime_responsive(
     let wide = preview(" SOURCE ", 9999, 999);
     let normalized = preview("source", 2400, 300);
     let (first, second, ()) = tokio::join!(
-        downloads.page_preview_download(JOB_ID, 1, &wide),
-        downloads.page_preview_download(JOB_ID, 1, &normalized),
+        downloads.open(JOB_ID, JobScope::Any, JobFile::page(1, &wide), Disposition::Unnamed),
+        downloads.open(JOB_ID, JobScope::Any, JobFile::page(1, &normalized), Disposition::Unnamed),
         fixture.release_when_started(),
     );
     let first = first.unwrap();
@@ -136,7 +136,7 @@ async fn same_normalized_preview_shares_cache_miss_and_keeps_runtime_responsive(
     );
     assert_eq!(fixture.render_count(), 1);
     let cached = downloads
-        .page_preview_download(JOB_ID, 1, &normalized)
+        .open(JOB_ID, JobScope::Any, JobFile::page(1, &normalized), Disposition::Unnamed)
         .await
         .unwrap();
     assert_eq!(cached.path, first.path);
@@ -154,24 +154,24 @@ async fn different_preview_specs_never_share_results() {
     let source = preview("source", 1200, 0);
     let translated = preview("translated", 1200, 0);
     let (first, second, ()) = tokio::join!(
-        downloads.page_preview_download(JOB_ID, 1, &source),
-        downloads.page_preview_download(JOB_ID, 1, &translated),
+        downloads.open(JOB_ID, JobScope::Any, JobFile::page(1, &source), Disposition::Unnamed),
+        downloads.open(JOB_ID, JobScope::Any, JobFile::page(1, &translated), Disposition::Unnamed),
         fixture.release_when_started(),
     );
     let first = first.unwrap().path;
     assert_ne!(first, second.unwrap().path);
     let other_page = downloads
-        .page_preview_download(JOB_ID, 2, &source)
+        .open(JOB_ID, JobScope::Any, JobFile::page(2, &source), Disposition::Unnamed)
         .await
         .unwrap()
         .path;
     let other_width = downloads
-        .page_preview_download(JOB_ID, 1, &preview("source", 1600, 0))
+        .open(JOB_ID, JobScope::Any, JobFile::page(1, &preview("source", 1600, 0)), Disposition::Unnamed)
         .await
         .unwrap()
         .path;
     let other_dpi = downloads
-        .page_preview_download(JOB_ID, 1, &preview("source", 1200, 72))
+        .open(JOB_ID, JobScope::Any, JobFile::page(1, &preview("source", 1200, 72)), Disposition::Unnamed)
         .await
         .unwrap()
         .path;
@@ -187,17 +187,17 @@ async fn cover_and_thumbnail_share_duplicate_requests_but_not_each_other() {
     let fixture = Fixture::new();
     let downloads = fixture.downloads();
     let (cover, duplicate_cover, thumbnail, ()) = tokio::join!(
-        downloads.cover_download(JOB_ID),
-        downloads.cover_download(JOB_ID),
-        downloads.thumbnail_download(JOB_ID),
+        downloads.open(JOB_ID, JobScope::Any, JobFile::Cover, Disposition::Unnamed),
+        downloads.open(JOB_ID, JobScope::Any, JobFile::Cover, Disposition::Unnamed),
+        downloads.open(JOB_ID, JobScope::Any, JobFile::Thumbnail, Disposition::Unnamed),
         fixture.release_when_started(),
     );
     let cover = cover.unwrap().path;
     assert_eq!(cover, duplicate_cover.unwrap().path);
     assert_ne!(cover, thumbnail.unwrap().path);
     assert_eq!(fixture.render_count(), 2);
-    downloads.cover_download(JOB_ID).await.unwrap();
-    downloads.thumbnail_download(JOB_ID).await.unwrap();
+    downloads.open(JOB_ID, JobScope::Any, JobFile::Cover, Disposition::Unnamed).await.unwrap();
+    downloads.open(JOB_ID, JobScope::Any, JobFile::Thumbnail, Disposition::Unnamed).await.unwrap();
     assert_eq!(fixture.render_count(), 2);
 }
 
@@ -208,7 +208,7 @@ async fn canceled_preview_request_leaves_one_live_writer_for_next_caller() {
     let first = tokio::spawn(async move {
         owner
             .downloads()
-            .page_preview_download(JOB_ID, 1, &preview("source", 1200, 0))
+            .open(JOB_ID, JobScope::Any, JobFile::page(1, &preview("source", 1200, 0)), Disposition::Unnamed)
             .await
     });
     fixture.wait_started().await;
@@ -217,7 +217,7 @@ async fn canceled_preview_request_leaves_one_live_writer_for_next_caller() {
     let downloads = fixture.downloads();
     let query = preview("source", 1200, 0);
     let (joined, ()) = tokio::join!(
-        downloads.page_preview_download(JOB_ID, 1, &query),
+        downloads.open(JOB_ID, JobScope::Any, JobFile::page(1, &query), Disposition::Unnamed),
         fixture.release_when_started(),
     );
     assert!(joined.unwrap().path.is_file());
@@ -231,17 +231,17 @@ async fn preview_validation_keeps_job_scope_before_parameter_errors() {
     let invalid = preview("invalid", 0, 0);
     assert!(matches!(
         downloads
-            .page_preview_download("missing", 0, &invalid)
+            .open("missing", JobScope::Any, JobFile::page(0, &invalid), Disposition::Unnamed)
             .await,
         Err(AppError::NotFound(_))
     ));
     assert!(matches!(
-        downloads.page_preview_download(JOB_ID, 0, &invalid).await,
+        downloads.open(JOB_ID, JobScope::Any, JobFile::page(0, &invalid), Disposition::Unnamed).await,
         Err(AppError::BadRequest(_))
     ));
     assert!(matches!(
         downloads
-            .page_preview_download(JOB_ID, 0, &preview("source", 1200, 0))
+            .open(JOB_ID, JobScope::Any, JobFile::page(0, &preview("source", 1200, 0)), Disposition::Unnamed)
             .await,
         Err(AppError::BadRequest(_))
     ));
@@ -252,7 +252,7 @@ async fn preview_validation_keeps_job_scope_before_parameter_errors() {
 async fn document_images_use_the_same_bounded_generation_without_jobs() {
     use crate::config::AssetConfig;
     use crate::models::domain::{now_iso, UploadRecord};
-    use crate::services::library::api::{document_cover_download, document_thumbnail_download};
+    use crate::services::library::api::{open_document_file, DocumentFile};
     use crate::services::library::LibraryDeps;
 
     let fixture = Fixture::new();
@@ -288,9 +288,9 @@ async fn document_images_use_the_same_bounded_generation_without_jobs() {
         asset_config: &asset_config,
     };
     let (first, duplicate, thumbnail, ()) = tokio::join!(
-        document_cover_download(&deps, &fixture.generation, &document_id),
-        document_cover_download(&deps, &fixture.generation, &document_id),
-        document_thumbnail_download(&deps, &fixture.generation, &document_id),
+        open_document_file(&deps, &fixture.generation, &document_id, DocumentFile::Cover, Disposition::Unnamed),
+        open_document_file(&deps, &fixture.generation, &document_id, DocumentFile::Cover, Disposition::Unnamed),
+        open_document_file(&deps, &fixture.generation, &document_id, DocumentFile::Thumbnail, Disposition::Unnamed),
         fixture.release_when_started(),
     );
     let cover_path = first.unwrap().path;

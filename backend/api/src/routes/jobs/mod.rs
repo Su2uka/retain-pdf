@@ -1,6 +1,7 @@
 mod control;
 mod create;
 mod download;
+mod files;
 mod json_response;
 mod query;
 mod translation_debug;
@@ -14,6 +15,7 @@ pub use download::{
     download_ocr_normalized_document, download_page_preview, download_pdf,
     download_layout_docx, download_side_by_side_pdf, download_thumbnail, get_markdown_document,
 };
+pub use files::{job_internal_file, job_output_file, job_page_file, list_job_files};
 pub use query::{
     get_job, get_job_artifacts, get_job_artifacts_manifest, get_job_diagnostics, get_job_events,
     get_live_translation_events, get_live_translation_layout, get_live_translation_page,

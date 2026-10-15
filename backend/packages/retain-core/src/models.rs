@@ -82,7 +82,7 @@ pub use redaction::{redact_json_value, redact_optional_text, redact_text, sensit
 pub use view::{
     build_artifact_links, build_artifact_manifest, build_job_actions, build_job_links,
     build_job_links_with_workflow, summarize_list_invocation, to_absolute_url, upload_to_response,
-    ActionLinkView, AmbiguousRequestPolicy, ArtifactDisplayItemView, ArtifactDownloadQuery,
+    ActionLinkView, AmbiguousRequestPolicy, ArtifactDisplayItemView, ArtifactDownloadQuery, JobFilesQuery,
     ArtifactLinksView, BookSummaryView, DocumentDeleteResultView, DocumentJobListView,
     GlossaryUsageSummaryView, InvocationSummaryView, JobActionsView, JobArtifactItemView,
     JobArtifactManifestView, JobContractsView, JobDetailView, JobDiagnosticsView, JobEventListView,

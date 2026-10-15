@@ -91,6 +91,30 @@ Facade code may call:
 
 Callers outside `services/jobs/**` should not call presentation internals.
 
+## Job File Downloads
+
+Every job file download goes through one entry point,
+`JobDownloads::open(job_id, JobScope, JobFile, Disposition)`
+(`src/services/jobs/downloads/files.rs`):
+
+- `JobFile` names the file (translated PDF, side-by-side PDF, Word, OCR
+  Markdown, cover, page preview, bundle, or any other registry key). Where to
+  find it, its content type and its user-facing download name are written once,
+  in `locate`.
+- `JobScope::OcrOnly` is for the `/ocr/jobs/*` legacy aliases.
+- `Disposition` says whether the browser opens the file (`Inline`), downloads it
+  (`Attachment`), or gets no `Content-Disposition` (`Unnamed`, legacy endpoints
+  only).
+
+Routes only pick those three values; they do not resolve paths. Adding a file
+means adding a `JobFile` variant and a `locate` branch, not another download
+function. AI-written files under `<job>/ai/` (reading path, canvas, board) stay
+outside `open` because that directory is agent-writable and only fixed names may
+be read.
+
+The response contract for all download endpoints is pinned in
+`docs/file-responses.txt` (`src/api_tests/file_responses.rs`).
+
 ## Query Scope
 
 `src/services/jobs/query.rs` owns job loading and compatibility checks:

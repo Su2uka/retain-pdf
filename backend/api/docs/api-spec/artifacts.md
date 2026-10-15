@@ -19,6 +19,23 @@ OCR or translation artifacts directly.
 source and translated PDF page dimensions. It is also part of the Reader read
 model and is an optional overlay rather than an authority for PDF availability.
 
+## Job and Document Files
+
+All downloads have two address families (2026-10-15):
+
+- `GET /api/v1/jobs/{job_id}/files` plus `/files/output/{name}`, `/files/pages/{page}.jpg`
+  and `/files/internal/{name}` (internal is admin-only in multi-user mode);
+- `GET /api/v1/documents/{document_id}/files` plus `/files/{name}` and
+  `/files/pages/{page}.jpg` for the book's own files (source PDF, cover, thumbnail,
+  source page previews).
+
+File names, groups, query parameters and the old-to-new address table are in
+[下载总览](../../../../docs/api/07-产物下载/01-下载总览.md). Every download, new or
+legacy, resolves through `JobDownloads::open` (job files) or
+`library::open_document_file` (book files); the response contract is pinned in
+`backend/api/docs/file-responses.txt`. The `/artifacts*` endpoints below remain
+for existing callers.
+
 ## Artifact JSON
 
 `GET /api/v1/jobs/{job_id}/artifacts`

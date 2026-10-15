@@ -21,6 +21,19 @@ pub(super) fn routes() -> Router<AppState> {
             "/api/v1/documents/:document_id/reading",
             get(library_data::get_document_reading_route),
         )
+        // 书本身的文件：原文、封面、缩略图、原文页预览。
+        .route(
+            "/api/v1/documents/:document_id/files",
+            get(library_data::list_document_files_route),
+        )
+        .route(
+            "/api/v1/documents/:document_id/files/:name",
+            get(library_data::document_file_route),
+        )
+        .route(
+            "/api/v1/documents/:document_id/files/pages/:page",
+            get(library_data::document_page_file_route),
+        )
         .route(
             "/api/v1/documents/:document_id/source.pdf",
             get(library_data::download_document_source_pdf_route),
