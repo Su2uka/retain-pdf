@@ -10,6 +10,7 @@ mod ai_terminal;
 mod conversations_contract;
 mod credentials;
 mod document_operations;
+mod file_responses;
 mod glossaries;
 mod backups;
 mod sync;
