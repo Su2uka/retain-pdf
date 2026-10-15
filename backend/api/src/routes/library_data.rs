@@ -5,13 +5,13 @@
 
 use axum::extract::State;
 use axum::http::HeaderMap;
-use axum::response::Response;
+use axum::response::{IntoResponse, Response};
 use axum::Json;
 
 use crate::auth::Principal;
 use crate::error::AppError;
 use crate::models::api::{
-    ApiResponse, ApplyDocumentMetadataSuggestionInput, CreateDocumentMetadataSuggestionInput,
+    ApiResponse, JobFilesQuery, ApplyDocumentMetadataSuggestionInput, CreateDocumentMetadataSuggestionInput,
     DocumentDeleteResultView, DocumentJobListView, DocumentListView,
     DocumentMetadataSuggestionApplyView, DocumentMetadataSuggestionListView,
     DocumentMetadataSuggestionView, DocumentRecord, JobSubmissionView, LibraryDeleteQuery,
@@ -23,13 +23,12 @@ use crate::routes::common::{
     build_jobs_route_deps, build_library_route_deps, ok_json, request_base_url, run_job_query_once,
     ApiJson, ApiPath, ApiQuery,
 };
-use crate::routes::job_helpers::stream_file;
+use crate::routes::download_response::file_download_response;
 use crate::services::library::api::{
     apply_document_metadata_suggestion_view,
     create_document_metadata_suggestion_view,
-    delete_document_view, document_cover_download,
-    document_reading, document_source_pdf_download, document_thumbnail_download,
-    document_translation_coverage, get_document, list_document_metadata_suggestions_view,
+    delete_document_view, document_files, document_reading, document_translation_coverage,
+    get_document, open_document_file, Disposition, DocumentFile, list_document_metadata_suggestions_view,
     list_documents, ocr_document_view, patch_document, search_blocks_view,
     translate_document_view, DocumentReadingView, TranslationCoverageView,
 };
@@ -85,58 +84,78 @@ pub async fn get_document_translation_coverage_route(
     Ok(ok_json(document_translation_coverage(&deps.library, &document_id).await?))
 }
 
-/// GET /api/v1/documents/:id/source.pdf — 无翻译 job 也能读源文件。
+async fn document_file(
+    state: &AppState,
+    headers: &HeaderMap,
+    document_id: &str,
+    file: DocumentFile,
+    disposition: Disposition,
+) -> Result<Response, AppError> {
+    let deps = build_library_route_deps(state);
+    let download =
+        open_document_file(&deps.library, &state.download_generation, document_id, file, disposition)
+            .await?;
+    file_download_response(download, headers).await
+}
+
+/// GET /api/v1/documents/:id/files —— 书本身有哪些文件（原文、封面、缩略图、原文页预览）。
+pub async fn list_document_files_route(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    ApiPath(document_id): ApiPath<String>,
+) -> Result<Response, AppError> {
+    let deps = build_library_route_deps(&state);
+    let base_url = request_base_url(&headers, deps.default_port, &deps.bind_host);
+    Ok(ok_json(document_files(&deps.library, &document_id, &base_url)?).into_response())
+}
+
+/// GET /api/v1/documents/:id/files/:name —— 默认在浏览器里打开，`?download=1` 直接下载。
+pub async fn document_file_route(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    ApiPath((document_id, name)): ApiPath<(String, String)>,
+    ApiQuery(query): ApiQuery<JobFilesQuery>,
+) -> Result<Response, AppError> {
+    let disposition = if query.wants_download() { Disposition::Attachment } else { Disposition::Inline };
+    document_file(&state, &headers, &document_id, DocumentFile::named(&name)?, disposition).await
+}
+
+/// GET /api/v1/documents/:id/files/pages/:page —— 原文那一页的预览图（`3.jpg`）。
+pub async fn document_page_file_route(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    ApiPath((document_id, page)): ApiPath<(String, String)>,
+    ApiQuery(query): ApiQuery<JobFilesQuery>,
+) -> Result<Response, AppError> {
+    let file = DocumentFile::page(&page, &query)?;
+    document_file(&state, &headers, &document_id, file, Disposition::Inline).await
+}
+
+/// GET /api/v1/documents/:id/source.pdf —— 旧地址，下载原文。
 pub async fn download_document_source_pdf_route(
     State(state): State<AppState>,
     headers: HeaderMap,
     ApiPath(document_id): ApiPath<String>,
 ) -> Result<Response, AppError> {
-    let deps = build_library_route_deps(&state);
-    let file = document_source_pdf_download(&deps.library, &document_id)?;
-    stream_file(
-        file.path,
-        file.content_type,
-        file.download_name,
-        Some(&headers),
-    )
-    .await
+    document_file(&state, &headers, &document_id, DocumentFile::SourcePdf, Disposition::Attachment).await
 }
 
-/// GET /api/v1/documents/:id/cover
+/// GET /api/v1/documents/:id/cover —— 旧地址。
 pub async fn download_document_cover_route(
     State(state): State<AppState>,
     headers: HeaderMap,
     ApiPath(document_id): ApiPath<String>,
 ) -> Result<Response, AppError> {
-    let deps = build_library_route_deps(&state);
-    let file =
-        document_cover_download(&deps.library, &state.download_generation, &document_id).await?;
-    stream_file(
-        file.path,
-        file.content_type,
-        file.download_name,
-        Some(&headers),
-    )
-    .await
-    .map(crate::routes::job_helpers::with_image_cache)
+    document_file(&state, &headers, &document_id, DocumentFile::Cover, Disposition::Unnamed).await
 }
 
-/// GET /api/v1/documents/:id/thumbnail
+/// GET /api/v1/documents/:id/thumbnail —— 旧地址。
 pub async fn download_document_thumbnail_route(
     State(state): State<AppState>,
     headers: HeaderMap,
     ApiPath(document_id): ApiPath<String>,
 ) -> Result<Response, AppError> {
-    let deps = build_library_route_deps(&state);
-    let file = document_thumbnail_download(&deps.library, &state.download_generation, &document_id)
-        .await?;
-    stream_file(
-        file.path,
-        file.content_type,
-        file.download_name,
-        Some(&headers),
-    )
-    .await    .map(crate::routes::job_helpers::with_image_cache)
+    document_file(&state, &headers, &document_id, DocumentFile::Thumbnail, Disposition::Unnamed).await
 }
 
 pub async fn patch_document_route(

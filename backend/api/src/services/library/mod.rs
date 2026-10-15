@@ -37,7 +37,8 @@ pub use conversations::{
     list_conversations, patch_conversation,
 };
 pub use documents::delete_document;
-pub use media::{document_cover, document_source_pdf, document_thumbnail, DocumentFileDownload};
+pub use media::{document_files_view, DocumentFile, DocumentFilesView};
+pub(crate) use media::open_document_file;
 pub use metadata_suggestions::{
     apply_metadata_suggestion, create_metadata_suggestion, list_metadata_suggestions,
 };

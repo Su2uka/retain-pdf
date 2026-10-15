@@ -11,7 +11,7 @@ const BUILD_TIMEOUT: Duration = Duration::from_secs(600);
 
 pub(crate) const DEFAULT_BACKGROUND_DPI: u32 = 180;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct LayoutDocxOptions {
     pub(crate) dpi: u32,
 }

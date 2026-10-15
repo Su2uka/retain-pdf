@@ -29,7 +29,7 @@ pub use super::redaction::{
 pub use super::view::{
     build_artifact_links, build_artifact_manifest, build_job_actions,
     build_job_links_with_workflow, summarize_list_invocation, to_absolute_url, upload_to_response,
-    AmbiguousRequestPolicy, ArtifactDisplayItemView, ArtifactDownloadQuery, ArtifactLinksView,
+    AmbiguousRequestPolicy, ArtifactDisplayItemView, ArtifactDownloadQuery, JobFilesQuery, ArtifactLinksView,
     BookSummaryView, DocumentDeleteResultView, DocumentJobListView, GlossaryUsageSummaryView,
     InvocationSummaryView, JobActionsView, JobArtifactManifestView, JobContractsView,
     JobDetailView, JobDiagnosticsView, JobEventFeedItem, JobEventListView, JobEventProgressView,

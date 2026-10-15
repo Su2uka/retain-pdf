@@ -4,8 +4,7 @@ use crate::models::domain::JobSnapshot;
 use crate::storage_paths::{resolve_markdown_images_dir, resolve_markdown_path};
 
 use super::super::query::load_supported_job;
-use super::paths::safe_markdown_image_path;
-use super::{DownloadJobsDeps, FileDownload, MarkdownDownload};
+use super::{DownloadJobsDeps, MarkdownDownload};
 
 // 匹配 ![alt](images/...)，路径内可含空格；可选 "title"/'title'、尖括号、./ 前缀
 // path 用贪婪 [^)>\n]+；title 必须带引号，避免把 `chart a.png` 的空格误当 title 分隔
@@ -27,28 +26,6 @@ pub(super) async fn markdown_download(
         job_id: job.job_id.clone(),
         content,
     })
-}
-
-/// 原文下载走文件流,不把整篇读进内存。
-///
-/// 交给 `stream_file` 而不是自己返回 String,是为了直接吃到它已经实现好的
-/// HTTP Range:阅读器要的"滚到底再拉下一段"用 `Range: bytes=a-b` 就够,不需要
-/// 另造一套游标端点。顺带修掉了原先每次请求都把整篇(实测最大 620 KB)读进
-/// 堆的问题。
-pub(super) fn markdown_raw_download(
-    deps: &DownloadJobsDeps<'_>,
-    job_id: &str,
-) -> Result<FileDownload, AppError> {
-    let job = load_supported_job(deps.db, deps.data_root, job_id)?;
-    let markdown_path = resolve_markdown_path(&job, deps.data_root)
-        .ok_or_else(|| AppError::not_found(format!("markdown not found: {job_id}")))?;
-    Ok(FileDownload::new(markdown_path, "text/markdown; charset=utf-8", None).with_inline_name(
-        crate::services::download_names::job_download_file_name(
-            deps.db,
-            &job,
-            crate::services::download_names::DownloadKind::OcrMarkdown,
-        ),
-    ))
 }
 
 pub(super) async fn markdown_document_view(
@@ -79,25 +56,6 @@ pub(super) async fn markdown_document_view(
         images_base_url: to_absolute_url(base_url, &images_base_path),
         images,
     })
-}
-
-pub(super) fn markdown_image_download(
-    deps: &DownloadJobsDeps<'_>,
-    job_id: &str,
-    path: &str,
-) -> Result<FileDownload, AppError> {
-    let job = load_supported_job(deps.db, deps.data_root, job_id)?;
-    let images_dir = resolve_markdown_images_dir(&job, deps.data_root)
-        .ok_or_else(|| AppError::not_found(format!("markdown images not found: {job_id}")))?;
-    let relative_path = safe_markdown_image_path(path)?;
-    let file_path = images_dir.join(relative_path);
-    if !file_path.exists() || !file_path.is_file() {
-        return Err(AppError::not_found(format!(
-            "markdown image not found: {path}"
-        )));
-    }
-    let mime = mime_guess::from_path(&file_path).first_or_octet_stream();
-    Ok(FileDownload::new(file_path, mime.as_ref(), None))
 }
 
 fn markdown_images_view(

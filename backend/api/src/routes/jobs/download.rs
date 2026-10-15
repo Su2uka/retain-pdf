@@ -1,7 +1,7 @@
 use crate::error::AppError;
 use crate::models::api::{ArtifactDownloadQuery, LayoutDocxQuery, MarkdownQuery, PagePreviewQuery};
 use crate::models::api::ApiResponse;
-use crate::services::jobs::DocumentDownloadKind;
+use crate::services::jobs::{Disposition, DocumentDownloadKind, JobFile};
 use crate::AppState;
 use axum::extract::State;
 use axum::http::HeaderMap;
@@ -10,25 +10,19 @@ use axum::Json;
 
 use crate::routes::common::{build_jobs_download_route_deps, ApiPath, ApiQuery};
 use crate::routes::download_response::{
-    bundle_response, cover_response, download_document_response, markdown_document_response,
-    layout_docx_response, markdown_image_response, markdown_response, page_preview_response,
-    ai_board_file_response, registered_artifact_response, side_by_side_pdf_response,
-    thumbnail_response,
+    ai_board_file_response, ai_document_response, job_file, markdown_document_response,
+    markdown_response, ocr_job_file,
 };
+
+// 下载类接口只说"要哪个文件、在浏览器里打开还是下载"，怎么找都在 services::jobs 的
+// `open` 里。各接口的打开方式是旧行为，钉在 docs/file-responses.txt 里。
 
 pub async fn download_pdf(
     State(state): State<AppState>,
     ApiPath(job_id): ApiPath<String>,
     headers: HeaderMap,
 ) -> Result<Response, AppError> {
-    download_document_response(
-        &build_jobs_download_route_deps(&state),
-        &headers,
-        &job_id,
-        false,
-        DocumentDownloadKind::OutputPdf,
-    )
-    .await
+    job_file(&state, &headers, &job_id, JobFile::TranslatedPdf, Disposition::Inline).await
 }
 
 pub async fn download_side_by_side_pdf(
@@ -36,7 +30,7 @@ pub async fn download_side_by_side_pdf(
     ApiPath(job_id): ApiPath<String>,
     headers: HeaderMap,
 ) -> Result<Response, AppError> {
-    side_by_side_pdf_response(&build_jobs_download_route_deps(&state), &headers, &job_id).await
+    job_file(&state, &headers, &job_id, JobFile::SideBySidePdf, Disposition::Attachment).await
 }
 
 pub async fn download_layout_docx(
@@ -45,13 +39,8 @@ pub async fn download_layout_docx(
     headers: HeaderMap,
     ApiQuery(query): ApiQuery<LayoutDocxQuery>,
 ) -> Result<Response, AppError> {
-    layout_docx_response(
-        &build_jobs_download_route_deps(&state),
-        &headers,
-        &job_id,
-        &query,
-    )
-    .await
+    let file = JobFile::translated_docx(&query);
+    job_file(&state, &headers, &job_id, file, Disposition::Attachment).await
 }
 
 pub async fn download_cover(
@@ -59,7 +48,7 @@ pub async fn download_cover(
     ApiPath(job_id): ApiPath<String>,
     headers: HeaderMap,
 ) -> Result<Response, AppError> {
-    cover_response(&build_jobs_download_route_deps(&state), &headers, &job_id).await
+    job_file(&state, &headers, &job_id, JobFile::Cover, Disposition::Unnamed).await
 }
 
 pub async fn download_thumbnail(
@@ -67,7 +56,7 @@ pub async fn download_thumbnail(
     ApiPath(job_id): ApiPath<String>,
     headers: HeaderMap,
 ) -> Result<Response, AppError> {
-    thumbnail_response(&build_jobs_download_route_deps(&state), &headers, &job_id).await
+    job_file(&state, &headers, &job_id, JobFile::Thumbnail, Disposition::Unnamed).await
 }
 
 pub async fn download_page_preview(
@@ -76,14 +65,8 @@ pub async fn download_page_preview(
     headers: HeaderMap,
     ApiQuery(query): ApiQuery<PagePreviewQuery>,
 ) -> Result<Response, AppError> {
-    page_preview_response(
-        &build_jobs_download_route_deps(&state),
-        &headers,
-        &job_id,
-        page,
-        &query,
-    )
-    .await
+    let file = JobFile::page(page, &query);
+    job_file(&state, &headers, &job_id, file, Disposition::Unnamed).await
 }
 
 pub async fn download_artifact_by_key(
@@ -92,15 +75,8 @@ pub async fn download_artifact_by_key(
     headers: HeaderMap,
     ApiQuery(query): ApiQuery<ArtifactDownloadQuery>,
 ) -> Result<Response, AppError> {
-    registered_artifact_response(
-        &build_jobs_download_route_deps(&state),
-        &headers,
-        &job_id,
-        &artifact_key,
-        query.include_job_dir,
-        false,
-    )
-    .await
+    let file = JobFile::from_artifact_key(&artifact_key, query.include_job_dir);
+    job_file(&state, &headers, &job_id, file, Disposition::Attachment).await
 }
 
 pub async fn download_ocr_artifact_by_key(
@@ -109,15 +85,8 @@ pub async fn download_ocr_artifact_by_key(
     headers: HeaderMap,
     ApiQuery(query): ApiQuery<ArtifactDownloadQuery>,
 ) -> Result<Response, AppError> {
-    registered_artifact_response(
-        &build_jobs_download_route_deps(&state),
-        &headers,
-        &job_id,
-        &artifact_key,
-        query.include_job_dir,
-        true,
-    )
-    .await
+    let file = JobFile::from_artifact_key(&artifact_key, query.include_job_dir);
+    ocr_job_file(&state, &headers, &job_id, file, Disposition::Attachment).await
 }
 
 pub async fn download_normalized_document(
@@ -125,14 +94,8 @@ pub async fn download_normalized_document(
     ApiPath(job_id): ApiPath<String>,
     headers: HeaderMap,
 ) -> Result<Response, AppError> {
-    download_document_response(
-        &build_jobs_download_route_deps(&state),
-        &headers,
-        &job_id,
-        false,
-        DocumentDownloadKind::NormalizedDocument,
-    )
-    .await
+    let file = JobFile::Registered("normalized_document_json".into());
+    job_file(&state, &headers, &job_id, file, Disposition::Unnamed).await
 }
 
 pub async fn download_ocr_normalized_document(
@@ -140,14 +103,8 @@ pub async fn download_ocr_normalized_document(
     ApiPath(job_id): ApiPath<String>,
     headers: HeaderMap,
 ) -> Result<Response, AppError> {
-    download_document_response(
-        &build_jobs_download_route_deps(&state),
-        &headers,
-        &job_id,
-        true,
-        DocumentDownloadKind::NormalizedDocument,
-    )
-    .await
+    let file = JobFile::Registered("normalized_document_json".into());
+    ocr_job_file(&state, &headers, &job_id, file, Disposition::Unnamed).await
 }
 
 pub async fn download_ai_reading_path(
@@ -155,14 +112,8 @@ pub async fn download_ai_reading_path(
     ApiPath(job_id): ApiPath<String>,
     headers: HeaderMap,
 ) -> Result<Response, AppError> {
-    download_document_response(
-        &build_jobs_download_route_deps(&state),
-        &headers,
-        &job_id,
-        false,
-        DocumentDownloadKind::AiReadingPath,
-    )
-    .await
+    let deps = build_jobs_download_route_deps(&state);
+    ai_document_response(&deps, &headers, &job_id, DocumentDownloadKind::AiReadingPath).await
 }
 
 pub async fn download_ai_canvas(
@@ -170,30 +121,17 @@ pub async fn download_ai_canvas(
     ApiPath(job_id): ApiPath<String>,
     headers: HeaderMap,
 ) -> Result<Response, AppError> {
-    download_document_response(
-        &build_jobs_download_route_deps(&state),
-        &headers,
-        &job_id,
-        false,
-        DocumentDownloadKind::AiCanvas,
-    )
-    .await
+    let deps = build_jobs_download_route_deps(&state);
+    ai_document_response(&deps, &headers, &job_id, DocumentDownloadKind::AiCanvas).await
 }
-
 
 pub async fn download_normalization_report(
     State(state): State<AppState>,
     ApiPath(job_id): ApiPath<String>,
     headers: HeaderMap,
 ) -> Result<Response, AppError> {
-    download_document_response(
-        &build_jobs_download_route_deps(&state),
-        &headers,
-        &job_id,
-        false,
-        DocumentDownloadKind::NormalizationReport,
-    )
-    .await
+    let file = JobFile::Registered("normalization_report_json".into());
+    job_file(&state, &headers, &job_id, file, Disposition::Unnamed).await
 }
 
 pub async fn download_ocr_normalization_report(
@@ -201,14 +139,8 @@ pub async fn download_ocr_normalization_report(
     ApiPath(job_id): ApiPath<String>,
     headers: HeaderMap,
 ) -> Result<Response, AppError> {
-    download_document_response(
-        &build_jobs_download_route_deps(&state),
-        &headers,
-        &job_id,
-        true,
-        DocumentDownloadKind::NormalizationReport,
-    )
-    .await
+    let file = JobFile::Registered("normalization_report_json".into());
+    ocr_job_file(&state, &headers, &job_id, file, Disposition::Unnamed).await
 }
 
 pub async fn download_markdown(
@@ -239,13 +171,7 @@ pub async fn download_markdown_image(
     ApiPath((job_id, path)): ApiPath<(String, String)>,
     headers: HeaderMap,
 ) -> Result<Response, AppError> {
-    markdown_image_response(
-        &build_jobs_download_route_deps(&state),
-        &headers,
-        &job_id,
-        &path,
-    )
-    .await
+    job_file(&state, &headers, &job_id, JobFile::OcrImage(path), Disposition::Unnamed).await
 }
 
 /// agent 画板里有什么。目录不存在返回空列表，不是 404 —— 画板是叠加层，
@@ -277,5 +203,5 @@ pub async fn download_bundle(
     ApiPath(job_id): ApiPath<String>,
     headers: HeaderMap,
 ) -> Result<Response, AppError> {
-    bundle_response(&build_jobs_download_route_deps(&state), &headers, &job_id).await
+    job_file(&state, &headers, &job_id, JobFile::All, Disposition::Attachment).await
 }

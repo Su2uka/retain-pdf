@@ -1,63 +1,36 @@
+//! AI 助手写在 `<job>/ai/` 里的阅读路径和概念图。
+//!
+//! 流水线产出的文件都走 `files.rs` 的 `open`；这两个不是流水线产物，可能不存在、可能是
+//! AI 上一次写坏的，所以 404 是正常状态，前端当"还没有"处理。`ai/` 是 AI 可写的目录，
+//! 只认这两个固定的文件名。
+
 use crate::error::AppError;
 use crate::models::domain::JobSnapshot;
-use crate::storage_paths::{
-    resolve_ai_canvas, resolve_ai_reading_path, resolve_normalization_report, resolve_normalized_document,
-    resolve_output_pdf,
-};
+use crate::storage_paths::{resolve_ai_canvas, resolve_ai_reading_path};
 
 use super::ai_carryover::carry_over_ai_workspace;
-use super::pdf::linearized_pdf_or_original;
 use super::{DownloadJobsDeps, FileDownload};
 
 #[derive(Clone, Copy)]
 pub(crate) enum DocumentDownloadKind {
-    OutputPdf,
-    NormalizedDocument,
-    NormalizationReport,
-    /// Agent 在 `<job>/ai/` 里写的阅读路径。和其它三个不同：它**不是流水线产
-    /// 物**，可能不存在、可能是 agent 上一次写坏的。所以 404 是正常状态，
-    /// 前端得当「还没有」处理，不是错误。
+    /// Agent 在 `<job>/ai/` 里写的阅读路径。
     AiReadingPath,
-    /// Agent 在 `<job>/ai/` 里画的概念图。和 AiReadingPath 同一类：
-    /// 非流水线产物，404 是正常状态。
+    /// Agent 在 `<job>/ai/` 里画的概念图。
     AiCanvas,
 }
 
 impl DocumentDownloadKind {
-    fn content_type(self) -> &'static str {
+    pub(super) fn label(self) -> &'static str {
         match self {
-            Self::OutputPdf => "application/pdf",
-            Self::NormalizedDocument
-            | Self::NormalizationReport
-            | Self::AiReadingPath
-            | Self::AiCanvas
-            => "application/json",
+            Self::AiReadingPath => "reading-path",
+            Self::AiCanvas => "canvas",
         }
     }
 
     fn not_ready_label(self) -> &'static str {
         match self {
-            Self::OutputPdf => "pdf not ready",
-            Self::NormalizedDocument => "normalized document not ready",
-            Self::NormalizationReport => "normalization report not ready",
             Self::AiReadingPath => "reading path not generated yet",
             Self::AiCanvas => "canvas not generated yet",
-        }
-    }
-
-    /// 是不是 agent 自己写的产物（而不是流水线产物）。
-    ///
-    /// 只有这几个需要在重译后做工作区接力 —— 流水线产物每个 job 各跑各的，
-    /// 天然就该是新的。
-    ///
-    /// **故意穷举而不用 `matches!`。** 用 `matches!` 的话，新加的产物会默默
-    /// 落到「不是 agent 产物」那一边，于是它不做接力：重译一本书就丢，而且
-    /// 和这个 bug 修好之前一样，界面上毫无迹象。穷举让新变体在这里编译不过，
-    /// 逼着做一次决定。
-    fn is_agent_artifact(self) -> bool {
-        match self {
-            Self::AiReadingPath | Self::AiCanvas => true,
-            Self::OutputPdf | Self::NormalizedDocument | Self::NormalizationReport => false,
         }
     }
 
@@ -67,9 +40,6 @@ impl DocumentDownloadKind {
         data_root: &std::path::Path,
     ) -> Option<std::path::PathBuf> {
         match self {
-            Self::OutputPdf => resolve_output_pdf(job, data_root),
-            Self::NormalizedDocument => resolve_normalized_document(job, data_root),
-            Self::NormalizationReport => resolve_normalization_report(job, data_root),
             Self::AiReadingPath => resolve_ai_reading_path(job, data_root),
             Self::AiCanvas => resolve_ai_canvas(job, data_root),
         }
@@ -81,31 +51,12 @@ pub(super) fn document_download(
     job: &JobSnapshot,
     kind: DocumentDownloadKind,
 ) -> Result<FileDownload, AppError> {
-    let content_type = kind.content_type();
-    // 解析路径**之前**接力：这几个端点在阅读页首屏就会被打，接力发生在用户
-    // 看到空面板之前。
-    if kind.is_agent_artifact() {
-        carry_over_ai_workspace(deps.db, deps.data_root, job);
-    }
+    // 解析路径**之前**接力：这两个端点在阅读页首屏就会被打，接力发生在用户看到空面板之前。
+    carry_over_ai_workspace(deps.db, deps.data_root, job);
     let path = kind.resolve_path(job, deps.data_root).ok_or_else(|| {
         AppError::not_found(format!("{}: {}", kind.not_ready_label(), job.job_id))
     })?;
-    let path = if matches!(kind, DocumentDownloadKind::OutputPdf) {
-        linearized_pdf_or_original(deps, job, &path, "output")?
-    } else {
-        path
-    };
-    let download = FileDownload::new(path, content_type, None);
-    // 译文 PDF 既用来在浏览器里看，也用来下载：保持 inline，只补上文件名。
-    Ok(if matches!(kind, DocumentDownloadKind::OutputPdf) {
-        download.with_inline_name(crate::services::download_names::job_download_file_name(
-            deps.db,
-            job,
-            crate::services::download_names::DownloadKind::Translated,
-        ))
-    } else {
-        download
-    })
+    Ok(FileDownload::new(path, "application/json", None))
 }
 
 #[cfg(test)]

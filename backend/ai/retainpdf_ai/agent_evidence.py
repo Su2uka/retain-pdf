@@ -16,6 +16,17 @@ MARKDOWN_ID_BARE_RE = re.compile(r"(?<![\w/])(md-\d+)(?![\w/])", re.IGNORECASE)
 CODE_SEGMENT_RE = re.compile(r"```[\s\S]*?(?:```|$)|`[^`\n]+`")
 
 
+# Markdown 图片的地址：现在是 `/files/output/ocr/images/…`；旧对话记录里存的是旧地址
+# `/markdown/images/…`，后端两个都还能取，所以两种都认。
+_MARKDOWN_IMAGE_SEGMENTS = ("/files/output/ocr/images/", "/markdown/images/")
+
+
+def _is_job_markdown_image_url(url: str) -> bool:
+    return url.startswith("/api/v1/jobs/") and any(
+        segment in url for segment in _MARKDOWN_IMAGE_SEGMENTS
+    )
+
+
 def _citation_image_urls(entry: dict[str, Any]) -> list[str]:
     candidates: list[Any] = [entry.get("image_url")]
     for key in ("image_urls", "asset_image_urls"):
@@ -34,12 +45,7 @@ def _citation_image_urls(entry: dict[str, Any]) -> list[str]:
     seen: set[str] = set()
     for candidate in candidates:
         url = str(candidate or "").strip()
-        if (
-            not url
-            or url in seen
-            or not url.startswith("/api/v1/jobs/")
-            or "/markdown/images/" not in url
-        ):
+        if not url or url in seen or not _is_job_markdown_image_url(url):
             continue
         seen.add(url)
         urls.append(url)
@@ -167,7 +173,7 @@ def _public_anchor(entry: dict[str, Any]) -> dict[str, Any] | None:
             if not isinstance(asset, dict):
                 continue
             url = str(asset.get("image_url") or "").strip()
-            if not url.startswith("/api/v1/jobs/") or "/markdown/images/" not in url:
+            if not _is_job_markdown_image_url(url):
                 continue
             public_assets.append(
                 {"image_url": url, "alt": str(asset.get("alt") or "").strip()}

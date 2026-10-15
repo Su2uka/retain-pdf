@@ -338,3 +338,32 @@ async fn ai_routes_are_closed_to_website_accounts_and_never_answer_401() {
         }
     }
 }
+
+/// 任务的中间产物（翻译请求日志里是完整的提示词和模型返回）只给管理员：网站账号的文件清单里
+/// 没有 internal 组，直接请求也被拒；成品照常能取，别人的任务照样看不见。
+#[tokio::test]
+async fn internal_job_files_are_admin_only() {
+    let fx = Fixture::new("internal-files").await;
+    let upload = fx.upload(&fx.alice).await;
+    fx.insert_job("alice-files-job", upload["upload_id"].as_str().unwrap());
+
+    let listing = fx.get(&fx.alice, "/api/v1/jobs/alice-files-job/files").await;
+    assert_eq!(listing.status(), StatusCode::OK);
+    let listing = read_json(listing).await;
+    assert!(listing["data"]["output"].is_array());
+    assert!(listing["data"].get("internal").is_none(), "网站账号看不到中间产物");
+
+    let internal = fx.get(&fx.alice, "/api/v1/jobs/alice-files-job/files/internal/pipeline-summary.json").await;
+    assert_eq!(internal.status(), StatusCode::FORBIDDEN);
+
+    // 成品放行到"找文件"那一步（这个任务没有译文，所以是 404 没就绪，不是 403）。
+    let output = fx.get(&fx.alice, "/api/v1/jobs/alice-files-job/files/output/translated.pdf").await;
+    assert_eq!(output.status(), StatusCode::NOT_FOUND);
+
+    for uri in [
+        "/api/v1/jobs/alice-files-job/files",
+        "/api/v1/jobs/alice-files-job/files/output/translated.pdf",
+    ] {
+        assert_eq!(fx.get(&fx.bob, uri).await.status(), StatusCode::NOT_FOUND, "{uri}");
+    }
+}

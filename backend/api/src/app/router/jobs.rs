@@ -8,6 +8,11 @@ pub(super) fn routes() -> Router<AppState> {
     Router::new()
         .route("/api/v1/jobs", post(jobs::create_job).get(jobs::list_jobs))
         .route("/api/v1/jobs/:job_id", get(jobs::get_job))
+        // 任务的文件：output 成品 / pages 译文页预览 / internal 中间产物（只给管理员）。
+        .route("/api/v1/jobs/:job_id/files", get(jobs::list_job_files))
+        .route("/api/v1/jobs/:job_id/files/output/*name", get(jobs::job_output_file))
+        .route("/api/v1/jobs/:job_id/files/pages/:page", get(jobs::job_page_file))
+        .route("/api/v1/jobs/:job_id/files/internal/*name", get(jobs::job_internal_file))
         .route("/api/v1/jobs/:job_id/events", get(jobs::get_job_events))
         .route(
             "/api/v1/jobs/:job_id/live-translation/layout",

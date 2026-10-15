@@ -9,12 +9,12 @@ use crate::models::api::{
     ApiResponse, LibraryBookDetailView,
     LibraryBookListView, LibraryDeleteQuery, LibraryDeleteResultView, ListJobsQuery,
 };
-use crate::routes::common::build_jobs_download_route_deps;
 use crate::routes::common::request_base_url;
 use crate::routes::common::{
     build_library_route_deps, ok_json, run_read_query_once, ApiPath, ApiQuery,
 };
-use crate::routes::download_response::{cover_response, thumbnail_response};
+use crate::routes::download_response::job_file;
+use crate::services::jobs::{Disposition, JobFile};
 use crate::services::library::api::{
     delete_library_book_view, get_library_book_view,
     list_library_books_view,
@@ -71,7 +71,7 @@ pub async fn download_book_cover(
     ApiPath(job_id): ApiPath<String>,
     headers: HeaderMap,
 ) -> Result<Response, AppError> {
-    cover_response(&build_jobs_download_route_deps(&state), &headers, &job_id).await
+    job_file(&state, &headers, &job_id, JobFile::Cover, Disposition::Unnamed).await
 }
 
 pub async fn download_book_thumbnail(
@@ -79,5 +79,5 @@ pub async fn download_book_thumbnail(
     ApiPath(job_id): ApiPath<String>,
     headers: HeaderMap,
 ) -> Result<Response, AppError> {
-    thumbnail_response(&build_jobs_download_route_deps(&state), &headers, &job_id).await
+    job_file(&state, &headers, &job_id, JobFile::Thumbnail, Disposition::Unnamed).await
 }

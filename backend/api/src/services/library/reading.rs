@@ -14,7 +14,7 @@ use crate::services::merge::coverage::{translation_coverage, TranslationCoverage
 use crate::services::merge::reading::{resolve_reading_target, DocumentReadingView, ReadingTarget};
 
 use super::documents::get_document;
-use super::media::document_source_pdf;
+use super::media::document_source;
 use super::LibraryDeps;
 
 /// 阻塞线程里要用的那几样，全部持有所有权。
@@ -42,7 +42,7 @@ pub(crate) async fn document_reading(
     deps: &LibraryDeps<'_>,
     document_id: &str,
 ) -> Result<DocumentReadingView, AppError> {
-    let source_pdf = document_source_pdf(deps, document_id)?.path;
+    let (_document, source_pdf) = document_source(deps.db, deps.data_root, document_id)?;
     let owned = OwnedReadingDeps::from(deps);
     let document_id = document_id.to_string();
     tokio::task::spawn_blocking(move || {

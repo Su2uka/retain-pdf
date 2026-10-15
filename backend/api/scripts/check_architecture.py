@@ -176,6 +176,8 @@ ROUTE_SERVICE_IMPORT_ALLOWLIST = {
     ),
     Path("src/routes/library.rs"): (
         "crate::services::library::api::",
+        # 书架按任务编号取封面、缩略图：和任务文件同一个出口。
+        "crate::services::jobs::{Disposition, JobFile}",
     ),
     # Library thick routes migrate to library_api in PR2–PR5; allowlist is
     # ready so partial moves do not require revisiting this file each PR.
@@ -222,15 +224,20 @@ ROUTE_SERVICE_IMPORT_ALLOWLIST = {
     Path("src/routes/common/library.rs"): (
         "crate::services::library::LibraryDeps",
     ),
+    # 下载类路由只说"要哪个文件（JobFile）、按哪种任务找（JobScope）、在浏览器里打开还是下载
+    # （Disposition）"，怎么找都在 services::jobs 的 open 里。
     Path("src/routes/download_response/files.rs"): (
-        "crate::services::jobs::FileDownload",
-        "crate::services::jobs::{DocumentDownloadKind, FileDownload}",
+        "crate::services::jobs::{Disposition, DocumentDownloadKind, FileDownload, JobFile, JobScope}",
     ),
     Path("src/routes/jobs/download.rs"): (
-        "crate::services::jobs::DocumentDownloadKind",
+        "crate::services::jobs::{Disposition, DocumentDownloadKind, JobFile}",
+    ),
+    # /jobs/:id/files/<组>/<文件名>：路由只说组，文件名的翻译在 services::jobs。
+    Path("src/routes/jobs/files.rs"): (
+        "crate::services::jobs::FileGroup",
     ),
     Path("src/routes/download_response/markdown.rs"): (
-        "crate::services::jobs::MarkdownDownload",
+        "crate::services::jobs::{Disposition, JobFile, JobScope, MarkdownDownload}",
     ),
     Path("src/routes/download_response.rs"): (
         "crate::services::jobs::{FileDownload, MarkdownDownload}",
@@ -1497,6 +1504,61 @@ def check_service_dependency_cycles(errors: list[str]) -> None:
         )
 
 
+# 任务产物的路径只有出口模块能拼：任务的文件走 services/jobs/downloads 的 `open`，书的文件走
+# library/media.rs，派生产物的生成在 derived_artifacts，产物清单和打包在 artifacts。其它地方直接拼路径，流水线一改输出布局就跟着坏，
+# 而且每个读的人都要知道文件放在哪（"牵一发动全身"的来源之一）。
+ARTIFACT_PATH_RESOLVER = re.compile(
+    r"\bresolve_(?:output_pdf|source_pdf|markdown_path|markdown_images_dir|normalized_document"
+    r"|normalization_report|typst_source|typst_pdf|translation_manifest|translation_request_journal"
+    r"|markdown_bundle_zip)\b"
+)
+ARTIFACT_PATH_OWNERS = (
+    Path("src/services/artifacts"),
+    Path("src/services/derived_artifacts"),
+    Path("src/services/jobs/downloads"),
+    # 书的文件（原文、封面、原文页）的出口。
+    Path("src/services/library/media.rs"),
+)
+# 2026-10-15 冻结的现状：这些文件还直接拼产物路径。只许删，不许加；删掉一个之后名单里还留着
+# 就报错（免得名单悄悄变宽）。要读产物内容就去调出口，不要往这里加文件。
+KNOWN_ARTIFACT_PATH_READERS = {
+    Path("src/services/jobs/debug/artifacts.rs"),
+    Path("src/services/jobs/debug/revision.rs"),
+    Path("src/services/jobs/live_translation.rs"),
+    Path("src/services/jobs/presentation/helpers.rs"),
+    Path("src/services/jobs/reader_regions/artifacts.rs"),
+    Path("src/services/jobs/reader_regions/metadata.rs"),
+    Path("src/services/jobs/readiness.rs"),
+    Path("src/services/jobs/summary_loaders/shared.rs"),
+    Path("src/services/jobs/translation_request_recovery.rs"),
+    Path("src/services/library/book_projection.rs"),
+    Path("src/services/library/metadata_suggestions.rs"),
+    Path("src/services/merge/sources.rs"),
+}
+
+
+def check_artifact_path_ownership(errors: list[str]) -> None:
+    readers = set()
+    for root in (SRC_ROOT / "services", SRC_ROOT / "routes"):
+        for path in scan_rs_files(root):
+            if path.stem == "tests" or path.stem.endswith("_tests"):
+                continue
+            relative = rel(path)
+            if any(is_rust_module_path(relative, owner) for owner in ARTIFACT_PATH_OWNERS):
+                continue
+            if ARTIFACT_PATH_RESOLVER.search(rust_boundary_source(path)):
+                readers.add(relative)
+    for relative in sorted(readers - KNOWN_ARTIFACT_PATH_READERS):
+        errors.append(
+            f"{relative}: builds artifact paths itself (storage_paths::resolve_*); "
+            "read job files through services::jobs downloads (`open`) or services::artifacts instead"
+        )
+    for relative in sorted(KNOWN_ARTIFACT_PATH_READERS - readers):
+        errors.append(
+            f"{relative}: no longer builds artifact paths; remove it from KNOWN_ARTIFACT_PATH_READERS"
+        )
+
+
 def main() -> int:
     errors: list[str] = []
     check_appstate_boundaries(errors)
@@ -1535,6 +1597,7 @@ def main() -> int:
     check_worker_command_boundary(errors)
     check_protocol_docs(errors)
     check_service_dependency_cycles(errors)
+    check_artifact_path_ownership(errors)
 
     if errors:
         print("rust_api architecture check failed:", file=sys.stderr)

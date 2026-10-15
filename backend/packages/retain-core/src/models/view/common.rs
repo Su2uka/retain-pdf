@@ -196,6 +196,26 @@ pub struct ArtifactDownloadQuery {
     pub include_job_dir: bool,
 }
 
+/// `/jobs/:id/files/…`、`/documents/:id/files/…` 的查询参数。
+#[derive(Debug, Deserialize, Default)]
+pub struct JobFilesQuery {
+    /// `?download=1`：直接下载（`attachment`）。不带就在浏览器里打开（`inline`）。
+    #[serde(default)]
+    pub download: Option<String>,
+    /// Word、预览图的清晰度。
+    #[serde(default)]
+    pub dpi: Option<u32>,
+    /// 预览图宽度（像素）。
+    #[serde(default)]
+    pub width: Option<u32>,
+}
+
+impl JobFilesQuery {
+    pub fn wants_download(&self) -> bool {
+        matches!(self.download.as_deref().map(str::trim), Some("1" | "true"))
+    }
+}
+
 #[derive(Debug, Serialize)]
 pub struct MarkdownView {
     pub job_id: String,

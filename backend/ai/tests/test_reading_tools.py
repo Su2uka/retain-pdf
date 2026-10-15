@@ -157,7 +157,7 @@ def test_default_registry_markdown_tools_only_read_full_markdown(tmp_path):
     assert searched["hits"][0]["page_idx"] is None
     assert searched["hits"][0]["assets"] == [
         {
-            "image_url": "/api/v1/jobs/job-1/markdown/images/page-3/imgs/figure%20detail.jpg?doc=doc-a",
+            "image_url": "/api/v1/jobs/job-1/files/output/ocr/images/page-3/imgs/figure%20detail.jpg?doc=doc-a",
             "alt": "反应图",
         }
     ]

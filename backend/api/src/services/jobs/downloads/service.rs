@@ -1,50 +1,81 @@
 use crate::error::AppError;
-use crate::models::api::{LayoutDocxQuery, MarkdownDocumentView, PagePreviewQuery};
+use crate::models::api::{JobFilesQuery, MarkdownDocumentView};
 use crate::services::jobs::downloads::{
-    bundle_download, cover_download, document_download, markdown_document_view, markdown_download,
-    markdown_image_download, markdown_raw_download, page_preview_download,
-    layout_docx_download, registered_artifact_download, side_by_side_pdf_download,
-    thumbnail_download, DocumentDownloadKind, FileDownload, MarkdownDownload,
+    document_download, markdown_document_view, markdown_download, DocumentDownloadKind,
+    FileDownload, MarkdownDownload,
 };
-use crate::services::derived_artifacts::word::LayoutDocxOptions;
 
 use super::ai_board::{ai_board_file_download, ai_board_listing, AiBoardListing};
-use super::previews::PagePreviewSpec;
+use super::catalog::{named_file, FileGroup};
+use super::files::{generation_key, open_job_file, Disposition, JobFile, JobScope};
 use super::JobDownloads;
 
 impl<'a> JobDownloads<'a> {
-    pub(crate) async fn download_job_document(
+    /// 任务文件的唯一下载入口。读文件、按需生成都放进 `download_generation`：
+    /// 同一份产物同时被请求时只生成一次，也不占着异步运行时。
+    pub(crate) async fn open(
         &self,
         job_id: &str,
-        ocr_only: bool,
+        scope: JobScope,
+        file: JobFile,
+        disposition: Disposition,
+    ) -> Result<FileDownload, AppError> {
+        let deps = self.deps.owned();
+        let key = generation_key(job_id, scope, &file);
+        let job_id = job_id.to_owned();
+        self.deps
+            .download_generation
+            .run(key, move || {
+                open_job_file(&deps.borrowed(), &job_id, scope, &file, disposition)
+            })
+            .await
+    }
+
+    /// 新地址 `/jobs/:id/files/<组>/<文件名>`：默认在浏览器里打开，`?download=1` 直接下载。
+    pub(crate) async fn open_named(
+        &self,
+        job_id: &str,
+        group: FileGroup,
+        name: &str,
+        query: &JobFilesQuery,
+    ) -> Result<FileDownload, AppError> {
+        let file = named_file(group, name, query)?;
+        let disposition = if query.wants_download() {
+            Disposition::Attachment
+        } else {
+            Disposition::Inline
+        };
+        let mut download = self.open(job_id, JobScope::Any, file, disposition).await?;
+        // 中间产物下载时叫地址里的名字（`ocr-provider/result.json` → `ocr-provider-result.json`），
+        // 不叫磁盘上的原名（`paddle_result.json`）。给用户的成品用带书名的名字，不在这里改。
+        if group == FileGroup::Internal {
+            let name = name.replace('/', "-");
+            if download.download_name.is_some() {
+                download.download_name = Some(name);
+            } else if download.inline_name.is_some() {
+                download.inline_name = Some(name);
+            }
+        }
+        Ok(download)
+    }
+
+    /// AI 助手写在 `<job>/ai/` 里的阅读路径、概念图。
+    pub(crate) async fn ai_document(
+        &self,
+        job_id: &str,
         kind: DocumentDownloadKind,
     ) -> Result<FileDownload, AppError> {
         let deps = self.deps.owned();
         let job_id = job_id.to_owned();
-        let label = match kind {
-            DocumentDownloadKind::OutputPdf => "output",
-            DocumentDownloadKind::NormalizedDocument => "normalized",
-            DocumentDownloadKind::NormalizationReport => "normalization-report",
-            DocumentDownloadKind::AiReadingPath => "ai-reading-path",
-            DocumentDownloadKind::AiCanvas => "ai-canvas",
-        };
         self.deps
             .download_generation
-            .run(format!("{job_id}:document:{label}:{ocr_only}"), move || {
+            .run(format!("{job_id}:ai:{}", kind.label()), move || {
                 let deps = deps.borrowed();
-                let job = if ocr_only {
-                    crate::services::jobs::query::load_ocr_job_with_supported_layout(
-                        deps.db,
-                        deps.data_root,
-                        &job_id,
-                    )?
-                } else {
-                    crate::services::jobs::query::load_supported_job(
-                        deps.db,
-                        deps.data_root,
-                        &job_id,
-                    )?
-                };
+                let job = crate::services::jobs::query::load_supported_job(
+                    deps.db,
+                    deps.data_root,
+                    &job_id,
+                )?;
                 document_download(&deps, &job, kind)
             })
             .await
@@ -62,18 +93,6 @@ impl<'a> JobDownloads<'a> {
         markdown_document_view(&self.deps, job_id, base_url).await
     }
 
-    pub fn markdown_raw_download(&self, job_id: &str) -> Result<FileDownload, AppError> {
-        markdown_raw_download(&self.deps, job_id)
-    }
-
-    pub fn markdown_image_download(
-        &self,
-        job_id: &str,
-        path: &str,
-    ) -> Result<FileDownload, AppError> {
-        markdown_image_download(&self.deps, job_id, path)
-    }
-
     pub fn ai_board_listing(&self, job_id: &str) -> Result<AiBoardListing, AppError> {
         ai_board_listing(&self.deps, job_id)
     }
@@ -84,123 +103,5 @@ impl<'a> JobDownloads<'a> {
         name: &str,
     ) -> Result<FileDownload, AppError> {
         ai_board_file_download(&self.deps, job_id, name)
-    }
-
-    pub async fn cover_download(&self, job_id: &str) -> Result<FileDownload, AppError> {
-        let deps = self.deps.owned();
-        let job_id = job_id.to_owned();
-        self.deps
-            .download_generation
-            .run(format!("{job_id}:cover:w900"), move || {
-                cover_download(&deps.borrowed(), &job_id)
-            })
-            .await
-    }
-
-    pub async fn thumbnail_download(&self, job_id: &str) -> Result<FileDownload, AppError> {
-        let deps = self.deps.owned();
-        let job_id = job_id.to_owned();
-        self.deps
-            .download_generation
-            .run(format!("{job_id}:thumbnail:w360"), move || {
-                thumbnail_download(&deps.borrowed(), &job_id)
-            })
-            .await
-    }
-
-    pub async fn page_preview_download(
-        &self,
-        job_id: &str,
-        page: u32,
-        query: &PagePreviewQuery,
-    ) -> Result<FileDownload, AppError> {
-        let deps = self.deps.owned();
-        let job_id = job_id.to_owned();
-        let spec = PagePreviewSpec::new(page, query);
-        self.deps
-            .download_generation
-            .run(spec.generation_key(&job_id), move || {
-                page_preview_download(&deps.borrowed(), &job_id, &spec)
-            })
-            .await
-    }
-
-    pub async fn side_by_side_pdf_download(&self, job_id: &str) -> Result<FileDownload, AppError> {
-        let deps = self.deps.owned();
-        let job_id = job_id.to_owned();
-        self.deps
-            .download_generation
-            .run(format!("{job_id}:side-by-side"), move || {
-                side_by_side_pdf_download(&deps.borrowed(), &job_id)
-            })
-            .await
-    }
-
-    pub(crate) async fn layout_docx_download(
-        &self,
-        job_id: &str,
-        query: &LayoutDocxQuery,
-    ) -> Result<FileDownload, AppError> {
-        let mut options = LayoutDocxOptions::default();
-        if let Some(dpi) = query.dpi {
-            // 夹在可用区间里:太低看不清背景,太高单页几十 MB,整本能把浏览器拖垮。
-            options.dpi = dpi.clamp(72, 300);
-        }
-        let deps = self.deps.owned();
-        let job_id = job_id.to_owned();
-        // 缓存键带上 DPI:换了清晰度就是另一份产物,不能和上一份挤在同一个 in-flight 槽里。
-        let key = format!("{job_id}:layout-docx:{}", options.cache_suffix());
-        self.deps
-            .download_generation
-            .run(key, move || {
-                layout_docx_download(&deps.borrowed(), &job_id, options)
-            })
-            .await
-    }
-
-    pub async fn bundle_download(&self, job_id: &str) -> Result<FileDownload, AppError> {
-        let deps = self.deps.owned();
-        let job_id = job_id.to_owned();
-        self.deps
-            .download_generation
-            .run(format!("{job_id}:bundle"), move || {
-                bundle_download(&deps.borrowed(), &job_id)
-            })
-            .await
-    }
-}
-
-impl<'a> JobDownloads<'a> {
-    pub async fn registered_artifact_download(
-        &self,
-        job_id: &str,
-        artifact_key: &str,
-        include_job_dir: bool,
-        ocr_only: bool,
-    ) -> Result<FileDownload, AppError> {
-        let deps = self.deps.owned();
-        let job_id = job_id.to_owned();
-        let artifact_key = artifact_key.to_owned();
-        let key = format!("{job_id}:artifact:{artifact_key}:{include_job_dir}:{ocr_only}");
-        self.deps
-            .download_generation
-            .run(key, move || {
-                let deps = deps.borrowed();
-                let job = if ocr_only {
-                    crate::services::jobs::query::load_ocr_job_with_supported_layout(
-                        deps.db,
-                        deps.data_root,
-                        &job_id,
-                    )?
-                } else {
-                    crate::services::jobs::query::load_supported_job(
-                        deps.db,
-                        deps.data_root,
-                        &job_id,
-                    )?
-                };
-                registered_artifact_download(&deps, &job, &artifact_key, include_job_dir)
-            })
-            .await
     }
 }

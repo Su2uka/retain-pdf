@@ -116,7 +116,7 @@ impl Fixture {
     /// 才出的。所以「没接力过来」必须断文件系统，断 `Err` 会永远为假。
     async fn fetch_canvas(&self, job_id: &str) -> PathBuf {
         self.downloads()
-            .download_job_document(job_id, false, DocumentDownloadKind::AiCanvas)
+            .ai_document(job_id, DocumentDownloadKind::AiCanvas)
             .await
             .expect("解析概念图路径不该失败")
             .path
