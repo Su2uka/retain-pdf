@@ -1,40 +1,61 @@
-use axum::http::{HeaderMap, HeaderValue};
+use axum::http::{header, HeaderMap, HeaderValue};
 use axum::response::Response;
 
 use crate::error::AppError;
 use crate::routes::job_helpers::stream_file;
-use crate::models::api::LayoutDocxQuery;
-use crate::services::jobs::{DocumentDownloadKind, FileDownload};
+use crate::services::jobs::{Disposition, DocumentDownloadKind, FileDownload, JobFile, JobScope};
 
-use crate::routes::common::JobsDownloadRouteDeps;
+use crate::routes::common::{build_jobs_download_route_deps, JobsDownloadRouteDeps};
+use crate::AppState;
 
-pub async fn download_document_response(
+/// 任务文件：所有下载接口都走这一个。
+pub(super) async fn job_file_response(
     deps: &JobsDownloadRouteDeps<'_>,
     headers: &HeaderMap,
     job_id: &str,
-    ocr_only: bool,
-    kind: DocumentDownloadKind,
+    scope: JobScope,
+    file: JobFile,
+    disposition: Disposition,
 ) -> Result<Response, AppError> {
     file_download_response(
-        deps.downloads
-            .download_job_document(job_id, ocr_only, kind)
-            .await?,
+        deps.downloads.open(job_id, scope, file, disposition).await?,
         headers,
     )
     .await
 }
 
-pub async fn markdown_image_response(
+/// 路由处理函数用的简写：按任务编号取文件。
+pub async fn job_file(
+    state: &AppState,
+    headers: &HeaderMap,
+    job_id: &str,
+    file: JobFile,
+    disposition: Disposition,
+) -> Result<Response, AppError> {
+    let deps = build_jobs_download_route_deps(state);
+    job_file_response(&deps, headers, job_id, JobScope::Any, file, disposition).await
+}
+
+/// `/ocr/jobs/*` 旧别名：只认 OCR 任务。
+pub async fn ocr_job_file(
+    state: &AppState,
+    headers: &HeaderMap,
+    job_id: &str,
+    file: JobFile,
+    disposition: Disposition,
+) -> Result<Response, AppError> {
+    let deps = build_jobs_download_route_deps(state);
+    job_file_response(&deps, headers, job_id, JobScope::OcrOnly, file, disposition).await
+}
+
+/// AI 助手写的阅读路径、概念图。
+pub async fn ai_document_response(
     deps: &JobsDownloadRouteDeps<'_>,
     headers: &HeaderMap,
     job_id: &str,
-    path: &str,
+    kind: DocumentDownloadKind,
 ) -> Result<Response, AppError> {
-    file_download_response(
-        deps.downloads.markdown_image_download(job_id, path)?,
-        headers,
-    )
-    .await
+    file_download_response(deps.downloads.ai_document(job_id, kind).await?, headers).await
 }
 
 /// 画板里的一个文件。文件名的防护在 services 侧（单层名、拒符号链接、
@@ -46,78 +67,6 @@ pub async fn ai_board_file_response(
     name: &str,
 ) -> Result<Response, AppError> {
     file_download_response(deps.downloads.ai_board_file_download(job_id, name)?, headers).await
-}
-
-pub async fn cover_response(
-    deps: &JobsDownloadRouteDeps<'_>,
-    headers: &HeaderMap,
-    job_id: &str,
-) -> Result<Response, AppError> {
-    file_download_response(deps.downloads.cover_download(job_id).await?, headers)
-        .await
-        .map(crate::routes::job_helpers::with_image_cache)
-}
-
-pub async fn thumbnail_response(
-    deps: &JobsDownloadRouteDeps<'_>,
-    headers: &HeaderMap,
-    job_id: &str,
-) -> Result<Response, AppError> {
-    file_download_response(deps.downloads.thumbnail_download(job_id).await?, headers)
-        .await
-        .map(crate::routes::job_helpers::with_image_cache)
-}
-
-pub async fn side_by_side_pdf_response(
-    deps: &JobsDownloadRouteDeps<'_>,
-    headers: &HeaderMap,
-    job_id: &str,
-) -> Result<Response, AppError> {
-    file_download_response(
-        deps.downloads.side_by_side_pdf_download(job_id).await?,
-        headers,
-    )
-    .await
-}
-
-pub async fn layout_docx_response(
-    deps: &JobsDownloadRouteDeps<'_>,
-    headers: &HeaderMap,
-    job_id: &str,
-    query: &LayoutDocxQuery,
-) -> Result<Response, AppError> {
-    // 只把 query 往下传,DPI 的取值范围由 service 决定——路由层不该知道
-    // `LayoutDocxOptions` 这种内部类型（架构门禁盯着这条，和 page_preview 一个路子）。
-    file_download_response(
-        deps.downloads.layout_docx_download(job_id, query).await?,
-        headers,
-    )
-    .await
-}
-
-pub async fn bundle_response(
-    deps: &JobsDownloadRouteDeps<'_>,
-    headers: &HeaderMap,
-    job_id: &str,
-) -> Result<Response, AppError> {
-    file_download_response(deps.downloads.bundle_download(job_id).await?, headers).await
-}
-
-pub async fn registered_artifact_response(
-    deps: &JobsDownloadRouteDeps<'_>,
-    headers: &HeaderMap,
-    job_id: &str,
-    artifact_key: &str,
-    include_job_dir: bool,
-    ocr_only: bool,
-) -> Result<Response, AppError> {
-    file_download_response(
-        deps.downloads
-            .registered_artifact_download(job_id, artifact_key, include_job_dir, ocr_only)
-            .await?,
-        headers,
-    )
-    .await
 }
 
 pub(super) async fn file_download_response(
@@ -142,6 +91,11 @@ pub(super) async fn file_download_response(
             "X-Job-Id",
             HeaderValue::from_str(&job_id).map_err(|e| AppError::internal(e.to_string()))?,
         );
+    }
+    if let Some(cache_control) = download.cache_control {
+        response
+            .headers_mut()
+            .insert(header::CACHE_CONTROL, HeaderValue::from_static(cache_control));
     }
     Ok(response)
 }

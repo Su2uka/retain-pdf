@@ -176,6 +176,8 @@ ROUTE_SERVICE_IMPORT_ALLOWLIST = {
     ),
     Path("src/routes/library.rs"): (
         "crate::services::library::api::",
+        # 书架按任务编号取封面、缩略图：和任务文件同一个出口。
+        "crate::services::jobs::{Disposition, JobFile}",
     ),
     # Library thick routes migrate to library_api in PR2–PR5; allowlist is
     # ready so partial moves do not require revisiting this file each PR.
@@ -222,15 +224,16 @@ ROUTE_SERVICE_IMPORT_ALLOWLIST = {
     Path("src/routes/common/library.rs"): (
         "crate::services::library::LibraryDeps",
     ),
+    # 下载类路由只说"要哪个文件（JobFile）、按哪种任务找（JobScope）、在浏览器里打开还是下载
+    # （Disposition）"，怎么找都在 services::jobs 的 open 里。
     Path("src/routes/download_response/files.rs"): (
-        "crate::services::jobs::FileDownload",
-        "crate::services::jobs::{DocumentDownloadKind, FileDownload}",
+        "crate::services::jobs::{Disposition, DocumentDownloadKind, FileDownload, JobFile, JobScope}",
     ),
     Path("src/routes/jobs/download.rs"): (
-        "crate::services::jobs::DocumentDownloadKind",
+        "crate::services::jobs::{Disposition, DocumentDownloadKind, JobFile}",
     ),
     Path("src/routes/download_response/markdown.rs"): (
-        "crate::services::jobs::MarkdownDownload",
+        "crate::services::jobs::{Disposition, JobFile, JobScope, MarkdownDownload}",
     ),
     Path("src/routes/download_response.rs"): (
         "crate::services::jobs::{FileDownload, MarkdownDownload}",

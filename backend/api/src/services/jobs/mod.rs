@@ -27,7 +27,10 @@ pub use control::wait_for_terminal_job;
 pub(crate) use deps::{
     CommandJobsDeps, ControlDeps, JobSubmitDeps, QueryJobsDeps, ReplayDeps, SnapshotBuildDeps,
 };
-pub(crate) use downloads::{DocumentDownloadKind, FileDownload, JobDownloads, MarkdownDownload};
+pub(crate) use downloads::{
+    Disposition, DocumentDownloadKind, FileDownload, JobDownloads, JobFile, JobScope,
+    MarkdownDownload,
+};
 pub(crate) use creation::with_dev_translation_defaults;
 #[cfg(test)]
 pub(crate) use creation::{DevDefaultsGuard, DevTranslationDefaults};

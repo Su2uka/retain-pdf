@@ -10,33 +10,25 @@ use self::deps::DownloadJobsDeps;
 // handlers live in submodules so PDF, markdown, preview, and artifact behavior
 // can evolve without turning one route helper into another large grab bag.
 mod artifact_deps;
-mod artifacts;
 mod deps;
 mod ai_board;
 mod ai_carryover;
 mod documents;
+mod files;
 mod markdown;
 mod paths;
 mod pdf;
-mod previews;
 mod service;
-mod side_by_side;
-mod word;
 
 #[cfg(all(test, unix))]
 mod ai_carryover_tests;
 #[cfg(all(test, unix))]
 mod tests;
 
-use artifacts::{bundle_download, registered_artifact_download};
 use documents::document_download;
 pub(crate) use documents::DocumentDownloadKind;
-use markdown::{
-    markdown_document_view, markdown_download, markdown_image_download, markdown_raw_download,
-};
-use previews::{cover_download, page_preview_download, thumbnail_download};
-use side_by_side::side_by_side_pdf_download;
-use word::layout_docx_download;
+pub(crate) use files::{Disposition, JobFile, JobScope};
+use markdown::{markdown_document_view, markdown_download};
 
 /// Download capabilities contain no launcher, upload, control, or replay state.
 pub struct JobDownloads<'a> {
@@ -74,6 +66,8 @@ pub struct FileDownload {
     /// 译文 PDF、Markdown 这类「查看」和「下载」共用一个端点的，用这个。
     pub inline_name: Option<String>,
     pub job_id_header: Option<String>,
+    /// `Cache-Control`。封面、缩略图这种按书不变的图片让浏览器缓存。
+    pub cache_control: Option<&'static str>,
 }
 
 impl FileDownload {
@@ -88,6 +82,7 @@ impl FileDownload {
             download_name,
             inline_name: None,
             job_id_header: None,
+            cache_control: None,
         }
     }
 
