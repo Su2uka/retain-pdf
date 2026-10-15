@@ -252,7 +252,7 @@ async fn preview_validation_keeps_job_scope_before_parameter_errors() {
 async fn document_images_use_the_same_bounded_generation_without_jobs() {
     use crate::config::AssetConfig;
     use crate::models::domain::{now_iso, UploadRecord};
-    use crate::services::library::api::{document_cover_download, document_thumbnail_download};
+    use crate::services::library::api::{open_document_file, DocumentFile};
     use crate::services::library::LibraryDeps;
 
     let fixture = Fixture::new();
@@ -288,9 +288,9 @@ async fn document_images_use_the_same_bounded_generation_without_jobs() {
         asset_config: &asset_config,
     };
     let (first, duplicate, thumbnail, ()) = tokio::join!(
-        document_cover_download(&deps, &fixture.generation, &document_id),
-        document_cover_download(&deps, &fixture.generation, &document_id),
-        document_thumbnail_download(&deps, &fixture.generation, &document_id),
+        open_document_file(&deps, &fixture.generation, &document_id, DocumentFile::Cover, Disposition::Unnamed),
+        open_document_file(&deps, &fixture.generation, &document_id, DocumentFile::Cover, Disposition::Unnamed),
+        open_document_file(&deps, &fixture.generation, &document_id, DocumentFile::Thumbnail, Disposition::Unnamed),
         fixture.release_when_started(),
     );
     let cover_path = first.unwrap().path;

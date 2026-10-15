@@ -54,8 +54,11 @@
 - `GET /api/v1/library/books`
 - `GET /api/v1/library/books/{job_id}`
 - `DELETE /api/v1/library/books/{job_id}`
-- `GET /api/v1/library/books/{job_id}/cover`
-- `GET /api/v1/library/books/{job_id}/thumbnail`
+- `GET /api/v1/library/books/{job_id}/cover`（旧地址，新代码用 `/documents/{document_id}/files/cover.jpg`）
+- `GET /api/v1/library/books/{job_id}/thumbnail`（旧地址，新代码用 `/documents/{document_id}/files/thumbnail.jpg`）
+
+所有文件下载统一走 `/jobs/{job_id}/files/…`（任务产出的文件）和 `/documents/{document_id}/files/…`
+（书本身的原文、封面、缩略图、原文页），见 [下载总览](../../api/07-产物下载/01-下载总览.md)。
 
 任务创建和执行仍走 job API：
 

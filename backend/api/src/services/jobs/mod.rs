@@ -28,8 +28,8 @@ pub(crate) use deps::{
     CommandJobsDeps, ControlDeps, JobSubmitDeps, QueryJobsDeps, ReplayDeps, SnapshotBuildDeps,
 };
 pub(crate) use downloads::{
-    Disposition, DocumentDownloadKind, FileDownload, JobDownloads, JobFile, JobScope,
-    MarkdownDownload,
+    Disposition, DocumentDownloadKind, FileDownload, FileGroup, JobDownloads, JobFile,
+    JobFilesView, JobScope, MarkdownDownload,
 };
 pub(crate) use creation::with_dev_translation_defaults;
 #[cfg(test)]

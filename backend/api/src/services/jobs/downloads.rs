@@ -10,6 +10,7 @@ use self::deps::DownloadJobsDeps;
 // handlers live in submodules so PDF, markdown, preview, and artifact behavior
 // can evolve without turning one route helper into another large grab bag.
 mod artifact_deps;
+mod catalog;
 mod deps;
 mod ai_board;
 mod ai_carryover;
@@ -27,6 +28,7 @@ mod tests;
 
 use documents::document_download;
 pub(crate) use documents::DocumentDownloadKind;
+pub(crate) use catalog::{job_files_view, FileGroup, JobFilesView};
 pub(crate) use files::{Disposition, JobFile, JobScope};
 use markdown::{markdown_document_view, markdown_download};
 

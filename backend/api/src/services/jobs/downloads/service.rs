@@ -1,11 +1,12 @@
 use crate::error::AppError;
-use crate::models::api::MarkdownDocumentView;
+use crate::models::api::{JobFilesQuery, MarkdownDocumentView};
 use crate::services::jobs::downloads::{
     document_download, markdown_document_view, markdown_download, DocumentDownloadKind,
     FileDownload, MarkdownDownload,
 };
 
 use super::ai_board::{ai_board_file_download, ai_board_listing, AiBoardListing};
+use super::catalog::{named_file, FileGroup};
 use super::files::{generation_key, open_job_file, Disposition, JobFile, JobScope};
 use super::JobDownloads;
 
@@ -28,6 +29,34 @@ impl<'a> JobDownloads<'a> {
                 open_job_file(&deps.borrowed(), &job_id, scope, &file, disposition)
             })
             .await
+    }
+
+    /// 新地址 `/jobs/:id/files/<组>/<文件名>`：默认在浏览器里打开，`?download=1` 直接下载。
+    pub(crate) async fn open_named(
+        &self,
+        job_id: &str,
+        group: FileGroup,
+        name: &str,
+        query: &JobFilesQuery,
+    ) -> Result<FileDownload, AppError> {
+        let file = named_file(group, name, query)?;
+        let disposition = if query.wants_download() {
+            Disposition::Attachment
+        } else {
+            Disposition::Inline
+        };
+        let mut download = self.open(job_id, JobScope::Any, file, disposition).await?;
+        // 中间产物下载时叫地址里的名字（`ocr-provider/result.json` → `ocr-provider-result.json`），
+        // 不叫磁盘上的原名（`paddle_result.json`）。给用户的成品用带书名的名字，不在这里改。
+        if group == FileGroup::Internal {
+            let name = name.replace('/', "-");
+            if download.download_name.is_some() {
+                download.download_name = Some(name);
+            } else if download.inline_name.is_some() {
+                download.inline_name = Some(name);
+            }
+        }
+        Ok(download)
     }
 
     /// AI 助手写在 `<job>/ai/` 里的阅读路径、概念图。

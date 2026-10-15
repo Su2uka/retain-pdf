@@ -38,6 +38,10 @@ pub fn route_policy(method: &str, template: &str) -> RoutePolicy {
     {
         return RoutePolicy::Closed;
     }
+    // 任务的中间产物（翻译请求日志里是完整的提示词和模型返回）只给管理员。
+    if template.starts_with("/api/v1/jobs/:job_id/files/internal/") {
+        return RoutePolicy::AdminOnly;
+    }
     if starts("/api/v1/credentials")
         || starts("/api/v1/sync")
         || starts("/api/v1/backups")
@@ -159,6 +163,9 @@ mod tests {
         assert_eq!(route_policy("GET", "/api/v1/jobs"), RoutePolicy::Signed);
         assert_eq!(route_policy("GET", "/api/v1/jobs/:job_id"), RoutePolicy::Signed);
         assert_eq!(route_policy("GET", "/api/v1/providers/ocr"), RoutePolicy::Signed);
+        assert_eq!(route_policy("GET", "/api/v1/jobs/:job_id/files/output/*name"), RoutePolicy::Signed);
+        assert_eq!(route_policy("GET", "/api/v1/jobs/:job_id/files/pages/:page"), RoutePolicy::Signed);
+        assert_eq!(route_policy("GET", "/api/v1/jobs/:job_id/files/internal/*name"), RoutePolicy::AdminOnly);
         assert_eq!(route_policy("GET", "/api/v1/fonts"), RoutePolicy::Signed);
         assert_eq!(route_policy("POST", "/api/v1/providers/deepseek/balance"), RoutePolicy::AdminOnly);
         assert_eq!(route_policy("POST", "/api/v1/fonts/upload"), RoutePolicy::AdminOnly);

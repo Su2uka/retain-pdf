@@ -232,6 +232,10 @@ ROUTE_SERVICE_IMPORT_ALLOWLIST = {
     Path("src/routes/jobs/download.rs"): (
         "crate::services::jobs::{Disposition, DocumentDownloadKind, JobFile}",
     ),
+    # /jobs/:id/files/<组>/<文件名>：路由只说组，文件名的翻译在 services::jobs。
+    Path("src/routes/jobs/files.rs"): (
+        "crate::services::jobs::FileGroup",
+    ),
     Path("src/routes/download_response/markdown.rs"): (
         "crate::services::jobs::{Disposition, JobFile, JobScope, MarkdownDownload}",
     ),

@@ -25,20 +25,16 @@ use crate::models::api::{
     SearchResultView,
 };
 use crate::models::request::CreateJobInput;
-use crate::services::download_generation::DownloadGeneration;
 use crate::services::jobs::JobsFacade;
-use std::sync::Arc;
 
 use super::{
     add_collection_documents, append_message, apply_metadata_suggestion,
     create_collection, create_conversation,
     create_metadata_suggestion, delete_collection, delete_conversation,
-    delete_document, delete_library_book, document_cover,
-    document_source_pdf, document_thumbnail, get_conversation, get_library_book, list_collections,
+    delete_document, delete_library_book, document_files_view, get_conversation, get_library_book, list_collections,
     list_conversations, list_library_books, list_metadata_suggestions, load_asset,
     ocr_document, patch_collection, patch_conversation, remove_collection_document,
-    search_blocks, store_asset, translate_document, AssetDownload, DocumentFileDownload,
-    LibraryDeps,
+    search_blocks, store_asset, translate_document, AssetDownload, LibraryDeps,
 };
 
 // --- books ---
@@ -106,27 +102,16 @@ pub fn apply_document_metadata_suggestion_view(
 
 // --- media ---
 
-pub fn document_source_pdf_download(
-    deps: &LibraryDeps<'_>,
-    document_id: &str,
-) -> Result<DocumentFileDownload, AppError> {
-    document_source_pdf(deps, document_id)
-}
+pub use super::{DocumentFile, DocumentFilesView};
+pub(crate) use super::open_document_file;
+pub(crate) use crate::services::jobs::Disposition;
 
-pub async fn document_cover_download(
+pub fn document_files(
     deps: &LibraryDeps<'_>,
-    generation: &Arc<DownloadGeneration>,
     document_id: &str,
-) -> Result<DocumentFileDownload, AppError> {
-    document_cover(deps, generation, document_id).await
-}
-
-pub async fn document_thumbnail_download(
-    deps: &LibraryDeps<'_>,
-    generation: &Arc<DownloadGeneration>,
-    document_id: &str,
-) -> Result<DocumentFileDownload, AppError> {
-    document_thumbnail(deps, generation, document_id).await
+    base_url: &str,
+) -> Result<DocumentFilesView, AppError> {
+    document_files_view(deps, document_id, base_url)
 }
 
 // --- translate ---

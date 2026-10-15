@@ -97,6 +97,7 @@ fn seed() -> Fixture {
     let document_cache = data_root.join("documents").join(&document_id);
     write(&document_cache.join("cover.jpg"), b"document cover jpeg");
     write(&document_cache.join("thumbnail.jpg"), b"document thumbnail jpeg");
+    write(&document_cache.join("pages/p0001-w1200-d0.jpg"), b"document source page jpeg");
 
     let artifacts = |prefix: &str| JobArtifacts {
         job_root: Some(format!("jobs/{prefix}")),
@@ -198,6 +199,32 @@ fn requests() -> Vec<(&'static str, String, Option<(&'static str, &'static str)>
         ("旧别名：OCR 规范化文档", format!("{o}/normalized-document"), None),
         ("旧别名：OCR 规范化报告", format!("{o}/normalization-report"), None),
         ("旧别名：OCR 按名字取产物", format!("{o}/artifacts/normalized_document_json"), None),
+        // 新地址：任务的文件按 output / pages / internal 分组，书的文件挂在书下面。
+        ("新：任务的文件清单", format!("{j}/files"), None),
+        ("新：译文 PDF（浏览器里打开）", format!("{j}/files/output/translated.pdf"), None),
+        ("新：译文 PDF（下载）", format!("{j}/files/output/translated.pdf?download=1"), None),
+        ("新：对照 PDF", format!("{j}/files/output/side-by-side.pdf"), None),
+        ("新：Word（默认清晰度）", format!("{j}/files/output/translated.docx?download=1"), None),
+        ("新：Word（dpi=150）", format!("{j}/files/output/translated.docx?download=1&dpi=150"), None),
+        ("新：原文 Markdown", format!("{j}/files/output/ocr.md"), None),
+        ("新：原文 Markdown + 图片", format!("{j}/files/output/ocr.zip"), None),
+        ("新：Markdown 图片", format!("{j}/files/output/ocr/images/page-1/fig.png"), None),
+        ("新：全部打包", format!("{j}/files/output/all.zip?download=1"), None),
+        ("新：译文第 1 页预览", format!("{j}/files/pages/1.jpg"), None),
+        ("新：中间产物 规范化文档", format!("{j}/files/internal/normalized-document.json"), None),
+        ("新：中间产物 OCR 原始返回", format!("{j}/files/internal/ocr-provider/result.json"), None),
+        ("新：中间产物 流水线摘要", format!("{j}/files/internal/pipeline-summary.json"), None),
+        ("新：书的文件清单", "/api/v1/documents/{doc}/files".to_string(), None),
+        ("新：书的原文（浏览器里打开）", "/api/v1/documents/{doc}/files/source.pdf".to_string(), None),
+        ("新：书的原文（下载）", "/api/v1/documents/{doc}/files/source.pdf?download=1".to_string(), None),
+        ("新：书的封面", "/api/v1/documents/{doc}/files/cover.jpg".to_string(), None),
+        ("新：书的缩略图", "/api/v1/documents/{doc}/files/thumbnail.jpg".to_string(), None),
+        ("新：原文第 1 页预览", "/api/v1/documents/{doc}/files/pages/1.jpg".to_string(), None),
+        ("新报错：没有这个文件", format!("{j}/files/output/translated.PDF"), None),
+        ("新报错：layout.json 和 ocr-provider/result.json 重复，只留后者", format!("{j}/files/internal/layout.json"), None),
+        ("新报错：页码从 1 开始", format!("{j}/files/pages/0.jpg"), None),
+        ("新报错：书没有这个文件", "/api/v1/documents/{doc}/files/cover.png".to_string(), None),
+        ("新报错：还在跑，不能打包", format!("{r}/files/output/all.zip"), None),
         // 出错的情况：前端按这些状态码和提示走分支。
         ("报错：产物名不存在", format!("{j}/artifacts/no_such_artifact"), None),
         ("报错：目录类产物不能直接下载", format!("{j}/artifacts/job_root"), None),

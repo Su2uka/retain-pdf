@@ -69,7 +69,7 @@ pub async fn ai_board_file_response(
     file_download_response(deps.downloads.ai_board_file_download(job_id, name)?, headers).await
 }
 
-pub(super) async fn file_download_response(
+pub async fn file_download_response(
     download: FileDownload,
     headers: &HeaderMap,
 ) -> Result<Response, AppError> {
