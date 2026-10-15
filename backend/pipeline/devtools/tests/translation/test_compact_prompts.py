@@ -1,9 +1,6 @@
-import json
-
 import pytest
 
 from retainpdf_pipeline.translate.llm.shared.prompt_building import (
-    build_group_member_messages,
     build_messages,
     build_single_item_fallback_messages,
 )
@@ -34,17 +31,6 @@ def test_single_json_has_no_plain_text_instruction():
     assert "不要输出编号、决策字段、结构化数据" not in combined
     assert "只返回译文本身，使用纯文本" not in combined
     assert "JSON 协议" in messages[1]["content"]
-
-
-def test_group_preserves_member_contract_and_source():
-    source = "Energy $E=mc^2$ is conserved."
-    messages = build_group_member_messages(item(
-        translation_unit_member_ids=["p001-b001"],
-        translation_unit_members=[{"item_id": "p001-b001", "source_text": source}],
-    ))
-    assert '"member_translations"' in messages[0]["content"]
-    assert "不要输出占位符、结构化数据、标签" not in messages[0]["content"]
-    assert json.loads(messages[1]["content"])["group"]["members"][0]["source_text"] == source
 
 
 @pytest.mark.parametrize("role,expected", [("body", ""), ("document_title", "标题规则"),

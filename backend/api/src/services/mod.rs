@@ -27,6 +27,7 @@ pub mod model_requests_api;
 pub mod platform_settings;
 pub(crate) mod document_pages;
 pub(crate) mod merge;
+pub(crate) mod model_provider_headers;
 pub mod provider_api;
 pub(crate) mod provider_probe;
 pub mod public_document_operations;

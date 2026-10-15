@@ -19,7 +19,7 @@ const CONFIG_TEMPLATE: &str = r#"# RetainPDF 配置。命令行 `retainpdf confi
 # 环境变量优先于这里(比如 RETAINPDF_TRANSLATION_MODEL),见 `retainpdf config show`。
 
 [translation]
-# 翻译用哪个服务商:deepseek / qwen / openai / anthropic / zhipu / custom
+# 翻译用哪个服务商:deepseek / qwen / openai / anthropic / zhipu / opencode / custom
 provider = "deepseek"
 
 # 各服务商的设置;不写就用内置默认。workers 是同时发出的请求数(并发)。

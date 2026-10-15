@@ -90,33 +90,6 @@ def test_canonicalizer_restores_bracket_citations_for_direct_typst_items():
     assert result["p001-b024"]["translated_text"] == "咔唑衍生物是马钱子碱类生物碱的一个重要类别[12–17]。"
 
 
-def test_canonicalizer_restores_group_member_translations_too():
-    """成员分段必须跟整组一起还原，否则 apply 层「分段拼回整组」校验失败、退回按源文长度切分。"""
-    group = {
-        "item_id": "__cg__:g",
-        "math_mode": "direct_typst",
-        "translation_unit_protected_source_text": "optimized using G09W [27] at B3LYP [28,29] and PBE1PBE [30–32] levels",
-    }
-    result = canonicalize_batch_result(
-        [group],
-        {
-            "__cg__:g": {
-                "decision": "translate",
-                "translated_text": "使用G09W $^{[27]}$ 在 B3LYP $^{[28,29]}$ 和 PBE1PBE $^{[30-32]}$ 水平",
-                "member_translations": [
-                    {"item_id": "a", "translated_text": "使用G09W $^{[27]}$ 在 B3LYP $^{[28,29]}$"},
-                    {"item_id": "b", "translated_text": "和 PBE1PBE $^{[30-32]}$ 水平"},
-                ],
-            }
-        },
-    )
-    payload = result["__cg__:g"]
-    assert "$" not in payload["translated_text"]
-    members = [entry["translated_text"] for entry in payload["member_translations"]]
-    assert all("$" not in text for text in members)
-    assert re.sub(r"\s+", "", "".join(members)) == re.sub(r"\s+", "", payload["translated_text"])
-
-
 _TRANSLATED_SUP = re.compile(r"\$\s*\^\s*\{\s*([^}]*)\}\s*\$")
 _SOURCE_SUP = re.compile(r"<sup>\s*([^<]*)</sup>|\^\s*\{\s*([^}]*)\}")
 

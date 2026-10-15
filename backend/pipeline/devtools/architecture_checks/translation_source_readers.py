@@ -69,7 +69,7 @@ SOURCE_TEXT_READER_ALLOWLIST: dict[str, int] = {
     "retainpdf_pipeline/translate/services/quality/qa/units.py": 2,  # 例外:块内原文
     # ---- frozen-debt:逐处判断后再收敛,不能无脑替换 ----
     "retainpdf_pipeline/translate/artifacts/debug_index.py": 1,
-    "retainpdf_pipeline/translate/core/context/models.py": 3,
+    "retainpdf_pipeline/translate/core/context/models.py": 1,
     "retainpdf_pipeline/translate/core/execution_policy.py": 3,
     "retainpdf_pipeline/translate/core/orchestration/abstract_groups.py": 2,
     "retainpdf_pipeline/translate/core/orchestration/zones.py": 1,

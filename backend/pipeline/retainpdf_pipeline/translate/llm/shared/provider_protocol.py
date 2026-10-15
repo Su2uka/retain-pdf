@@ -24,7 +24,6 @@ class TranslationProviderCapabilities:
     unstructured_plain_text: bool = True
     tagged_text: bool = True
     structured_decision: bool = True
-    structured_group_members: bool = True
     batch_once: bool = True
 
 
@@ -46,7 +45,6 @@ class TranslationProviderRuntimeProtocol(Protocol):
     translate_batch_once: TranslateBatchFn
     translate_single_item_plain_text: TranslateSingleFn
     translate_single_item_plain_text_unstructured: TranslateSingleFn
-    translate_continuation_group_members: TranslateSingleFn
     translate_single_item_tagged_text: TranslateSingleFn
     translate_single_item_with_decision: TranslateSingleFn
 

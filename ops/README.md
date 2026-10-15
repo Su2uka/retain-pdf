@@ -18,7 +18,13 @@ npm run verify                       改完之后跑这个（约 75 秒）
 `up` 会先 `down`：端口被占着起不来，而「起不来」的报错常常指向别处（有过一次
 另一个 checkout 的 jobsd 残留在 41002，表现是 502/503 风暴）。
 
-支持 `up` / `up --fast` / `down` / `status` / `logs`。
+支持 `up` / `up --fast` / `up --same-origin` / `down` / `status` / `logs`。
+
+`up --same-origin` 把静态服务换成 `frontend/web/scripts/serve_same_origin.py`：
+它照旧托管前端，但把 `/api` 也转发出去，于是浏览器只需要够得着 40001 一个端口。
+WSL2 的 localhost 转发会按端口失效（40001 通、41000 不通），这种情况下用它；
+平时不需要，多一跳代理。同源时 `apiBase` 被钉成当前 origin（配置文件里的值会被
+覆盖），key 仍由 `dev.sh` 从 `runtime-config.local.js` 读、由代理转发时注入。
 
 ### `npm run verify` —— 改完跑这个
 

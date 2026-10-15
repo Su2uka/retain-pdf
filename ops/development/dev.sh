@@ -9,11 +9,17 @@
 # 更要紧的是 **nohup**：直接在终端里跑的进程活不过会话，关掉窗口或者会话结束就
 # 全没了，再开一次要等一分钟 cargo。这里全部 nohup + disown。
 #
-#   ops/development/dev.sh up        起（首次或改过 Rust 之后）
-#   ops/development/dev.sh up --fast 起（跳过 cargo build，改前端时用）
-#   ops/development/dev.sh down      停
-#   ops/development/dev.sh status    看端口和健康状况
-#   ops/development/dev.sh logs      跟日志
+#   ops/development/dev.sh up               起（首次或改过 Rust 之后）
+#   ops/development/dev.sh up --fast        起（跳过 cargo build，改前端时用）
+#   ops/development/dev.sh up --same-origin 起，前端与 API 同源（见下）
+#   ops/development/dev.sh down             停
+#   ops/development/dev.sh status           看端口和健康状况
+#   ops/development/dev.sh logs             跟日志
+#
+# `--same-origin` 换用 `serve_same_origin.py`：静态资源和 `/api` 都挂在
+# STATIC_PORT 上，浏览器不必直连 API 端口。WSL2 的 localhost 转发会按端口失效
+# （40001 通、41000 不通），同源之后只剩一个端口要转发。代价是没有这层问题、也
+# 不需要绕开 CORS 时多一跳代理。
 #
 # API key **不写进这个脚本**，运行时从 runtime-config.local.js（gitignored）读。
 set -uo pipefail
@@ -91,19 +97,41 @@ cmd_down() {
   # dev_stack 自己会带起子进程，按名字兜一次底。
   pkill -f "ops/development/dev_stack.py" 2>/dev/null && killed=1
   pkill -f "frontend/web/scripts/serve_static.py" 2>/dev/null && killed=1
+  pkill -f "frontend/web/scripts/serve_same_origin.py" 2>/dev/null && killed=1
   sleep 1
   if [[ "$killed" == 1 ]]; then echo "已停"; else echo "本来就没在跑"; fi
 }
 
 cmd_up() {
-  local fast="${1:-}"
+  local fast=""
+  local same_origin=""
+  # `${@+"$@"}`：bash 3.2 下 `set -u` 展开空的 "$@" 同样会报 unbound，
+  # 和 stack_argv 里那个空数组是同一类坑。
+  for arg in "${@+"$@"}"; do
+    case "$arg" in
+      --fast) fast="--fast" ;;
+      --same-origin) same_origin=1 ;;
+      *) echo "未知参数: $arg（用法见 $0）" >&2; return 2 ;;
+    esac
+  done
   load_env || return 1
   # 先停：端口被占着起不来，而「起不来」的报错往往指向别处（之前有过一次
   # 主 checkout 的 jobsd 残留在 41002，表现是 502/503 风暴）。
   cmd_down >/dev/null
 
-  nohup python3 "$REPO/frontend/web/scripts/serve_static.py" \
-    --host 0.0.0.0 --port "$STATIC_PORT" --root "$REPO/frontend/web" \
+  # 静态服务默认 serve_static.py；--same-origin 换成 serve_same_origin.py，
+  # 由它把 /api 一起转发，浏览器就只剩 STATIC_PORT 一个端口要够得着。
+  # key 不用传：load_env 已经 export RUST_API_KEYS，那个脚本直接读环境变量，
+  # 免得 key 出现在命令行上（ps 可见）。
+  local static_entry="serve_static.py"
+  local static_extra=""
+  if [[ -n "$same_origin" ]]; then
+    static_entry="serve_same_origin.py"
+    static_extra="--api-base http://127.0.0.1:$API_PORT"
+  fi
+
+  nohup python3 "$REPO/frontend/web/scripts/$static_entry" \
+    --host 0.0.0.0 --port "$STATIC_PORT" --root "$REPO/frontend/web" $static_extra \
     >"$RUN_DIR/static.log" 2>&1 &
   disown
 
@@ -147,6 +175,9 @@ print(f\"  后端    rust={d['status']} ai={d['ai_service']} jobsd={d['jobsd']} 
   local code
   code="$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$STATIC_PORT/reader.html" 2>/dev/null)"
   echo "  静态    reader.html -> ${code:-没在跑}"
+  if pgrep -f "frontend/web/scripts/serve_same_origin.py" >/dev/null 2>&1; then
+    echo "  同源    /api 也走 $STATIC_PORT（浏览器不用够到 $API_PORT）"
+  fi
   echo "  阅读页  http://127.0.0.1:$STATIC_PORT/reader.html?job_id=<JOB_ID>"
   echo "  日志    $RUN_DIR/{stack,static}.log"
 }
@@ -154,10 +185,10 @@ print(f\"  后端    rust={d['status']} ai={d['ai_service']} jobsd={d['jobsd']} 
 cmd_logs() { tail -f "$RUN_DIR/stack.log" "$RUN_DIR/static.log"; }
 
 case "${1:-status}" in
-  up)     cmd_up "${2:-}" ;;
+  up)     shift; cmd_up "${@+"$@"}" ;;
   argv)   stack_argv "${2:-}" ;;
   down)   cmd_down ;;
   status) cmd_status ;;
   logs)   cmd_logs ;;
-  *)      echo "用法: $0 {up [--fast]|down|status|logs|argv [--fast]}" >&2; exit 2 ;;
+  *)      echo "用法: $0 {up [--fast] [--same-origin]|down|status|logs|argv [--fast]}" >&2; exit 2 ;;
 esac

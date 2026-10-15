@@ -312,6 +312,20 @@ mod tests {
     }
 
     #[test]
+    fn opencode_provider_resolves_its_profile_and_assistant_defaults() {
+        let config = doc("[translation]\nprovider = \"opencode\"\n");
+        let credentials = doc("[providers.opencode]\napi_key = \"test-key\"\n");
+        let settings = Settings::resolve(&config, &credentials, &|_| None).unwrap();
+        assert_eq!(settings.translation.provider, "opencode");
+        assert_eq!(settings.translation.base_url, "https://opencode.ai/inference/go/v1");
+        assert_eq!(settings.translation.model, "deepseek-v4.1-flash");
+        assert_eq!(settings.translation.workers, 5);
+        assert_eq!(settings.translation.protocol, "openai");
+        assert_eq!(settings.translation.api_key.as_deref(), Some("test-key"));
+        assert_eq!(settings.assistant.provider, "opencode");
+    }
+
+    #[test]
     fn secrets_are_never_serialized() {
         let credentials = doc("[providers.deepseek]\napi_key = \"sk-secret-value\"\n[ocr]\npaddle_token = \"tok-secret\"\n");
         let settings = Settings::resolve(&doc(""), &credentials, &|_| None).unwrap();

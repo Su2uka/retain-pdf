@@ -32,7 +32,7 @@ def test_group_reconstruction_checks_saved_membership():
     items = {i: item(i, translation_unit_id=group_id, translation_unit_kind="group",
                      translation_unit_member_ids=["a", "b"], continuation_group="g") for i in ("a", "b")}
     original = deepcopy(items)
-    content = json.dumps({"member_translations": [{"item_id": i, "translated_text": "x"} for i in items]})
+    content = "整段译文"
     expected_hash = unit_hash([{"item_id": group_id, "translation_unit_member_ids": ["a", "b"]}])
     assert reconstruct(items, expected_hash, content)[0] == "group"
     assert items == original

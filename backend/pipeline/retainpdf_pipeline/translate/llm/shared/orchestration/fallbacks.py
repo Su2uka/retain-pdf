@@ -25,7 +25,6 @@ is_transport_error = single_item_flow.is_transport_error
 translate_batch_once = single_item_flow.translate_batch_once
 translate_single_item_plain_text = single_item_flow.translate_single_item_plain_text
 translate_single_item_plain_text_unstructured = single_item_flow.translate_single_item_plain_text_unstructured
-translate_continuation_group_members = single_item_flow.translate_continuation_group_members
 translate_single_item_formula_segment_text_with_retries = (
     single_item_flow.translate_single_item_formula_segment_text_with_retries
 )
@@ -102,7 +101,6 @@ def translate_single_item_plain_text_with_retries(
         deps=SingleItemFlowDeps(
             translate_plain_fn=translate_single_item_plain_text,
             translate_unstructured_fn=translate_single_item_plain_text_unstructured,
-            translate_group_members_fn=translate_continuation_group_members,
             formula_segment_translator_fn=translate_single_item_formula_segment_text_with_retries,
             stable_placeholder_text_fn=translate_single_item_stable_placeholder_text,
             sentence_level_fallback_fn=_sentence_level_fallback,

@@ -148,6 +148,20 @@ load document.v1
 - `workflow/batch_runner.py` 执行串行或并行 batch。
 - `results/` 负责回填和刷盘。
 
+### 一段话占好几个框：模型翻整段，程序切回各框
+
+跨栏、跨页的续接组（`cg-*`）和摘要组（`abstract:*`）都是一个翻译单元（`__cg__:…`）：
+
+1. **拼原文**：成员原文按阅读顺序拼成一段（`core/payload/parts/units.py::join_member_sources`）。
+   栏尾连字符直接接上；OCR 把前一块末尾的半个词补全、后一块开头仍留着后半截时（"calculations." + "tions in…"），删掉残片和多补的句号。
+2. **翻译**：模型只翻这一整段，不知道、也不负责框的分界。
+3. **切回各框**：`core/payload/parts/group_split.py::split_group_protected_translation` 按各成员原文的长度比例找切点，
+   优先切在句末、分句标点之后，下一块不以标点开头。公式（`$…$`、`<f1-abc/>`、`[[FORMULA_n]]`）不可拆；
+   direct_typst 下 `$` 不成对时整段放进第一个框，不切。
+
+不要让模型按原来的分界逐框返回译文：英文在句中断栏，中文语序对不上（目的状语前置、复合词被切开），
+模型会把跨分界的半句挪进前一块翻完，再把后一块原样交回英文，而整段检查看不出来。
+
 ## 凭证与页范围
 
 API key 不写入 stage spec。spec 只保存：

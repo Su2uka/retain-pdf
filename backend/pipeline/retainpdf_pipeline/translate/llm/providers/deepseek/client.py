@@ -61,8 +61,8 @@ def chat_completions_url(base_url: str) -> str:
     return transport.chat_completions_url(base_url)
 
 
-def build_headers(api_key: str) -> dict[str, str]:
-    return transport.build_headers(api_key)
+def build_headers(api_key: str, base_url: str = "") -> dict[str, str]:
+    return transport.build_headers(api_key, base_url)
 
 
 def _message_chars(messages: list[dict[str, str]]) -> int:
@@ -312,14 +312,14 @@ def request_chat_content(
         use_stream = False
     elif responses:
         endpoint = model_wire.responses_url(base_url)
-        headers = build_headers(api_key)
+        headers = build_headers(api_key, base_url)
         thinking_candidates = model_wire.responses_thinking_candidates(
             model=model, base_url=base_url, thinking=profile.thinking
         )
         use_stream = False
     else:
         endpoint = chat_completions_url(base_url)
-        headers = build_headers(api_key)
+        headers = build_headers(api_key, base_url)
         thinking_candidates = model_wire.openai_thinking_candidates(
             model=model, base_url=base_url, thinking=profile.thinking
         )
