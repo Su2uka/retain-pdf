@@ -14,7 +14,7 @@ from unittest.mock import Mock, patch
 import requests
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from support.translation_io_support import SOURCES, TRANSLATIONS
+from support.translation_io_support import CROSS_PAGE_GROUP, SOURCES, TRANSLATIONS
 from support.offline import network_guard, forbid_private_data
 
 
@@ -68,15 +68,6 @@ def main():
                 content = json.dumps({"decisions": [{"pair_id": pair["pair_id"],
                     "decision": "join" if (pair["prev_item_id"], pair["next_item_id"]) ==
                     ("p001-b003", "p002-b000") else "break"} for pair in pairs]})
-            elif "group" in payload:
-                protocol = "group"
-                members = payload["group"]["members"]
-                ids = [member["item_id"] for member in members]
-                if any(member["source_text"] != SOURCES.get(member["item_id"]) for member in members):
-                    violations.append("unknown group member source")
-                    raise AssertionError(violations[-1])
-                content = json.dumps({"member_translations": [
-                    {"item_id": key, "translated_text": TRANSLATIONS[key]} for key in ids]})
             elif re.search(r"^原文 p\d+-b\d+:", user, re.M):
                 protocol = "batch"
                 members = re.findall(r"^原文 (p\d+-b\d+):\n([^\n]+)", user, re.M)
@@ -112,10 +103,16 @@ def main():
                     violations.append("unrecognized model protocol")
                     raise AssertionError(violations[-1])
                 ids = [key for key, source in SOURCES.items() if source == current and key in TRANSLATIONS]
-                if len(ids) != 1:
+                if not ids and current == " ".join(SOURCES[key] for key in CROSS_PAGE_GROUP):
+                    # 续接组整段一次请求，程序再按原文比例切回各框。
+                    protocol = "group"
+                    ids = list(CROSS_PAGE_GROUP)
+                    content = "".join(TRANSLATIONS[key] for key in ids)
+                elif len(ids) != 1:
                     violations.append("unrecognized model source")
                     raise AssertionError(violations[-1])
-                content = TRANSLATIONS[ids[0]]
+                else:
+                    content = TRANSLATIONS[ids[0]]
             if spec["outcome"] == "block_after_commit" and kind == "translation":
                 checkpoint_path = Path(spec["output"]) / "translation-checkpoint.v1.json"
                 if checkpoint_path.exists():

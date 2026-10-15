@@ -38,7 +38,8 @@ def probe(transport, route, outcome, cache_dir):
                      translation_unit_members=[{"item_id": i, "protected_source_text": source} for i in ("a", "b")],
                      translation_unit_protected_source_text=source + " " + source)
         batch = [group]
-        content = json.dumps({"member_translations": [{"item_id": i, "translated_text": translated} for i in ("a", "b")]})
+        # 续接组整段一次请求、返回整段纯文本，程序再切回各框。
+        content = translated + translated
     elif route == "batch":
         batch = [dict(item(i), _batched_plain_candidate=True) for i in ("a", "b")]
         content = "\n".join(f"<<<ITEM item_id={i}>>>\n{translated}\n<<<END>>>" for i in ("a", "b"))
@@ -47,14 +48,9 @@ def probe(transport, route, outcome, cache_dir):
         content = translated
     if outcome == "protocol":
         content = ""
-    elif outcome == "malformed_json":
-        content = "invalid json"
     elif outcome == "semantic":
         # Syntactically valid envelopes, but no translated member content.
-        if route == "group":
-            content = json.dumps({"member_translations": [
-                {"item_id": i, "translated_text": ""} for i in ("a", "b")]})
-        elif route == "batch":
+        if route == "batch":
             content = "\n".join(f"<<<ITEM item_id={i}>>>\n\n<<<END>>>" for i in ("a", "b"))
         else:
             content = "   "
@@ -109,7 +105,7 @@ def probe(transport, route, outcome, cache_dir):
                       "purposes": [c.get("purpose") for c in calls],
                       "unit_ids": [c.get("unit_id") for c in calls],
                       "thinking": calls[0].get("enable_thinking") if calls else None,
-                      "result": {i: {k: v for k, v in r.items() if k in {"translated_text", "decision", "final_status", "member_translations"}}
+                      "result": {i: {k: v for k, v in r.items() if k in {"translated_text", "decision", "final_status"}}
                                  for i, r in result.items()}}, ensure_ascii=False))
 
 
