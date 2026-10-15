@@ -4,6 +4,7 @@
 
 ## 入口
 
+- [开发记录](./devlog/README.md)：每次开发一行，按月一个 CSV
 - [工程规划与台账](./planning/README.md)
 - [前端迁移计划与审计](./planning/frontend-migration/)
 - [生成报告](./reports/README.md)
