@@ -8,6 +8,7 @@
 |---|---|---|---|
 | `backend/api` | `retain-pdf-api` | `retain_pdf_api` | `rust_api`、`retainpdf-agent` |
 | `backend/packages/retain-pdf-api-base` | `retain-pdf-api-base` | `retain_pdf_api_base` | |
+| `backend/packages/retain-pdf-accounts` | `retain-pdf-accounts` | `retain_pdf_accounts` | |
 | `backend/packages/retain-pdf-glossaries` | `retain-pdf-glossaries` | `retain_pdf_glossaries` | |
 | `backend/packages/retain-pdf-platform` | `retain-pdf-platform` | `retain_pdf_platform` | |
 | `backend/packages/retain-pdf-providers` | `retain-pdf-providers` | `retain_pdf_providers` | |

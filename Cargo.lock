@@ -1544,6 +1544,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "retain-pdf-accounts"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "argon2",
+ "axum",
+ "base64",
+ "chrono",
+ "fastrand",
+ "getrandom 0.2.17",
+ "rand_core 0.6.4",
+ "retain-pdf-api-base",
+ "retain-pdf-core",
+ "retain-pdf-data",
+ "retain-pdf-providers",
+ "serde",
+ "serde_json",
+ "serde_urlencoded",
+ "sha2",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "retain-pdf-api"
 version = "0.1.0"
 dependencies = [
@@ -1564,6 +1588,7 @@ dependencies = [
  "once_cell",
  "regex",
  "reqwest",
+ "retain-pdf-accounts",
  "retain-pdf-api-base",
  "retain-pdf-config",
  "retain-pdf-core",

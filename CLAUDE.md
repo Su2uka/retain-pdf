@@ -35,7 +35,7 @@ python3 backend/pipeline/devtools/check_pipeline_architecture.py
 backend/.venv/bin/python backend/pipeline/devtools/extract_pipeline_requirements.py --services-root backend --check
 python3 .github/scripts/sync_backend_python_requirements.py --repo-root . --services-root backend --check
 backend/.venv/bin/python -m pytest -q .github/scripts/tests   # 文档相对链接、交付和 CI 约定；改了文档也要跑
-cargo test -p retain-pdf-api -p retain-pdf-api-base -p retain-pdf-glossaries -p retain-pdf-platform -p retain-pdf-providers -p retain-pdf-runner -p retain-pdf-db -p retain-pdf-data -p retain-pdf-core -p retain-pdf-config
+cargo test -p retain-pdf-api -p retain-pdf-api-base -p retain-pdf-accounts -p retain-pdf-glossaries -p retain-pdf-platform -p retain-pdf-providers -p retain-pdf-runner -p retain-pdf-db -p retain-pdf-data -p retain-pdf-core -p retain-pdf-config
 ```
 
 - 改了 `backend/pipeline/retainpdf_pipeline/translate/`：再跑
@@ -64,7 +64,7 @@ cargo test -p retain-pdf-api -p retain-pdf-api-base -p retain-pdf-glossaries -p 
   `UPDATE_FILE_RESPONSES=1 cargo test -p retain-pdf-api --lib file_responses`、
   `UPDATE_SUBMISSIONS=1 cargo test -p retain-pdf-api --lib submissions`。重新生成后看 diff，只该有预期的改动。
 - 加路由、加 service 前先读 `check_architecture.py` 的规则：新的路由文件要进白名单（按完整 import 字符串匹配）；
-  新的路径参数要在 `services/accounts/access.rs` 的 `classify_param` 里归类，否则多用户模式下 403 "not cleared"。
+  新的路径参数要在账号包的 `backend/packages/retain-pdf-accounts/src/access.rs` 的 `classify_param` 里归类，否则多用户模式下 403 "not cleared"。
 - `/jobs` 按 9 类分：路由 `app/router/jobs/<类>.rs`、处理函数 `routes/jobs/<类>.rs`、业务逻辑
   `services/jobs/<类>/`，三处同名。新接口放进对应的类，不要再加 `/jobs/:job_id/<名字>` 这种顶层地址；
   旧地址紧跟在新地址下面、行尾标 `// 旧地址`。`services/jobs/` 根目录只放各类共用的（门面、依赖、返回视图）。
@@ -73,7 +73,7 @@ cargo test -p retain-pdf-api -p retain-pdf-api-base -p retain-pdf-glossaries -p 
 - `services/` 下只有 9 个领域目录（`accounts`、`providers`、`ingest`、`files`、`jobs`、`library`、`glossaries`、
   `ai`、`platform`），新模块放进其中一个。每个领域的 `mod.rs` 是唯一的门面：子模块私有，领域外要用的东西在
   `// 门面` 那一块 `pub(crate) use` 出来，只给测试用的标 `#[cfg(test)]`。
-- 拆成独立包的领域（`EXTRACTED_DOMAINS`，现在有术语表 `retain-pdf-glossaries`、平台 `retain-pdf-platform`、服务商 `retain-pdf-providers`）：代码在 `backend/packages/<包>`，`lib.rs` 是门面；
+- 拆成独立包的领域（`EXTRACTED_DOMAINS`，现在有账号 `retain-pdf-accounts`、术语表 `retain-pdf-glossaries`、平台 `retain-pdf-platform`、服务商 `retain-pdf-providers`）：代码在 `backend/packages/<包>`，`lib.rs` 是门面；
   `services/mod.rs` 里 `pub(crate) use <包> as <领域>;` 接上，`services/` 下不再留它的目录。
 - 领域之间只能往下依赖，允许的方向登记在 `ALLOWED_DOMAIN_DEPENDENCIES`，也不许有环；两边都要用的东西往下放。
   按编号读出任务（`job_loading`）和错误类型（`AppError`）在单独的包 `retain-pdf-api-base` 里，services 下面一层；

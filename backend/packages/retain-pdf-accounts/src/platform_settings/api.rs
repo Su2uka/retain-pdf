@@ -3,9 +3,9 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use crate::config::{DeepSeekRuntimeConfig, MineruRuntimeConfig, PaddleRuntimeConfig, PlatformModels};
-use crate::db::Db;
-use crate::error::AppError;
+use retain_pdf_core::config::{DeepSeekRuntimeConfig, MineruRuntimeConfig, PaddleRuntimeConfig, PlatformModels};
+use retain_pdf_data::db::Db;
+use retain_pdf_api_base::error::AppError;
 
 pub use super::{PlatformSettingsView, PlatformTestView, SavePlatformSettingsInput, TestPlatformInput};
 

@@ -13,8 +13,8 @@ use super::{
     db_error, hash_password, new_user_id, now, random_bytes, validate_new_password, validate_username,
     AccountsService, LoginOutcome,
 };
-use crate::db::{InviteRecord, InviteUnavailable, InviteUser, UsernameTaken};
-use crate::error::AppError;
+use retain_pdf_data::db::{InviteRecord, InviteUnavailable, InviteUser, UsernameTaken};
+use retain_pdf_api_base::error::AppError;
 
 /// 邀请码的字符：大写字母和数字，去掉容易看错的 0/O、1/I/L。
 const CODE_ALPHABET: &[u8] = b"ABCDEFGHJKMNPQRSTUVWXYZ23456789";

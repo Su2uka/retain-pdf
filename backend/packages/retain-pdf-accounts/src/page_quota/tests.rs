@@ -1,5 +1,5 @@
 use super::billable_pages;
-use crate::models::domain::{CreateJobInput, ResolvedJobSpec, WorkflowKind};
+use retain_pdf_core::models::domain::{CreateJobInput, ResolvedJobSpec, WorkflowKind};
 
 fn spec(workflow: WorkflowKind, edit: impl FnOnce(&mut CreateJobInput)) -> ResolvedJobSpec {
     let mut input = CreateJobInput { workflow, ..Default::default() };

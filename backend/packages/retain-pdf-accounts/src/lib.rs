@@ -16,9 +16,9 @@ use serde::Serialize;
 use serde_json::json;
 use sha2::{Digest, Sha256};
 
-use crate::config::{AccountsConfig, DeploymentMode, LOCAL_USERNAME, LOCAL_USER_ID};
-use crate::db::{Db, OwnedKind, UserRecord, UsernameTaken};
-use crate::error::AppError;
+use retain_pdf_core::config::{AccountsConfig, DeploymentMode, LOCAL_USERNAME, LOCAL_USER_ID};
+use retain_pdf_data::db::{Db, OwnedKind, UserRecord, UsernameTaken};
+use retain_pdf_api_base::error::AppError;
 
 mod access;
 mod admin;
@@ -116,6 +116,20 @@ impl Principal {
     }
 }
 
+/// 在处理函数里直接拿「当前用户」：认证中间件已经放进请求扩展里了；没有就是没登录。
+#[axum::async_trait]
+impl<S: Send + Sync> axum::extract::FromRequestParts<S> for Principal {
+    type Rejection = AppError;
+
+    async fn from_request_parts(parts: &mut axum::http::request::Parts, _state: &S) -> Result<Self, Self::Rejection> {
+        parts
+            .extensions
+            .get::<Principal>()
+            .cloned()
+            .ok_or_else(|| AppError::unauthorized("not signed in"))
+    }
+}
+
 fn not_found_for(kind: OwnedKind, id: &str) -> AppError {
     let label = match kind {
         OwnedKind::Upload => "upload",
@@ -186,7 +200,7 @@ pub fn admin_view(user: &UserRecord) -> AdminUserView {
 
 // ---------------------------------------------------------------- 密码、令牌
 
-pub(super) fn now() -> String {
+pub(crate) fn now() -> String {
     Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true)
 }
 
@@ -265,7 +279,7 @@ fn invalid_credentials() -> AppError {
     AppError::account(StatusCode::UNAUTHORIZED, "INVALID_CREDENTIALS", "用户名或密码不对", json!({}))
 }
 
-pub(super) fn db_error(error: anyhow::Error) -> AppError {
+pub(crate) fn db_error(error: anyhow::Error) -> AppError {
     AppError::internal(format!("account storage failed: {error:#}"))
 }
 
@@ -273,7 +287,7 @@ pub(super) fn db_error(error: anyhow::Error) -> AppError {
 
 #[derive(Clone)]
 pub struct AccountsService {
-    pub(super) db: Arc<Db>,
+    pub(crate) db: Arc<Db>,
     config: AccountsConfig,
 }
 
@@ -304,7 +318,7 @@ impl AccountsService {
         };
         // 合并阅读的「任务」编号由书的编号拼成，库里没有这一行：按那本书核。
         if kind == OwnedKind::Job {
-            if let Some(merged) = crate::storage_paths::MergedJobId::parse(id) {
+            if let Some(merged) = retain_pdf_core::storage_paths::MergedJobId::parse(id) {
                 return self.require_owned(principal, OwnedKind::Document, &merged.document_id);
             }
         }
@@ -407,7 +421,7 @@ impl AccountsService {
     }
 
     /// 密码已经核对过（或刚凭邀请码注册）：记一次登录，发会话令牌。
-    pub(super) fn start_session(&self, user: UserRecord) -> Result<LoginOutcome, AppError> {
+    pub(crate) fn start_session(&self, user: UserRecord) -> Result<LoginOutcome, AppError> {
         let now_at = now();
         self.db.record_login_success(&user.user_id, &now_at).map_err(db_error)?;
         let token = new_session_token();
@@ -448,7 +462,7 @@ impl AccountsService {
         self.require_user(user_id)
     }
 
-    pub(super) fn require_user(&self, user_id: &str) -> Result<UserRecord, AppError> {
+    pub(crate) fn require_user(&self, user_id: &str) -> Result<UserRecord, AppError> {
         self.db
             .get_user(user_id)
             .map_err(db_error)?
@@ -512,20 +526,19 @@ impl AccountsService {
 mod tests;
 
 // 门面：领域外只能用这里导出的东西，子模块都是私有的（见 BOUNDARIES.md「Domain Facades」）。
-pub(crate) use api::{
+pub use api::{
     json_references, query_references, AdminUserDetailView, AdminUserJobsView, AdminUserListView,
     InviteDetailView, InviteView, NewInvite, PageQuotaView, UserListQuery, UserSortKey,
     UserStatusFilter,
 };
-pub(crate) use page_quota::{release_for_job, reserve_for_job};
-pub(crate) use platform_settings::{PlatformSource, SavePlatformSettingsInput};
-pub(crate) use platform_settings::api::{
+pub use page_quota::{release_for_job, reserve_for_job};
+pub use platform_settings::{PlatformSource, SavePlatformSettingsInput};
+pub use platform_settings::api::{
     PlatformSettingsApiDeps, PlatformSettingsView, PlatformTestView, TestPlatformInput,
 };
-// 只给测试用的。
-#[cfg(test)]
-pub(crate) use access::{route_policy, RoutePolicy};
-#[cfg(test)]
-pub(crate) use platform_settings::{
+// 访问策略：rust_api 的接口清单、路由覆盖测试按它核对每一条路由。
+pub use access::{classify_param, route_policy, ParamClass, RoutePolicy};
+// 只给测试用的（建任务结果快照）。跨包用不了 `#[cfg(test)]`，只能照常导出。
+pub use platform_settings::{
     save as save_platform_settings, SaveOcrSettings, SaveTranslationSettings,
 };
