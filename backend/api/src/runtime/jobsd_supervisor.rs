@@ -16,25 +16,17 @@ use crate::process::{
     configure_child_process, mark_supervised_child, terminate_child_process_tree,
 };
 use crate::runtime::probe_client::build_probe_client;
+use retain_pdf_api_base::supervisor;
 
-pub const JOBSD_STATUS_DISABLED: u8 = 0;
-pub const JOBSD_STATUS_STARTING: u8 = 1;
-pub const JOBSD_STATUS_HEALTHY: u8 = 2;
-pub const JOBSD_STATUS_UNHEALTHY: u8 = 3;
+pub const JOBSD_STATUS_DISABLED: u8 = supervisor::SUPERVISOR_DISABLED;
+pub const JOBSD_STATUS_STARTING: u8 = supervisor::SUPERVISOR_STARTING;
+pub const JOBSD_STATUS_HEALTHY: u8 = supervisor::SUPERVISOR_HEALTHY;
+pub const JOBSD_STATUS_UNHEALTHY: u8 = supervisor::SUPERVISOR_UNHEALTHY;
 
 static JOBSD_STATUS: AtomicU8 = AtomicU8::new(JOBSD_STATUS_DISABLED);
 
 pub fn jobsd_status() -> u8 {
     JOBSD_STATUS.load(Ordering::Relaxed)
-}
-
-pub fn jobsd_status_label() -> &'static str {
-    match jobsd_status() {
-        JOBSD_STATUS_STARTING => "starting",
-        JOBSD_STATUS_HEALTHY => "healthy",
-        JOBSD_STATUS_UNHEALTHY => "unhealthy",
-        _ => "unsupervised",
-    }
 }
 
 fn set_status(status: u8) {

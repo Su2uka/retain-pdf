@@ -779,8 +779,9 @@ def check_jobs_dependency_boundaries(errors: list[str]) -> None:
 
 
 def check_runtime_ownership(errors: list[str]) -> None:
+    # 健康检查（平台包）不自己读监督器：routes/common/health.rs 建依赖时读好状态传进 HealthApiDeps。
     allowed = {Path("src/app/server.rs"), Path("src/app/state.rs"),
-               Path("src/services/platform/health_api.rs"), Path("src/services/ai/gateway.rs")}
+               Path("src/routes/common/health.rs"), Path("src/services/ai/gateway.rs")}
     for path in scan_rs_files(SRC_ROOT):
         relative = rel(path)
         text = route_source_without_tests(path)
@@ -1451,6 +1452,7 @@ ALLOWED_DOMAIN_DEPENDENCIES = {
 # 这些领域的代码不在 services/ 下，services/mod.rs 里 `pub(crate) use <包> as <领域>;` 接上。
 EXTRACTED_DOMAINS = {
     "glossaries": "retain-pdf-glossaries",
+    "platform": "retain-pdf-platform",
 }
 
 

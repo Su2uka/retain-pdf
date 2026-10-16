@@ -23,5 +23,6 @@ pub(crate) use retain_pdf_glossaries as glossaries;
 pub(crate) mod ingest;
 pub(crate) mod jobs;
 pub(crate) mod library;
-pub(crate) mod platform;
+// 平台已经拆成独立的包，这里接上。
+pub(crate) use retain_pdf_platform as platform;
 pub(crate) mod providers;

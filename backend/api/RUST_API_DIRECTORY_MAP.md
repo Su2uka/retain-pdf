@@ -28,7 +28,7 @@
 
 - `ai_supervisor.rs`、`jobsd_supervisor.rs`：子进程启动、探活、退避重启和退出回收。
 - `app/server.rs` 持有 shutdown 通道并等待监督任务结束；`app/state.rs` 给 AI 网关注入状态读取函数。
-- `services/platform/health_api.rs` 保留 HTTP 健康状态投影；任务控制接口 `services/jobs/runtime_gateway.rs` 不属于进程监督器，不随目录名搬迁。
+- 平台包 `retain-pdf-platform` 的 `health_api.rs` 保留 HTTP 健康状态投影（监督器状态由 `routes/common/health.rs` 读好传进去）；任务控制接口 `services/jobs/runtime_gateway.rs` 不属于进程监督器，不随目录名搬迁。
 - 当前状态仍由进程级原子量持有；本批不改变默认启动方式和 in-process/remote 语义。
 
 ### `src/app`
@@ -199,7 +199,7 @@ jobs 的依赖装配由 `app/jobs.rs` 完成；依赖定义在 `services/jobs/de
   上传接口入口。
 - [`../packages/retain-pdf-glossaries/src/api.rs`](../packages/retain-pdf-glossaries/src/api.rs)（术语表已拆成独立的包）
   术语表接口入口。
-- [`src/services/platform/fonts/api.rs`](src/services/platform/fonts/api.rs)
+- [`../packages/retain-pdf-platform/src/fonts/api.rs`](../packages/retain-pdf-platform/src/fonts/api.rs)（平台已拆成独立的包）
   字体查询入口，具体发现逻辑位于私有 `service.rs`。
 - [`src/services/providers/credentials/api.rs`](src/services/providers/credentials/api.rs)
   HTTP 凭据入口；jobs 所需凭据使用锁等能力由模块根部明确导出，不经 HTTP 入口。

@@ -1569,6 +1569,7 @@ dependencies = [
  "retain-pdf-core",
  "retain-pdf-data",
  "retain-pdf-glossaries",
+ "retain-pdf-platform",
  "retain-pdf-proc",
  "retain-pdf-runner",
  "rusqlite",
@@ -1691,6 +1692,22 @@ dependencies = [
  "retain-pdf-api-base",
  "retain-pdf-core",
  "retain-pdf-data",
+]
+
+[[package]]
+name = "retain-pdf-platform"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "retain-pdf-api-base",
+ "retain-pdf-core",
+ "retain-pdf-data",
+ "retain-pdf-db",
+ "serde",
+ "tokio",
+ "tracing",
+ "walkdir",
 ]
 
 [[package]]

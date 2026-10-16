@@ -105,7 +105,7 @@ mod tests { fn fixture() { let runtime: ProcessRuntimeDeps; } }
         self.assertEqual([], self.check_sources({
             "runtime/ai_supervisor.rs": "use crate::config::AppConfig;",
             "app/server.rs": "crate::runtime::ai_supervisor::spawn_ai_supervisor();",
-            "services/platform/health_api.rs": "crate::runtime::jobsd_supervisor::jobsd_status();",
+            "routes/common/health.rs": "crate::runtime::jobsd_supervisor::jobsd_status();",
         }, checks.check_runtime_ownership))
 
     def test_basic_job_queries_cannot_acquire_execution_dependencies(self):

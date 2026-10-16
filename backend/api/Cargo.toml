@@ -15,6 +15,7 @@ path = "src/main.rs"
 retain-pdf-api-base = { path = "../packages/retain-pdf-api-base" }
 retain-pdf-core = { path = "../packages/retain-core" }
 retain-pdf-glossaries = { path = "../packages/retain-pdf-glossaries" }
+retain-pdf-platform = { path = "../packages/retain-pdf-platform" }
 retain-pdf-data = { path = "../packages/retain-data" }
 retain-pdf-config = { path = "../packages/retain-config" }
 retain-pdf-runner = { path = "../packages/retain-jobs" }
