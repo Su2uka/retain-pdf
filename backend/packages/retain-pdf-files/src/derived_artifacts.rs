@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
-use crate::error::AppError;
-use crate::models::domain::JobSnapshot;
+use retain_pdf_api_base::error::AppError;
+use retain_pdf_core::models::domain::JobSnapshot;
 
 pub(crate) mod pdf;
 pub(crate) mod preview;
@@ -9,20 +9,20 @@ pub(crate) mod side_by_side;
 pub(crate) mod word;
 
 #[derive(Clone, Copy)]
-pub(crate) struct DerivedArtifactDeps<'a> {
-    pub(crate) python_bin: &'a str,
-    pub(crate) pipeline_command: &'a str,
+pub struct DerivedArtifactDeps<'a> {
+    pub python_bin: &'a str,
+    pub pipeline_command: &'a str,
 }
 
 impl<'a> DerivedArtifactDeps<'a> {
-    pub(crate) fn new(python_bin: &'a str) -> Self {
+    pub fn new(python_bin: &'a str) -> Self {
         Self {
             python_bin,
             pipeline_command: "retainpdf-pipeline",
         }
     }
 
-    pub(crate) fn with_pipeline_command(python_bin: &'a str, pipeline_command: &'a str) -> Self {
+    pub fn with_pipeline_command(python_bin: &'a str, pipeline_command: &'a str) -> Self {
         Self {
             python_bin,
             pipeline_command,
@@ -41,9 +41,9 @@ pub(crate) fn job_artifacts_dir(data_root: &Path, job: &JobSnapshot) -> Result<P
 /// 普通任务是 `data/jobs/<job_id>/artifacts`。合并结果的虚拟 id 不能这么拼 —— 会在
 /// `jobs/` 下凭空多出一个假任务目录 —— 它的缓存放进合并目录自己的 `artifacts/`：合并目录
 /// 按内容指纹命名、不可变，缓存天然跟着内容走。
-pub(crate) fn job_artifacts_dir_path(data_root: &Path, job: &JobSnapshot) -> Result<PathBuf, AppError> {
-    if crate::job_loading::is_virtual_job_id(&job.job_id) {
-        let root = crate::storage_paths::resolve_job_root(job, data_root)
+pub fn job_artifacts_dir_path(data_root: &Path, job: &JobSnapshot) -> Result<PathBuf, AppError> {
+    if retain_pdf_api_base::job_loading::is_virtual_job_id(&job.job_id) {
+        let root = retain_pdf_core::storage_paths::resolve_job_root(job, data_root)
             .ok_or_else(|| AppError::internal(format!("merged job has no root: {}", job.job_id)))?;
         return Ok(root.join("artifacts"));
     }
@@ -51,7 +51,7 @@ pub(crate) fn job_artifacts_dir_path(data_root: &Path, job: &JobSnapshot) -> Res
 }
 
 /// 文档级缓存目录（无 job 时封面/缩略图仍可落盘）。
-pub(crate) fn document_artifacts_dir(
+pub fn document_artifacts_dir(
     data_root: &Path,
     document_id: &str,
 ) -> Result<PathBuf, AppError> {

@@ -8,7 +8,7 @@ use std::{
 
 use tokio::sync::{watch, Semaphore};
 
-use crate::error::AppError;
+use retain_pdf_api_base::error::AppError;
 
 type Outcome = Result<FileDownload, AppError>;
 

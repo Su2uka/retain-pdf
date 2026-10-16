@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use crate::error::AppError;
-use crate::models::domain::JobSnapshot;
+use retain_pdf_api_base::error::AppError;
+use retain_pdf_core::models::domain::JobSnapshot;
 
 use super::{cached_output_is_fresh, job_artifacts_dir, DerivedArtifactDeps};
 
@@ -12,8 +12,8 @@ const BUILD_TIMEOUT: Duration = Duration::from_secs(600);
 pub(crate) const DEFAULT_BACKGROUND_DPI: u32 = 180;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct LayoutDocxOptions {
-    pub(crate) dpi: u32,
+pub struct LayoutDocxOptions {
+    pub dpi: u32,
 }
 
 impl Default for LayoutDocxOptions {
@@ -40,12 +40,12 @@ const RENDERER_VERSION: u32 = 2;
 
 impl LayoutDocxOptions {
     /// 缓存键的一部分：换了 DPI 或导出器版本就是另一份产物，不能命中上一份。
-    pub(crate) fn cache_suffix(&self) -> String {
+    pub fn cache_suffix(&self) -> String {
         format!("dpi{}-v{}", self.dpi, RENDERER_VERSION)
     }
 }
 
-pub(crate) fn ensure_layout_docx(
+pub fn ensure_layout_docx(
     deps: DerivedArtifactDeps<'_>,
     data_root: &Path,
     job: &JobSnapshot,

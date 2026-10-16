@@ -10,11 +10,11 @@
 //!   译文固定是简体中文（提示词里写死），`zh_` 是真的；
 //! - 排查用的文件（events.jsonl、paddle_result.json 等）不走这里，保持原名。
 
-use crate::db::Db;
-use crate::models::domain::JobSnapshot;
+use retain_pdf_data::db::Db;
+use retain_pdf_core::models::domain::JobSnapshot;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum DownloadKind {
+pub enum DownloadKind {
     Source,
     Translated,
     SideBySide,
@@ -60,7 +60,7 @@ impl DownloadKind {
 /// 也在 ext4 等文件系统 255 字节的文件名上限以内。按字节截、不切断字符。
 const MAX_TITLE_BYTES: usize = 180;
 
-pub(crate) fn download_file_name(title: &str, kind: DownloadKind) -> String {
+pub fn download_file_name(title: &str, kind: DownloadKind) -> String {
     let title = clean_title(title);
     match kind.prefix() {
         Some(prefix) => format!("{prefix}_{title}_{}.{}", kind.suffix(), kind.extension()),
@@ -105,10 +105,10 @@ fn clean_title(title: &str) -> String {
 
 /// 任务所属那本书的名字 —— 和书籍详情 / 书架卡片同一个规则（services::files::artifacts 的书名）。
 pub(crate) fn job_title(db: &Db, job: &JobSnapshot) -> String {
-    crate::services::files::artifacts::job_display_title(db, job)
+    crate::artifacts::job_display_title(db, job)
 }
 
-pub(crate) fn job_download_file_name(db: &Db, job: &JobSnapshot, kind: DownloadKind) -> String {
+pub fn job_download_file_name(db: &Db, job: &JobSnapshot, kind: DownloadKind) -> String {
     download_file_name(&job_title(db, job), kind)
 }
 

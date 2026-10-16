@@ -5,10 +5,10 @@ use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 use zip::write::FileOptions;
 
-use crate::db::Db;
-use crate::error::AppError;
-use crate::models::domain::{JobArtifactRecord, JobSnapshot};
-use crate::storage_paths::{
+use retain_pdf_data::db::Db;
+use retain_pdf_api_base::error::AppError;
+use retain_pdf_core::models::domain::{JobArtifactRecord, JobSnapshot};
+use retain_pdf_core::storage_paths::{
     resolve_output_pdf, resolve_registered_artifact_path, ARTIFACT_KEY_MARKDOWN_BUNDLE_ZIP,
     ARTIFACT_KEY_MARKDOWN_IMAGES_DIR, ARTIFACT_KEY_MARKDOWN_RAW, ARTIFACT_KEY_TRANSLATED_PDF,
 };

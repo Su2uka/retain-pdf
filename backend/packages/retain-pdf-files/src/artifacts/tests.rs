@@ -3,9 +3,9 @@ use std::path::Path;
 use serde_json::json;
 
 use super::build_artifacts_display;
-use crate::models::api::{build_artifact_links, ArtifactLinksView};
-use crate::models::domain::JobSnapshot;
-use crate::models::request::CreateJobInput;
+use retain_pdf_core::models::api::{build_artifact_links, ArtifactLinksView};
+use retain_pdf_core::models::domain::JobSnapshot;
+use retain_pdf_core::models::request::CreateJobInput;
 
 fn display_links() -> ArtifactLinksView {
     let job = JobSnapshot::new("artifact-display".into(), CreateJobInput::default(), vec![]);
