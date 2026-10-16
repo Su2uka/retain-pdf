@@ -102,7 +102,7 @@ Current internal boundary conventions:
   OCR-child chaining, and cancellation
 - `services/ai/api.rs` owns the Rust-to-AI HTTP proxy boundary;
   `services/library_api.rs` owns conversation persistence;
-  `services/public_document_operations_api.rs` owns the browser-safe operation
+  `services/ai/public_document_operations_api.rs` owns the browser-safe operation
   projection and CAS actions
 - `AppState` should stay at route entrypoints and runtime coordination layers; pure assembly helpers should prefer `&Db`, narrow config projections, and explicit arguments
 

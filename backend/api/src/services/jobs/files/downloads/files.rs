@@ -12,14 +12,14 @@ use std::path::PathBuf;
 use crate::error::AppError;
 use crate::models::api::{LayoutDocxQuery, PagePreviewQuery};
 use crate::models::domain::{JobSnapshot, JobStatusKind};
-use crate::services::artifacts::{
+use crate::services::files::artifacts::{
     artifact_is_direct_downloadable, build_bundle_for_job, build_markdown_bundle_for_job,
     resolve_registry_artifact,
 };
-use crate::services::derived_artifacts;
-use crate::services::derived_artifacts::preview::BookImageKind;
-use crate::services::derived_artifacts::word::LayoutDocxOptions;
-use crate::services::download_names::{job_download_file_name, DownloadKind};
+use crate::services::files::derived_artifacts;
+use crate::services::files::derived_artifacts::preview::BookImageKind;
+use crate::services::files::derived_artifacts::word::LayoutDocxOptions;
+use crate::services::files::download_names::{job_download_file_name, DownloadKind};
 use crate::storage_paths::{
     resolve_job_root, resolve_markdown_images_dir, resolve_markdown_path, resolve_output_pdf,
     resolve_source_pdf, ARTIFACT_KEY_MARKDOWN_BUNDLE_ZIP, ARTIFACT_KEY_MARKDOWN_RAW,

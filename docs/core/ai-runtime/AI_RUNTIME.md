@@ -13,7 +13,7 @@
 - [SESSION_AND_MEMORY.md](./SESSION_AND_MEMORY.md)：会话树、摘要与恢复
 - [SKILLS.md](./SKILLS.md)：尚在演进的 Skill 设计
 - [`backend/ai/README.md`](../../../backend/ai/README.md)：运行、配置和运维入口
-- [`backend/api/src/services/document_operations/README.md`](../../../backend/api/src/services/document_operations/README.md)：PDF operation 状态机
+- [`backend/api/src/services/ai/document_operations/README.md`](../../../backend/api/src/services/ai/document_operations/README.md)：PDF operation 状态机
 
 ## 1. 不可破坏的边界
 

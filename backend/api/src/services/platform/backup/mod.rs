@@ -20,7 +20,7 @@ use chrono::Utc;
 use crate::db::backup::{BackupInfo, RestoreRefusal, KIND_AUTO, KIND_BEFORE_RESTORE, KIND_MANUAL};
 use crate::db::Db;
 use crate::models::api::{BackupItemView, BackupRestoreView, BackupStatusView};
-use crate::services::sync::SyncService;
+use crate::services::platform::sync::SyncService;
 
 /// 多久看一次要不要自动备份。
 const CHECK_EVERY: Duration = Duration::from_secs(3600);

@@ -14,6 +14,7 @@ mod collections;
 mod conversations;
 mod documents;
 mod media;
+pub(crate) mod merge;
 mod metadata_suggestions;
 mod ocr;
 mod reading;

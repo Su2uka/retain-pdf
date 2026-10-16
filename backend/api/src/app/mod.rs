@@ -18,8 +18,8 @@ pub use state::{build_state, AppState};
 
 pub fn build_model_requests_api_from_state(
     state: &AppState,
-) -> crate::services::model_requests_api::ModelRequestsApi {
-    crate::services::model_requests_api::ModelRequestsApi::new(
+) -> crate::services::providers::model_requests_api::ModelRequestsApi {
+    crate::services::providers::model_requests_api::ModelRequestsApi::new(
         state.db.clone(),
         state.model_executor.clone(),
     )

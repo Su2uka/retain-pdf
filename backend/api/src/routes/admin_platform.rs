@@ -1,5 +1,5 @@
 //! 管理后台的平台设置（/api/v1/admin/platform*，只给管理员、只在多用户模式）：多用户模式下所有任务
-//! 统一用的翻译模型和 OCR。规则见 services::platform_settings，路由只经它的 api 门面。
+//! 统一用的翻译模型和 OCR。规则见 services::accounts::platform_settings，路由只经它的 api 门面。
 
 use axum::extract::State;
 use axum::Json;
@@ -11,7 +11,7 @@ use crate::routes::common::{
     build_accounts_route_deps, build_platform_settings_route_deps, ok_json, ApiJson,
 };
 use crate::services::accounts::api::Principal;
-use crate::services::platform_settings::api::{
+use crate::services::accounts::platform_settings::api::{
     PlatformSettingsView, PlatformTestView, SavePlatformSettingsInput, TestPlatformInput,
 };
 use crate::AppState;

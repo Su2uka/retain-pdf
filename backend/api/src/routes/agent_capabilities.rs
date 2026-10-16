@@ -4,7 +4,7 @@ use axum::Json;
 use crate::error::AppError;
 use crate::models::api::ApiResponse;
 use crate::routes::common::{build_agent_capability_route_deps, ApiJson};
-use crate::services::agent_capability_api::{
+use crate::services::ai::agent_capability_api::{
     issue_agent_capability, AgentCapabilityIssueInput, AgentCapabilityIssueView,
 };
 use crate::AppState;

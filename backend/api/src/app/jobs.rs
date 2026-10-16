@@ -80,7 +80,7 @@ pub(crate) fn build_jobs_facade_with_launcher(
         runtime_launcher,
     )
     .with_platform(state.config.accounts.mode.is_multi().then_some(
-        crate::services::platform_settings::PlatformSource {
+        crate::services::accounts::platform_settings::PlatformSource {
             db: state.db.as_ref(),
             env: &state.config.accounts.platform,
         },

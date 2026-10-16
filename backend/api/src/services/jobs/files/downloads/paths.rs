@@ -34,7 +34,7 @@ pub(super) fn job_artifacts_dir(
     deps: &DownloadJobsDeps<'_>,
     job: &JobSnapshot,
 ) -> Result<PathBuf, AppError> {
-    let output_dir = crate::services::derived_artifacts::job_artifacts_dir_path(deps.data_root, job)?;
+    let output_dir = crate::services::files::derived_artifacts::job_artifacts_dir_path(deps.data_root, job)?;
     std::fs::create_dir_all(&output_dir)?;
     Ok(output_dir)
 }

@@ -180,7 +180,7 @@ presentation stays in `src/services/jobs/query.rs`.
 There are no dependency cycles between top-level `services::<x>` modules, and
 `check_service_dependency_cycles` rejects any new one. `merge` (merged reading)
 depends on `derived_artifacts` and `jobs`, never the other way: building the
-merged directory lives in `services/merge/build.rs`, and reading a virtual job
+merged directory lives in `services/library/merge/build.rs`, and reading a virtual job
 lives in `job_loading`. `FileDownload` is defined in `download_generation`
 (re-exported by `services::jobs`).
 
@@ -210,13 +210,13 @@ service projections such as `library::book_projection`:
 They are intentionally outside `presentation` so library/book projections do not
 depend on job view internals.
 
-Shared artifact display belongs to `services/artifacts/presentation.rs`, exposed
-only through `services::artifacts::build_artifacts_display`. It consumes
+Shared artifact display belongs to `services/files/artifacts/presentation.rs`, exposed
+only through `services::files::artifacts::build_artifacts_display`. It consumes
 `ArtifactLinksView` without loading jobs, files, or database records. Both book
 and job views may depend on it; jobs must not import `book_projection` back.
 
 The book title / upload id / source file name rules live once in
-`services/artifacts/titles.rs` (`display_title`, `job_upload_id`,
+`services/files/artifacts/titles.rs` (`display_title`, `job_upload_id`,
 `source_file_name`); job and book projections call them instead of keeping
 their own copies.
 

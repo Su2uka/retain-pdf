@@ -9,7 +9,7 @@ use crate::routes::common::{
     build_document_operation_route_deps, request_base_url, ApiJson, ApiPath, ApiQuery,
 };
 use crate::routes::job_helpers::stream_file;
-use crate::services::public_document_operations_api::{
+use crate::services::ai::public_document_operations_api::{
     cancel_public_document_operation, commit_public_document_operation,
     get_public_document_operation, list_document_agent_versions, list_public_document_operations,
     public_document_operation_candidate_download, retry_public_document_operation,

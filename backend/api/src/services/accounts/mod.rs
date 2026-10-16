@@ -26,6 +26,7 @@ pub(crate) mod api;
 mod console;
 mod invites;
 pub mod page_quota;
+pub mod platform_settings;
 
 pub const SESSION_COOKIE: &str = "retain_session";
 const LOCK_AFTER_FAILURES: i64 = 5;

@@ -4,7 +4,7 @@
 use std::path::{Path, PathBuf};
 
 use crate::models::domain::{JobSnapshot, JobStatusKind, WorkflowKind};
-use crate::services::document_pages::translated_document_pages;
+use retain_core::document_pages::translated_document_pages;
 use crate::storage_paths::{
     resolve_data_path, resolve_normalized_document, resolve_ocr_markdown_images_dir,
     resolve_output_pdf,

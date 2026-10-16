@@ -8,7 +8,7 @@ use crate::db::Db;
 use crate::error::AppError;
 use crate::models::api::PagePreviewQuery;
 use crate::models::domain::{CreateJobInput, JobArtifacts, JobSnapshot};
-use crate::services::download_generation::DownloadGeneration;
+use crate::services::files::download_generation::DownloadGeneration;
 
 use crate::services::jobs::files::downloads::{Disposition, JobDownloads, JobFile, JobScope};
 

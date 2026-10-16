@@ -6,7 +6,7 @@ use crate::models::api::{
     OcrJobSummaryView,
 };
 use crate::models::domain::{JobFailureInfo, JobSnapshot, UploadRecord};
-use crate::services::artifacts::source_file_name;
+use crate::services::files::artifacts::source_file_name;
 use crate::storage_paths::resolve_source_pdf;
 
 pub(super) fn build_book_summary(
@@ -95,7 +95,7 @@ pub(super) fn job_failure_to_legacy_view(failure: &JobFailureInfo) -> JobFailure
 mod tests {
     use super::*;
     use crate::models::domain::{CreateJobInput, JobArtifacts};
-    use crate::services::artifacts::{display_title, source_url_file_name};
+    use crate::services::files::artifacts::{display_title, source_url_file_name};
 
     #[test]
     fn optional_upload_metadata_keeps_display_and_page_count_precedence() {

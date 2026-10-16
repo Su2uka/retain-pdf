@@ -54,9 +54,9 @@ mod tests { fn fixture() { let runtime: ProcessRuntimeDeps; } }
 
     def test_shared_artifact_display_cannot_reintroduce_business_cycles(self):
         self.assertEqual([], self.check_sources({
-            "services/jobs/presentation/detail_projection.rs": "use crate::services::artifacts::build_artifacts_display;",
-            "services/library/book_projection.rs": "use crate::services::artifacts::build_artifacts_display; use crate::services::jobs::job_readiness;",
-            "services/artifacts/presentation.rs": "use crate::models::api::{ArtifactLinksView, ArtifactDisplayItemView};",
+            "services/jobs/presentation/detail_projection.rs": "use crate::services::files::artifacts::build_artifacts_display;",
+            "services/library/book_projection.rs": "use crate::services::files::artifacts::build_artifacts_display; use crate::services::jobs::job_readiness;",
+            "services/files/artifacts/presentation.rs": "use crate::models::api::{ArtifactLinksView, ArtifactDisplayItemView};",
             "services/jobs/event_feed/batch_tests.rs": "use crate::services::library::book_projection;",
         }, checks.check_shared_artifact_presentation))
         for path in ("services/jobs/presentation/detail_projection.rs", "services/jobs/query/nested.rs"):
@@ -71,7 +71,7 @@ mod tests { fn fixture() { let runtime: ProcessRuntimeDeps; } }
             'let raw = payload["layoutParsingResults"];',
         ):
             self.assertTrue(self.check_sources(
-                {"services/artifacts/presentation/nested.rs": source},
+                {"services/files/artifacts/presentation/nested.rs": source},
                 checks.check_shared_artifact_presentation,
             ))
         self.assertTrue(self.check_sources(
@@ -81,14 +81,14 @@ mod tests { fn fixture() { let runtime: ProcessRuntimeDeps; } }
 
     def test_shared_artifact_guard_ignores_comments_and_literals(self):
         self.assertEqual([], self.check_sources({
-            "services/artifacts/presentation.rs": '// no jobs or Db access\nconst LABEL: &str = "library";',
+            "services/files/artifacts/presentation.rs": '// no jobs or Db access\nconst LABEL: &str = "library";',
             "services/jobs/query.rs": 'const NOTE: &str = r#"book_projection"#;',
         }, checks.check_shared_artifact_presentation))
 
     def test_jobs_dependencies_allow_explicit_query_resources(self):
         self.assertEqual([], self.check_sources({
             "services/jobs/deps/query.rs": "use crate::db::Db; use super::ReplayDeps; struct QueryJobsDeps;",
-            "services/jobs/deps/command.rs": "use crate::services::uploads::UploadService;",
+            "services/jobs/deps/command.rs": "use crate::services::ingest::uploads::UploadService;",
         }, checks.check_jobs_dependency_boundaries))
 
     def test_jobs_dependencies_reject_wide_state_and_command_in_query(self):
@@ -105,7 +105,7 @@ mod tests { fn fixture() { let runtime: ProcessRuntimeDeps; } }
         self.assertEqual([], self.check_sources({
             "runtime/ai_supervisor.rs": "use crate::config::AppConfig;",
             "app/server.rs": "crate::runtime::ai_supervisor::spawn_ai_supervisor();",
-            "services/health_api.rs": "crate::runtime::jobsd_supervisor::jobsd_status();",
+            "services/platform/health_api.rs": "crate::runtime::jobsd_supervisor::jobsd_status();",
         }, checks.check_runtime_ownership))
 
     def test_basic_job_queries_cannot_acquire_execution_dependencies(self):
@@ -258,12 +258,12 @@ mod tests { fn fixture() { let runtime: ProcessRuntimeDeps; } }
             for dependency in ("AppConfig", "AppState", "api_tests"):
                 with self.subTest(name=name, dependency=dependency):
                     errors = self.check_sources(
-                        {f"services/{name}": f"use crate::{dependency};"},
+                        {f"services/ai/{name}": f"use crate::{dependency};"},
                         checks.check_agent_calculation_dependencies,
                     )
                     self.assertTrue(any("narrow Db/data_root" in error for error in errors))
         self.assertEqual([], self.check_sources(
-            {"services/agent_calculations/service.rs": "use crate::db::Db; fn f(data_root: &Path) {}"},
+            {"services/ai/agent_calculations/service.rs": "use crate::db::Db; fn f(data_root: &Path) {}"},
             checks.check_agent_calculation_dependencies,
         ))
 
@@ -283,10 +283,10 @@ mod tests { fn fixture() { let runtime: ProcessRuntimeDeps; } }
 
     def test_public_surface_and_narrow_dependencies_are_allowed(self):
         self.assertEqual([], self.check_sources({
-            "services/uploads/service.rs": "use crate::db::Db; use super::capacity::UploadCapacity;",
-            "services/uploads/tests.rs": "let root = std::env::temp_dir();",
-            "app/state.rs": "use crate::services::uploads::{UploadService, UploadConfig};",
-            "services/jobs/lifecycle/creation/submit.rs": "use crate::services::uploads::UploadedPdfInput;",
+            "services/ingest/uploads/service.rs": "use crate::db::Db; use super::capacity::UploadCapacity;",
+            "services/ingest/uploads/tests.rs": "let root = std::env::temp_dir();",
+            "app/state.rs": "use crate::services::ingest::uploads::{UploadService, UploadConfig};",
+            "services/jobs/lifecycle/creation/submit.rs": "use crate::services::ingest::uploads::UploadedPdfInput;",
         }))
 
     def test_forbidden_dependencies_include_grouped_imports(self):
@@ -298,7 +298,7 @@ mod tests { fn fixture() { let runtime: ProcessRuntimeDeps; } }
             "fn f(state: &AppState) {}",
         ):
             with self.subTest(source=source):
-                errors = self.check_sources({"services/uploads/service.rs": source})
+                errors = self.check_sources({"services/ingest/uploads/service.rs": source})
                 self.assertTrue(any("must not depend" in error for error in errors))
 
     def test_environment_reads_are_rejected(self):
@@ -308,25 +308,25 @@ mod tests { fn fixture() { let runtime: ProcessRuntimeDeps; } }
             "let values = env::vars_os();",
         ):
             with self.subTest(source=source):
-                errors = self.check_sources({"services/uploads/service.rs": source})
+                errors = self.check_sources({"services/ingest/uploads/service.rs": source})
                 self.assertTrue(any("startup configuration" in error for error in errors))
 
     def test_http_error_mapping_stays_outside_uploads(self):
         errors = self.check_sources({
-            "services/uploads/error.rs": "use crate::error::AppError;",
+            "services/ingest/uploads/error.rs": "use crate::error::AppError;",
         })
         self.assertTrue(any("HTTP error mapping" in error for error in errors))
         self.assertEqual([], self.check_sources({
-            "error.rs": "use crate::services::uploads::UploadError; impl From<UploadError> for AppError {}",
-            "services/uploads/api.rs": "use crate::error::AppError;",
+            "error.rs": "use crate::services::ingest::uploads::UploadError; impl From<UploadError> for AppError {}",
+            "services/ingest/uploads/api.rs": "use crate::error::AppError;",
         }))
 
     def test_private_paths_are_rejected_from_callers_and_tests(self):
         for member in ("capacity", "pdf", "staging", "service", "error"):
             for source in (
-                f"use crate::services::uploads::{member}::Implementation;",
-                f"use crate::services::uploads::{{UploadService, {member}::Implementation}};",
-                f"crate::services::uploads::{member}::run();",
+                f"use crate::services::ingest::uploads::{member}::Implementation;",
+                f"use crate::services::ingest::uploads::{{UploadService, {member}::Implementation}};",
+                f"crate::services::ingest::uploads::{member}::run();",
             ):
                 with self.subTest(source=source):
                     errors = self.check_sources({"api_tests/uploads.rs": source})
@@ -334,29 +334,29 @@ mod tests { fn fixture() { let runtime: ProcessRuntimeDeps; } }
 
     def test_comments_do_not_create_dependencies(self):
         self.assertEqual([], self.check_sources({
-            "services/uploads/service.rs": "// AppState and jobs::X are forbidden\n/* env::var() */",
+            "services/ingest/uploads/service.rs": "// AppState and jobs::X are forbidden\n/* env::var() */",
             "app/state.rs": "// uploads::capacity::X is private",
         }))
 
     def test_upload_models_are_in_existing_facade_guard(self):
         errors = self.check_sources(
-            {"services/uploads/service.rs": "use crate::models::UploadRecord;"},
+            {"services/ingest/uploads/service.rs": "use crate::models::UploadRecord;"},
             checks.check_service_model_facade_boundaries,
         )
         self.assertTrue(any("models::api/domain/request" in error for error in errors))
         self.assertEqual([], self.check_sources(
-            {"services/uploads/service.rs": "use crate::models::domain::UploadRecord;"},
+            {"services/ingest/uploads/service.rs": "use crate::models::domain::UploadRecord;"},
             checks.check_service_model_facade_boundaries,
         ))
 
     def test_upload_route_deps_only_import_the_application_facade(self):
         self.assertEqual([], self.check_sources(
-            {"routes/common/uploads.rs": "use crate::services::uploads::api::UploadApiDeps;"},
+            {"routes/common/uploads.rs": "use crate::services::ingest::uploads::api::UploadApiDeps;"},
             checks.check_route_service_imports,
         ))
         for source in (
-            "use crate::services::uploads::UploadService;",
-            "use crate::services::uploads::api::UploadService;",
+            "use crate::services::ingest::uploads::UploadService;",
+            "use crate::services::ingest::uploads::api::UploadService;",
             "use crate::services::upload_api::UploadApiDeps;",
         ):
             with self.subTest(source=source):
@@ -421,8 +421,8 @@ mod tests { fn fixture() { let runtime: ProcessRuntimeDeps; } }
 
     def test_small_module_routes_use_api_not_implementation(self):
         for domain, route in (
-            ("fonts", "fonts"), ("credentials", "credentials"),
-            ("agent_calculations", "agent_calculations"), ("glossaries", "glossaries"),
+            ("platform::fonts", "fonts"), ("providers::credentials", "credentials"),
+            ("ai::agent_calculations", "agent_calculations"), ("glossaries", "glossaries"),
         ):
             with self.subTest(domain=domain):
                 self.assertEqual([], self.check_sources(
@@ -452,7 +452,7 @@ mod tests { fn fixture() { let runtime: ProcessRuntimeDeps; } }
                 ))
 
     def test_small_module_model_facades_are_scanned(self):
-        for domain in ("fonts", "credentials", "agent_calculations", "glossaries"):
+        for domain in ("platform/fonts", "providers/credentials", "ai/agent_calculations", "glossaries"):
             with self.subTest(domain=domain):
                 self.assertTrue(self.check_sources(
                     {f"services/{domain}/api.rs": "use crate::models::UploadRecord;"},
@@ -570,7 +570,7 @@ class ServiceDependencyCycleTests(unittest.TestCase):
 
     def test_one_way_dependencies_pass(self):
         self.assertEqual([], self.run_check({
-            "services/jobs/query.rs": "use crate::services::artifacts::build;",
+            "services/jobs/query.rs": "use crate::services::files::artifacts::build;",
             "services/library/mod.rs": "use crate::services::{jobs::JobQueries, artifacts};",
         }))
 
@@ -625,8 +625,8 @@ class ArtifactPathOwnershipTests(unittest.TestCase):
         self.assertEqual([], self.run_check({
             "services/jobs/files/downloads/files.rs": "fn f() { resolve_output_pdf(job, root); }",
             "services/jobs/reader/markdown.rs": "fn f() { resolve_markdown_path(job, root); }",
-            "services/derived_artifacts/word.rs": "use crate::storage_paths::resolve_source_pdf;",
-            "services/artifacts/bundle.rs": "fn f() { resolve_markdown_path(job, root); }",
+            "services/files/derived_artifacts/word.rs": "use crate::storage_paths::resolve_source_pdf;",
+            "services/files/artifacts/bundle.rs": "fn f() { resolve_markdown_path(job, root); }",
         }))
 
     def test_new_readers_are_rejected(self):
@@ -665,11 +665,11 @@ class JobLoadingLayerTests(unittest.TestCase):
     def test_storage_and_db_are_allowed(self):
         self.assertEqual([], self.run_check({
             "job_loading/mod.rs": "use crate::db::Db; use crate::storage_paths::MergedJobId;",
-            "job_loading/merged.rs": "// crate::services::merge writes the sidecar\nuse crate::error::AppError;",
+            "job_loading/merged.rs": "// crate::services::library::merge writes the sidecar\nuse crate::error::AppError;",
         }))
 
     def test_services_routes_and_app_state_are_rejected(self):
-        for source in ("use crate::services::merge::build;", "use crate::routes::common;",
+        for source in ("use crate::services::library::merge::build;", "use crate::routes::common;",
                        "fn f(state: &AppState) {}"):
             with self.subTest(source=source):
                 errors = self.run_check({"job_loading/merged.rs": source})
@@ -683,8 +683,8 @@ class ServiceCycleTests(unittest.TestCase):
     def test_no_cycle_is_grandfathered_any_more(self):
         self.assertEqual(set(), checks.KNOWN_SERVICE_CYCLE_EDGES)
         errors = self.check_sources({
-            "services/download_generation.rs": "use super::jobs::FileDownload;",
-            "services/jobs/files/downloads.rs": "use crate::services::download_generation::DownloadGeneration;",
+            "services/files/download_generation.rs": "use crate::services::jobs::FileDownload;",
+            "services/jobs/files/downloads.rs": "use crate::services::files::download_generation::DownloadGeneration;",
         }, checks.check_service_dependency_cycles)
         self.assertEqual(2, len(errors), errors)
         self.assertTrue(all("closes a dependency cycle" in error for error in errors), errors)

@@ -47,7 +47,7 @@ pub struct AccountsConfig {
 }
 
 /// 平台的模型与 OCR 设置。密钥不放这里，只写凭据编号。来源：管理后台保存过的（存在库里，见
-/// rust_api 的 services::platform_settings）优先，否则是下面这些环境变量。
+/// rust_api 的 services::accounts::platform_settings）优先，否则是下面这些环境变量。
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct PlatformModels {
     pub translation_model: String,

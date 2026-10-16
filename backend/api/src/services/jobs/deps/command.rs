@@ -2,7 +2,7 @@ use crate::config::{JobRunnerConfig, JobSnapshotRuntimeConfig};
 use crate::db::Db;
 use crate::services::jobs::lifecycle::launcher::JobLaunchDeps;
 use crate::services::jobs::runtime_gateway::{JobRuntime, RuntimeControl};
-use crate::services::uploads::UploadService;
+use crate::services::ingest::uploads::UploadService;
 use std::path::Path;
 
 #[derive(Clone)]

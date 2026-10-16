@@ -4,7 +4,7 @@ use axum::Json;
 use crate::error::AppError;
 use crate::models::api::ApiResponse;
 use crate::routes::common::{build_document_operation_route_deps, ApiJson, ApiPath};
-use crate::services::document_operation_api::{
+use crate::services::ai::document_operation_api::{
     authorize_create_scope, authorize_operation_scope, cancel_document_operation,
     commit_document_operation, create_document_operation, get_document_operation_view,
     run_document_operation, AgentCapabilityClaims, CancelDocumentOperationInput,

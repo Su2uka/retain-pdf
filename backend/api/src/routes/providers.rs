@@ -5,7 +5,7 @@ use crate::error::AppError;
 use crate::models::api::ApiResponse;
 use crate::ocr_provider::{provider_public_definitions, OcrProviderPublicDefinition};
 use crate::routes::common::{build_provider_route_deps, ApiJson};
-use crate::services::provider_api::{
+use crate::services::providers::provider_api::{
     self, DeepSeekBalanceView, DeepSeekTokenValidationRequest, MineruTokenValidationRequest,
     MineruTokenValidationView, PaddleTokenValidationRequest,
 };

@@ -102,7 +102,7 @@ impl Fixture {
     }
 
     fn credential_count(&self) -> usize {
-        crate::services::credentials::api::list_credentials_with_values(&self.state.config.data_root, false)
+        crate::services::providers::credentials::api::list_credentials_with_values(&self.state.config.data_root, false)
             .map(|view| view.credentials.len())
             .unwrap_or(0)
     }
@@ -554,14 +554,14 @@ async fn single_user_cases(recorder: &mut Recorder) {
 async fn multi_user_cases(recorder: &mut Recorder) {
     let fixture = Fixture::new("multi", true);
     let state = &fixture.state;
-    crate::services::platform_settings::save(
+    crate::services::accounts::platform_settings::save(
         &state.db,
         &state.config.data_root,
         &state.config.accounts.platform,
         &state.config.provider_runtime.deepseek,
         "u_root",
-        crate::services::platform_settings::SavePlatformSettingsInput {
-            translation: crate::services::platform_settings::SaveTranslationSettings {
+        crate::services::accounts::platform_settings::SavePlatformSettingsInput {
+            translation: crate::services::accounts::platform_settings::SaveTranslationSettings {
                 model: "platform-model".into(),
                 base_url: "https://platform.example/v1".into(),
                 api_protocol: "openai".into(),
@@ -569,7 +569,7 @@ async fn multi_user_cases(recorder: &mut Recorder) {
                 max_workers: 3,
                 api_key: Some("sk-platform-key-1234".into()),
             },
-            ocr: crate::services::platform_settings::SaveOcrSettings {
+            ocr: crate::services::accounts::platform_settings::SaveOcrSettings {
                 provider: "mineru".into(),
                 token: Some("mineru-platform-token".into()),
             },

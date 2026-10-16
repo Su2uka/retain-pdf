@@ -130,7 +130,7 @@ pub fn run_cleanup_once(settings: &RetentionSettings, db: &Db) -> Result<()> {
 }
 
 /// `stored_path` is `uploads_dir/<upload_id>/<filename>` (see
-/// `services/uploads/staging.rs`), so its parent is
+/// `services/ingest/uploads/staging.rs`), so its parent is
 /// exactly the per-upload directory to remove.
 fn remove_upload_dir(stored_path: &str) -> bool {
     let Some(dir) = Path::new(stored_path).parent() else {

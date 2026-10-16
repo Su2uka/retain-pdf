@@ -7,7 +7,7 @@ use crate::auth::Principal;
 use crate::error::AppError;
 use crate::models::api::ApiResponse;
 use crate::routes::common::{build_usage_route_deps, ok_json, ApiPath};
-use crate::services::usage::api::{all_usage_view, document_usage_view, UsageSummaryView};
+use crate::services::jobs::reports::usage::api::{all_usage_view, document_usage_view, UsageSummaryView};
 use crate::AppState;
 
 async fn blocking<T: Send + 'static>(

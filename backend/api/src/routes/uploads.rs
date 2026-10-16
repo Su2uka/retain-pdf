@@ -9,7 +9,7 @@ use crate::routes::common::{
     build_upload_route_deps, ok_json, read_multipart_field_limited, read_multipart_text_limited,
     safe_multipart_error, ApiMultipart, UploadRouteDeps,
 };
-use crate::services::uploads::api::{store_upload as store_upload_service, store_upload_view};
+use crate::services::ingest::uploads::api::{store_upload as store_upload_service, store_upload_view};
 use crate::AppState;
 
 pub async fn upload_pdf(

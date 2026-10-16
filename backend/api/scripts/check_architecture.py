@@ -137,37 +137,37 @@ ROUTE_STATE_RESOURCE_ALLOWLIST = {
 
 ROUTE_SERVICE_IMPORT_ALLOWLIST = {
     Path("src/routes/model_requests.rs"): (
-        "crate::services::model_requests_api::",
+        "crate::services::providers::model_requests_api::",
     ),
     Path("src/routes/agent_calculations.rs"): (
-        "crate::services::agent_calculations::api::",
+        "crate::services::ai::agent_calculations::api::",
     ),
     Path("src/routes/glossaries.rs"): (
         "crate::services::glossaries::api::",
     ),
     Path("src/routes/sync.rs"): (
-        "crate::services::sync::api::",
+        "crate::services::platform::sync::api::",
     ),
     Path("src/routes/backups.rs"): (
-        "crate::services::backup::api::",
+        "crate::services::platform::backup::api::",
     ),
     Path("src/routes/health.rs"): (
-        "crate::services::health_api::",
+        "crate::services::platform::health_api::",
     ),
     Path("src/routes/credentials.rs"): (
-        "crate::services::credentials::api::",
+        "crate::services::providers::credentials::api::",
     ),
     Path("src/routes/document_operations.rs"): (
-        "crate::services::document_operation_api::",
+        "crate::services::ai::document_operation_api::",
     ),
     Path("src/routes/agent_runtime_sessions.rs"): (
-        "crate::services::agent_runtime_session_api::",
+        "crate::services::ai::agent_runtime_session_api::",
     ),
     Path("src/routes/agent_capabilities.rs"): (
-        "crate::services::agent_capability_api::",
+        "crate::services::ai::agent_capability_api::",
     ),
     Path("src/routes/public_document_operations.rs"): (
-        "crate::services::public_document_operations_api::",
+        "crate::services::ai::public_document_operations_api::",
     ),
     Path("src/routes/library.rs"): (
         "crate::services::library::api::",
@@ -186,31 +186,31 @@ ROUTE_SERVICE_IMPORT_ALLOWLIST = {
         "crate::services::library::api::",
     ),
     Path("src/routes/uploads.rs"): (
-        "crate::services::uploads::api::",
+        "crate::services::ingest::uploads::api::",
     ),
     Path("src/routes/common/uploads.rs"): (
-        "crate::services::uploads::api::UploadApiDeps",
+        "crate::services::ingest::uploads::api::UploadApiDeps",
     ),
     Path("src/routes/common/agent_capabilities.rs"): (
-        "crate::services::agent_capabilities::AgentCapabilityAuthority",
+        "crate::services::ai::agent_capabilities::AgentCapabilityAuthority",
     ),
     Path("src/routes/common/agent_runtime_sessions.rs"): (
-        "crate::services::agent_runtime_session_api::AgentRuntimeSessionApiDeps",
+        "crate::services::ai::agent_runtime_session_api::AgentRuntimeSessionApiDeps",
     ),
     Path("src/routes/common/agent_calculations.rs"): (
-        "crate::services::agent_calculations::api::AgentCalculationApiDeps",
+        "crate::services::ai::agent_calculations::api::AgentCalculationApiDeps",
     ),
     Path("src/routes/common/glossaries.rs"): (
         "crate::services::glossaries::api::GlossaryApiDeps",
     ),
     Path("src/routes/common/sync.rs"): (
-        "crate::services::sync::api::SyncApiDeps",
+        "crate::services::platform::sync::api::SyncApiDeps",
     ),
     Path("src/routes/common/backups.rs"): (
-        "crate::services::backup::api::BackupApiDeps",
+        "crate::services::platform::backup::api::BackupApiDeps",
     ),
     Path("src/routes/common/health.rs"): (
-        "crate::services::health_api::HealthApiDeps",
+        "crate::services::platform::health_api::HealthApiDeps",
     ),
     Path("src/routes/common/jobs.rs"): (
         "crate::app::{build_jobs_facade_from_state, AppState}",
@@ -239,24 +239,24 @@ ROUTE_SERVICE_IMPORT_ALLOWLIST = {
         "crate::services::jobs::{FileDownload, MarkdownDownload}",
     ),
     Path("src/routes/providers.rs"): (
-        "crate::services::provider_api::",
+        "crate::services::providers::provider_api::",
     ),
     Path("src/routes/ai_proxy.rs"): (
         "crate::services::ai::api",
     ),
     Path("src/routes/fonts.rs"): (
-        "crate::services::fonts::api::",
+        "crate::services::platform::fonts::api::",
     ),
     Path("src/routes/common/providers.rs"): (
-        "crate::services::provider_api::ProviderApiDeps",
+        "crate::services::providers::provider_api::ProviderApiDeps",
     ),
     Path("src/routes/common/fonts.rs"): (
-        "crate::services::fonts::api::FontApiDeps",
+        "crate::services::platform::fonts::api::FontApiDeps",
     ),
     # 报告：质量报告、单个任务的模型用量各有自己的服务。
     Path("src/routes/jobs/reports.rs"): (
-        "crate::services::quality::api::",
-        "crate::services::usage::api::",
+        "crate::services::jobs::reports::quality::api::",
+        "crate::services::jobs::reports::usage::api::",
     ),
     Path("src/routes/jobs/data.rs"): (
         "crate::services::jobs::data::api::",
@@ -265,13 +265,13 @@ ROUTE_SERVICE_IMPORT_ALLOWLIST = {
         "crate::services::jobs::data::api::JobDataApiDeps",
     ),
     Path("src/routes/token_usage.rs"): (
-        "crate::services::usage::api::",
+        "crate::services::jobs::reports::usage::api::",
     ),
     Path("src/routes/common/quality.rs"): (
-        "crate::services::quality::api::QualityApiDeps",
+        "crate::services::jobs::reports::quality::api::QualityApiDeps",
     ),
     Path("src/routes/common/usage.rs"): (
-        "crate::services::usage::api::UsageApiDeps",
+        "crate::services::jobs::reports::usage::api::UsageApiDeps",
     ),
     Path("src/routes/accounts.rs"): (
         "crate::services::accounts::api::",
@@ -284,10 +284,10 @@ ROUTE_SERVICE_IMPORT_ALLOWLIST = {
     ),
     Path("src/routes/admin_platform.rs"): (
         "crate::services::accounts::api::",
-        "crate::services::platform_settings::api::",
+        "crate::services::accounts::platform_settings::api::",
     ),
     Path("src/routes/common/platform_settings.rs"): (
-        "crate::services::platform_settings::api::PlatformSettingsApiDeps",
+        "crate::services::accounts::platform_settings::api::PlatformSettingsApiDeps",
     ),
     Path("src/routes/common/accounts.rs"): (
         "crate::services::accounts::api::AccountsService",
@@ -298,11 +298,11 @@ ROUTE_QUALIFIED_SERVICE_ACCESS_ALLOWLIST: set[Path] = set()
 
 ARTIFACT_BOUNDARY_FILES = {
     Path("src/storage_paths.rs"),
-    Path("src/services/artifacts/mod.rs"),
-    Path("src/services/artifacts/bundle.rs"),
-    Path("src/services/artifacts/registry.rs"),
-    Path("src/services/artifacts/response.rs"),
-    Path("src/services/artifacts/presentation.rs"),
+    Path("src/services/files/artifacts/mod.rs"),
+    Path("src/services/files/artifacts/bundle.rs"),
+    Path("src/services/files/artifacts/registry.rs"),
+    Path("src/services/files/artifacts/response.rs"),
+    Path("src/services/files/artifacts/presentation.rs"),
     Path("src/routes/jobs/files.rs"),
 }
 
@@ -618,9 +618,9 @@ def check_route_model_boundary(errors: list[str]) -> None:
 
 def check_service_model_facade_boundaries(errors: list[str]) -> None:
     scoped_roots = (
-        SRC_ROOT / "services" / "artifacts",
-        SRC_ROOT / "services" / "derived_artifacts",
-        SRC_ROOT / "services" / "derived_artifacts.rs",
+        SRC_ROOT / "services" / "files" / "artifacts",
+        SRC_ROOT / "services" / "files" / "derived_artifacts",
+        SRC_ROOT / "services" / "files" / "derived_artifacts.rs",
         abs_src(Path("src/job_events")),
         abs_src(Path("src/job_events.rs")),
         abs_src(Path("src/db")),
@@ -671,9 +671,9 @@ def check_service_model_facade_boundaries(errors: list[str]) -> None:
         abs_src(Path("src/job_failure_support.rs")),
         abs_src(Path("src/job_failure_structured.rs")),
         SRC_ROOT / "services" / "glossaries",
-        SRC_ROOT / "services" / "fonts",
-        SRC_ROOT / "services" / "credentials",
-        SRC_ROOT / "services" / "agent_calculations",
+        SRC_ROOT / "services" / "platform" / "fonts",
+        SRC_ROOT / "services" / "providers" / "credentials",
+        SRC_ROOT / "services" / "ai" / "agent_calculations",
         SRC_ROOT / "services" / "jobs" / "lifecycle" / "snapshot_factory.rs",
         SRC_ROOT / "services" / "jobs" / "lifecycle" / "validation.rs",
         SRC_ROOT / "services" / "jobs" / "lifecycle" / "launcher.rs",
@@ -713,9 +713,9 @@ def check_service_model_facade_boundaries(errors: list[str]) -> None:
         SRC_ROOT / "services" / "jobs" / "support.rs",
         SRC_ROOT / "services" / "library",
         SRC_ROOT / "services" / "library" / "api.rs",
-        SRC_ROOT / "services" / "provider_probe.rs",
+        SRC_ROOT / "services" / "providers" / "provider_probe.rs",
         SRC_ROOT / "services" / "ai",
-        SRC_ROOT / "services" / "uploads",
+        SRC_ROOT / "services" / "ingest" / "uploads",
         SRC_ROOT / "services" / "library" / "book_projection",
         SRC_ROOT / "services" / "library" / "book_projection.rs",
     )
@@ -780,7 +780,7 @@ def check_jobs_dependency_boundaries(errors: list[str]) -> None:
 
 def check_runtime_ownership(errors: list[str]) -> None:
     allowed = {Path("src/app/server.rs"), Path("src/app/state.rs"),
-               Path("src/services/health_api.rs"), Path("src/services/ai/gateway.rs")}
+               Path("src/services/platform/health_api.rs"), Path("src/services/ai/gateway.rs")}
     for path in scan_rs_files(SRC_ROOT):
         relative = rel(path)
         text = route_source_without_tests(path)
@@ -797,7 +797,10 @@ def check_runtime_ownership(errors: list[str]) -> None:
 
 
 def check_ai_gateway_dependencies(errors: list[str]) -> None:
-    for path in scan_rs_files(SRC_ROOT / "services" / "ai"):
+    # 只管 AI 网关本身；同目录下的 agent_*、document_operations 是挪进 ai 领域的别的模块。
+    for path in (SRC_ROOT / "services" / "ai" / name for name in ("mod.rs", "api.rs", "gateway.rs")):
+        if not path.exists():
+            continue
         text = route_source_without_tests(path)
         text = re.sub(r"/\*.*?\*/|//[^\n]*", "", text, flags=re.DOTALL)
         if re.search(r"\b(?:from_env|ai_service_status)\s*\(|\benv\s*::\s*var\s*\(|\bLazy\b", text):
@@ -813,11 +816,18 @@ def check_business_private_modules(errors: list[str]) -> None:
         "agent_calculations": {"service"},
         "glossaries": {"csv", "entries", "records"},
     }
+    homes = {
+        "ai": Path("ai"),
+        "fonts": Path("platform/fonts"),
+        "credentials": Path("providers/credentials"),
+        "agent_calculations": Path("ai/agent_calculations"),
+        "glossaries": Path("glossaries"),
+    }
     for path in scan_rs_files(SRC_ROOT):
         text = path.read_text(encoding="utf-8")
         text = re.sub(r"/\*.*?\*/|//[^\n]*", "", text, flags=re.DOTALL)
         for domain, members in private.items():
-            if path.is_relative_to(SRC_ROOT / "services" / domain):
+            if path.is_relative_to(SRC_ROOT / "services" / homes[domain]):
                 continue
             for suffix in re.findall(rf"\b{domain}\s*::\s*([^;]+)", text):
                 first = re.match(r"(\w+)", suffix)
@@ -829,7 +839,7 @@ def check_business_private_modules(errors: list[str]) -> None:
 
 def check_agent_calculation_dependencies(errors: list[str]) -> None:
     """Calculation storage needs Db and data_root, not application configuration."""
-    for path in scan_rs_files(SRC_ROOT / "services" / "agent_calculations"):
+    for path in scan_rs_files(SRC_ROOT / "services" / "ai" / "agent_calculations"):
         text = path.read_text(encoding="utf-8")
         text = re.sub(r"/\*.*?\*/|//[^\n]*", "", text, flags=re.DOTALL)
         if re.search(r"\b(?:AppConfig|AppState|api_tests)\b", text):
@@ -840,7 +850,7 @@ def check_agent_calculation_dependencies(errors: list[str]) -> None:
 
 def check_upload_boundaries(errors: list[str]) -> None:
     """Uploads is an app-owned capability, not a jobs/runtime implementation."""
-    upload_root = SRC_ROOT / "services" / "uploads"
+    upload_root = SRC_ROOT / "services" / "ingest" / "uploads"
     private_modules = {"capacity", "pdf", "staging", "service", "error"}
     forbidden_dependencies = {"jobs", "routes", "runtime_gateway", "job_runner"}
     for path in scan_rs_files(SRC_ROOT):
@@ -939,9 +949,9 @@ def check_shared_artifact_presentation(errors: list[str]) -> None:
         if is_rust_module_path(relative, Path("src/services/jobs")):
             if re.search(r"\bbook_projection\b", text):
                 errors.append(
-                    f"{relative}: jobs must not depend on book_projection; shared display belongs in services::artifacts"
+                    f"{relative}: jobs must not depend on book_projection; shared display belongs in services::files::artifacts"
                 )
-        if is_rust_module_path(relative, Path("src/services/artifacts/presentation")):
+        if is_rust_module_path(relative, Path("src/services/files/artifacts/presentation")):
             if re.search(
                 r"\b(?:jobs|book_projection|library|AppState|AppConfig|JobSnapshot|Db|storage_paths|ocr_provider|fs|File|OpenOptions|Command|process|reqwest)\b",
                 text,
@@ -953,7 +963,7 @@ def check_shared_artifact_presentation(errors: list[str]) -> None:
                 if token in route_source_without_tests(path):
                     errors.append(f"{relative}: shared artifact presentation must not interpret provider raw token '{token}'")
     if (SRC_ROOT / "services" / "library" / "book_projection" / "artifacts.rs").exists():
-        errors.append("services/library/book_projection/artifacts.rs: shared artifact display belongs in services/artifacts/presentation.rs")
+        errors.append("services/library/book_projection/artifacts.rs: shared artifact display belongs in services/files/artifacts/presentation.rs")
 
 
 def check_runtime_deps_module_boundary(errors: list[str]) -> None:
@@ -1045,18 +1055,18 @@ def check_downloads_do_not_generate_artifacts(errors: list[str]) -> None:
         text = path.read_text(encoding="utf-8")
         if "std::process::Command" in text or "Command::new(" in text:
             errors.append(
-                f"{rel_path}: downloads layer must not spawn artifact generators; use services::derived_artifacts"
+                f"{rel_path}: downloads layer must not spawn artifact generators; use services::files::derived_artifacts"
             )
         if "import fitz" in text or "qpdf" in text:
             errors.append(
-                f"{rel_path}: downloads layer must not embed PDF generation scripts; use services::derived_artifacts"
+                f"{rel_path}: downloads layer must not embed PDF generation scripts; use services::files::derived_artifacts"
             )
 
     downloads_facade = SRC_ROOT / "services" / "jobs" / "files" / "downloads.rs"
     text = route_source_without_tests(downloads_facade)
     for token in (
         "crate::storage_paths::",
-        "crate::services::derived_artifacts",
+        "crate::services::files::derived_artifacts",
         "load_supported_job",
         "resolve_source_pdf",
         "resolve_output_pdf",
@@ -1307,9 +1317,9 @@ def check_ocr_flow_boundaries(errors: list[str]) -> None:
             errors.append(
                 f"{rel_path}: ocr_flow must not depend on jobs presentation layer"
             )
-        if "crate::services::artifacts::" in text:
+        if "crate::services::files::artifacts::" in text:
             errors.append(
-                f"{rel_path}: ocr_flow must not depend directly on services::artifacts facade"
+                f"{rel_path}: ocr_flow must not depend directly on services::files::artifacts facade"
             )
         if "crate::job_runner::translation_flow" in text or "crate::job_runner::render_flow" in text:
             errors.append(
@@ -1561,8 +1571,8 @@ ARTIFACT_PATH_RESOLVER = re.compile(
     r"|markdown_bundle_zip)\b"
 )
 ARTIFACT_PATH_OWNERS = (
-    Path("src/services/artifacts"),
-    Path("src/services/derived_artifacts"),
+    Path("src/services/files/artifacts"),
+    Path("src/services/files/derived_artifacts"),
     Path("src/services/jobs/files/downloads"),
     # 原文 Markdown 的出口，原来在 downloads 里，按类挪到了阅读。
     Path("src/services/jobs/reader/markdown.rs"),
@@ -1583,7 +1593,7 @@ KNOWN_ARTIFACT_PATH_READERS = {
     Path("src/services/jobs/translations/revision.rs"),
     Path("src/services/library/book_projection.rs"),
     Path("src/services/library/metadata_suggestions.rs"),
-    Path("src/services/merge/sources.rs"),
+    Path("src/services/library/merge/sources.rs"),
 }
 
 
@@ -1601,7 +1611,7 @@ def check_artifact_path_ownership(errors: list[str]) -> None:
     for relative in sorted(readers - KNOWN_ARTIFACT_PATH_READERS):
         errors.append(
             f"{relative}: builds artifact paths itself (storage_paths::resolve_*); "
-            "read job files through services::jobs downloads (`open`) or services::artifacts instead"
+            "read job files through services::jobs downloads (`open`) or services::files::artifacts instead"
         )
     for relative in sorted(KNOWN_ARTIFACT_PATH_READERS - readers):
         errors.append(

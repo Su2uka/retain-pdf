@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use crate::db::Db;
-use crate::services::download_generation::DownloadGeneration;
+use crate::services::files::download_generation::DownloadGeneration;
 
 pub(in crate::services::jobs) struct DownloadJobsDeps<'a> {
     pub(in crate::services::jobs) db: &'a Db,

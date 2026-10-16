@@ -12,9 +12,9 @@ use crate::db::Db;
 use crate::error::AppError;
 use crate::models::api::{to_absolute_url, JobFilesQuery};
 use crate::models::api::DocumentRecord;
-use crate::services::derived_artifacts;
-use crate::services::derived_artifacts::preview::BookImageKind;
-use crate::services::download_generation::DownloadGeneration;
+use crate::services::files::derived_artifacts;
+use crate::services::files::derived_artifacts::preview::BookImageKind;
+use crate::services::files::download_generation::DownloadGeneration;
 use crate::services::jobs::{Disposition, FileDownload};
 
 use super::LibraryDeps;
@@ -114,9 +114,9 @@ fn download_title(document: &DocumentRecord) -> String {
         .find(|value| !value.is_empty())
         .unwrap_or(document.document_id.as_str())
         .to_string();
-    crate::services::download_names::download_file_name(
+    crate::services::files::download_names::download_file_name(
         &title,
-        crate::services::download_names::DownloadKind::Source,
+        crate::services::files::download_names::DownloadKind::Source,
     )
 }
 

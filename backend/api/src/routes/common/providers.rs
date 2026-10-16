@@ -1,5 +1,5 @@
 use crate::app::AppState;
-use crate::services::provider_api::ProviderApiDeps;
+use crate::services::providers::provider_api::ProviderApiDeps;
 
 pub fn build_provider_route_deps(state: &AppState) -> ProviderApiDeps {
     ProviderApiDeps::new(

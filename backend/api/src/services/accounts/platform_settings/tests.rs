@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use super::*;
 use crate::config::PlatformModels;
 use crate::error::AppError;
-use crate::services::credentials::api::{create_credential, CreateCredentialInput};
+use crate::services::providers::credentials::api::{create_credential, CreateCredentialInput};
 
 struct Env {
     db: Db,

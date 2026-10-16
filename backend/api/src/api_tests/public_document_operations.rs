@@ -11,7 +11,7 @@ use crate::api_tests::jobs_common::{minimal_pdf_bytes, read_json, test_state};
 use crate::app::build_app;
 use crate::db::DocumentVersionRecord;
 use crate::models::domain::{now_iso, DocumentOperationStatus, UploadRecord};
-use crate::services::public_document_operations_api::{
+use crate::services::ai::public_document_operations_api::{
     PublicDocumentOperationActionInput, PublicDocumentOperationListQuery,
 };
 

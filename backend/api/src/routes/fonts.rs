@@ -8,7 +8,7 @@ use crate::models::api::ApiResponse;
 use crate::routes::common::{
     build_fonts_route_deps, read_multipart_field_limited, safe_multipart_error, ApiMultipart,
 };
-use crate::services::fonts::api::{self, FontInfo};
+use crate::services::platform::fonts::api::{self, FontInfo};
 use crate::AppState;
 
 pub async fn list_fonts(

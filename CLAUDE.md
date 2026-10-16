@@ -68,8 +68,8 @@ cargo test -p rust_api -p retain-jobs -p retain-db -p retain-data -p retain-core
   别处直接落库或发射任务，`check_job_entry_ownership` 会报错。
 - services 之间不许有依赖环（`KNOWN_SERVICE_CYCLE_EDGES` 已清空）；两边都要用的东西往下放。按编号读出任务在
   `src/job_loading/`，它在 services 下面一层，不许依赖 `services`、`routes`。
-- 产物文件路径只许出口模块拼（`services/jobs/files/downloads`、`services/jobs/reader/markdown.rs`、`services/library/media.rs`、`services/artifacts`、
-  `services/derived_artifacts`）。`KNOWN_ARTIFACT_PATH_READERS` 是冻结的现状名单，只许减不许加。
+- 产物文件路径只许出口模块拼（`services/jobs/files/downloads`、`services/jobs/reader/markdown.rs`、`services/library/media.rs`、`services/files/artifacts`、
+  `services/files/derived_artifacts`）。`KNOWN_ARTIFACT_PATH_READERS` 是冻结的现状名单，只许减不许加。
 
 ## 记录
 

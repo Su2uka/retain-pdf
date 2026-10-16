@@ -2,7 +2,7 @@
 
 use crate::config::PlatformModels;
 use crate::models::domain::{now_iso, UploadRecord, WorkflowKind};
-use crate::services::platform_settings::{
+use crate::services::accounts::platform_settings::{
     self, PlatformSource, SaveOcrSettings, SavePlatformSettingsInput, SaveTranslationSettings,
 };
 use crate::test_support::pdf::build_test_pdf_bytes;

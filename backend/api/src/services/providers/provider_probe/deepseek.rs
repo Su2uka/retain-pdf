@@ -45,7 +45,7 @@ pub(crate) async fn validate_deepseek_token_view(
     let checked_at = now_iso();
     let session_id = format!("provider-probe-{}-{:016x}", checked_at, fastrand::u64(..));
     let client = reqwest::Client::builder()
-        .default_headers(crate::services::model_provider_headers::opencode_headers(
+        .default_headers(crate::services::providers::model_provider_headers::opencode_headers(
             &base_url,
             &session_id,
         ))

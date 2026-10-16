@@ -1,6 +1,6 @@
 //! 一本书「该读哪里」相关的三个读接口：阅读入口、翻译覆盖、合集 agent 工作区。
 //!
-//! 以前这三段直接写在路由里（自己拿 state.db / state.config、全路径调 services::merge），
+//! 以前这三段直接写在路由里（自己拿 state.db / state.config、全路径调 services::library::merge），
 //! 违反了路由只经 application facade 的边界（check_architecture.py）。挪到这里，路由只传
 //! LibraryDeps。都要跑子进程或读 PDF 页数，放进阻塞线程。
 
@@ -9,9 +9,9 @@ use std::path::Path;
 use crate::error::AppError;
 use crate::models::api::DocumentRecord;
 use super::collection_workspace::{ensure_collection_workspace, CollectionWorkspace, ReadingBook};
-use crate::services::derived_artifacts::DerivedArtifactDeps;
-use crate::services::merge::coverage::{translation_coverage, TranslationCoverageView};
-use crate::services::merge::reading::{resolve_reading_target, DocumentReadingView, ReadingTarget};
+use crate::services::files::derived_artifacts::DerivedArtifactDeps;
+use crate::services::library::merge::coverage::{translation_coverage, TranslationCoverageView};
+use crate::services::library::merge::reading::{resolve_reading_target, DocumentReadingView, ReadingTarget};
 
 use super::documents::get_document;
 use super::media::document_source;

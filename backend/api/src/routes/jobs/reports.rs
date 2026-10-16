@@ -12,11 +12,11 @@ use crate::routes::common::{
     build_jobs_query_route_deps, build_quality_route_deps, build_usage_route_deps, ok_json, ApiPath,
     ApiQuery,
 };
-use crate::services::quality::api::{
+use crate::services::jobs::reports::quality::api::{
     quality_items_view, quality_summary_view, QualityItemsParams as ItemsParams, QualityItemsView,
     QualitySummaryView,
 };
-use crate::services::usage::api::{job_usage_view, UsageSummaryView};
+use crate::services::jobs::reports::usage::api::{job_usage_view, UsageSummaryView};
 use crate::AppState;
 
 async fn blocking<T: Send + 'static>(

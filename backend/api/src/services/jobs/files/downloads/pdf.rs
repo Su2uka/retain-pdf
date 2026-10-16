@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use crate::error::AppError;
 use crate::models::domain::JobSnapshot;
-use crate::services::derived_artifacts;
+use crate::services::files::derived_artifacts;
 
 use crate::services::jobs::files::downloads::DownloadJobsDeps;
 

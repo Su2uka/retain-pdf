@@ -21,7 +21,7 @@ pub(crate) fn assemble_app_state(config: Arc<AppConfig>) -> AppState {
         config.jobs_db_path.clone(),
         config.data_root.clone(),
     ));
-    let sync = Arc::new(crate::services::sync::SyncService::new(
+    let sync = Arc::new(crate::services::platform::sync::SyncService::new(
         db.clone(),
         config.data_root.clone(),
     ));
@@ -38,9 +38,9 @@ pub(crate) fn assemble_app_state(config: Arc<AppConfig>) -> AppState {
             )
             .unwrap(),
         ),
-        uploads: Arc::new(crate::services::uploads::UploadService::new(
+        uploads: Arc::new(crate::services::ingest::uploads::UploadService::new(
             db.clone(),
-            crate::services::uploads::UploadServiceConfig {
+            crate::services::ingest::uploads::UploadServiceConfig {
                 uploads_dir: config.uploads_dir.clone(),
                 python_bin: config.python_bin.clone(),
                 upload_max_bytes: config.upload_max_bytes,
@@ -50,7 +50,7 @@ pub(crate) fn assemble_app_state(config: Arc<AppConfig>) -> AppState {
         )),
         model_executor: None,
         sync: sync.clone(),
-        backup: Arc::new(crate::services::backup::BackupService::new(db.clone(), sync)),
+        backup: Arc::new(crate::services::platform::backup::BackupService::new(db.clone(), sync)),
         config,
         db,
         download_generation: Arc::default(),
@@ -62,7 +62,7 @@ pub(crate) fn assemble_app_state(config: Arc<AppConfig>) -> AppState {
             Arc::new(RwLock::new(HashSet::new())),
         )),
         agent_capabilities: Arc::new(
-            crate::services::agent_capabilities::AgentCapabilityAuthority::new_random()
+            crate::services::ai::agent_capabilities::AgentCapabilityAuthority::new_random()
                 .expect("agent capability authority"),
         ),
     }

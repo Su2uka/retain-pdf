@@ -12,7 +12,7 @@ use serde_json::Value;
 use crate::error::AppError;
 use crate::models::api::RefineRetryRequest;
 use crate::models::domain::{now_iso, CreateJobInput, JobSnapshot, RefineOverride};
-use crate::services::credentials::{
+use crate::services::providers::credentials::{
     acquire_credential_usage_lock, get_or_create_managed_credential, CredentialUsageLock,
 };
 use crate::services::jobs::lifecycle::validation::validate_translation_credential_reference;

@@ -1,7 +1,7 @@
 """助手的模型用量台账：每次模型返回追加一行到 ``<data_root>/usage/assistant.v1.jsonl``。
 
 行的格式和流水线的任务台账一致（见 ``retainpdf_pipeline/translate/llm/shared/usage_ledger.py``），
-Rust 侧 ``services/usage`` 一起汇总：带 ``document_id`` 的行也算进那本书的用量。
+Rust 侧 ``services/jobs/reports/usage`` 一起汇总：带 ``document_id`` 的行也算进那本书的用量。
 
 记账失败不能让回答失败：写不进去只打一行日志。
 """

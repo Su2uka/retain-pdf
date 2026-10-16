@@ -2,7 +2,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use crate::db::Db;
-use crate::services::download_generation::DownloadGeneration;
+use crate::services::files::download_generation::DownloadGeneration;
 
 pub(in crate::services::jobs) use self::deps::DownloadJobsDeps;
 
@@ -24,7 +24,7 @@ mod tests;
 pub(crate) use catalog::{job_files_view, FileGroup, JobFilesView};
 pub(crate) use files::{Disposition, JobFile, JobScope};
 /// 文件句柄的类型定义在下载调度里（它调度的就是这个），这里转出去，任务这边照旧这么叫。
-pub use crate::services::download_generation::FileDownload;
+pub use crate::services::files::download_generation::FileDownload;
 
 /// Download capabilities contain no launcher, upload, control, or replay state.
 pub struct JobDownloads<'a> {
