@@ -40,15 +40,8 @@ pub fn build_job_detail_view(
         job_id: job.job_id.clone(),
         workflow: job.workflow.clone(),
         status: job.status.clone(),
-        ocr_reused: !job.request_payload.source.artifact_job_id.trim().is_empty(),
-        source_artifact_job_id: Some(
-            job.request_payload
-                .source
-                .artifact_job_id
-                .trim()
-                .to_string(),
-        )
-        .filter(|value| !value.is_empty()),
+        ocr_reused: job.source_job_id().is_some(),
+        source_artifact_job_id: job.source_job_id().map(str::to_string),
         request_payload: core.request_payload,
         trace_id: core.trace_id,
         provider_trace_id: core.provider_trace_id,

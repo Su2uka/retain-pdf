@@ -35,16 +35,9 @@ pub(crate) async fn replay_translation_item(
         .arg(item_id)
         .current_dir(deps.project_root)
         .env("PYTHONUNBUFFERED", "1");
-    let runtime_secret = if !job.request_payload.translation.api_key.trim().is_empty() {
-        Some(job.request_payload.translation.api_key.trim().to_string())
-    } else if !job
-        .request_payload
-        .translation
-        .credential_ref
-        .trim()
-        .is_empty()
-    {
-        let credential_ref = job.request_payload.translation.credential_ref.trim();
+    let runtime_secret = if let Some(api_key) = job.inline_translation_api_key() {
+        Some(api_key.to_string())
+    } else if let Some(credential_ref) = job.translation_credential_ref() {
         let credential = resolve_credential(deps.data_root, credential_ref, "translation_api_key")
             .map_err(|error| {
                 AppError::internal(format!(

@@ -186,7 +186,7 @@ fn stage_state(
     job: &JobSnapshot,
     stage_snapshot: Option<&JobStageSnapshotView>,
 ) -> JobStageStateView {
-    if stage_name == "ocr" && !job.request_payload.source.artifact_job_id.trim().is_empty() {
+    if stage_name == "ocr" && job.source_job_id().is_some() {
         return JobStageStateView::Reused;
     }
     if !workflow_includes_stage(job, stage_name) {
@@ -194,7 +194,7 @@ fn stage_state(
     }
     if stage_name == "translation"
         && matches!(job.status, JobStatusKind::Queued)
-        && !job.request_payload.source.artifact_job_id.trim().is_empty()
+        && job.source_job_id().is_some()
     {
         return JobStageStateView::Queued;
     }
@@ -282,7 +282,7 @@ fn workflow_includes_stage(job: &JobSnapshot, stage_name: &str) -> bool {
         WorkflowKind::Book => matches!(stage_name, "ocr" | "translation" | "render"),
         WorkflowKind::Translate => {
             matches!(stage_name, "ocr" | "translation")
-                || (stage_name == "render" && job.request_payload.runtime.render_after_translation)
+                || (stage_name == "render" && job.renders_after_translation())
         }
         WorkflowKind::Render => stage_name == "render",
         WorkflowKind::Ocr => stage_name == "ocr",

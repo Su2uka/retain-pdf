@@ -179,7 +179,7 @@ fn resolve_new_job_document(
             ),
         }
     }
-    let document_id = [Some(job.request_payload.source.artifact_job_id.as_str()), derived_from]
+    let document_id = [job.source_job_id(), derived_from]
         .into_iter()
         .flatten()
         .map(str::trim)

@@ -10,12 +10,7 @@ pub(crate) fn build_submission_view(
 ) -> JobSubmissionView {
     let mut view_job = job.clone();
     view_job.workflow = workflow.clone();
-    let source_artifact_job_id = job
-        .request_payload
-        .source
-        .artifact_job_id
-        .trim()
-        .to_string();
+    let source_artifact_job_id = job.source_job_id().unwrap_or("").to_string();
     let ocr_reused = !source_artifact_job_id.is_empty();
     JobSubmissionView {
         job_id: job.job_id.clone(),

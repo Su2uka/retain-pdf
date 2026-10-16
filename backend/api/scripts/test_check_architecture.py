@@ -746,6 +746,46 @@ class DomainFacadeTests(unittest.TestCase):
         self.assertTrue(all("nothing uses any more" in error for error in errors), errors)
 
 
+class RequestPayloadAccessTests(unittest.TestCase):
+    check_sources = UploadBoundaryTests.check_sources
+
+    def writers(self):
+        return {str(path.relative_to("src")): "job.request_payload.translation.api_key.clear();"
+                for path in checks.KNOWN_REQUEST_PAYLOAD_WRITERS}
+
+    def test_readers_ask_the_job(self):
+        sources = self.writers()
+        sources["services/library/reading.rs"] = (
+            "let id = job.source_job_id();\nlet secrets = sensitive_values(&job.request_payload);"
+        )
+        self.assertEqual([], self.check_sources(sources, checks.check_request_payload_access))
+
+    def test_field_access_outside_writers_is_rejected(self):
+        for source in (
+            "let id = job.request_payload.source.artifact_job_id.trim();",
+            "if job\n    .request_payload\n    .translation\n    .execution_connection\n    .is_some() {}",
+        ):
+            with self.subTest(source=source):
+                sources = self.writers()
+                sources["services/library/reading.rs"] = source
+                errors = self.check_sources(sources, checks.check_request_payload_access)
+                self.assertEqual(1, len(errors), errors)
+                self.assertIn("ask the job instead", errors[0])
+
+    def test_tests_may_build_requests(self):
+        sources = self.writers()
+        sources["services/library/reading.rs"] = (
+            "fn f() {}\n#[cfg(test)]\nmod tests {\n    fn g() { job.request_payload.workflow = x; }\n}\n"
+        )
+        sources["api_tests/jobs.rs"] = "job.request_payload.workflow = x;"
+        self.assertEqual([], self.check_sources(sources, checks.check_request_payload_access))
+
+    def test_writer_list_only_shrinks(self):
+        errors = self.check_sources({}, checks.check_request_payload_access)
+        self.assertEqual(len(checks.KNOWN_REQUEST_PAYLOAD_WRITERS), len(errors), errors)
+        self.assertTrue(all("remove it from KNOWN_REQUEST_PAYLOAD_WRITERS" in error for error in errors))
+
+
 class JobEntryOwnershipTests(unittest.TestCase):
     check_sources = UploadBoundaryTests.check_sources
 

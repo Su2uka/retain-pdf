@@ -22,11 +22,7 @@ pub(crate) async fn cancel_job(
             job.status
         )));
     }
-    if job
-        .request_payload
-        .translation
-        .execution_connection
-        .is_some()
+    if job.uses_model_executor()
     {
         deps.db.close_model_worker_session(job_id)?;
     }

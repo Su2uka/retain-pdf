@@ -88,7 +88,7 @@ fn owned_job_root(data_root: &Path, job: &JobSnapshot) -> Result<PathBuf, AppErr
             StatusCode::CONFLICT,
             "translations_owned_by_another_job",
             "this job reuses translations owned by another job; revise them on the source job",
-            json!({ "source_job_id": job.request_payload.source.artifact_job_id }),
+            json!({ "source_job_id": job.source_job_id().unwrap_or("") }),
         ));
     }
     Ok(job_root)

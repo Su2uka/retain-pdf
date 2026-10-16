@@ -175,7 +175,7 @@ fn artifact_document_page_count(
 }
 
 fn reject_paddle_cli_artifact(source_job: &JobSnapshot) -> Result<(), AppError> {
-    if uses_paddle_official_cli(&source_job.request_payload.ocr) {
+    if uses_paddle_official_cli(source_job.ocr_options()) {
         return Err(AppError::bad_request(format!(
             "artifact job {} was produced by PaddleOCR official_cli and cannot be used for translation or render because it does not provide the required bbox/prunedResult contract",
             source_job.job_id

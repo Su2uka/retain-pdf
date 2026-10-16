@@ -158,8 +158,7 @@ fn build_job_list_item_view(
         //
         // 这里给的是精简版（不含 traceback，列表 2 秒轮询一次）。
         failure: build_list_failure_brief(job),
-        source_artifact_job_id: Some(job.request_payload.source.artifact_job_id.trim().to_string())
-            .filter(|value| !value.is_empty()),
+        source_artifact_job_id: job.source_job_id().map(str::to_string),
     }
 }
 

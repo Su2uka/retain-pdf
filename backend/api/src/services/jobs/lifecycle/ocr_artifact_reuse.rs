@@ -102,7 +102,7 @@ fn validate_reusable_source(
         }
     }
 
-    if uses_paddle_official_cli(&source_job.request_payload.ocr) {
+    if uses_paddle_official_cli(source_job.ocr_options()) {
         return Err(reuse_error(
             StatusCode::CONFLICT,
             "OCR_ARTIFACT_NOT_REUSABLE",
@@ -277,7 +277,7 @@ fn source_document_pages(
         }
     }
 
-    let raw_ranges = source_job.request_payload.ocr.page_ranges.trim();
+    let raw_ranges = source_job.ocr_page_ranges().trim();
     if !raw_ranges.is_empty() && !raw_ranges.eq_ignore_ascii_case("all") {
         return parse_page_ranges(raw_ranges, document_page_count);
     }

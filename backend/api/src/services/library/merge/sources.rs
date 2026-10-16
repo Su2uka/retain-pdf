@@ -96,12 +96,13 @@ pub(crate) fn job_merge_source(
         .as_deref()
         .and_then(|path| lopdf::Document::load(path).ok())
         .map(|document| document.get_pages().len());
+    let (start_page, end_page) = job.translation_page_window();
     let pages = covered_pages(
         &job.status,
         &job.workflow,
         &artifacts.ocr_page_numbers,
-        job.request_payload.translation.start_page,
-        job.request_payload.translation.end_page,
+        start_page,
+        end_page,
         page_count,
     )?;
     Some(MergeSource {

@@ -52,17 +52,12 @@ impl ModelRequestsApi {
     pub fn issue(&self, job_id: &str, profile: ModelConnection) -> Result<Value, AppError> {
         let executor = self.executor()?;
         let job = self.active_job(job_id)?;
-        let translation = &job.request_payload.translation;
-        if translation.execution_connection.as_ref() != Some(&profile) {
+        if job.model_connection() != Some(&profile) {
             return Err(AppError::conflict(
                 "model connection must match the complete submission snapshot",
             ));
         }
-        if profile.model != translation.model
-            || profile.base_url.trim_end_matches('/') != translation.base_url.trim_end_matches('/')
-            || profile.credential_ref != translation.credential_ref
-            || profile.concurrency as i64 != translation.workers
-        {
+        if !job.matches_frozen_translation(&profile) {
             return Err(AppError::conflict(
                 "connection does not match frozen job configuration",
             ));

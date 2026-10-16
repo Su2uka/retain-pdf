@@ -94,25 +94,25 @@ pub(crate) fn segments_of(plan: &[PageSource]) -> Vec<CoverageSegment> {
 fn job_pages(job: &JobSnapshot, document_page_count: u32) -> Vec<u32> {
     let artifacts = job.artifacts.as_ref();
     let ocr_pages = artifacts.map(|a| a.ocr_page_numbers.clone()).unwrap_or_default();
-    let translation = &job.request_payload.translation;
     if job.workflow == WorkflowKind::Ocr {
         if !ocr_pages.is_empty() {
             return ocr_pages;
         }
-        return parse_spec(&job.request_payload.ocr.page_ranges, document_page_count);
+        return parse_spec(job.ocr_page_ranges(), document_page_count);
     }
+    let (start_page, end_page) = job.translation_page_window();
     if job.status == JobStatusKind::Succeeded && !ocr_pages.is_empty() {
-        if let Some(pages) = translated_document_pages(&ocr_pages, translation.start_page, translation.end_page) {
+        if let Some(pages) = translated_document_pages(&ocr_pages, start_page, end_page) {
             return pages;
         }
     }
-    if !translation.page_ranges.is_empty() {
-        let mut pages = translation.page_ranges.clone();
+    if !job.translation_page_list().is_empty() {
+        let mut pages = job.translation_page_list().to_vec();
         pages.sort_unstable();
         pages.dedup();
         return pages;
     }
-    parse_spec(&job.request_payload.ocr.page_ranges, document_page_count)
+    parse_spec(job.ocr_page_ranges(), document_page_count)
 }
 
 /// `"1-3,7"` → `[1,2,3,7]`；空串或 `all` 表示整本。认不出的部分跳过。
@@ -253,11 +253,11 @@ pub(crate) fn translation_coverage(
             model: if job.workflow == WorkflowKind::Ocr {
                 String::new()
             } else {
-                job.request_payload.translation.model.clone()
+                job.translation_model().to_string()
             },
             pages: job_pages(job, document_page_count),
             supplied_pages: supplied.get(job.job_id.as_str()).copied().unwrap_or(0),
-            ocr_reused: !job.request_payload.source.artifact_job_id.trim().is_empty(),
+            ocr_reused: job.source_job_id().is_some(),
             note: if job.status == JobStatusKind::Succeeded {
                 terminal_completion_note(job)
             } else {

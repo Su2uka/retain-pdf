@@ -43,7 +43,7 @@ pub(super) fn load_typography_index(data_root: &Path, job: &JobSnapshot) -> Typo
     else {
         return TypographyIndex::new();
     };
-    let font_family = job.request_payload.render.typst_font_family.trim();
+    let font_family = job.typst_font_family();
     if font_family.is_empty() {
         return TypographyIndex::new();
     }
