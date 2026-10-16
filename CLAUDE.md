@@ -35,7 +35,7 @@ python3 backend/pipeline/devtools/check_pipeline_architecture.py
 backend/.venv/bin/python backend/pipeline/devtools/extract_pipeline_requirements.py --services-root backend --check
 python3 .github/scripts/sync_backend_python_requirements.py --repo-root . --services-root backend --check
 backend/.venv/bin/python -m pytest -q .github/scripts/tests   # 文档相对链接、交付和 CI 约定；改了文档也要跑
-cargo test -p retain-pdf-api -p retain-pdf-api-base -p retain-pdf-accounts -p retain-pdf-glossaries -p retain-pdf-platform -p retain-pdf-providers -p retain-pdf-runner -p retain-pdf-db -p retain-pdf-data -p retain-pdf-core -p retain-pdf-config
+cargo test -p retain-pdf-api -p retain-pdf-api-base -p retain-pdf-accounts -p retain-pdf-glossaries -p retain-pdf-ingest -p retain-pdf-platform -p retain-pdf-providers -p retain-pdf-runner -p retain-pdf-db -p retain-pdf-data -p retain-pdf-core -p retain-pdf-config
 ```
 
 - 改了 `backend/pipeline/retainpdf_pipeline/translate/`：再跑
@@ -51,7 +51,7 @@ cargo test -p retain-pdf-api -p retain-pdf-api-base -p retain-pdf-accounts -p re
 - worktree 里没有 `backend/.venv`，跑 Python 和 rust_api 测试前指向主检出的环境：
   `UV_PROJECT_ENVIRONMENT=<主检出>/backend/.venv`，`PATH=<主检出>/backend/.venv/bin:$PATH`
   （rust_api 的部分测试要用 PATH 上的 `retainpdf-pipeline`）。
-- `model_executor` 的测试并行跑会偶发失败，单独用 `--test-threads=1` 跑：执行器本身的测试在 `retain-pdf-providers` 包里，
+- `model_executor` 的测试以前并行跑会偶发失败（测试用的超时太紧，2026-10-16 放宽了），合并前照旧再用 `--test-threads=1` 跑一遍：执行器本身的测试在 `retain-pdf-providers` 包里，
   要搭整个应用的几个在 `retain-pdf-api` 的 `api_tests::model_executor`。
 - 不要对整个已有文件跑 rustfmt（仓库没有整体格式化过）；从 stdin 喂给 `rustfmt --check` 永远返回 0，不能当检查用。
 - 本地多用户开发栈开着时，pipeline 测试收尾会报"测试污染了仓库的 data/ 目录"，是开发栈写的，CI 上不会出现。
@@ -73,7 +73,7 @@ cargo test -p retain-pdf-api -p retain-pdf-api-base -p retain-pdf-accounts -p re
 - `services/` 下只有 9 个领域目录（`accounts`、`providers`、`ingest`、`files`、`jobs`、`library`、`glossaries`、
   `ai`、`platform`），新模块放进其中一个。每个领域的 `mod.rs` 是唯一的门面：子模块私有，领域外要用的东西在
   `// 门面` 那一块 `pub(crate) use` 出来，只给测试用的标 `#[cfg(test)]`。
-- 拆成独立包的领域（`EXTRACTED_DOMAINS`，现在有账号 `retain-pdf-accounts`、术语表 `retain-pdf-glossaries`、平台 `retain-pdf-platform`、服务商 `retain-pdf-providers`）：代码在 `backend/packages/<包>`，`lib.rs` 是门面；
+- 拆成独立包的领域（`EXTRACTED_DOMAINS`，现在有账号 `retain-pdf-accounts`、术语表 `retain-pdf-glossaries`、入口 `retain-pdf-ingest`、平台 `retain-pdf-platform`、服务商 `retain-pdf-providers`）：代码在 `backend/packages/<包>`，`lib.rs` 是门面；
   `services/mod.rs` 里 `pub(crate) use <包> as <领域>;` 接上，`services/` 下不再留它的目录。
 - 领域之间只能往下依赖，允许的方向登记在 `ALLOWED_DOMAIN_DEPENDENCIES`，也不许有环；两边都要用的东西往下放。
   按编号读出任务（`job_loading`）和错误类型（`AppError`）在单独的包 `retain-pdf-api-base` 里，services 下面一层；

@@ -378,7 +378,7 @@ Rust 侧关键落点：
 - library → [src/services/library_api.rs](src/services/library_api.rs)
 - glossaries → [../packages/retain-pdf-glossaries/src/api.rs](../packages/retain-pdf-glossaries/src/api.rs)
   → `retain-pdf-glossaries` 包里的 `{records,entries,csv}.rs`
-- uploads → [src/services/ingest/uploads/api.rs](src/services/ingest/uploads/api.rs)
+- uploads → [../packages/retain-pdf-ingest/src/uploads/api.rs](../packages/retain-pdf-ingest/src/uploads/api.rs)（入口已拆成独立的包 `retain-pdf-ingest`）
 - AI proxy → [src/services/ai/api.rs](src/services/ai/api.rs)
 - public Agent operation actions →
   [src/services/ai/public_document_operations_api.rs](src/services/ai/public_document_operations_api.rs)
@@ -402,7 +402,7 @@ Rust 侧关键落点：
 - `routes/glossaries.rs`
   只调术语表包（`retain-pdf-glossaries`）的门面
 - `routes/uploads.rs`
-  只调 `services/ingest/uploads/api.rs`
+  只调入口包（`retain-pdf-ingest`）的门面
 - `routes/ai_proxy.rs`
   只调 `services/ai/api.rs`，问答保持流式字节代理，runtime config 禁止缓存
 - `routes/public_document_operations.rs`
@@ -448,7 +448,7 @@ Rust 侧关键落点：
 - [src/services/jobs/facade.rs](src/services/jobs/facade.rs)
 - [src/services/library_api.rs](src/services/library_api.rs)
 - [../packages/retain-pdf-glossaries/src/api.rs](../packages/retain-pdf-glossaries/src/api.rs)
-- [src/services/ingest/uploads/api.rs](src/services/ingest/uploads/api.rs)
+- [../packages/retain-pdf-ingest/src/uploads/api.rs](../packages/retain-pdf-ingest/src/uploads/api.rs)
 - [src/services/ai/api.rs](src/services/ai/api.rs)
 - [src/services/ai/public_document_operations_api.rs](src/services/ai/public_document_operations_api.rs)
 - [src/services/ai/document_operation_api.rs](src/services/ai/document_operation_api.rs)

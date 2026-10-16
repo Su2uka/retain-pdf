@@ -61,11 +61,13 @@ fn profile(url: &str) -> ModelConnection {
         thinking: Thinking::Auto,
         stream: Some(false),
         allow_private_endpoint: true,
+        // 留足余量：这些测试并行跑在调试构建里，本机回环也可能慢上几百毫秒，超时会被记成 ambiguous。
+        // 只有 timeout_is_not_retried_and_pauses_new_units 要等超时，它的假服务睡 2 秒，比 idle_ms 长。
         deadlines: Deadlines {
-            queue_ms: 500,
-            connect_ms: 100,
-            idle_ms: 200,
-            total_ms: 700,
+            queue_ms: 2_000,
+            connect_ms: 1_000,
+            idle_ms: 1_000,
+            total_ms: 3_000,
         },
     }
 }
