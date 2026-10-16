@@ -435,10 +435,8 @@ mod tests { fn fixture() { let runtime: ProcessRuntimeDeps; } }
                 ))
 
     def test_small_module_private_paths_are_guarded(self):
-        for domain, member in (
-            ("fonts", "service"), ("credentials", "service"),
-            ("agent_calculations", "service"),
-        ):
+        # 字体、凭据库拆进了平台包、服务商包，子模块由编译器保证私有，不再归这条规则管。
+        for domain, member in (("agent_calculations", "service"),):
             with self.subTest(domain=domain, member=member):
                 for suffix in (f"{member}::Entry", f"{{{member}::Entry}}"):
                     self.assertTrue(self.check_sources(
@@ -451,7 +449,7 @@ mod tests { fn fixture() { let runtime: ProcessRuntimeDeps; } }
                 ))
 
     def test_small_module_model_facades_are_scanned(self):
-        for domain in ("platform/fonts", "providers/credentials", "ai/agent_calculations"):
+        for domain in ("ai/agent_calculations",):
             with self.subTest(domain=domain):
                 self.assertTrue(self.check_sources(
                     {f"services/{domain}/api.rs": "use crate::models::UploadRecord;"},

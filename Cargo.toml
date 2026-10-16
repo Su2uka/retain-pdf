@@ -9,6 +9,7 @@ members = [
   "backend/packages/retain-pdf-api-base",
   "backend/packages/retain-pdf-glossaries",
   "backend/packages/retain-pdf-platform",
+  "backend/packages/retain-pdf-providers",
   "backend/packages/retain-core",
   "backend/packages/retain-data",
   "backend/packages/retain-jobs",

@@ -23,6 +23,7 @@ mod job_view_contract;
 mod job_data;
 pub(crate) mod jobs_common;
 mod merged_reading;
+mod model_executor;
 mod jobs_control_contract;
 mod job_categories;
 mod jobs_create;

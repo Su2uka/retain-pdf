@@ -4,8 +4,8 @@
 //! implementation. This keeps transport handlers independent from provider
 //! clients, URL policy, and runtime configuration details.
 
-use crate::config::{DeepSeekRuntimeConfig, MineruRuntimeConfig, PaddleRuntimeConfig};
-use crate::error::AppError;
+use retain_pdf_core::config::{DeepSeekRuntimeConfig, MineruRuntimeConfig, PaddleRuntimeConfig};
+use retain_pdf_api_base::error::AppError;
 
 pub use super::provider_probe::{
     DeepSeekBalanceView, DeepSeekTokenValidationRequest,

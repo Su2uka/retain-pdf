@@ -25,4 +25,5 @@ pub(crate) mod jobs;
 pub(crate) mod library;
 // 平台已经拆成独立的包，这里接上。
 pub(crate) use retain_pdf_platform as platform;
-pub(crate) mod providers;
+// 服务商已经拆成独立的包，这里接上。
+pub(crate) use retain_pdf_providers as providers;

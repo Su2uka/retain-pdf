@@ -67,7 +67,7 @@ pub(super) async fn execute(
                 client
                     .post(url.clone())
                     .bearer_auth(secret)
-                    .headers(crate::services::providers::model_provider_headers::opencode_headers(
+                    .headers(crate::model_provider_headers::opencode_headers(
                         url.as_str(),
                         session_id,
                     ))

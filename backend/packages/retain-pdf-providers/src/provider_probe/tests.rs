@@ -1,7 +1,7 @@
 use super::deepseek::is_model_rejection;
 use super::ocr::{classify_paddle_probe_error, classify_probe_error};
 use super::url_policy::validate_provider_base_url;
-use crate::ocr_provider::paddle::PaddleProviderError;
+use retain_pdf_data::ocr_provider::paddle::PaddleProviderError;
 
 #[test]
 fn validate_provider_base_url_allows_public_https_host() {
@@ -189,7 +189,7 @@ fn is_model_rejection_ignores_unauthorized_even_when_body_mentions_model() {
 async fn anthropic_probe_uses_the_messages_api() {
     use super::deepseek::validate_deepseek_token_view;
     use super::types::DeepSeekTokenValidationRequest;
-    use crate::config::DeepSeekRuntimeConfig;
+    use retain_pdf_core::config::DeepSeekRuntimeConfig;
     use axum::http::HeaderMap;
     use axum::routing::post;
     use std::sync::{Arc, Mutex};
@@ -290,7 +290,7 @@ async fn probe_responses(base_url: String) -> super::types::MineruTokenValidatio
             model: "gpt-5.6-luna".into(),
             api_protocol: "openai_responses".into(),
         },
-        crate::config::DeepSeekRuntimeConfig {
+        retain_pdf_core::config::DeepSeekRuntimeConfig {
             default_base_url: "https://api.deepseek.com/v1".into(),
             balance_url: String::new(),
             probe_timeout_secs: 5,
@@ -381,7 +381,7 @@ fn anthropic_messages_url_accepts_the_sdk_style_base_url() {
 async fn transport_failures_never_blame_the_api_key() {
     use super::deepseek::validate_deepseek_token_view;
     use super::types::DeepSeekTokenValidationRequest;
-    use crate::config::DeepSeekRuntimeConfig;
+    use retain_pdf_core::config::DeepSeekRuntimeConfig;
     use tokio::io::AsyncReadExt;
 
     async fn probe(base_url: String) -> super::types::MineruTokenValidationView {
@@ -450,7 +450,7 @@ async fn probe_anthropic(base_url: String, api_key: &str, model: &str) -> super:
             model: model.into(),
             api_protocol: "anthropic".into(),
         },
-        crate::config::DeepSeekRuntimeConfig {
+        retain_pdf_core::config::DeepSeekRuntimeConfig {
             default_base_url: "https://api.deepseek.com/v1".into(),
             balance_url: String::new(),
             probe_timeout_secs: 5,

@@ -1,20 +1,20 @@
-use crate::config::{MineruRuntimeConfig, PaddleRuntimeConfig};
-use crate::error::AppError;
-use crate::models::domain::now_iso;
-use crate::ocr_provider::mineru::client::MineruUploadOptions;
-use crate::ocr_provider::mineru::{
+use retain_pdf_core::config::{MineruRuntimeConfig, PaddleRuntimeConfig};
+use retain_pdf_api_base::error::AppError;
+use retain_pdf_core::models::domain::now_iso;
+use retain_pdf_data::ocr_provider::mineru::client::MineruUploadOptions;
+use retain_pdf_data::ocr_provider::mineru::{
     extract_provider_error_code, extract_provider_message, extract_provider_trace_id,
     map_provider_error_code, MineruClient,
 };
-use crate::ocr_provider::paddle::{PaddleClient, PaddleProviderError};
-use crate::ocr_provider::OcrErrorCategory;
+use retain_pdf_data::ocr_provider::paddle::{PaddleClient, PaddleProviderError};
+use retain_pdf_data::ocr_provider::OcrErrorCategory;
 
 use super::types::{
     MineruTokenValidationRequest, MineruTokenValidationView, PaddleTokenValidationRequest,
 };
 use super::url_policy::validate_provider_base_url;
 
-pub(crate) async fn validate_mineru_token_view(
+pub async fn validate_mineru_token_view(
     payload: MineruTokenValidationRequest,
     runtime: MineruRuntimeConfig,
 ) -> Result<MineruTokenValidationView, AppError> {
@@ -63,7 +63,7 @@ pub(crate) async fn validate_mineru_token_view(
     Ok(view)
 }
 
-pub(crate) async fn validate_paddle_token_view(
+pub async fn validate_paddle_token_view(
     payload: PaddleTokenValidationRequest,
     runtime: PaddleRuntimeConfig,
 ) -> Result<MineruTokenValidationView, AppError> {
