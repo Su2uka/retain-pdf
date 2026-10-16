@@ -8,7 +8,7 @@ use std::time::{Duration, Instant, SystemTime};
 
 use serde::Serialize;
 
-use crate::error::AppError;
+use retain_pdf_api_base::error::AppError;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct FontInfo {

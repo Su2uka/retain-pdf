@@ -2,8 +2,8 @@
 
 use std::sync::Arc;
 
-use crate::error::AppError;
-use crate::models::api::{SyncSettingsInput, SyncStatusView, SyncTestView};
+use retain_pdf_api_base::error::AppError;
+use retain_pdf_core::models::api::{SyncSettingsInput, SyncStatusView, SyncTestView};
 
 use super::SyncService;
 

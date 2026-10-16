@@ -17,10 +17,10 @@ use std::time::Duration;
 use anyhow::Result;
 use chrono::Utc;
 
-use crate::db::backup::{BackupInfo, RestoreRefusal, KIND_AUTO, KIND_BEFORE_RESTORE, KIND_MANUAL};
-use crate::db::Db;
-use crate::models::api::{BackupItemView, BackupRestoreView, BackupStatusView};
-use crate::services::platform::sync::SyncService;
+use retain_pdf_data::db::backup::{BackupInfo, RestoreRefusal, KIND_AUTO, KIND_BEFORE_RESTORE, KIND_MANUAL};
+use retain_pdf_data::db::Db;
+use retain_pdf_core::models::api::{BackupItemView, BackupRestoreView, BackupStatusView};
+use crate::sync::SyncService;
 
 /// 多久看一次要不要自动备份。
 const CHECK_EVERY: Duration = Duration::from_secs(3600);

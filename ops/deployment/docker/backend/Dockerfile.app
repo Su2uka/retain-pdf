@@ -24,6 +24,7 @@ COPY backend/packages/retain-data ./backend/packages/retain-data
 COPY backend/packages/retain-jobs ./backend/packages/retain-jobs
 COPY backend/packages/retain-pdf-api-base ./backend/packages/retain-pdf-api-base
 COPY backend/packages/retain-pdf-glossaries ./backend/packages/retain-pdf-glossaries
+COPY backend/packages/retain-pdf-platform ./backend/packages/retain-pdf-platform
 COPY backend/packages/retain-proc ./backend/packages/retain-proc
 RUN cargo chef prepare --recipe-path recipe.json
 
@@ -48,6 +49,7 @@ COPY backend/packages/retain-data ./backend/packages/retain-data
 COPY backend/packages/retain-jobs ./backend/packages/retain-jobs
 COPY backend/packages/retain-pdf-api-base ./backend/packages/retain-pdf-api-base
 COPY backend/packages/retain-pdf-glossaries ./backend/packages/retain-pdf-glossaries
+COPY backend/packages/retain-pdf-platform ./backend/packages/retain-pdf-platform
 COPY backend/packages/retain-proc ./backend/packages/retain-proc
 # 编译期 include_str! 读入的契约文件（job_data 的数据集登记表），不在任何工作区成员目录里。
 COPY backend/contracts/job-data.v1.schema.json ./backend/contracts/job-data.v1.schema.json

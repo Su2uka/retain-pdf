@@ -105,7 +105,7 @@ async fn serve_with_shutdown(
     // Phase 3（ADR-002）：RUST_API_JOBS_SUPERVISE=1 且 RUST_API_JOBS_MODE=remote 时壳监督 jobsd
     // 多设备同步:关着时每轮直接跳过,开着时定时与对端交换书库。
     let _sync_handle = sync_service.spawn_loop(shutdown_rx_watch.clone());
-    // 数据库每天自动备份一份(间隔见 services/platform/backup)。
+    // 数据库每天自动备份一份(间隔见平台包 retain-pdf-platform 的 backup)。
     let _backup_handle = backup_service.spawn_loop(shutdown_rx_watch.clone());
 
     let jobsd_supervisor_handle =

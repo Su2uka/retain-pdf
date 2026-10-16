@@ -88,7 +88,7 @@ app -> routes -> application services -> internal services -> job_runner / ocr_p
 - `services/providers/provider_probe.rs` / `services/providers/provider_probe/*`
   是 crate 内部实现边界，按 `types / url_policy / ocr / deepseek` 分离；
   新 provider 不应把 URL 策略、HTTP 分类和公开 DTO 重新堆回单文件
-- `services/platform/fonts/api.rs` / `services/platform/fonts/service.rs`
+- 平台包 `retain-pdf-platform` 的 `fonts/api.rs` / `fonts/service.rs`
   分别负责字体 application facade 与内部扫描/持久化；`routes/fonts.rs`
   只保留有界 multipart 消费和 HTTP envelope，不执行 fontconfig 或文件业务
 - `services/ai/api.rs` / `services/ai/gateway.rs`
@@ -97,7 +97,7 @@ app -> routes -> application services -> internal services -> job_runner / ocr_p
 - `services/ai/agent_runtime_session_api.rs`
   是 Agent session cursor 的 application facade；它拥有独立窄依赖，不能再
   借用 document-operation route deps 或让 route 直接持有数据库引用
-- `services/platform/health_api.rs`
+- 平台包 `retain-pdf-platform` 的 `health_api.rs`
   负责 liveness/readiness 投影和 supervisor 状态聚合；公共 health route
   只做 HTTP 状态码映射，不直接读取数据库或 supervisor 全局状态
 - `routes/jobs/json_response/**`

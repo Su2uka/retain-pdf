@@ -16,9 +16,9 @@ use std::time::Duration;
 use anyhow::Result;
 use retain_pdf_data::sync::{SyncControl, SyncSettingsError};
 
-use crate::db::Db;
-use crate::models::api::{SyncPeerView, SyncRunView, SyncSettingsInput, SyncStatusView, SyncTestView};
-use crate::models::domain::now_iso;
+use retain_pdf_data::db::Db;
+use retain_pdf_core::models::api::{SyncPeerView, SyncRunView, SyncSettingsInput, SyncStatusView, SyncTestView};
+use retain_pdf_core::models::domain::now_iso;
 
 fn interval_from_env() -> Duration {
     Duration::from_secs(

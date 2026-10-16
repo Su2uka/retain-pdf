@@ -4,7 +4,7 @@
 //! 内容是 `VACUUM INTO` 出的完整数据库(一致的快照,不用停服务、不挡别的读写),再 gzip
 //! 压缩;先写临时名再改名,半份文件不会被当成备份。种类:
 //!
-//! - `auto`:后台每天一份(调度在 rust_api 的 `services/platform/backup`);
+//! - `auto`:后台每天一份(调度在平台包 `retain-pdf-platform` 的 `backup`);
 //! - `manual`:用户点「立即备份」;
 //! - `before-restore`:恢复前把当时的数据库先存一份,恢复错了还能退回;
 //! - `before-upgrade`:数据库结构要升级(版本化迁移)之前自动存一份。

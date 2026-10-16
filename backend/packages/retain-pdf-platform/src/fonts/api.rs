@@ -2,7 +2,7 @@
 
 use std::path::Path;
 
-use crate::error::AppError;
+use retain_pdf_api_base::error::AppError;
 
 pub use super::service::FontInfo;
 

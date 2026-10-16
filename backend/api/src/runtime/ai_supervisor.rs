@@ -23,25 +23,17 @@ use crate::process::{
     configure_child_process, mark_supervised_child, terminate_child_process_tree,
 };
 use crate::runtime::probe_client::build_probe_client;
+use retain_pdf_api_base::supervisor;
 
-pub const AI_STATUS_DISABLED: u8 = 0;
-pub const AI_STATUS_STARTING: u8 = 1;
-pub const AI_STATUS_HEALTHY: u8 = 2;
-pub const AI_STATUS_UNHEALTHY: u8 = 3;
+pub const AI_STATUS_DISABLED: u8 = supervisor::SUPERVISOR_DISABLED;
+pub const AI_STATUS_STARTING: u8 = supervisor::SUPERVISOR_STARTING;
+pub const AI_STATUS_HEALTHY: u8 = supervisor::SUPERVISOR_HEALTHY;
+pub const AI_STATUS_UNHEALTHY: u8 = supervisor::SUPERVISOR_UNHEALTHY;
 
 static AI_STATUS: AtomicU8 = AtomicU8::new(AI_STATUS_DISABLED);
 
 pub fn ai_service_status() -> u8 {
     AI_STATUS.load(Ordering::Relaxed)
-}
-
-pub fn ai_service_status_label() -> &'static str {
-    match ai_service_status() {
-        AI_STATUS_STARTING => "starting",
-        AI_STATUS_HEALTHY => "healthy",
-        AI_STATUS_UNHEALTHY => "unhealthy",
-        _ => "unsupervised",
-    }
 }
 
 fn set_status(status: u8) {
@@ -302,13 +294,13 @@ mod tests {
     #[test]
     fn status_labels_cover_all_states() {
         set_status(AI_STATUS_DISABLED);
-        assert_eq!(ai_service_status_label(), "unsupervised");
+        assert_eq!(supervisor::supervisor_status_label(ai_service_status()), "unsupervised");
         set_status(AI_STATUS_STARTING);
-        assert_eq!(ai_service_status_label(), "starting");
+        assert_eq!(supervisor::supervisor_status_label(ai_service_status()), "starting");
         set_status(AI_STATUS_HEALTHY);
-        assert_eq!(ai_service_status_label(), "healthy");
+        assert_eq!(supervisor::supervisor_status_label(ai_service_status()), "healthy");
         set_status(AI_STATUS_UNHEALTHY);
-        assert_eq!(ai_service_status_label(), "unhealthy");
+        assert_eq!(supervisor::supervisor_status_label(ai_service_status()), "unhealthy");
         set_status(AI_STATUS_DISABLED);
     }
 }
