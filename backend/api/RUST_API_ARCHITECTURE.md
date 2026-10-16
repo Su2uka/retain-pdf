@@ -376,8 +376,8 @@ Rust 侧关键落点：
 
 - jobs → [src/services/jobs/facade.rs](src/services/jobs/facade.rs)
 - library → [src/services/library_api.rs](src/services/library_api.rs)
-- glossaries → [src/services/glossaries/api.rs](src/services/glossaries/api.rs)
-  → `services/glossaries/{records,entries,csv}.rs`
+- glossaries → [../packages/retain-pdf-glossaries/src/api.rs](../packages/retain-pdf-glossaries/src/api.rs)
+  → `retain-pdf-glossaries` 包里的 `{records,entries,csv}.rs`
 - uploads → [src/services/ingest/uploads/api.rs](src/services/ingest/uploads/api.rs)
 - AI proxy → [src/services/ai/api.rs](src/services/ai/api.rs)
 - public Agent operation actions →
@@ -400,7 +400,7 @@ Rust 侧关键落点：
 - `routes/jobs/json_response/**`
   只保留 JSON 响应出口
 - `routes/glossaries.rs`
-  只调 `services/glossaries/api.rs`
+  只调术语表包（`retain-pdf-glossaries`）的门面
 - `routes/uploads.rs`
   只调 `services/ingest/uploads/api.rs`
 - `routes/ai_proxy.rs`
@@ -447,7 +447,7 @@ Rust 侧关键落点：
 
 - [src/services/jobs/facade.rs](src/services/jobs/facade.rs)
 - [src/services/library_api.rs](src/services/library_api.rs)
-- [src/services/glossaries/api.rs](src/services/glossaries/api.rs)
+- [../packages/retain-pdf-glossaries/src/api.rs](../packages/retain-pdf-glossaries/src/api.rs)
 - [src/services/ingest/uploads/api.rs](src/services/ingest/uploads/api.rs)
 - [src/services/ai/api.rs](src/services/ai/api.rs)
 - [src/services/ai/public_document_operations_api.rs](src/services/ai/public_document_operations_api.rs)

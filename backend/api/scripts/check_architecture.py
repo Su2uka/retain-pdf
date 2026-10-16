@@ -82,7 +82,6 @@ ALLOWED_APPSTATE_FILES = {
     Path("src/routes/sync.rs"),
     Path("src/routes/backups.rs"),
     Path("src/routes/uploads.rs"),
-    Path("src/services/glossaries/tests.rs"),
     Path("src/services/jobs/lifecycle/creation/tests.rs"),
     # 同一组建任务测试（按页额度），复用 creation/tests.rs 的 AppState 夹具。
     Path("src/services/jobs/lifecycle/creation/page_quota_tests.rs"),
@@ -672,7 +671,6 @@ def check_service_model_facade_boundaries(errors: list[str]) -> None:
         abs_src(Path("src/job_failure.rs")),
         abs_src(Path("src/job_failure_support.rs")),
         abs_src(Path("src/job_failure_structured.rs")),
-        SRC_ROOT / "services" / "glossaries",
         SRC_ROOT / "services" / "platform" / "fonts",
         SRC_ROOT / "services" / "providers" / "credentials",
         SRC_ROOT / "services" / "ai" / "agent_calculations",
@@ -816,14 +814,12 @@ def check_business_private_modules(errors: list[str]) -> None:
         "fonts": {"service"},
         "credentials": {"service"},
         "agent_calculations": {"service"},
-        "glossaries": {"csv", "entries", "records"},
     }
     homes = {
         "ai": Path("ai"),
         "fonts": Path("platform/fonts"),
         "credentials": Path("providers/credentials"),
         "agent_calculations": Path("ai/agent_calculations"),
-        "glossaries": Path("glossaries"),
     }
     for path in scan_rs_files(SRC_ROOT):
         text = path.read_text(encoding="utf-8")
@@ -1451,6 +1447,13 @@ ALLOWED_DOMAIN_DEPENDENCIES = {
 }
 
 
+# 已经拆成独立包的领域 → 包所在的目录（backend/packages/<目录>，目录名就是包名）。
+# 这些领域的代码不在 services/ 下，services/mod.rs 里 `pub(crate) use <包> as <领域>;` 接上。
+EXTRACTED_DOMAINS = {
+    "glossaries": "retain-pdf-glossaries",
+}
+
+
 def check_service_domains(errors: list[str]) -> None:
     services_root = SRC_ROOT / "services"
     for entry in sorted(services_root.iterdir()):
@@ -1465,17 +1468,47 @@ def check_service_domains(errors: list[str]) -> None:
 
 # 每个领域的 mod.rs 就是它的门面：子模块一律私有，领域外要用的东西在 mod.rs 里 `pub(crate) use` 出来。
 # 子模块私有以后，越过门面的路径编译不过；这条规则防止有人把子模块改回 pub。
+def _check_private_submodules(path: Path, label: str, errors: list[str]) -> None:
+    for match in re.finditer(r"(?m)^pub(?:\([^)]*\))?\s+mod\s+(\w+)\s*;", rust_boundary_source(path)):
+        errors.append(
+            f"{label}: submodule `{match.group(1)}` must stay private; export what other "
+            "domains need from the facade instead"
+        )
+
+
+def extracted_domain_root(domain: str) -> Path:
+    return REPO_ROOT.parent / "packages" / EXTRACTED_DOMAINS[domain]
+
+
 def check_domain_facades(errors: list[str]) -> None:
+    services_mod = SRC_ROOT / "services" / "mod.rs"
+    services_mod_source = rust_boundary_source(services_mod) if services_mod.exists() else ""
     for domain in sorted(SERVICE_DOMAINS):
+        if domain in EXTRACTED_DOMAINS:
+            # 拆成独立包的领域：门面是那个包的 lib.rs；services 里只剩一行接上它，不许留半截目录。
+            crate_dir = EXTRACTED_DOMAINS[domain]
+            if (SRC_ROOT / "services" / domain).exists():
+                errors.append(
+                    f"src/services/{domain}: {domain} lives in the {crate_dir} crate now; "
+                    "do not add code back under services/"
+                )
+            crate_name = crate_dir.replace("-", "_")
+            if not re.search(rf"\buse\s+{crate_name}\s+as\s+{domain}\s*;", services_mod_source):
+                errors.append(
+                    f"src/services/mod.rs: re-export the {crate_dir} crate as services::{domain} "
+                    f"(`pub(crate) use {crate_name} as {domain};`)"
+                )
+            lib = extracted_domain_root(domain) / "src" / "lib.rs"
+            if not lib.exists():
+                errors.append(f"{crate_dir}/src/lib.rs: missing domain facade")
+            else:
+                _check_private_submodules(lib, f"{crate_dir}/src/lib.rs", errors)
+            continue
         path = SRC_ROOT / "services" / domain / "mod.rs"
         if not path.exists():
             errors.append(f"{rel(path)}: missing domain facade")
             continue
-        for match in re.finditer(r"(?m)^pub(?:\([^)]*\))?\s+mod\s+(\w+)\s*;", rust_boundary_source(path)):
-            errors.append(
-                f"{rel(path)}: submodule `{match.group(1)}` must stay private; export what other "
-                "domains need from the facade instead"
-            )
+        _check_private_submodules(path, str(rel(path)), errors)
 
 
 def check_domain_dependency_direction(errors: list[str]) -> None:

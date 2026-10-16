@@ -437,8 +437,7 @@ mod tests { fn fixture() { let runtime: ProcessRuntimeDeps; } }
     def test_small_module_private_paths_are_guarded(self):
         for domain, member in (
             ("fonts", "service"), ("credentials", "service"),
-            ("agent_calculations", "service"), ("glossaries", "csv"),
-            ("glossaries", "entries"), ("glossaries", "records"),
+            ("agent_calculations", "service"),
         ):
             with self.subTest(domain=domain, member=member):
                 for suffix in (f"{member}::Entry", f"{{{member}::Entry}}"):
@@ -452,7 +451,7 @@ mod tests { fn fixture() { let runtime: ProcessRuntimeDeps; } }
                 ))
 
     def test_small_module_model_facades_are_scanned(self):
-        for domain in ("platform/fonts", "providers/credentials", "ai/agent_calculations", "glossaries"):
+        for domain in ("platform/fonts", "providers/credentials", "ai/agent_calculations"):
             with self.subTest(domain=domain):
                 self.assertTrue(self.check_sources(
                     {f"services/{domain}/api.rs": "use crate::models::UploadRecord;"},
@@ -670,7 +669,12 @@ class ServiceCycleTests(unittest.TestCase):
 
 
 class DomainFacadeTests(unittest.TestCase):
-    check_sources = UploadBoundaryTests.check_sources
+    _check_sources = UploadBoundaryTests.check_sources
+
+    def check_sources(self, sources, check=None):
+        # 这一组只管 services/ 下的领域目录；拆成独立包的领域另有测试。
+        with patch.object(checks, "EXTRACTED_DOMAINS", {}):
+            return self._check_sources(sources, check)
 
     def domain_tree(self, **extra):
         sources = {f"services/{domain}/mod.rs": "mod inner;\npub(crate) use inner::Thing;\n"
@@ -723,6 +727,43 @@ class DomainFacadeTests(unittest.TestCase):
         errors = self.check_sources({"services/jobs/x.rs": ""}, checks.check_domain_dependency_direction)
         self.assertEqual(len(checks.ALLOWED_DOMAIN_DEPENDENCIES), len(errors), errors)
         self.assertTrue(all("nothing uses any more" in error for error in errors), errors)
+
+
+class ExtractedDomainTests(unittest.TestCase):
+    """拆成独立包的领域（例如术语表）：门面是那个包的 lib.rs，services 里只剩一行接上它。"""
+
+    def run_check(self, services_mod, lib, extra=None):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            sources = {f"src/services/{domain}/mod.rs": "mod inner;\n"
+                       for domain in checks.SERVICE_DOMAINS if domain != "glossaries"}
+            sources["src/services/mod.rs"] = services_mod
+            sources["packages/retain-pdf-glossaries/src/lib.rs"] = lib
+            sources.update(extra or {})
+            for relative, source in sources.items():
+                path = root / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(source, encoding="utf-8")
+            with patch.object(checks, "REPO_ROOT", root), patch.object(checks, "SRC_ROOT", root / "src"), \
+                    patch.object(checks, "ALL_SRC_ROOTS", (root / "src",)), \
+                    patch.object(checks, "EXTRACTED_DOMAINS", {"glossaries": "retain-pdf-glossaries"}), \
+                    patch.object(checks, "extracted_domain_root",
+                                 lambda domain: root / "packages" / "retain-pdf-glossaries"):
+                errors = []
+                checks.check_domain_facades(errors)
+                return errors
+
+    def test_crate_facade_and_reexport_pass(self):
+        self.assertEqual([], self.run_check(
+            "pub(crate) use retain_pdf_glossaries as glossaries;\n", "mod api;\npub use api::Thing;\n",
+        ))
+
+    def test_missing_reexport_public_submodule_and_leftover_directory_are_rejected(self):
+        errors = self.run_check("", "pub mod api;\n", {"src/services/glossaries/extra.rs": ""})
+        self.assertEqual(3, len(errors), errors)
+        self.assertTrue(any("re-export the retain-pdf-glossaries crate" in error for error in errors), errors)
+        self.assertTrue(any("must stay private" in error for error in errors), errors)
+        self.assertTrue(any("do not add code back under services/" in error for error in errors), errors)
 
 
 class RequestPayloadAccessTests(unittest.TestCase):

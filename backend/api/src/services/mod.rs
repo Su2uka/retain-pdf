@@ -18,7 +18,8 @@
 pub(crate) mod accounts;
 pub(crate) mod ai;
 pub(crate) mod files;
-pub(crate) mod glossaries;
+// 术语表已经拆成独立的包，这里接上，`crate::services::glossaries::…` 的写法不变。
+pub(crate) use retain_pdf_glossaries as glossaries;
 pub(crate) mod ingest;
 pub(crate) mod jobs;
 pub(crate) mod library;

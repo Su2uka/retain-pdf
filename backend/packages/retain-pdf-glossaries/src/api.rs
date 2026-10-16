@@ -3,9 +3,9 @@ use super::records::{
     create_glossary, delete_glossary, filter_glossaries, list_glossaries, load_glossary_or_404,
     update_glossary,
 };
-use crate::db::Db;
-use crate::error::AppError;
-use crate::models::api::{
+use retain_pdf_data::db::Db;
+use retain_pdf_api_base::error::AppError;
+use retain_pdf_core::models::api::{
     glossary_to_csv_export, glossary_to_detail, glossary_to_summary, GlossaryCsvExportView,
     GlossaryCsvParseInput, GlossaryCsvParseView, GlossaryDetailView, GlossaryListView,
     GlossaryUpsertInput, ListGlossariesQuery,
@@ -27,7 +27,7 @@ pub fn create_glossary_view(
     owner: &str,
 ) -> Result<GlossaryDetailView, AppError> {
     let record = create_glossary(deps.db, payload)?;
-    deps.db.set_resource_owner(crate::db::OwnedKind::Glossary, &record.glossary_id, owner)?;
+    deps.db.set_resource_owner(retain_pdf_data::db::OwnedKind::Glossary, &record.glossary_id, owner)?;
     Ok(glossary_to_detail(&record))
 }
 

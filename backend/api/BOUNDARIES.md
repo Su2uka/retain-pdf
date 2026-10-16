@@ -199,6 +199,13 @@ re-exported with `pub(crate) use` in one block marked `// 门面`. Items only te
 use sit under `#[cfg(test)]` in the same block. `check_domain_facades` rejects a
 `pub mod` in a domain's `mod.rs`. Inside a domain, code may use any path.
 
+A domain that has been split into its own crate is listed in
+`EXTRACTED_DOMAINS` (so far: `glossaries` → `backend/packages/retain-pdf-glossaries`).
+Its `lib.rs` is the facade, `services/mod.rs` re-exports it as
+`services::<domain>` (`pub(crate) use retain_pdf_glossaries as glossaries;`),
+and nothing for it stays under `services/`. It depends only on the base
+crates (`retain-pdf-api-base`, `retain-pdf-core`, `retain-pdf-data`).
+
 Domains depend downward only. The allowed edges are listed in
 `ALLOWED_DOMAIN_DEPENDENCIES` (`check_domain_dependency_direction` rejects a
 new edge and an edge nothing uses any more):

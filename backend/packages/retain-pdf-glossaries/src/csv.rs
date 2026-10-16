@@ -1,5 +1,5 @@
-use crate::error::AppError;
-use crate::models::request::{GlossaryCsvParseInput, GlossaryEntryInput};
+use retain_pdf_api_base::error::AppError;
+use retain_pdf_core::models::request::{GlossaryCsvParseInput, GlossaryEntryInput};
 
 use super::entries::{
     normalize_glossary_entries, normalize_glossary_level, normalize_glossary_match_mode,
