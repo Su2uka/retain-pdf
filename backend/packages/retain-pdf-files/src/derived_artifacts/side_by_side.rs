@@ -2,8 +2,8 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
-use crate::error::AppError;
-use crate::models::domain::JobSnapshot;
+use retain_pdf_api_base::error::AppError;
+use retain_pdf_core::models::domain::JobSnapshot;
 
 use super::{cached_output_is_fresh, job_artifacts_dir, DerivedArtifactDeps};
 
@@ -54,7 +54,7 @@ impl Drop for TemporaryOutput {
     }
 }
 
-pub(crate) fn ensure_side_by_side_pdf(
+pub fn ensure_side_by_side_pdf(
     deps: DerivedArtifactDeps<'_>,
     data_root: &Path,
     job: &JobSnapshot,
@@ -117,7 +117,7 @@ pub(super) fn build_with_command(
 /// 从 `build_with_command` 里拆出来，是因为合并译文要产出**一个目录**而不是一个文件，
 /// 临时产物和原子替换的方式不同，但进程监管（超时杀进程、不留没人读的管道、失败时带回
 /// stderr 尾部）完全一样。返回诊断文件的句柄，调用方失败时用它拼错误信息。
-pub(crate) fn run_supervised(
+pub fn run_supervised(
     anchor: &Path,
     label: &str,
     timeout: Duration,
@@ -172,10 +172,10 @@ pub(crate) fn run_supervised(
 }
 
 /// 子进程 stderr 的临时文件；drop 时删除。
-pub(crate) struct Diagnostics(TemporaryOutput);
+pub struct Diagnostics(TemporaryOutput);
 
 impl Diagnostics {
-    pub(crate) fn error(&self, reason: String) -> AppError {
+    pub fn error(&self, reason: String) -> AppError {
         AppError::internal(with_diagnostics(reason, &self.0 .0))
     }
 }

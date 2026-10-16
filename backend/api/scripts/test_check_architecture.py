@@ -56,7 +56,7 @@ mod tests { fn fixture() { let runtime: ProcessRuntimeDeps; } }
         self.assertEqual([], self.check_sources({
             "services/jobs/presentation/detail_projection.rs": "use crate::services::files::artifacts::build_artifacts_display;",
             "services/library/book_projection.rs": "use crate::services::files::artifacts::build_artifacts_display; use crate::services::jobs::job_readiness;",
-            "services/files/artifacts/presentation.rs": "use crate::models::api::{ArtifactLinksView, ArtifactDisplayItemView};",
+            "packages/retain-pdf-files/src/artifacts/presentation.rs": "use retain_pdf_core::models::api::{ArtifactLinksView, ArtifactDisplayItemView};",
             "services/jobs/event_feed/batch_tests.rs": "use crate::services::library::book_projection;",
         }, checks.check_shared_artifact_presentation))
         for path in ("services/jobs/presentation/detail_projection.rs", "services/jobs/query/nested.rs"):
@@ -66,12 +66,12 @@ mod tests { fn fixture() { let runtime: ProcessRuntimeDeps; } }
             ))
         for source in (
             "use crate::services::jobs;", "use crate::services::{library};", "fn build(db: &Db) {}",
-            "std::fs::read(path);", "use crate::ocr_provider;", "use crate::storage_paths;",
+            "std::fs::read(path);", "use retain_pdf_data::ocr_provider;", "use retain_pdf_core::storage_paths;",
             "use std::{fs as files};", "tokio::process::Command::new(program);",
             'let raw = payload["layoutParsingResults"];',
         ):
             self.assertTrue(self.check_sources(
-                {"services/files/artifacts/presentation/nested.rs": source},
+                {"packages/retain-pdf-files/src/artifacts/presentation/nested.rs": source},
                 checks.check_shared_artifact_presentation,
             ))
         self.assertTrue(self.check_sources(
@@ -81,7 +81,7 @@ mod tests { fn fixture() { let runtime: ProcessRuntimeDeps; } }
 
     def test_shared_artifact_guard_ignores_comments_and_literals(self):
         self.assertEqual([], self.check_sources({
-            "services/files/artifacts/presentation.rs": '// no jobs or Db access\nconst LABEL: &str = "library";',
+            "packages/retain-pdf-files/src/artifacts/presentation.rs": '// no jobs or Db access\nconst LABEL: &str = "library";',
             "services/jobs/query.rs": 'const NOTE: &str = r#"book_projection"#;',
         }, checks.check_shared_artifact_presentation))
 
@@ -268,15 +268,19 @@ mod tests { fn fixture() { let runtime: ProcessRuntimeDeps; } }
         ))
 
     def check_sources(self, sources, check=None):
+        """sources 的键是 src/ 下的相对路径；以 packages/ 开头的是拆出去的领域包里的文件。"""
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             for relative, source in sources.items():
-                path = root / "src" / relative
+                path = root / relative if relative.startswith("packages/") else root / "src" / relative
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text(source, encoding="utf-8")
             with patch.object(checks, "REPO_ROOT", root), patch.object(
                 checks, "SRC_ROOT", root / "src"
-            ), patch.object(checks, "ALL_SRC_ROOTS", (root / "src",)):
+            ), patch.object(checks, "ALL_SRC_ROOTS", (root / "src",)), patch.object(
+                checks, "extracted_domain_root",
+                lambda domain: root / "packages" / checks.EXTRACTED_DOMAINS[domain],
+            ):
                 errors = []
                 (check or checks.check_upload_boundaries)(errors)
                 return errors
@@ -597,9 +601,19 @@ class ArtifactPathOwnershipTests(unittest.TestCase):
         self.assertEqual([], self.run_check({
             "services/jobs/files/downloads/files.rs": "fn f() { resolve_output_pdf(job, root); }",
             "services/jobs/reader/markdown.rs": "fn f() { resolve_markdown_path(job, root); }",
-            "services/files/derived_artifacts/word.rs": "use crate::storage_paths::resolve_source_pdf;",
-            "services/files/artifacts/bundle.rs": "fn f() { resolve_markdown_path(job, root); }",
+            "packages/retain-pdf-files/src/derived_artifacts/word.rs": "use retain_pdf_core::storage_paths::resolve_source_pdf;",
+            "packages/retain-pdf-files/src/derived_artifacts.rs": "fn f() { resolve_output_pdf(job, root); }",
+            "packages/retain-pdf-files/src/artifacts/bundle.rs": "fn f() { resolve_markdown_path(job, root); }",
         }))
+
+    def test_files_crate_outside_artifacts_and_derived_artifacts_is_rejected(self):
+        for path in ("download_names.rs", "download_generation.rs", "lib.rs"):
+            with self.subTest(path=path):
+                errors = self.run_check(
+                    {f"packages/retain-pdf-files/src/{path}": "fn f() { resolve_output_pdf(job, root); }"}
+                )
+                self.assertEqual(1, len(errors), errors)
+                self.assertIn(f"retain-pdf-files/src/{path}: builds artifact paths itself", errors[0])
 
     def test_new_readers_are_rejected(self):
         for path in ("services/library/new.rs", "routes/jobs/files.rs"):

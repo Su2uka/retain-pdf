@@ -1,25 +1,25 @@
 use std::path::{Path, PathBuf};
 
-use crate::error::AppError;
-use crate::models::domain::JobSnapshot;
+use retain_pdf_api_base::error::AppError;
+use retain_pdf_core::models::domain::JobSnapshot;
 
 use super::{job_artifacts_dir, DerivedArtifactDeps};
 
 #[derive(Clone, Copy)]
-pub(crate) enum BookImageKind {
+pub enum BookImageKind {
     Cover,
     Thumbnail,
 }
 
 impl BookImageKind {
-    pub(crate) fn file_name(self) -> &'static str {
+    pub fn file_name(self) -> &'static str {
         match self {
             Self::Cover => "cover.jpg",
             Self::Thumbnail => "thumbnail.jpg",
         }
     }
 
-    pub(crate) fn width_px(self) -> u32 {
+    pub fn width_px(self) -> u32 {
         match self {
             Self::Cover => 900,
             Self::Thumbnail => 360,
@@ -27,7 +27,7 @@ impl BookImageKind {
     }
 }
 
-pub(crate) fn ensure_book_image(
+pub fn ensure_book_image(
     deps: DerivedArtifactDeps<'_>,
     data_root: &Path,
     job: &JobSnapshot,
@@ -40,7 +40,7 @@ pub(crate) fn ensure_book_image(
 }
 
 /// 文档级封面/缩略图：从源 PDF 首页渲染，缓存到 documents/<id>/。
-pub(crate) fn ensure_document_book_image(
+pub fn ensure_document_book_image(
     deps: DerivedArtifactDeps<'_>,
     data_root: &Path,
     document_id: &str,
@@ -65,7 +65,7 @@ fn ensure_book_image_at_path(
     Ok(output_path.to_path_buf())
 }
 
-pub(crate) fn ensure_page_preview(
+pub fn ensure_page_preview(
     deps: DerivedArtifactDeps<'_>,
     output_path: &Path,
     source_pdf: &Path,

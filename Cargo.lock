@@ -1593,6 +1593,7 @@ dependencies = [
  "retain-pdf-config",
  "retain-pdf-core",
  "retain-pdf-data",
+ "retain-pdf-files",
  "retain-pdf-glossaries",
  "retain-pdf-ingest",
  "retain-pdf-platform",
@@ -1708,6 +1709,21 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+]
+
+[[package]]
+name = "retain-pdf-files"
+version = "0.1.0"
+dependencies = [
+ "fastrand",
+ "libc",
+ "retain-pdf-api-base",
+ "retain-pdf-core",
+ "retain-pdf-data",
+ "serde_json",
+ "tokio",
+ "walkdir",
+ "zip",
 ]
 
 [[package]]

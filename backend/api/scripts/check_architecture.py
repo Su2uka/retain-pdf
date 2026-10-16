@@ -299,13 +299,16 @@ ROUTE_QUALIFIED_SERVICE_ACCESS_ALLOWLIST: set[Path] = set()
 
 ARTIFACT_BOUNDARY_FILES = {
     Path("src/storage_paths.rs"),
-    Path("src/services/files/artifacts/mod.rs"),
-    Path("src/services/files/artifacts/bundle.rs"),
-    Path("src/services/files/artifacts/registry.rs"),
-    Path("src/services/files/artifacts/response.rs"),
-    Path("src/services/files/artifacts/presentation.rs"),
     Path("src/routes/jobs/files.rs"),
 }
+# 文件包 retain-pdf-files 里的产物清单和打包，路径相对包的根目录。
+FILES_ARTIFACT_BOUNDARY_FILES = (
+    Path("src/artifacts/mod.rs"),
+    Path("src/artifacts/bundle.rs"),
+    Path("src/artifacts/registry.rs"),
+    Path("src/artifacts/response.rs"),
+    Path("src/artifacts/presentation.rs"),
+)
 
 PROVIDER_RAW_INTERNAL_TOKENS = (
     "layoutParsingResults",
@@ -619,9 +622,6 @@ def check_route_model_boundary(errors: list[str]) -> None:
 
 def check_service_model_facade_boundaries(errors: list[str]) -> None:
     scoped_roots = (
-        SRC_ROOT / "services" / "files" / "artifacts",
-        SRC_ROOT / "services" / "files" / "derived_artifacts",
-        SRC_ROOT / "services" / "files" / "derived_artifacts.rs",
         abs_src(Path("src/job_events")),
         abs_src(Path("src/job_events.rs")),
         abs_src(Path("src/db")),
@@ -924,7 +924,15 @@ def check_shared_artifact_presentation(errors: list[str]) -> None:
                 errors.append(
                     f"{relative}: jobs must not depend on book_projection; shared display belongs in services::files::artifacts"
                 )
-        if is_rust_module_path(relative, Path("src/services/files/artifacts/presentation")):
+    # 产物的展示（列表里每一项叫什么、链接）在文件包 retain-pdf-files 的 artifacts/presentation。
+    files_root = extracted_domain_root("files")
+    for path in scan_rs_files(files_root / "src"):
+        if path.stem == "tests" or path.stem.endswith("_tests"):
+            continue
+        in_crate = path.relative_to(files_root)
+        relative = Path(EXTRACTED_DOMAINS["files"]) / in_crate
+        text = rust_boundary_source(path)
+        if is_rust_module_path(in_crate, Path("src/artifacts/presentation")):
             if re.search(
                 r"\b(?:jobs|book_projection|library|AppState|AppConfig|JobSnapshot|Db|storage_paths|ocr_provider|fs|File|OpenOptions|Command|process|reqwest)\b",
                 text,
@@ -936,7 +944,7 @@ def check_shared_artifact_presentation(errors: list[str]) -> None:
                 if token in route_source_without_tests(path):
                     errors.append(f"{relative}: shared artifact presentation must not interpret provider raw token '{token}'")
     if (SRC_ROOT / "services" / "library" / "book_projection" / "artifacts.rs").exists():
-        errors.append("services/library/book_projection/artifacts.rs: shared artifact display belongs in services/files/artifacts/presentation.rs")
+        errors.append("services/library/book_projection/artifacts.rs: shared artifact display belongs in retain-pdf-files src/artifacts/presentation.rs")
 
 
 def check_runtime_deps_module_boundary(errors: list[str]) -> None:
@@ -1008,12 +1016,18 @@ def check_provider_markdown_fallback(errors: list[str]) -> None:
 
 
 def check_artifact_boundary_layer(errors: list[str]) -> None:
-    for rel_path in ARTIFACT_BOUNDARY_FILES:
-        path = abs_src(rel_path)
+    files_root = extracted_domain_root("files")
+    targets = [(rel_path, abs_src(rel_path)) for rel_path in sorted(ARTIFACT_BOUNDARY_FILES)]
+    targets += [
+        (Path(EXTRACTED_DOMAINS["files"]) / rel_path, files_root / rel_path)
+        for rel_path in FILES_ARTIFACT_BOUNDARY_FILES
+    ]
+    for rel_path, path in targets:
         text = path.read_text(encoding="utf-8")
-        if "crate::ocr_provider::" in text:
+        # 文件包里写包名：retain_pdf_data::ocr_provider。
+        if re.search(r"\b(?:crate|retain_pdf_data)::ocr_provider::", text):
             errors.append(
-                f"{rel_path}: artifact/download boundary must not depend directly on crate::ocr_provider"
+                f"{rel_path}: artifact/download boundary must not depend directly on ocr_provider"
             )
         for token in PROVIDER_RAW_INTERNAL_TOKENS:
             if token in text:
@@ -1039,7 +1053,6 @@ def check_downloads_do_not_generate_artifacts(errors: list[str]) -> None:
     text = route_source_without_tests(downloads_facade)
     for token in (
         "crate::storage_paths::",
-        "crate::services::files::derived_artifacts",
         "load_supported_job",
         "resolve_source_pdf",
         "resolve_output_pdf",
@@ -1426,6 +1439,7 @@ ALLOWED_DOMAIN_DEPENDENCIES = {
 # 这些领域的代码不在 services/ 下，services/mod.rs 里 `pub(crate) use <包> as <领域>;` 接上。
 EXTRACTED_DOMAINS = {
     "accounts": "retain-pdf-accounts",
+    "files": "retain-pdf-files",
     "glossaries": "retain-pdf-glossaries",
     "ingest": "retain-pdf-ingest",
     "platform": "retain-pdf-platform",
@@ -1647,7 +1661,7 @@ def check_service_dependency_cycles(errors: list[str]) -> None:
 
 
 # 任务产物的路径只有出口模块能拼：任务的文件走 services/jobs/files/downloads 的 `open`，书的文件走
-# library/media.rs，派生产物的生成在 derived_artifacts，产物清单和打包在 artifacts。其它地方直接拼路径，流水线一改输出布局就跟着坏，
+# library/media.rs，派生产物的生成在 derived_artifacts，产物清单和打包在 artifacts（这两个在文件包 retain-pdf-files 里）。其它地方直接拼路径，流水线一改输出布局就跟着坏，
 # 而且每个读的人都要知道文件放在哪（"牵一发动全身"的来源之一）。
 ARTIFACT_PATH_RESOLVER = re.compile(
     r"\bresolve_(?:output_pdf|source_pdf|markdown_path|markdown_images_dir|normalized_document"
@@ -1655,13 +1669,16 @@ ARTIFACT_PATH_RESOLVER = re.compile(
     r"|markdown_bundle_zip)\b"
 )
 ARTIFACT_PATH_OWNERS = (
-    Path("src/services/files/artifacts"),
-    Path("src/services/files/derived_artifacts"),
     Path("src/services/jobs/files/downloads"),
     # 原文 Markdown 的出口，原来在 downloads 里，按类挪到了阅读。
     Path("src/services/jobs/reader/markdown.rs"),
     # 书的文件（原文、封面、原文页）的出口。
     Path("src/services/library/media.rs"),
+)
+# 文件包 retain-pdf-files 里只有这两块能拼，路径相对包的根目录；下载文件名、生成去重、门面都不许。
+FILES_ARTIFACT_PATH_OWNERS = (
+    Path("src/artifacts"),
+    Path("src/derived_artifacts"),
 )
 # 2026-10-15 冻结的现状：这些文件还直接拼产物路径。只许删，不许加；删掉一个之后名单里还留着
 # 就报错（免得名单悄悄变宽）。要读产物内容就去调出口，不要往这里加文件。
@@ -1692,6 +1709,15 @@ def check_artifact_path_ownership(errors: list[str]) -> None:
                 continue
             if ARTIFACT_PATH_RESOLVER.search(rust_boundary_source(path)):
                 readers.add(relative)
+    files_root = extracted_domain_root("files")
+    for path in scan_rs_files(files_root / "src"):
+        if path.stem == "tests" or path.stem.endswith("_tests"):
+            continue
+        in_crate = path.relative_to(files_root)
+        if any(is_rust_module_path(in_crate, owner) for owner in FILES_ARTIFACT_PATH_OWNERS):
+            continue
+        if ARTIFACT_PATH_RESOLVER.search(rust_boundary_source(path)):
+            readers.add(Path(EXTRACTED_DOMAINS["files"]) / in_crate)
     for relative in sorted(readers - KNOWN_ARTIFACT_PATH_READERS):
         errors.append(
             f"{relative}: builds artifact paths itself (storage_paths::resolve_*); "

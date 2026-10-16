@@ -1,9 +1,9 @@
 use std::path::{Path, PathBuf};
 
-use crate::db::Db;
-use crate::error::AppError;
-use crate::models::domain::{JobArtifactRecord, JobSnapshot};
-use crate::storage_paths::{collect_job_artifact_entries, resolve_registered_artifact_path};
+use retain_pdf_data::db::Db;
+use retain_pdf_api_base::error::AppError;
+use retain_pdf_core::models::domain::{JobArtifactRecord, JobSnapshot};
+use retain_pdf_core::storage_paths::{collect_job_artifact_entries, resolve_registered_artifact_path};
 
 pub fn list_registry_for_job(
     db: &Db,

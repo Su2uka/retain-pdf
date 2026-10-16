@@ -9,11 +9,11 @@
 
 use std::collections::HashMap;
 
-use crate::db::Db;
-use crate::models::domain::{JobSnapshot, UploadRecord};
+use retain_pdf_data::db::Db;
+use retain_pdf_core::models::domain::{JobSnapshot, UploadRecord};
 
 /// `document_id`（= 上传内容的 sha256）→ 文档当前标题。
-pub(crate) type DocumentTitles = HashMap<String, String>;
+pub type DocumentTitles = HashMap<String, String>;
 
 pub(crate) fn document_title(upload: Option<&UploadRecord>, titles: &DocumentTitles) -> Option<String> {
     let hash = upload?.content_hash.trim();
@@ -21,7 +21,7 @@ pub(crate) fn document_title(upload: Option<&UploadRecord>, titles: &DocumentTit
 }
 
 /// 给一批上传记录查它们所属文档的标题。查询失败就当没有 —— 退回文件名，不影响列表。
-pub(crate) fn document_titles_for<'a>(
+pub fn document_titles_for<'a>(
     db: &Db,
     uploads: impl IntoIterator<Item = &'a UploadRecord>,
 ) -> DocumentTitles {
@@ -34,7 +34,7 @@ pub(crate) fn document_titles_for<'a>(
 }
 
 /// 书名：所属文档的标题优先，其次上传文件名（或来源 URL 的文件名），最后 job_id。
-pub(crate) fn display_title(
+pub fn display_title(
     upload: Option<&UploadRecord>,
     job: &JobSnapshot,
     titles: &DocumentTitles,
@@ -45,7 +45,7 @@ pub(crate) fn display_title(
 }
 
 /// 单个任务的书名（下载文件名用）。
-pub(crate) fn job_display_title(db: &Db, job: &JobSnapshot) -> String {
+pub fn job_display_title(db: &Db, job: &JobSnapshot) -> String {
     let upload_id = job_upload_id(job);
     let ids: Vec<&str> = upload_id.into_iter().collect();
     let uploads = db.get_uploads(&ids).unwrap_or_default();
@@ -55,7 +55,7 @@ pub(crate) fn job_display_title(db: &Db, job: &JobSnapshot) -> String {
 }
 
 /// 任务挂的上传编号，空白当没有。
-pub(crate) fn job_upload_id(job: &JobSnapshot) -> Option<&str> {
+pub fn job_upload_id(job: &JobSnapshot) -> Option<&str> {
     job.upload_id
         .as_deref()
         .map(str::trim)
@@ -63,7 +63,7 @@ pub(crate) fn job_upload_id(job: &JobSnapshot) -> Option<&str> {
 }
 
 /// 源文件名：上传文件名优先，没有就取来源 URL 的最后一段。
-pub(crate) fn source_file_name(upload: Option<&UploadRecord>, job: &JobSnapshot) -> Option<String> {
+pub fn source_file_name(upload: Option<&UploadRecord>, job: &JobSnapshot) -> Option<String> {
     upload
         .map(|upload| upload.filename.trim())
         .filter(|name| !name.is_empty())
@@ -72,7 +72,7 @@ pub(crate) fn source_file_name(upload: Option<&UploadRecord>, job: &JobSnapshot)
 }
 
 /// 来源 URL 的最后一段（去掉 `#…` 和 `?…`）。书架、任务列表、下载命名共用这一份。
-pub(crate) fn source_url_file_name(source_url: &str) -> Option<String> {
+pub fn source_url_file_name(source_url: &str) -> Option<String> {
     let trimmed = source_url.trim();
     let no_fragment = trimmed.split('#').next().unwrap_or(trimmed);
     let no_query = no_fragment.split('?').next().unwrap_or(no_fragment);

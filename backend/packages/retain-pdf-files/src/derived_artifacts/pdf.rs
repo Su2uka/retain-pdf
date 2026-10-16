@@ -1,12 +1,12 @@
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use crate::error::AppError;
-use crate::models::domain::JobSnapshot;
+use retain_pdf_api_base::error::AppError;
+use retain_pdf_core::models::domain::JobSnapshot;
 
 use super::job_artifacts_dir;
 
-pub(crate) fn linearized_pdf_or_original(
+pub fn linearized_pdf_or_original(
     data_root: &Path,
     job: &JobSnapshot,
     input_pdf: &Path,
