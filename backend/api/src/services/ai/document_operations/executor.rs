@@ -5,8 +5,8 @@ use std::thread;
 
 use anyhow::{bail, Context, Result};
 use chrono::{DateTime, Duration, Utc};
-use retain_core::config::pipeline_command_is_available;
-use retain_core::models::domain::{
+use retain_pdf_core::config::pipeline_command_is_available;
+use retain_pdf_core::models::domain::{
     now_iso, validate_operation_id, DocumentOperationDispatchReceipt,
     DocumentOperationWorkspaceManifest,
 };
@@ -356,8 +356,8 @@ impl DocumentOperationExecutor for RestrictedPageProgramExecutor {
             let deadline = accepted_at.with_timezone(&Utc)
                 + Duration::seconds(index.wall_time_seconds.min(i64::MAX as u64) as i64);
             if Utc::now() > deadline {
-                if retain_proc::worker_process_exists(index.pid) {
-                    retain_proc::terminate_job_process_tree_blocking(index.pid, 2, 50)?;
+                if retain_pdf_proc::worker_process_exists(index.pid) {
+                    retain_pdf_proc::terminate_job_process_tree_blocking(index.pid, 2, 50)?;
                 }
                 return Ok(ExecutorObservation::Failed {
                     receipt: index.receipt,
@@ -367,7 +367,7 @@ impl DocumentOperationExecutor for RestrictedPageProgramExecutor {
                 });
             }
         }
-        if retain_proc::worker_process_exists(index.pid) {
+        if retain_pdf_proc::worker_process_exists(index.pid) {
             return Ok(ExecutorObservation::Accepted(index.receipt));
         }
         Ok(ExecutorObservation::Failed {
@@ -387,8 +387,8 @@ impl DocumentOperationExecutor for RestrictedPageProgramExecutor {
         let Some(index) = self.load_index(&dispatch_id)? else {
             return Ok(());
         };
-        if retain_proc::worker_process_exists(index.pid) {
-            retain_proc::terminate_job_process_tree_blocking(index.pid, 2, 50)?;
+        if retain_pdf_proc::worker_process_exists(index.pid) {
+            retain_pdf_proc::terminate_job_process_tree_blocking(index.pid, 2, 50)?;
         }
         let paths = self.paths_for_index(&index)?;
         if !paths.result_json.exists() {
@@ -511,7 +511,7 @@ fn configure_process_group(_command: &mut Command) {}
 
 #[cfg(all(test, unix))]
 mod restricted_tests {
-    use retain_core::models::domain::{
+    use retain_pdf_core::models::domain::{
         DocumentOperationLimits, DocumentOperationStatus, DocumentOperationWorkspaceState,
         DOCUMENT_OPERATION_MANIFEST_SCHEMA, DOCUMENT_OPERATION_SCHEMA_VERSION,
         DOCUMENT_OPERATION_STATE_SCHEMA,
@@ -613,7 +613,7 @@ mod restricted_tests {
             .expect("workspace");
         let executor = RestrictedPageProgramExecutor::new(&data_root, &stub.to_string_lossy());
         let receipt = executor.start(&manifest).expect("start worker");
-        assert!(retain_proc::worker_process_exists(
+        assert!(retain_pdf_proc::worker_process_exists(
             executor
                 .load_index(&manifest.dispatch_id)
                 .expect("index")
@@ -640,7 +640,7 @@ mod deterministic {
     use std::sync::Mutex;
 
     use anyhow::{bail, Result};
-    use retain_core::models::domain::{now_iso, DocumentOperationDispatchReceipt};
+    use retain_pdf_core::models::domain::{now_iso, DocumentOperationDispatchReceipt};
 
     use super::*;
 

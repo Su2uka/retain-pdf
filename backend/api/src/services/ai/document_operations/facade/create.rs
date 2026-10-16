@@ -1,9 +1,9 @@
-use retain_core::models::domain::{
+use retain_pdf_core::models::domain::{
     now_iso, DocumentOperationStatus, DocumentOperationWorkspaceManifest,
     DocumentOperationWorkspaceState, DOCUMENT_OPERATION_MANIFEST_SCHEMA,
     DOCUMENT_OPERATION_SCHEMA_VERSION, DOCUMENT_OPERATION_STATE_SCHEMA,
 };
-use retain_data::db::Db;
+use retain_pdf_data::db::Db;
 
 use crate::config::AppConfig;
 use crate::error::AppError;

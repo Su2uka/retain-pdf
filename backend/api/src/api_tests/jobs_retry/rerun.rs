@@ -141,7 +141,7 @@ async fn rerun_uses_a_replacement_key_from_the_request_body() {
     let rerun_job = state.db.get_job(payload["data"]["job_id"].as_str().unwrap()).expect("rerun job");
     let translation = &rerun_job.request_payload.translation;
     assert!(translation.api_key.is_empty(), "明文 key 不能落库");
-    let resolved = retain_data::credentials::resolve_credential(
+    let resolved = retain_pdf_data::credentials::resolve_credential(
         &state.config.data_root,
         &translation.credential_ref,
         "translation_api_key",

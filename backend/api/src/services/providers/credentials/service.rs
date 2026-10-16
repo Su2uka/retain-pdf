@@ -16,7 +16,7 @@ use crate::error::AppError;
 use crate::models::domain::now_iso;
 
 // 文件格式（版本号、大小上限、路径、名字规则、读之前的安全检查）和任务运行时读密钥的一侧共用。
-use retain_data::credentials::{
+use retain_pdf_data::credentials::{
     is_valid_credential_ref, is_valid_name, is_valid_stored_secret, read_vault_bytes, vault_path,
     VaultReadError, MAX_SECRET_BYTES, MAX_VAULT_BYTES, VAULT_SCHEMA,
 };

@@ -1,5 +1,23 @@
 # Rust API 贡献指南
 
+## 包名
+
+2026-10-16 起 Rust 包统一叫 `retain-pdf-*`，目录名和可执行文件名没改：
+
+| 目录 | 包名（`cargo -p`） | crate 名（`use`） | 可执行文件 |
+|---|---|---|---|
+| `backend/api` | `retain-pdf-api` | `retain_pdf_api` | `rust_api`、`retainpdf-agent` |
+| `backend/packages/retain-core` | `retain-pdf-core` | `retain_pdf_core` | |
+| `backend/packages/retain-data` | `retain-pdf-data` | `retain_pdf_data` | |
+| `database/retain-db` | `retain-pdf-db` | `retain_pdf_db` | |
+| `backend/packages/retain-config` | `retain-pdf-config` | `retain_pdf_config` | |
+| `backend/packages/retain-proc` | `retain-pdf-proc` | `retain_pdf_proc` | |
+| `backend/packages/retain-jobs` | `retain-pdf-runner` | `retain_pdf_runner` | |
+| `backend/jobs` | `retain-pdf-runnerd` | | `retain-jobsd` |
+| `backend/cli` | `retain-pdf-cli` | | `retainpdf` |
+
+下面和别的文档里写的 `retain-core`、`retain-jobs` 等指的是目录。
+
 ## 分层方向
 
 默认依赖方向：

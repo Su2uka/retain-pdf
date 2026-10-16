@@ -138,11 +138,11 @@ async fn serve_with_shutdown(
 /// 记下正在运行的后端(`~/.retainpdf/run/backend.json`),命令行 `retainpdf` 靠它找到后端。
 /// 只在 `RUST_API_WRITE_RUNTIME_FILE=1` 时写(桌面版、开发脚本打开):测试和别的部署起的后端
 /// 不该改用户目录里的东西。
-fn write_runtime_record(config: &AppConfig, bound: SocketAddr) -> Option<retain_config::ConfigHome> {
+fn write_runtime_record(config: &AppConfig, bound: SocketAddr) -> Option<retain_pdf_config::ConfigHome> {
     if std::env::var("RUST_API_WRITE_RUNTIME_FILE").as_deref() != Ok("1") {
         return None;
     }
-    let home = match retain_config::ConfigHome::locate() {
+    let home = match retain_pdf_config::ConfigHome::locate() {
         Ok(home) => home,
         Err(error) => {
             tracing::warn!("runtime record skipped: {error:#}");
@@ -150,7 +150,7 @@ fn write_runtime_record(config: &AppConfig, bound: SocketAddr) -> Option<retain_
         }
     };
     let host = if bound.ip().is_unspecified() { "127.0.0.1".to_string() } else { bound.ip().to_string() };
-    let record = retain_config::BackendRuntime {
+    let record = retain_pdf_config::BackendRuntime {
         api_base: format!("http://{host}:{}", bound.port()),
         api_key: config.api_keys.iter().min().cloned().unwrap_or_default(),
         data_dir: config.data_root.to_string_lossy().to_string(),

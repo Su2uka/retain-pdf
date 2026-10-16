@@ -3,7 +3,7 @@
 //! 整理入口（只留一个提交函数）之前先把现状钉住，整理完快照不该变；有意改了才重新生成：
 //!
 //! ```text
-//! UPDATE_SUBMISSIONS=1 cargo test -p rust_api --lib submissions
+//! UPDATE_SUBMISSIONS=1 cargo test -p retain-pdf-api --lib submissions
 //! ```
 //!
 //! 快照在 `backend/api/docs/submissions.txt`。任务不真跑：发射器只记下任务编号。
@@ -613,7 +613,7 @@ async fn submission_snapshot() {
     single_user_cases(&mut recorder).await;
     multi_user_cases(&mut recorder).await;
     let actual = format!(
-        "# 建任务各入口的结果快照（UPDATE_SUBMISSIONS=1 cargo test -p rust_api --lib submissions 重新生成）\n\n{}",
+        "# 建任务各入口的结果快照（UPDATE_SUBMISSIONS=1 cargo test -p retain-pdf-api --lib submissions 重新生成）\n\n{}",
         recorder.out
     );
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("docs/submissions.txt");
@@ -629,7 +629,7 @@ async fn submission_snapshot() {
             .position(|(a, b)| a != b)
             .unwrap_or_else(|| expected.lines().count().min(actual.lines().count()));
         panic!(
-            "建任务的结果和快照不一致（从第 {} 行起）。有意改的话重新生成：\n  UPDATE_SUBMISSIONS=1 cargo test -p rust_api --lib submissions\n\n期望：{:?}\n实际：{:?}",
+            "建任务的结果和快照不一致（从第 {} 行起）。有意改的话重新生成：\n  UPDATE_SUBMISSIONS=1 cargo test -p retain-pdf-api --lib submissions\n\n期望：{:?}\n实际：{:?}",
             first_diff + 1,
             expected.lines().nth(first_diff),
             actual.lines().nth(first_diff),

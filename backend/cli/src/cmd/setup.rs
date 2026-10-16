@@ -6,7 +6,7 @@
 use std::process::ExitCode;
 
 use anyhow::Result;
-use retain_config::providers::{model_provider, MODEL_PROVIDERS, OCR_PROVIDERS};
+use retain_pdf_config::providers::{model_provider, MODEL_PROVIDERS, OCR_PROVIDERS};
 
 /// 思考深度的选项(与 `providers.<id>.thinking` 一致)。
 const THINKING_OPTIONS: &[(&str, &str)] = &[

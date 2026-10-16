@@ -1,7 +1,7 @@
 //! 多设备同步的应用服务:后台定时同步、立即同步、连通性测试、状态。
 //!
-//! 同步本身在 `retain_data::sync`(格式与合并规则见那里),设置的读写与「跑一轮并记下
-//! 结果」在 `retain_data::sync::control`(命令行在后端没开时也用它)。这里负责:
+//! 同步本身在 `retain_pdf_data::sync`(格式与合并规则见那里),设置的读写与「跑一轮并记下
+//! 结果」在 `retain_pdf_data::sync::control`(命令行在后端没开时也用它)。这里负责:
 //! - 后台每隔 `RUST_API_SYNC_INTERVAL_SECS`(默认 60)秒跑一轮,改设置或点「立即同步」
 //!   时马上跑;同一时间只跑一轮;数据库恢复期间停住(`pause`);
 //! - 其它设备的列表在每轮结束时记在内存里:界面查状态不会再去问 NAS。
@@ -14,7 +14,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use anyhow::Result;
-use retain_data::sync::{SyncControl, SyncSettingsError};
+use retain_pdf_data::sync::{SyncControl, SyncSettingsError};
 
 use crate::db::Db;
 use crate::models::api::{SyncPeerView, SyncRunView, SyncSettingsInput, SyncStatusView, SyncTestView};
@@ -22,7 +22,7 @@ use crate::models::domain::now_iso;
 
 fn interval_from_env() -> Duration {
     Duration::from_secs(
-        retain_core::config::env_vars::env_u64("RUST_API_SYNC_INTERVAL_SECS", 60).max(10),
+        retain_pdf_core::config::env_vars::env_u64("RUST_API_SYNC_INTERVAL_SECS", 60).max(10),
     )
 }
 

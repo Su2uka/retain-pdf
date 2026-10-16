@@ -338,7 +338,7 @@ pub fn build_document_fts(
         let translated_pages = if job.workflow == WorkflowKind::Ocr {
             Vec::new()
         } else {
-            retain_core::document_pages::translated_document_pages(
+            retain_pdf_core::document_pages::translated_document_pages(
                 &ocr_pages,
                 job.request_payload.translation.start_page,
                 job.request_payload.translation.end_page,

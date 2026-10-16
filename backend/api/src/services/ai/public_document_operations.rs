@@ -3,9 +3,9 @@ use std::fs;
 use std::io::Read;
 use std::path::PathBuf;
 
-use retain_core::models::domain::{validate_operation_id, DocumentOperationStatus};
-use retain_core::storage_paths::resolve_data_path;
-use retain_data::db::Db;
+use retain_pdf_core::models::domain::{validate_operation_id, DocumentOperationStatus};
+use retain_pdf_core::storage_paths::resolve_data_path;
+use retain_pdf_data::db::Db;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 

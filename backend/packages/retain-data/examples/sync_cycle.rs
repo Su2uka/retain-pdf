@@ -1,14 +1,14 @@
 //! 调试用:对一个数据目录跑一轮同步,打印结果。
 //!
-//!     cargo run -p retain-data --example sync_cycle -- <数据目录> <同步文件夹> [设备名]
+//!     cargo run -p retain-pdf-data --example sync_cycle -- <数据目录> <同步文件夹> [设备名]
 //!
 //! 环境变量 `RETAIN_SYNC_TIDY=1`:这一轮就整理同步文件夹(停用期 0、攒 4 段就合并),
 //! 用来演练整理。
 
 use std::path::PathBuf;
 
-use retain_data::db::Db;
-use retain_data::sync::{MaintenancePolicy, SyncEngine};
+use retain_pdf_data::db::Db;
+use retain_pdf_data::sync::{MaintenancePolicy, SyncEngine};
 
 fn main() -> anyhow::Result<()> {
     let mut args = std::env::args().skip(1);

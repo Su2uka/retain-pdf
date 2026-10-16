@@ -1,4 +1,4 @@
-//! 修订登记的 api 层壳:对账逻辑本身在 `retain_data::translation_revisions`
+//! 修订登记的 api 层壳:对账逻辑本身在 `retain_pdf_data::translation_revisions`
 //! (渲染阶段的精修在 Python 子进程里写回,任务运行时在 workflow 结束时也要调用它),
 //! 这里只做错误映射,以及把逐页结果折成接口里的 `live_publication`。
 
@@ -14,7 +14,7 @@ pub(crate) fn publish_translation_revisions(
     job_id: &str,
     translations_dir: &Path,
 ) -> Result<Option<Vec<RevisedPagePublication>>, AppError> {
-    Ok(retain_data::translation_revisions::publish_translation_revisions(
+    Ok(retain_pdf_data::translation_revisions::publish_translation_revisions(
         db,
         job_id,
         translations_dir,
@@ -28,7 +28,7 @@ pub(crate) fn prune_superseded_revision_snapshots(
     translations_dir: &Path,
 ) -> Result<usize, AppError> {
     Ok(
-        retain_data::translation_revisions::prune_superseded_revision_snapshots(
+        retain_pdf_data::translation_revisions::prune_superseded_revision_snapshots(
             db,
             job_id,
             translations_dir,

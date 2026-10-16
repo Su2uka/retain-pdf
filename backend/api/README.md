@@ -85,14 +85,14 @@
 - `python3 backend/api/scripts/check_architecture.py`
 - `python3 -B -m unittest discover -s backend/api/scripts -p 'test_check_*.py'`
 - `uv run --project backend --locked --all-extras python backend/api/scripts/check_test_filters.py`
-- `uv run --project backend --locked --all-extras cargo build --locked -p rust_api`
-- `uv run --project backend --locked --all-extras cargo test --locked -p retain-jobs --lib job_runner::process_runner::tests::execute_process_job_injects_provider_and_translation_envs -- --exact`
-- `uv run --project backend --locked --all-extras cargo test --locked -p rust_api --lib api_tests::jobs_security::job_detail_and_events_routes_redact_secrets -- --exact`
+- `uv run --project backend --locked --all-extras cargo build --locked -p retain-pdf-api`
+- `uv run --project backend --locked --all-extras cargo test --locked -p retain-pdf-runner --lib job_runner::process_runner::tests::execute_process_job_injects_provider_and_translation_envs -- --exact`
+- `uv run --project backend --locked --all-extras cargo test --locked -p retain-pdf-api --lib api_tests::jobs_security::job_detail_and_events_routes_redact_secrets -- --exact`
 
 以上命令从仓库根目录执行。`check_test_filters.py` 只通过 `cargo test -- --list`
 确认两个精确过滤器匹配实际测试（必要时会编译测试二进制，不执行测试），匹配 0 项即失败；
 它不能替代后面的实际测试。运行时测试现在属于 `retain-jobs`，HTTP 脱敏测试属于
-`rust_api::api_tests`，不要继续使用迁移前的 crate/模块路径。
+`retain_pdf_api::api_tests`，不要继续使用迁移前的 crate/模块路径。
 
 第一条负责卡住最容易回退的架构问题：
 

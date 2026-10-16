@@ -1,5 +1,5 @@
-use rust_api::config::{AppConfig, JOB_WORKER_THREAD_STACK_BYTES};
-use rust_api::run_servers_with_shutdown;
+use retain_pdf_api::config::{AppConfig, JOB_WORKER_THREAD_STACK_BYTES};
+use retain_pdf_api::run_servers_with_shutdown;
 
 /// 手建 runtime 而不是 `#[tokio::main]`,只为显式设定 worker 栈大小。
 ///
@@ -17,7 +17,7 @@ async fn run() -> anyhow::Result<()> {
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "rust_api=info,tower_http=info".into()),
+                .unwrap_or_else(|_| "retain_pdf_api=info,rust_api=info,tower_http=info".into()),
         )
         .init();
 

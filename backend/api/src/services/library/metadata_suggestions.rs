@@ -16,7 +16,7 @@ use crate::models::api::{
 };
 use crate::models::domain::build_job_id;
 use crate::storage_paths::{resolve_job_root, resolve_normalized_document};
-use retain_data::db::{ApplyDocumentMetadataSuggestionResult, StoredDocumentMetadataSuggestion};
+use retain_pdf_data::db::{ApplyDocumentMetadataSuggestionResult, StoredDocumentMetadataSuggestion};
 
 use super::documents::require_document_upload;
 use super::LibraryDeps;

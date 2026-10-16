@@ -1,8 +1,8 @@
-use retain_core::models::domain::{
+use retain_pdf_core::models::domain::{
     DocumentOperationLimits, DocumentOperationStatus, DocumentOperationWorkspaceManifest,
     DocumentOperationWorkspaceState,
 };
-use retain_data::db::DocumentVersionRecord;
+use retain_pdf_data::db::DocumentVersionRecord;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 

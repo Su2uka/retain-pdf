@@ -9,7 +9,7 @@ use anyhow::Result;
 pub use policy::{ModelConnection, ModelConnectionPolicy, ModelRequest};
 #[cfg(test)]
 pub use policy::{Deadlines, Message, Provider, Thinking};
-use retain_data::db::{Db, ModelOperation, ModelReservation, ModelSessionConflict};
+use retain_pdf_data::db::{Db, ModelOperation, ModelReservation, ModelSessionConflict};
 use sha2::{Digest, Sha256};
 use std::{
     collections::HashMap,
@@ -292,7 +292,7 @@ impl ModelExecutor {
                 let pool = self.pool(profile).await?;
                 let permit = pool.slots.acquire(profile.concurrency).await;
                 // Resolve before marking dispatched. Never give the Python worker a key.
-                let credential = retain_data::credentials::resolve_credential(
+                let credential = retain_pdf_data::credentials::resolve_credential(
                     &self.data_root,
                     &profile.credential_ref,
                     "translation_api_key",

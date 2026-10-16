@@ -1,5 +1,5 @@
 use super::UploadError;
-use retain_core::config::UploadProcessingConfig;
+use retain_pdf_core::config::UploadProcessingConfig;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};

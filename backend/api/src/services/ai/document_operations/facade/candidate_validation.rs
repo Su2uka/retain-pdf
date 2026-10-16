@@ -1,6 +1,6 @@
-use retain_core::models::domain::{now_iso, DocumentOperationStatus};
-use retain_core::storage_paths::to_relative_data_path;
-use retain_data::db::{Db, DocumentVersionRecord};
+use retain_pdf_core::models::domain::{now_iso, DocumentOperationStatus};
+use retain_pdf_core::storage_paths::to_relative_data_path;
+use retain_pdf_data::db::{Db, DocumentVersionRecord};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
@@ -80,8 +80,8 @@ struct VisualValidationReport {
 pub(super) fn validate_and_publish_candidate(
     db: &Db,
     config: &AppConfig,
-    operation: &retain_data::db::StoredDocumentOperation,
-    attempt: &retain_data::db::StoredDocumentOperationAttempt,
+    operation: &retain_pdf_data::db::StoredDocumentOperation,
+    attempt: &retain_pdf_data::db::StoredDocumentOperationAttempt,
 ) -> anyhow::Result<()> {
     let manifest = &attempt.manifest;
     let paths = OperationWorkspacePaths::for_manifest(&config.data_root, manifest);

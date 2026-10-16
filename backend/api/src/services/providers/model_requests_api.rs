@@ -9,7 +9,7 @@ use crate::{
     error::AppError,
     models::domain::{JobSnapshot, JobStatusKind},
 };
-use retain_data::db::ModelOperation;
+use retain_pdf_data::db::ModelOperation;
 use serde_json::{json, Value};
 
 pub struct ModelRequestsApi {

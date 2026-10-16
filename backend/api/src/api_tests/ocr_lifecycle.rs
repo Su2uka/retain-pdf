@@ -300,7 +300,7 @@ async fn canceling_a_normalizing_ocr_job_kills_the_worker_process() {
 
     let mut command = tokio::process::Command::new("sleep");
     command.arg("300");
-    retain_proc::configure_child_process(&mut command);
+    retain_pdf_proc::configure_child_process(&mut command);
     let mut child = command.spawn().expect("spawn stand-in worker");
     let pid = child.id().expect("worker pid");
 

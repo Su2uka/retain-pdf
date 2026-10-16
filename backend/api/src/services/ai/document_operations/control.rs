@@ -1,6 +1,6 @@
 use anyhow::{bail, Result};
-use retain_core::models::domain::{now_iso, DocumentOperationStatus};
-use retain_data::db::Db;
+use retain_pdf_core::models::domain::{now_iso, DocumentOperationStatus};
+use retain_pdf_data::db::Db;
 
 use super::executor::{DocumentOperationExecutor, ExecutorObservation};
 

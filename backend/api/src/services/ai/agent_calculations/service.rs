@@ -11,8 +11,8 @@ use std::path::{Path, PathBuf};
 
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
-use retain_core::models::domain::build_job_id;
-use retain_data::db::{
+use retain_pdf_core::models::domain::build_job_id;
+use retain_pdf_data::db::{
     AgentCalculationArtifactInput, AgentCalculationRunCreate, AgentCalculationRunRecord,
     AgentCalculationStatus, AgentCalculationTransitionResult, Db,
 };
@@ -770,7 +770,7 @@ fn internal_error(error: impl std::fmt::Display) -> AppError {
 
 #[cfg(test)]
 mod tests {
-    use retain_data::db::AgentCalculationArtifactRecord;
+    use retain_pdf_data::db::AgentCalculationArtifactRecord;
 
     use super::*;
 

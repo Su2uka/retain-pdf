@@ -25,17 +25,17 @@ use tracing::{info, warn};
 
 use crate::db::Db;
 
-pub use retain_core::config::CleanupConfig;
+pub use retain_pdf_core::config::CleanupConfig;
 
 /// How often the recurring sweep runs once the server is up. Deliberately
 /// coarse: this is maintenance, not something latency-sensitive.
 /// Env `RUST_API_CLEANUP_INTERVAL_SECS` (default 21600) via
-/// `retain_core::config::env_vars::env_u64` — the interval is env-tunable
-/// without rebuilding (see `retain_core::config::CleanupConfig`).
+/// `retain_pdf_core::config::env_vars::env_u64` — the interval is env-tunable
+/// without rebuilding (see `retain_pdf_core::config::CleanupConfig`).
 fn cleanup_interval_from_config() -> Duration {
-    // Single source: retain_core::config::env_vars::env_u64 (env `RUST_API_CLEANUP_INTERVAL_SECS`, default 21600)
+    // Single source: retain_pdf_core::config::env_vars::env_u64 (env `RUST_API_CLEANUP_INTERVAL_SECS`, default 21600)
     // Also keep AppConfig facet in sync via CleanupConfig.
-    let direct = Duration::from_secs(retain_core::config::env_vars::env_u64(
+    let direct = Duration::from_secs(retain_pdf_core::config::env_vars::env_u64(
         "RUST_API_CLEANUP_INTERVAL_SECS",
         21600,
     ));

@@ -76,7 +76,7 @@ retainpdf sync set --folder <文件夹> | --webdav <地址> --user <账号> [--p
 
 同一个数据目录同一时间只能有一个程序写。命令行先看 `run/backend.json`：记录的进程在、数据目录相同、
 `/health` 应答，就把会改东西的命令（备份、恢复、同步）转给后端；没有在用这个数据目录的后端时，直接
-操作数据目录（规则和后端一样：恢复前先备份、有任务在跑时不恢复；同步用 `retain_data::sync::control`，
+操作数据目录（规则和后端一样：恢复前先备份、有任务在跑时不恢复；同步用 `retain_pdf_data::sync::control`，
 与后端同一套）；记录说后端在却连不上时，会改东西的命令拒绝执行。`status`、`doctor` 只读，任何时候都能用。
 
 后端只在 `RUST_API_WRITE_RUNTIME_FILE=1` 时写运行记录（桌面版、开发脚本打开），测试和别的部署起的后端

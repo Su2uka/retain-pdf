@@ -14,7 +14,7 @@ use serde::Serialize;
 use crate::db::Db;
 use crate::error::AppError;
 use crate::models::domain::{JobSnapshot, JobStatusKind, WorkflowKind};
-use retain_core::document_pages::translated_document_pages;
+use retain_pdf_core::document_pages::translated_document_pages;
 use crate::services::jobs::terminal_completion_note;
 
 use super::plan::{merge_plan, PageSource};
@@ -168,7 +168,7 @@ fn kept_origin_supplied(data_root: &Path, job: &JobSnapshot, pages: Option<&BTre
 
 /// translation_diagnostics.json 的 dead_letter_items / unresolved_items：每块一条（同一块两边都有
 /// 只算一次），`page_idx` 是这个任务 OCR 产物里的本地页（0 起），映射回文档页用
-/// `ocr_page_numbers`（见 retain_core::document_pages）；没有映射就按「本地 = 文档 - 1」（全书任务）。
+/// `ocr_page_numbers`（见 retain_pdf_core::document_pages）；没有映射就按「本地 = 文档 - 1」（全书任务）。
 /// 没有逐块记录，或列表被截断（Python 端各只留前 100 条）时返回 None，调用方退回整任务的数。
 fn kept_origin_by_document_page(data_root: &Path, job_id: &str, ocr_pages: &[u32]) -> Option<BTreeMap<u32, u32>> {
     let path = data_root.join("jobs").join(job_id).join("artifacts").join("translation_diagnostics.json");

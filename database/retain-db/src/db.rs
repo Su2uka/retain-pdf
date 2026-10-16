@@ -87,11 +87,11 @@ use schema::{
 /// fail outright instead of just waiting briefly for the other side to
 /// finish its transaction.
 /// Tunable via `RUST_API_DB_BUSY_TIMEOUT_MS` (default 5000), also exposed
-/// via `retain_core::config::DbConfig`.
+/// via `retain_pdf_core::config::DbConfig`.
 fn db_busy_timeout() -> Duration {
-    // Single source: retain_core::config::env_vars::env_u64 (handles trimming/0-filter)
+    // Single source: retain_pdf_core::config::env_vars::env_u64 (handles trimming/0-filter)
     // Fallback keeps Db usable even without AppConfig (unit tests / jobsd standalone).
-    Duration::from_millis(retain_core::config::env_vars::env_u64(
+    Duration::from_millis(retain_pdf_core::config::env_vars::env_u64(
         "RUST_API_DB_BUSY_TIMEOUT_MS",
         5_000,
     ))

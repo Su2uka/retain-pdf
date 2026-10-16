@@ -4,9 +4,9 @@ use std::process::ExitCode;
 
 use anyhow::{bail, Result};
 use clap::Subcommand;
-use retain_config::keys::mask;
-use retain_config::settings::{ModelConnection, ENV_OVERRIDES};
-use retain_config::{describe_key, known_keys, KeyKind, Settings, Source, Store};
+use retain_pdf_config::keys::mask;
+use retain_pdf_config::settings::{ModelConnection, ENV_OVERRIDES};
+use retain_pdf_config::{describe_key, known_keys, KeyKind, Settings, Source, Store};
 use serde_json::{json, Value};
 
 use crate::context::Ctx;

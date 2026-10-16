@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use anyhow::{Context, Result};
-use retain_data::credentials::resolve_credential;
+use retain_pdf_data::credentials::resolve_credential;
 
 use crate::models::domain::JobRuntimeState;
 
