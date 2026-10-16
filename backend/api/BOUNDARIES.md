@@ -200,12 +200,16 @@ use sit under `#[cfg(test)]` in the same block. `check_domain_facades` rejects a
 `pub mod` in a domain's `mod.rs`. Inside a domain, code may use any path.
 
 A domain that has been split into its own crate is listed in
-`EXTRACTED_DOMAINS` (so far: `accounts` → `backend/packages/retain-pdf-accounts`, `files` → `backend/packages/retain-pdf-files`, `glossaries` → `backend/packages/retain-pdf-glossaries`, `ingest` → `backend/packages/retain-pdf-ingest`, `platform` →
+`EXTRACTED_DOMAINS` (so far: `accounts` → `backend/packages/retain-pdf-accounts`, `ai` → `backend/packages/retain-pdf-ai`, `files` → `backend/packages/retain-pdf-files`, `glossaries` → `backend/packages/retain-pdf-glossaries`, `ingest` → `backend/packages/retain-pdf-ingest`, `platform` →
 `backend/packages/retain-pdf-platform`, `providers` → `backend/packages/retain-pdf-providers`).
 Its `lib.rs` is the facade, `services/mod.rs` re-exports it as
 `services::<domain>` (`pub(crate) use retain_pdf_glossaries as glossaries;`),
-and nothing for it stays under `services/`. It depends only on the base
-crates (`retain-pdf-api-base`, `retain-pdf-core`, `retain-pdf-data`) and on
+and nothing for it stays under `services/`. Exports only rust_api tests use sit
+under `#[cfg(any(test, feature = "test-fixtures"))]`; rust_api turns the feature on in
+`[dev-dependencies]` (`#[cfg(test)]` is not visible across crates), so production
+builds never see them. It depends only on the base
+crates (`retain-pdf-api-base`, `retain-pdf-core`, `retain-pdf-data`; `retain-pdf-ai` also
+uses `retain-pdf-proc` to stop operation workers) and on
 the crates of extracted domains below it (`retain-pdf-accounts` uses
 `retain-pdf-providers`, `retain-pdf-ingest` uses `retain-pdf-accounts`). Such a use is written with the crate name
 (`retain_pdf_providers::…`); `check_domain_dependency_direction` counts it as a

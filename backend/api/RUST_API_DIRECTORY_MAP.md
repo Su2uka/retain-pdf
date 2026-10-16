@@ -133,7 +133,7 @@ jobs 的依赖装配由 `app/jobs.rs` 完成；依赖定义在 `services/jobs/de
 - 每个领域的 `mod.rs` 是它唯一的门面：子模块私有，路由、装配和别的领域只用门面导出的东西
   （见 `BOUNDARIES.md` 的 "Domain Facades"）。
 
-#### 入口包的 `uploads` 与 `src/services/ai`
+#### 入口包的 `uploads` 与 AI 包（`retain-pdf-ai`）
 
 - 路由通过 `services::ingest`、`services::ai` 的门面调用（实现分别在 `uploads/api.rs`、`ai/api.rs`）；
   装配和跨业务调用也只用门面导出的能力，不访问私有实现文件。
@@ -203,7 +203,7 @@ jobs 的依赖装配由 `app/jobs.rs` 完成；依赖定义在 `services/jobs/de
   字体查询入口，具体发现逻辑位于私有 `service.rs`。
 - [`../packages/retain-pdf-providers/src/credentials/api.rs`](../packages/retain-pdf-providers/src/credentials/api.rs)（服务商已拆成独立的包）
   HTTP 凭据入口；jobs 所需凭据使用锁等能力由模块根部明确导出，不经 HTTP 入口。
-- [`src/services/ai/agent_calculations/api.rs`](src/services/ai/agent_calculations/api.rs)
+- [`../packages/retain-pdf-ai/src/agent_calculations/api.rs`](../packages/retain-pdf-ai/src/agent_calculations/api.rs)
   Agent 计算记录与产物接口，内部只依赖数据库和目录，不接收完整配置。
 - [`src/services/library/api.rs`](src/services/library/api.rs)
   图书馆接口入口（见上）。
@@ -213,13 +213,13 @@ jobs 的依赖装配由 `app/jobs.rs` 完成；依赖定义在 `services/jobs/de
   job 持久化与启动边界。
 - [`src/services/jobs/runtime_gateway.rs`](src/services/jobs/runtime_gateway.rs)
   services 访问 runtime 能力的收口层。
-- [`src/services/ai/api.rs`](src/services/ai/api.rs)
+- [`../packages/retain-pdf-ai/src/api.rs`](../packages/retain-pdf-ai/src/api.rs)
   Rust 到受监督 AI sidecar 的 HTTP 代理入口。
-- [`src/services/ai/public_document_operations_api.rs`](src/services/ai/public_document_operations_api.rs)
+- [`../packages/retain-pdf-ai/src/public_document_operations_api.rs`](../packages/retain-pdf-ai/src/public_document_operations_api.rs)
   浏览器安全 operation 投影、显式动作 CAS 与 candidate 读取入口。
-- [`src/services/ai/document_operation_api.rs`](src/services/ai/document_operation_api.rs)
+- [`../packages/retain-pdf-ai/src/document_operation_api.rs`](../packages/retain-pdf-ai/src/document_operation_api.rs)
   internal CLI operation lifecycle 入口。
-- [`src/services/ai/agent_runtime_session_api.rs`](src/services/ai/agent_runtime_session_api.rs)
+- [`../packages/retain-pdf-ai/src/agent_runtime_session_api.rs`](../packages/retain-pdf-ai/src/agent_runtime_session_api.rs)
   opaque runtime cursor revision CAS 入口。
 
 ### `../packages/retain-data/src/worker_command.rs` + `worker_command/*`
@@ -310,7 +310,7 @@ jobs 的依赖装配由 `app/jobs.rs` 完成；依赖定义在 `services/jobs/de
 - “这是 worker / Python 执行变化吗？”
   先看 `../packages/retain-jobs/src/job_runner`
 - “这是 AI 对话、runtime 或 PDF operation 变化吗？”
-  先分清 `src/services/ai/api.rs`、
+  先分清 `../packages/retain-pdf-ai/src/api.rs`、
   `public_document_operations_api.rs` 和 backend-only
   `document_operation_api.rs` 三个边界
 
