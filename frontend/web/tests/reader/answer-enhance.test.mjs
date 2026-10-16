@@ -93,24 +93,37 @@ test("citation markdown decoration is streaming-safe and leaves code and links i
 
 test("buildMarkdownImageApiUrl strips images/ prefix", () => {
   const u = buildMarkdownImageApiUrl("job1", "images/page-1/imgs/a.png");
-  assert.match(u, /markdown\/images\/page-1\/imgs\/a\.png/);
+  assert.match(u, /\/jobs\/job1\/files\/output\/ocr\/images\/page-1\/imgs\/a\.png$/);
 });
 
 test("answer images are canonicalized once and locked to the current job", () => {
   assert.equal(
     buildMarkdownImageApiUrl("job 1", "images/page-3/imgs/chart%20a.png"),
-    "/api/v1/jobs/job%201/markdown/images/page-3/imgs/chart%20a.png",
+    "/api/v1/jobs/job%201/files/output/ocr/images/page-3/imgs/chart%20a.png",
   );
+  // 新地址原样认下。
+  assert.equal(
+    resolveAnswerImageUrl(
+      "/api/v1/jobs/job%201/files/output/ocr/images/page-3/imgs/chart%20a.png",
+      "job 1",
+    ),
+    "/api/v1/jobs/job%201/files/output/ocr/images/page-3/imgs/chart%20a.png",
+  );
+  // 旧地址 /markdown/images/ 也认，统一规范成新地址。
   assert.equal(
     resolveAnswerImageUrl(
       "/api/v1/jobs/job%201/markdown/images/page-3/imgs/chart%20a.png",
       "job 1",
     ),
-    "/api/v1/jobs/job%201/markdown/images/page-3/imgs/chart%20a.png",
+    "/api/v1/jobs/job%201/files/output/ocr/images/page-3/imgs/chart%20a.png",
   );
   assert.equal(resolveAnswerImageUrl("https://tracker.invalid/pixel.png", "job 1"), "");
   assert.equal(
     resolveAnswerImageUrl("/api/v1/jobs/other/markdown/images/page-3/a.png", "job 1"),
+    "",
+  );
+  assert.equal(
+    resolveAnswerImageUrl("/api/v1/jobs/other/files/output/ocr/images/page-3/a.png", "job 1"),
     "",
   );
   assert.equal(buildMarkdownImageApiUrl("job 1", "images/../secret.png"), "");
@@ -156,7 +169,7 @@ test("answer HTML never mounts a raw image URL and hydrates accepted assets thro
   assert.equal(image.hasAttribute("src"), false);
   assert.equal(
     image.getAttribute("data-ai-src"),
-    "/api/v1/jobs/job-1/markdown/images/page-3/imgs/chart%20a.png",
+    "/api/v1/jobs/job-1/files/output/ocr/images/page-3/imgs/chart%20a.png",
   );
   assert.match(root.textContent, /图片不可用：tracker/);
 
@@ -168,7 +181,7 @@ test("answer HTML never mounts a raw image URL and hydrates accepted assets thro
     },
   });
   assert.deepEqual(calls, [
-    "/api/v1/jobs/job-1/markdown/images/page-3/imgs/chart%20a.png",
+    "/api/v1/jobs/job-1/files/output/ocr/images/page-3/imgs/chart%20a.png",
   ]);
   assert.match(image.getAttribute("src") || "", /^blob:/);
   dom.window.close();
@@ -176,7 +189,10 @@ test("answer HTML never mounts a raw image URL and hydrates accepted assets thro
 
 test("buildPagePreviewUrl is 1-based page", () => {
   const u = buildPagePreviewUrl("job1", 0);
-  assert.match(u, /preview\/pages\/1\?/);
+  // 译文页走任务文件 /files/pages/{n}.jpg；原文页仍走 /preview/pages/{n}?kind=source。
+  assert.match(u, /\/jobs\/job1\/files\/pages\/1\.jpg\?width=240$/);
+  const source = buildPagePreviewUrl("job1", 0, "source");
+  assert.match(source, /\/jobs\/job1\/preview\/pages\/1\?kind=source&width=240$/);
 });
 
 test("isAgenticCitation requires block_id", () => {

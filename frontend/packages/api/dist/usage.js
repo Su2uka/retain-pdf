@@ -19,5 +19,5 @@ export function fetchUsageSummary(apiPrefix) {
 }
 /** 单个任务；任务不存在时后端返回 404。 */
 export function fetchJobUsage(jobId, apiPrefix) {
-    return fetchUsage(buildApiEndpoint(apiPrefix, `jobs/${encodeURIComponent(jobId)}/usage`), "这个任务的");
+    return fetchUsage(buildApiEndpoint(apiPrefix, `jobs/${encodeURIComponent(jobId)}/reports/usage`), "这个任务的");
 }

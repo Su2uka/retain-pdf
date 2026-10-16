@@ -1,4 +1,4 @@
-// quality — pure：一个任务的译文质量摘要与问题明细（GET /jobs/:id/quality-summary、/quality-items）。
+// quality — pure：一个任务的译文质量摘要与问题明细（GET /jobs/:id/reports/quality、/reports/quality/items）。
 // 字段按后端约定写在这里；契约（contracts）发布后改成从 @retainpdf/contracts 引类型。
 import { apiFetch } from "./internal/runtime.js";
 import { buildApiHeaders, buildJobDetailEndpoint, unwrapEnvelope } from "./http.js";
@@ -11,7 +11,7 @@ async function getJson(url, label) {
     return unwrapEnvelope(await resp.json());
 }
 export function fetchQualitySummary(jobId, apiPrefix) {
-    return getJson(`${buildJobDetailEndpoint(jobId, apiPrefix)}/quality-summary`, "质量摘要");
+    return getJson(`${buildJobDetailEndpoint(jobId, apiPrefix)}/reports/quality`, "质量摘要");
 }
 export function fetchQualityItems(jobId, apiPrefix, { kind, page, severity, offset = 0, limit = 200 }) {
     const params = new URLSearchParams({ kind, offset: `${offset}`, limit: `${limit}` });
@@ -19,5 +19,5 @@ export function fetchQualityItems(jobId, apiPrefix, { kind, page, severity, offs
         params.set("page", `${page}`);
     if (severity)
         params.set("severity", severity);
-    return getJson(`${buildJobDetailEndpoint(jobId, apiPrefix)}/quality-items?${params}`, "质量明细");
+    return getJson(`${buildJobDetailEndpoint(jobId, apiPrefix)}/reports/quality/items?${params}`, "质量明细");
 }

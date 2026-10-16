@@ -67,7 +67,7 @@ test("current AI Markdown component hydrates a complete image while the answer i
     "streaming protected image hydration",
   );
   assert.deepEqual(calls, [
-    "/api/v1/jobs/job-1/markdown/images/page-3/imgs/chart%20a.png",
+    "/api/v1/jobs/job-1/files/output/ocr/images/page-3/imgs/chart%20a.png",
   ]);
   await waitFor(
     () => Boolean(container.querySelector("button.reader-ai-citation-ref[data-page='3']")),
@@ -176,7 +176,7 @@ test("current AI Markdown component fetches only current-job images through the 
     "protected image hydration",
   );
   assert.deepEqual(calls, [
-    "/api/v1/jobs/job-1/markdown/images/page-3/imgs/chart%20a.png",
+    "/api/v1/jobs/job-1/files/output/ocr/images/page-3/imgs/chart%20a.png",
   ]);
   assert.equal(container.querySelectorAll("img").length, 1);
   assert.match(container.querySelector("img").getAttribute("src") || "", /^blob:/);

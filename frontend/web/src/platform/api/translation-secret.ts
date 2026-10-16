@@ -84,8 +84,12 @@ export function createTranslationSecretInjector({
   };
 }
 
-/** rerun 只给动作链接（后端给的完整地址 …/api/v1/jobs/<id>/rerun）：从里面取任务号。 */
+/**
+ * rerun 只给动作链接（后端给的完整地址）：从里面取任务号。旧地址 …/jobs/<id>/rerun、
+ * 新地址 …/jobs/<id>/actions/rerun（任务接口按类分前缀后）都认——取不到任务号时重跑会
+ * 悄悄不带当前的翻译 Key（上面说的 401）。
+ */
 export function jobIdFromActionUrl(actionUrl: string): string {
-  const match = /\/jobs\/([^/?#]+)\/[^/?#]+\/?(?:[?#].*)?$/.exec(text(actionUrl));
+  const match = /\/jobs\/([^/?#]+)\/(?:actions\/)?[^/?#]+\/?(?:[?#].*)?$/.exec(text(actionUrl));
   return match ? decodeURIComponent(match[1]) : "";
 }

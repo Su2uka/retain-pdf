@@ -292,7 +292,7 @@ export function TerminalBoardStrip({
     const poll = async () => {
       try {
         const response = await fetch(
-          `${baseUrl}/api/v1/jobs/${encodeURIComponent(jobId)}/board`,
+          `${baseUrl}/api/v1/jobs/${encodeURIComponent(jobId)}/ai/board`,
           { headers: { "X-API-Key": apiKey }, signal: abort.signal },
         );
         if (!response.ok) return;

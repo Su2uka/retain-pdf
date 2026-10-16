@@ -67,6 +67,11 @@ const { computeHoverCardPosition } = await import(
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const settle = (ms = 320) => act(async () => { await sleep(ms); });
 
+/** 页面预览请求：译文页 /jobs/{id}/files/pages/{n}.jpg，原文页 /jobs/{id}/preview/pages/{n}?kind=source。 */
+const isTranslatedPreviewUrl = (url) => /\/jobs\/[^/]+\/files\/pages\/\d+\.jpg/.test(url);
+const isSourcePreviewUrl = (url) => url.includes("/preview/pages/") && url.includes("kind=source");
+const isPreviewUrl = (url) => isTranslatedPreviewUrl(url) || isSourcePreviewUrl(url);
+
 /** 记录所有受保护请求；默认全部成功返回一张假图。 */
 const fetched = [];
 let fetchBehaviour = () => ({ ok: true, status: 200, blob: async () => ({ size: 1 }) });
@@ -152,9 +157,9 @@ describe("引用悬停预览", () => {
     mouseOver(refButton(view.host));
     await settle();
 
-    const requested = fetched.filter((url) => url.includes("/preview/pages/"));
+    const requested = fetched.filter(isPreviewUrl);
     assert.equal(requested.length, 1, `预览请求次数不对: ${JSON.stringify(fetched)}`);
-    assert.match(requested[0], /\/api\/v1\/jobs\/job-abc\/preview\/pages\/5\?/);
+    assert.match(requested[0], /\/api\/v1\/jobs\/job-abc\/files\/pages\/5\.jpg\?/);
     assert.match(requested[0], /width=240/);
 
     const img = cardThumb();
@@ -238,7 +243,7 @@ describe("拿不到 jobId 的引用（主页常见）", () => {
 
     assert.ok(card(), "没 jobId 也应该出纯文字卡片");
     assert.deepEqual(
-      fetched.filter((url) => url.includes("/preview/pages/")), [],
+      fetched.filter(isPreviewUrl), [],
       "没有 jobId 却还是发了预览请求（拼出来的 URL 必然打不开）",
     );
     assert.equal(cardThumb(), null, "没有 jobId 却渲染了 <img>，会是一张破图");
@@ -259,7 +264,7 @@ describe("拿不到 jobId 的引用（主页常见）", () => {
 describe("译文页取不到时的退路", () => {
   it("translated 404 就改取 source，而不是直接显示失败", async () => {
     fetchBehaviour = (url) => (
-      url.includes("kind=translated")
+      isTranslatedPreviewUrl(url)
         ? { ok: false, status: 404, blob: async () => ({ size: 0 }) }
         : { ok: true, status: 200, blob: async () => ({ size: 1 }) }
     );
@@ -268,8 +273,8 @@ describe("译文页取不到时的退路", () => {
     await settle();
 
     const kinds = fetched
-      .filter((url) => url.includes("/preview/pages/"))
-      .map((url) => (url.includes("kind=translated") ? "translated" : "source"));
+      .filter(isPreviewUrl)
+      .map((url) => (isTranslatedPreviewUrl(url) ? "translated" : "source"));
     assert.deepEqual(kinds, ["translated", "source"], `请求顺序不对: ${kinds}`);
     assert.ok(cardThumb()?.getAttribute("src")?.startsWith("blob:"), "退回原文页也没取到图");
     await view.unmount();

@@ -30,7 +30,7 @@ function w(t) {
     text: `${n.text || ""}`
   };
 }
-function m(t) {
+function A(t) {
   const n = {}, e = Number((t == null ? void 0 : t.reading_order) ?? (t == null ? void 0 : t.readingOrder));
   ((t == null ? void 0 : t.reading_order) != null || (t == null ? void 0 : t.readingOrder) != null) && Number.isFinite(e) && (n.readingOrder = e);
   const s = Number((t == null ? void 0 : t.heading_level) ?? (t == null ? void 0 : t.headingLevel));
@@ -55,7 +55,7 @@ function F(t) {
       status: `${(r == null ? void 0 : r.status) || ""}`,
       assetIds: (Array.isArray(r == null ? void 0 : r.asset_ids) ? r.asset_ids : Array.isArray(r == null ? void 0 : r.assetIds) ? r.assetIds : []).map((f) => `${f || ""}`.trim()).filter(Boolean),
       assetUrls: (Array.isArray(r == null ? void 0 : r.asset_urls) ? r.asset_urls : Array.isArray(r == null ? void 0 : r.assetUrls) ? r.assetUrls : []).map((f) => `${f || ""}`.trim()).filter(Boolean),
-      ...m(r)
+      ...A(r)
     });
   }
   return o;
@@ -75,14 +75,14 @@ function L(t) {
   const n = R(t);
   return n === "formula" || n === "table" || n === "figure";
 }
-function C(t, n) {
-  return `${A(t, n).text || t.markdown || ""}`.trim();
+function k(t, n) {
+  return `${m(t, n).text || t.markdown || ""}`.trim();
 }
 function z(t, n) {
-  const e = C(t, n) || (n === "translated" ? `${t.source.text || ""}`.trim() : "");
-  return R(t) === "formula" ? k(e) : e;
+  const e = k(t, n) || (n === "translated" ? `${t.source.text || ""}`.trim() : "");
+  return R(t) === "formula" ? C(e) : e;
 }
-function k(t) {
+function C(t) {
   let n = `${t || ""}`.trim();
   if (!n) return "";
   const e = n.match(/^```(?:latex|tex|math)?\s*([\s\S]*?)\s*```$/i);
@@ -175,8 +175,14 @@ function _(t) {
     } catch {
     }
   }
-  const e = "/markdown/images/", s = n.toLowerCase().indexOf(e);
-  return s >= 0 && (n = n.slice(s + e.length)), n.replace(/^\.?\/?(?:images\/)?/i, "").replace(/\/{2,}/g, "/");
+  for (const e of ["/files/output/ocr/images/", "/markdown/images/"]) {
+    const s = n.toLowerCase().indexOf(e);
+    if (s >= 0) {
+      n = n.slice(s + e.length);
+      break;
+    }
+  }
+  return n.replace(/^\.?\/?(?:images\/)?/i, "").replace(/\/{2,}/g, "/");
 }
 function O(t, n, e) {
   const s = _(n);
@@ -187,12 +193,12 @@ function O(t, n, e) {
     return !!l && (l === s || s.endsWith(`/${l}`) || l.endsWith(`/${s}`));
   })) || null;
 }
-function A(t, n) {
+function m(t, n) {
   return n === "translated" ? t.translated : t.source;
 }
 function P(t, n, e) {
   if (!t || !n) return null;
-  const s = A(t, e), o = e === "translated" ? n.translated : n.source || n.translated, a = o == null ? void 0 : o.pages.find((r) => r.page === s.page);
+  const s = m(t, e), o = e === "translated" ? n.translated : n.source || n.translated, a = o == null ? void 0 : o.pages.find((r) => r.page === s.page);
   return a ? { itemId: t.itemId, region: t, box: s, pageSize: a } : null;
 }
 function K(t, n, e) {
@@ -207,15 +213,15 @@ export {
   v as b,
   F as c,
   z as d,
-  k as e,
+  C as e,
   I as f,
   N as g,
   R as h,
   L as i,
-  A as j,
+  m as j,
   P as k,
   U as n,
   K as p,
-  C as r
+  k as r
 };
-//# sourceMappingURL=reader-regions-CXmxla3K.js.map
+//# sourceMappingURL=reader-regions-CP3ZMHPc.js.map

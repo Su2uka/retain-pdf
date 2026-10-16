@@ -376,9 +376,14 @@ function normalizeReaderAssetPath(value: unknown): string {
   } catch {
     try { path = decodeURIComponent(path); } catch { /* keep raw path */ }
   }
-  const apiMarker = "/markdown/images/";
-  const apiIndex = path.toLowerCase().indexOf(apiMarker);
-  if (apiIndex >= 0) path = path.slice(apiIndex + apiMarker.length);
+  // 新地址 /files/output/ocr/images/、旧地址 /markdown/images/ 都认。
+  for (const apiMarker of ["/files/output/ocr/images/", "/markdown/images/"]) {
+    const apiIndex = path.toLowerCase().indexOf(apiMarker);
+    if (apiIndex >= 0) {
+      path = path.slice(apiIndex + apiMarker.length);
+      break;
+    }
+  }
   return path.replace(/^\.?\/?(?:images\/)?/i, "").replace(/\/{2,}/g, "/");
 }
 

@@ -209,7 +209,7 @@ test("artifact center: 细清单为空时沿用 Reader 的发布产物入口", (
   assert.equal(downloads.translated?.filename, "paper.zh.pdf");
   assert.equal(
     downloads.comparison?.url,
-    "http://127.0.0.1:41000/api/v1/jobs/translate-1/pdf/side-by-side",
+    "http://127.0.0.1:41000/api/v1/jobs/translate-1/files/output/side-by-side.pdf?download=1",
   );
 });
 
@@ -223,7 +223,7 @@ test("artifact center: OCR Markdown 使用实际可下载的统一 jobs 路由",
   });
   assert.equal(
     links?.markdown?.raw_url,
-    "http://127.0.0.1:41000/api/v1/jobs/ocr-1/markdown?raw=true",
+    "http://127.0.0.1:41000/api/v1/jobs/ocr-1/files/output/ocr.md",
   );
 });
 

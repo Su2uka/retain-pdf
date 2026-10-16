@@ -1,7 +1,7 @@
 import { jsxs as j, jsx as k } from "react/jsx-runtime";
 import { useRef as z, useState as T, useEffect as ee, useMemo as xe } from "react";
 import { Search as Le, ChevronUp as Ue, ChevronDown as Ae, ListTree as Ie } from "lucide-react";
-import { d as pe, r as se, f as he, b as Re, u as De } from "./ReaderApp-D4mhZpXW.js";
+import { d as pe, r as se, f as he, b as Re, u as De } from "./ReaderApp-AnGgd-no.js";
 import { e as me, m as Te, a as ge } from "./markdown-math-XkF5urpn.js";
 import { n as _e } from "./markdown-payload-kK3ewW_I.js";
 const ve = "h1, h2, h3, h4, h5, h6, p, li, td, th, blockquote, pre";
@@ -35,7 +35,7 @@ function Pe(t, e = "http://localhost/") {
   if (/^mock:\/\//i.test(t)) return !0;
   try {
     const o = ((s = globalThis.location) == null ? void 0 : s.href) || "http://localhost/", c = new URL(e, o), r = new URL(t, c);
-    if (!/\/api\/v1\/jobs\/[^/]+\/markdown\/images\//.test(r.pathname)) return !1;
+    if (!/\/api\/v1\/jobs\/[^/]+\/(?:markdown|files\/output\/ocr)\/images\//.test(r.pathname)) return !1;
     if (!/^[a-z][a-z\d+.-]*:/i.test(t)) return !0;
     const d = ["localhost", "127.0.0.1", "::1", "[::1]"].includes(r.hostname);
     return r.origin === c.origin || d;
@@ -841,4 +841,4 @@ export {
   Pe as isProtectedMarkdownAssetUrl,
   we as startMarkdownImageLoading
 };
-//# sourceMappingURL=ReaderMarkdownPanel-DMslEBgz.js.map
+//# sourceMappingURL=ReaderMarkdownPanel-HFUmKFe9.js.map

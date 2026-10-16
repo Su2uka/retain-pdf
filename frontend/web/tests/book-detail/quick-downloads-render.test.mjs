@@ -123,7 +123,7 @@ describe("常用下载面板", () => {
     downloaded.length = 0;
     await click(host.querySelector("#book-detail-download-word-btn"));
     assert.equal(downloaded.length, 1, "没有触发下载");
-    assert.match(downloaded[0].url, /\/api\/v1\/jobs\/job-1\/docx\?dpi=\d+$/, downloaded[0].url);
+    assert.match(downloaded[0].url, /\/api\/v1\/jobs\/job-1\/files\/output\/translated\.docx\?download=1&dpi=\d+$/, downloaded[0].url);
   });
 
   it("其余四个原样下载，不该被挂上 dpi", async () => {
@@ -143,6 +143,6 @@ describe("常用下载面板", () => {
     downloaded.length = 0;
     await click(host.querySelector("#book-detail-download-word-btn"));
     assert.equal(downloaded.length, 1, "没有触发下载");
-    assert.ok(downloaded[0].url.endsWith("?dpi=300"), downloaded[0].url);
+    assert.ok(downloaded[0].url.endsWith("translated.docx?download=1&dpi=300"), downloaded[0].url);
   });
 });

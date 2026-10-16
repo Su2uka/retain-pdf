@@ -52,7 +52,7 @@ test("agent 写进 board/ 的 HTML 会出现在终端上方的产物条里", asy
     jobId: "job 1", baseUrl: "http://localhost:8000", apiKey: "k", open: true, onOpen() {},
   });
   await waitFor(() => seen.length, "去列了一次 board/");
-  assert.equal(seen[0].url, "http://localhost:8000/api/v1/jobs/job%201/board",
+  assert.equal(seen[0].url, "http://localhost:8000/api/v1/jobs/job%201/ai/board",
     "列目录打的不是那个端点（或 job id 没转义）");
   assert.equal(seen[0].key, "k", "没带 X-API-Key，端点会 401，而失败是静默的");
   await waitFor(() => items(host).length, "产物条出现");

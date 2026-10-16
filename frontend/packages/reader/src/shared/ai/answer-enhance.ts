@@ -220,7 +220,11 @@ export function buildPagePreviewUrl(jobId: string, pageIdx0: number, kind: "tran
   const job = `${jobId || ""}`.trim();
   const page = Math.max(1, Math.floor(Number(pageIdx0) || 0) + 1);
   if (!job) return "";
-  const path = `/api/v1/jobs/${encodeURIComponent(job)}/preview/pages/${page}?kind=${kind}&width=240`;
+  // 译文页：任务的文件 /files/pages/{n}.jpg（页码从 1 开始，长期缓存）。原文页的新地址在书下面
+  // （/documents/{doc}/files/pages/{n}.jpg），这里只有任务号，先用旧的 /preview/pages?kind=source。
+  const path = kind === "source"
+    ? `/api/v1/jobs/${encodeURIComponent(job)}/preview/pages/${page}?kind=source&width=240`
+    : `/api/v1/jobs/${encodeURIComponent(job)}/files/pages/${page}.jpg?width=240`;
   try { return resolver(path) || path; } catch { return path; }
 }
 
@@ -243,7 +247,7 @@ export function buildMarkdownImageApiUrl(jobId: string, relativePath: string, ad
     encodedParts.push(encodeURIComponent(part));
   }
   if (!encodedParts.length || !/^page-\d+$/i.test(decodeURIComponent(encodedParts[0]))) return "";
-  const path = `/api/v1/jobs/${encodeURIComponent(job)}/markdown/images/${encodedParts.join("/")}`;
+  const path = `/api/v1/jobs/${encodeURIComponent(job)}/files/output/ocr/images/${encodedParts.join("/")}`;
   try { return resolver(path) || path; } catch { return path; }
 }
 
@@ -280,7 +284,8 @@ export function resolveAnswerImageUrl(
   } catch {
     return "";
   }
-  const match = url.pathname.match(/^\/api\/v1\/jobs\/([^/]+)\/markdown\/images\/(.+)$/i);
+  // 新地址 /files/output/ocr/images/、旧地址 /markdown/images/ 都认（后端换链接前返回里还是旧前缀）。
+  const match = url.pathname.match(/^\/api\/v1\/jobs\/([^/]+)\/(?:markdown|files\/output\/ocr)\/images\/(.+)$/i);
   if (!match) return "";
   let pathJob = "";
   try { pathJob = decodeURIComponent(match[1]); } catch { return ""; }

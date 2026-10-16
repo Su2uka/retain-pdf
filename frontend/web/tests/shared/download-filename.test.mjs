@@ -1,5 +1,5 @@
 /**
- * 下载文件名以后端为准（backend/api/src/services/download_names.rs：类型前缀_书名_后缀）。
+ * 下载文件名以后端为准（backend/packages/retain-pdf-files/src/download_names.rs：类型前缀_书名_后缀）。
  *
  * 以前前端传进来的 preferredName 排在响应头前面，同一个译文 PDF 从左栏下载叫
  * `…-translated.pdf`、从阅读器下载叫 `zh_….pdf`；「另存为」对话框预填的也是前端自己

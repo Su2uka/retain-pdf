@@ -1,4 +1,4 @@
-let k = 0, b = null, y = null, E = !1;
+let k = 0, b = null, y = null, C = !1;
 function v(t = Date.now()) {
   return t < k;
 }
@@ -6,10 +6,10 @@ function T(t = 700) {
   const a = Date.now() + Math.max(0, t);
   a > k && (k = a);
 }
-function P() {
-  k = 0, b == null || b(), b = null, j();
+function j() {
+  k = 0, b == null || b(), b = null, _();
 }
-function _() {
+function P() {
   if (typeof document > "u") return null;
   if (y && y.isConnected) return y;
   const t = document.createElement("div");
@@ -42,7 +42,7 @@ function _() {
     t.addEventListener(e, a, { capture: !0, passive: !1 });
   return document.documentElement.appendChild(t), y = t, t;
 }
-function j() {
+function _() {
   if (y) {
     try {
       y.remove();
@@ -56,27 +56,27 @@ function q(t = 700, a = {}) {
   b == null || b(), b = null;
   const e = Date.now() + Math.max(0, t), n = Math.max(0, Number(a.overlayDelayMs) || 0);
   let r = null;
-  n === 0 ? _() : r = setTimeout(() => {
-    r = null, Date.now() < e && _();
+  n === 0 ? P() : r = setTimeout(() => {
+    r = null, Date.now() < e && P();
   }, n);
-  const i = (o) => {
+  const o = (i) => {
     var d;
     if (Date.now() >= e) {
       c();
       return;
     }
-    const u = o.target;
+    const u = i.target;
     u instanceof Element && u.closest(
       "[data-reader-ai-sessions], [data-reader-ai-actions], [data-reader-ai-composer], .aui-composer, input, textarea, select, [contenteditable='true']"
-    ) || (o.preventDefault(), o.stopPropagation(), (d = o.stopImmediatePropagation) == null || d.call(o));
+    ) || (i.preventDefault(), i.stopPropagation(), (d = i.stopImmediatePropagation) == null || d.call(i));
   }, s = { capture: !0, passive: !1 }, l = ["click", "auxclick", "dblclick", "pointerup", "mouseup"], c = () => {
     r != null && (clearTimeout(r), r = null);
-    for (const o of l)
-      document.removeEventListener(o, i, s);
-    j(), b === c && (b = null);
+    for (const i of l)
+      document.removeEventListener(i, o, s);
+    _(), b === c && (b = null);
   };
-  for (const o of l)
-    document.addEventListener(o, i, s);
+  for (const i of l)
+    document.addEventListener(i, o, s);
   b = c, window.setTimeout(c, Math.max(0, t) + 48);
 }
 function D(t) {
@@ -86,9 +86,9 @@ function G() {
   if (typeof window > "u" || typeof window.open != "function")
     return () => {
     };
-  if (E) return () => {
+  if (C) return () => {
   };
-  E = !0, P();
+  C = !0, j();
   const t = window.open.bind(window);
   window.open = ((e, n, r) => v() ? null : t(e, n, r));
   const a = (e) => {
@@ -98,7 +98,7 @@ function G() {
     n.closest("a[href]") && (e.preventDefault(), e.stopPropagation());
   };
   return document.addEventListener("click", a, !0), () => {
-    window.open = t, document.removeEventListener("click", a, !0), E = !1, P();
+    window.open = t, document.removeEventListener("click", a, !0), C = !1, j();
   };
 }
 let U = (t) => `${t ?? ""}`.trim(), L = globalThis.fetch ?? (async () => {
@@ -152,12 +152,12 @@ function K(t) {
     if (!e || typeof e != "object") continue;
     const n = e, r = `${n.block_id || ""}`.trim();
     if (!r) continue;
-    const i = A(n);
+    const o = A(n);
     a.push({
       ...n,
       block_id: r,
       ref: n.ref,
-      page_idx: i === null ? void 0 : i,
+      page_idx: o === null ? void 0 : o,
       job_id: `${n.job_id || ""}`.trim(),
       document_id: `${n.document_id || ""}`.trim(),
       snippet: `${n.snippet || ""}`.trim()
@@ -170,30 +170,30 @@ function x(t = "", a = 72) {
   return e.length <= a ? e : `${e.slice(0, a).trim()}…`;
 }
 function S(t, a, { max: e = 5 } = {}) {
-  const n = a.filter(M).map((o) => ({
-    ...o,
-    page_idx: A(o) ?? o.page_idx
+  const n = a.filter(M).map((i) => ({
+    ...i,
+    page_idx: A(i) ?? i.page_idx
   }));
   if (!n.length) return [];
   const r = /* @__PURE__ */ new Map();
-  for (const o of n)
-    r.set(`${o.ref}`, o);
-  const i = [], s = /* @__PURE__ */ new Set();
-  for (const o of `${t || ""}`.matchAll(/\[(\d+)\]/g)) {
-    const u = o[1];
-    s.has(u) || r.has(u) && (s.add(u), i.push(u));
+  for (const i of n)
+    r.set(`${i.ref}`, i);
+  const o = [], s = /* @__PURE__ */ new Set();
+  for (const i of `${t || ""}`.matchAll(/\[(\d+)\]/g)) {
+    const u = i[1];
+    s.has(u) || r.has(u) && (s.add(u), o.push(u));
   }
-  if (i.length)
-    return i.slice(0, e).map((o) => r.get(o));
+  if (o.length)
+    return o.slice(0, e).map((i) => r.get(i));
   if (/\[\d+\]/.test(`${t || ""}`)) return [];
   const l = [], c = /* @__PURE__ */ new Set();
-  for (const o of n) {
-    const u = A(o);
+  for (const i of n) {
+    const u = A(i);
     if (u !== null) {
       if (c.has(u)) continue;
       c.add(u);
     }
-    if (l.push(o), l.length >= Math.min(3, e)) break;
+    if (l.push(i), l.length >= Math.min(3, e)) break;
   }
   return l;
 }
@@ -212,40 +212,40 @@ const W = new RegExp(
 );
 function Q(t, a) {
   if (!a.size || !t) return t;
-  const e = (n) => n.split(W).map((r, i) => i % 2 === 1 ? r : r.replace(new RegExp("(?<!!)\\[(\\d+)\\](?!\\s*\\()", "g"), (s, l) => a.has(l) ? `[${l}](#retainpdf-citation-${l})` : s)).join("");
+  const e = (n) => n.split(W).map((r, o) => o % 2 === 1 ? r : r.replace(new RegExp("(?<!!)\\[(\\d+)\\](?!\\s*\\()", "g"), (s, l) => a.has(l) ? `[${l}](#retainpdf-citation-${l})` : s)).join("");
   return t.split(/(```[\s\S]*?(?:```|$)|~~~[\s\S]*?(?:~~~|$))/g).map((n, r) => r % 2 === 1 ? n : e(n)).join("");
 }
 function V(t, a, e = "translated", n = {}) {
-  const r = n.resolveResourceUrl ?? R, i = `${t || ""}`.trim(), s = Math.max(1, Math.floor(Number(a) || 0) + 1);
-  if (!i) return "";
-  const l = `/api/v1/jobs/${encodeURIComponent(i)}/preview/pages/${s}?kind=${e}&width=240`;
+  const r = n.resolveResourceUrl ?? R, o = `${t || ""}`.trim(), s = Math.max(1, Math.floor(Number(a) || 0) + 1);
+  if (!o) return "";
+  const l = e === "source" ? `/api/v1/jobs/${encodeURIComponent(o)}/preview/pages/${s}?kind=source&width=240` : `/api/v1/jobs/${encodeURIComponent(o)}/files/pages/${s}.jpg?width=240`;
   try {
     return r(l) || l;
   } catch {
     return l;
   }
 }
-function C(t, a, e = {}) {
+function E(t, a, e = {}) {
   const n = e.resolveResourceUrl ?? R, r = `${t || ""}`.trim();
-  let i = `${a || ""}`.trim().replace(/\\/g, "/").replace(/^\.\//, "");
-  if (!r || !i || i.startsWith("/") || i.startsWith("//") || /^[a-z][a-z\d+.-]*:/i.test(i))
+  let o = `${a || ""}`.trim().replace(/\\/g, "/").replace(/^\.\//, "");
+  if (!r || !o || o.startsWith("/") || o.startsWith("//") || /^[a-z][a-z\d+.-]*:/i.test(o))
     return "";
-  for (; i.startsWith("images/"); )
-    i = i.slice(7);
+  for (; o.startsWith("images/"); )
+    o = o.slice(7);
   const s = [];
-  for (const c of i.split("/")) {
+  for (const c of o.split("/")) {
     if (!c) continue;
-    let o = c;
+    let i = c;
     try {
-      o = decodeURIComponent(c);
+      i = decodeURIComponent(c);
     } catch {
       return "";
     }
-    if (!o || o === "." || o === ".." || /[\\/]/.test(o)) return "";
-    s.push(encodeURIComponent(o));
+    if (!i || i === "." || i === ".." || /[\\/]/.test(i)) return "";
+    s.push(encodeURIComponent(i));
   }
   if (!s.length || !/^page-\d+$/i.test(decodeURIComponent(s[0]))) return "";
-  const l = `/api/v1/jobs/${encodeURIComponent(r)}/markdown/images/${s.join("/")}`;
+  const l = `/api/v1/jobs/${encodeURIComponent(r)}/files/output/ocr/images/${s.join("/")}`;
   try {
     return n(l) || l;
   } catch {
@@ -254,17 +254,17 @@ function C(t, a, e = {}) {
 }
 function N(t, a, e = {}, n = []) {
   var d;
-  const r = `${t || ""}`.trim(), i = `${a || ""}`.trim();
-  if (!r || !i || r.startsWith("//")) return "";
+  const r = `${t || ""}`.trim(), o = `${a || ""}`.trim();
+  if (!r || !o || r.startsWith("//")) return "";
   if (/^(?:\.\/)?(?:images\/)?page-\d+\//i.test(r))
-    return C(i, r, e);
+    return E(o, r, e);
   let s;
   try {
     s = new URL(r, ((d = globalThis.location) == null ? void 0 : d.href) || "http://localhost/");
   } catch {
     return "";
   }
-  const l = s.pathname.match(/^\/api\/v1\/jobs\/([^/]+)\/markdown\/images\/(.+)$/i);
+  const l = s.pathname.match(/^\/api\/v1\/jobs\/([^/]+)\/(?:markdown|files\/output\/ocr)\/images\/(.+)$/i);
   if (!l) return "";
   let c = "";
   try {
@@ -272,11 +272,11 @@ function N(t, a, e = {}, n = []) {
   } catch {
     return "";
   }
-  if (c === i) return C(i, l[2], e);
-  const o = `${s.searchParams.get("doc") || ""}`.trim();
-  return !o || !new Set(
+  if (c === o) return E(o, l[2], e);
+  const i = `${s.searchParams.get("doc") || ""}`.trim();
+  return !i || !new Set(
     [...n].map((f) => `${f || ""}`.trim()).filter(Boolean)
-  ).has(o) ? "" : C(c, l[2], e);
+  ).has(i) ? "" : E(c, l[2], e);
 }
 function z(t) {
   const a = [
@@ -289,8 +289,8 @@ function z(t) {
       r && typeof r == "object" && a.push(r.image_url);
   const e = /* @__PURE__ */ new Set(), n = [];
   for (const r of a) {
-    const i = `${r || ""}`.trim();
-    !i || e.has(i) || (e.add(i), n.push(i));
+    const o = `${r || ""}`.trim();
+    !o || e.has(o) || (e.add(o), n.push(o));
   }
   return n;
 }
@@ -324,39 +324,39 @@ function X(t, a, e) {
   for (const s of a)
     for (const l of z(s))
       if (N(l, e, {}, n) === r) return s;
-  const i = F(r);
-  return i == null ? null : a.find((s) => I(s) === i) || null;
+  const o = F(r);
+  return o == null ? null : a.find((s) => I(s) === o) || null;
 }
 function Y(t, a, { jobId: e, documentRef: n = t.ownerDocument }) {
   const r = n.createElement("template");
   r.innerHTML = `${a || ""}`;
-  let i = 0;
+  let o = 0;
   return r.content.querySelectorAll("img").forEach((s) => {
-    var o;
+    var i;
     const l = s.getAttribute("data-ai-src") || s.getAttribute("src") || "", c = N(l, e);
     if (s.removeAttribute("src"), s.removeAttribute("srcset"), !c) {
       const u = n.createElement("span");
-      u.className = "aui-image-blocked", u.textContent = (o = s.getAttribute("alt")) != null && o.trim() ? `[图片不可用：${s.getAttribute("alt").trim()}]` : "[图片不可用]", s.replaceWith(u);
+      u.className = "aui-image-blocked", u.textContent = (i = s.getAttribute("alt")) != null && i.trim() ? `[图片不可用：${s.getAttribute("alt").trim()}]` : "[图片不可用]", s.replaceWith(u);
       return;
     }
-    s.setAttribute("data-ai-src", c), s.setAttribute("loading", "lazy"), s.setAttribute("decoding", "async"), i += 1;
-  }), t.replaceChildren(r.content), i;
+    s.setAttribute("data-ai-src", c), s.setAttribute("loading", "lazy"), s.setAttribute("decoding", "async"), o += 1;
+  }), t.replaceChildren(r.content), o;
 }
 function Z(t, {
   onOpen: a,
   documentRef: e = globalThis.document
 } = {}) {
-  var i, s;
+  var o, s;
   if (!t || !e) return;
-  const n = [...((i = t.querySelectorAll) == null ? void 0 : i.call(t, "a[href]")) || []];
+  const n = [...((o = t.querySelectorAll) == null ? void 0 : o.call(t, "a[href]")) || []];
   for (const l of n) {
-    const c = l, o = `${c.getAttribute("href") || ""}`.trim(), u = e.createElement("span");
+    const c = l, i = `${c.getAttribute("href") || ""}`.trim(), u = e.createElement("span");
     for (u.className = `aui-md-extlink${c.className ? ` ${c.className}` : ""}`.trim(); c.firstChild; )
       u.appendChild(c.firstChild);
-    if (!((s = u.textContent) != null && s.trim()) && o && (u.textContent = o), o && !o.startsWith("#") && !/^\s*javascript:/i.test(o)) {
-      u.dataset.href = o, u.setAttribute("role", "link"), u.tabIndex = 0, u.title = `打开链接：${o}`;
+    if (!((s = u.textContent) != null && s.trim()) && i && (u.textContent = i), i && !i.startsWith("#") && !/^\s*javascript:/i.test(i)) {
+      u.dataset.href = i, u.setAttribute("role", "link"), u.tabIndex = 0, u.title = `打开链接：${i}`;
       const d = (f) => {
-        f.preventDefault(), f.stopPropagation(), !D(f) && (v() || f instanceof MouseEvent && (f.button !== 0 || f.detail === 0) || a == null || a(o, f));
+        f.preventDefault(), f.stopPropagation(), !D(f) && (v() || f instanceof MouseEvent && (f.button !== 0 || f.detail === 0) || a == null || a(i, f));
       };
       u.addEventListener("click", d), u.addEventListener("auxclick", (f) => {
         f.preventDefault(), f.stopPropagation();
@@ -373,27 +373,27 @@ function Z(t, {
     (l) => {
       const c = l.target;
       if (!(c instanceof Element)) return;
-      const o = c.closest("a[href]");
-      !o || !r.contains(o) || (l.preventDefault(), l.stopPropagation());
+      const i = c.closest("a[href]");
+      !i || !r.contains(i) || (l.preventDefault(), l.stopPropagation());
     },
     !0
   ));
 }
 function J(t, a, e, n = globalThis.document) {
-  var s, l, c, o;
+  var s, l, c, i;
   if (!a.size || !t) return;
   (s = t.querySelectorAll) == null || s.call(t, "button.reader-ai-citation-ref").forEach((u) => {
     var f;
     const d = u.parentNode;
     d && (d.replaceChild(n.createTextNode(u.textContent || ""), u), (f = d.normalize) == null || f.call(d));
   });
-  const r = ((l = n.createTreeWalker) == null ? void 0 : l.call(n, t, 4)) || null, i = [];
+  const r = ((l = n.createTreeWalker) == null ? void 0 : l.call(n, t, 4)) || null, o = [];
   if (r) {
     let u = r.nextNode();
     for (; u; )
-      (o = (c = u.parentElement) == null ? void 0 : c.closest) != null && o.call(c, "code, pre, .reader-ai-citation-ref, button, a, .aui-msg-actions") || i.push(u), u = r.nextNode();
+      (i = (c = u.parentElement) == null ? void 0 : c.closest) != null && i.call(c, "code, pre, .reader-ai-citation-ref, button, a, .aui-msg-actions") || o.push(u), u = r.nextNode();
   }
-  for (const u of i) {
+  for (const u of o) {
     const d = `${u.textContent || ""}`;
     if (!/\[\d+\]/.test(d)) continue;
     const f = n.createDocumentFragment();
@@ -420,8 +420,8 @@ function tt(t) {
     ...(n = a.matches) != null && n.call(a, "img.is-hydrated") ? [a] : [],
     ...((r = a.querySelectorAll) == null ? void 0 : r.call(a, "img.is-hydrated")) || []
   ];
-  for (const i of e) {
-    const s = i, l = s.src || "";
+  for (const o of e) {
+    const s = o, l = s.src || "";
     if (l.startsWith("blob:"))
       try {
         URL.revokeObjectURL(l);
@@ -431,19 +431,19 @@ function tt(t) {
   }
 }
 async function et(t, { fetchImpl: a = L, signal: e } = {}) {
-  var i, s;
+  var o, s;
   const n = t, r = [
-    ...(i = n.matches) != null && i.call(n, "img[data-ai-src]") ? [n] : [],
+    ...(o = n.matches) != null && o.call(n, "img[data-ai-src]") ? [n] : [],
     ...((s = n.querySelectorAll) == null ? void 0 : s.call(n, "img[data-ai-src]")) || []
   ];
   await Promise.allSettled(r.map(async (l) => {
     var u;
     const c = l;
     if (e != null && e.aborted || !c.isConnected) return;
-    const o = c.getAttribute("data-ai-src") || "";
-    if (o)
+    const i = c.getAttribute("data-ai-src") || "";
+    if (i)
       try {
-        const d = await a(o, e ? { signal: e } : void 0);
+        const d = await a(i, e ? { signal: e } : void 0);
         if (e != null && e.aborted || !c.isConnected) {
           try {
             const p = await ((u = d == null ? void 0 : d.blob) == null ? void 0 : u.call(d));
@@ -481,36 +481,36 @@ function rt(t, a, {
   onJump: e = null,
   answerText: n = "",
   max: r = 5,
-  documentRef: i = globalThis.document
+  documentRef: o = globalThis.document
 } = {}) {
   var u;
   (u = t.querySelector(".reader-ai-citations")) == null || u.remove();
   const s = S(n, a, { max: r });
   if (!s.length) return;
-  const l = i.createElement("div");
+  const l = o.createElement("div");
   l.className = "reader-ai-citations", l.setAttribute("aria-label", "引用来源");
-  const c = i.createElement("div");
+  const c = o.createElement("div");
   c.className = "reader-ai-citations-head", c.textContent = "来源", l.appendChild(c);
-  const o = i.createElement("div");
-  o.className = "reader-ai-citations-list";
+  const i = o.createElement("div");
+  i.className = "reader-ai-citations-list";
   for (const d of s) {
-    const f = I(d), g = f != null ? `p.${f}` : "", p = i.createElement("button");
+    const f = I(d), g = f != null ? `p.${f}` : "", p = o.createElement("button");
     p.type = "button", p.className = "reader-ai-citation-item", f != null && (p.dataset.page = `${f}`), p.title = f != null ? `跳到第 ${f} 页` : "定位来源", p.addEventListener("click", ($) => {
       $.preventDefault(), $.stopPropagation(), e == null || e(d);
     });
-    const m = i.createElement("span");
+    const m = o.createElement("span");
     m.className = "reader-ai-citation-refno", m.textContent = `[${d.ref ?? "?"}]`;
-    const h = i.createElement("span");
+    const h = o.createElement("span");
     h.className = "reader-ai-citation-meta", h.textContent = g || "—";
-    const w = i.createElement("span");
-    w.className = "reader-ai-citation-copy", w.textContent = x(d.snippet || "相关片段", 64), p.append(m, h, w), o.appendChild(p);
+    const w = o.createElement("span");
+    w.className = "reader-ai-citation-copy", w.textContent = x(d.snippet || "相关片段", 64), p.append(m, h, w), i.appendChild(p);
   }
-  l.appendChild(o), t.appendChild(l);
+  l.appendChild(i), t.appendChild(l);
 }
 export {
   A as a,
   V as b,
-  P as c,
+  j as c,
   tt as d,
   I as e,
   N as f,
@@ -522,7 +522,7 @@ export {
   Q as l,
   rt as m,
   q as n,
-  C as o,
+  E as o,
   x as p,
   J as q,
   B as r,
@@ -535,4 +535,4 @@ export {
   S as y,
   D as z
 };
-//# sourceMappingURL=answer-enhance-3YjrVVwj.js.map
+//# sourceMappingURL=answer-enhance-d3OW6M6M.js.map

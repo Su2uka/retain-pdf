@@ -25,7 +25,8 @@ export async function fetchJobArtifactsManifest(jobId, apiPrefix = API_PREFIX) {
     return unwrapEnvelope(await resp.json());
 }
 export async function fetchJobMarkdown(jobId, apiPrefix = API_PREFIX) {
-    const resp = await apiFetch(`${buildJobDetailEndpoint(jobId, apiPrefix)}/markdown`, { headers: buildApiHeaders() });
+    // /reader/markdown 是旧 /markdown（JSON）的新地址：字段是旧的超集（job_id、content、raw_url、images_base_url…）。
+    const resp = await apiFetch(`${buildJobDetailEndpoint(jobId, apiPrefix)}/reader/markdown`, { headers: buildApiHeaders() });
     if (!resp.ok) {
         if (resp.status === 404)
             return null;
@@ -34,7 +35,7 @@ export async function fetchJobMarkdown(jobId, apiPrefix = API_PREFIX) {
     return unwrapEnvelope(await resp.json());
 }
 export async function fetchJobMarkdownDocument(jobId, apiPrefix = API_PREFIX) {
-    const resp = await apiFetch(`${buildJobDetailEndpoint(jobId, apiPrefix)}/markdown/document`, { headers: buildApiHeaders() });
+    const resp = await apiFetch(`${buildJobDetailEndpoint(jobId, apiPrefix)}/reader/markdown`, { headers: buildApiHeaders() });
     if (!resp.ok) {
         if (resp.status === 404)
             return null;

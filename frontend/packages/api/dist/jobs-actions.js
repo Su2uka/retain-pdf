@@ -3,7 +3,7 @@ import { apiFetch } from "./internal/runtime.js";
 import { buildApiHeaders, unwrapEnvelope } from "./internal/runtime.js";
 import { buildJobDetailEndpoint, submitJson } from "./http.js";
 export async function fetchJobDiagnostics(jobId, apiPrefix) {
-    const resp = await apiFetch(`${buildJobDetailEndpoint(jobId, apiPrefix)}/diagnostics`, { headers: buildApiHeaders() });
+    const resp = await apiFetch(`${buildJobDetailEndpoint(jobId, apiPrefix)}/reports/failure`, { headers: buildApiHeaders() });
     if (!resp.ok) {
         if (resp.status === 404)
             return null;
@@ -12,7 +12,7 @@ export async function fetchJobDiagnostics(jobId, apiPrefix) {
     return unwrapEnvelope(await resp.json());
 }
 export async function fetchResumePlan(jobId, apiPrefix) {
-    const resp = await apiFetch(`${buildJobDetailEndpoint(jobId, apiPrefix)}/resume-plan`, { headers: buildApiHeaders() });
+    const resp = await apiFetch(`${buildJobDetailEndpoint(jobId, apiPrefix)}/actions/resume`, { headers: buildApiHeaders() });
     if (!resp.ok) {
         if (resp.status === 404)
             return null;
@@ -22,20 +22,20 @@ export async function fetchResumePlan(jobId, apiPrefix) {
 }
 /** body 可带 `{ overrides: { translation: { api_key | credential_ref } } }`：续跑出来的新任务用这把 key。 */
 export async function resumeJob(jobId, apiPrefix, body = {}) {
-    return submitJson(`${buildJobDetailEndpoint(jobId, apiPrefix)}/resume`, body);
+    return submitJson(`${buildJobDetailEndpoint(jobId, apiPrefix)}/actions/resume`, body);
 }
 export async function cancelJob(jobId, apiPrefix) {
-    return submitJson(`${buildJobDetailEndpoint(jobId, apiPrefix)}/cancel`, {});
+    return submitJson(`${buildJobDetailEndpoint(jobId, apiPrefix)}/actions/cancel`, {});
 }
 /** OCR 任务的取消和其它任务同一个地址（后端按任务类型分支）；保留这个名字给老调用方。 */
 export async function cancelOcrJob(jobId, apiPrefix) {
     return cancelJob(jobId, apiPrefix);
 }
 export async function resolveOcrAmbiguity(jobId, apiPrefix, request) {
-    return submitJson(`${buildJobDetailEndpoint(jobId, apiPrefix)}/ocr/resolve-ambiguity`, request);
+    return submitJson(`${buildJobDetailEndpoint(jobId, apiPrefix)}/actions/resolve-ocr-ambiguity`, request);
 }
 export async function fetchJobStageActions(jobId, apiPrefix) {
-    const resp = await apiFetch(`${buildJobDetailEndpoint(jobId, apiPrefix)}/stage-actions`, { headers: buildApiHeaders() });
+    const resp = await apiFetch(`${buildJobDetailEndpoint(jobId, apiPrefix)}/actions`, { headers: buildApiHeaders() });
     if (!resp.ok) {
         if (resp.status === 404)
             return null;
@@ -47,7 +47,7 @@ export async function retryJobStage(jobId, apiPrefix, stage, payload = {}) {
     const normalizedStage = `${stage || ""}`.trim();
     if (!normalizedStage)
         throw new Error("阶段重试失败: 缺少 stage");
-    const result = await submitJson(`${buildJobDetailEndpoint(jobId, apiPrefix)}/retry-stage`, { stage: normalizedStage, ...payload });
+    const result = await submitJson(`${buildJobDetailEndpoint(jobId, apiPrefix)}/actions/retry-stage`, { stage: normalizedStage, ...payload });
     const bookMeta = payload && typeof payload === "object" ? payload : {};
     const nextJobId = `${result?.job_id || result?.id || jobId}`.trim();
     return {

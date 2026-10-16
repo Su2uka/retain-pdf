@@ -34,7 +34,8 @@ export function readerCompatibleArtifactLinks(
 
   // Download routes are published under /jobs for every workflow. The OCR
   // artifact descriptor in older backends can advertise /ocr/jobs/.../markdown,
-  // while the working raw Markdown endpoint remains /jobs/.../markdown.
+  // so OCR jobs always use the job file route for the raw Markdown
+  // (/jobs/{id}/files/output/ocr.md; the JSON view is /jobs/{id}/reader/markdown).
   const baseJobUrl = buildJobDetailEndpoint(jobId, API_PREFIX);
   // Reader treats a succeeded render retry as a valid translated-PDF source.
   const isTranslation = ["book", "translate", "translation", "render"].includes(workflow);
@@ -53,19 +54,19 @@ export function readerCompatibleArtifactLinks(
     ...(links || {}),
     markdown_ready: markdownReady,
     pdf_ready: pdfReady,
-    markdown_url: links?.markdown_url || `${baseJobUrl}/markdown`,
-    pdf_url: links?.pdf_url || (isTranslation ? `${baseJobUrl}/pdf` : ""),
+    markdown_url: links?.markdown_url || `${baseJobUrl}/reader/markdown`,
+    pdf_url: links?.pdf_url || (isTranslation ? `${baseJobUrl}/files/output/translated.pdf` : ""),
     markdown: {
       ...(links?.markdown || {}),
       ready: markdownReady,
       raw_url: workflow === "ocr"
-        ? `${baseJobUrl}/markdown?raw=true`
-        : links?.markdown?.raw_url || `${baseJobUrl}/markdown?raw=true`,
+        ? `${baseJobUrl}/files/output/ocr.md`
+        : links?.markdown?.raw_url || `${baseJobUrl}/files/output/ocr.md`,
     },
     pdf: isTranslation ? {
       ...(links?.pdf || {}),
       ready: pdfReady,
-      url: links?.pdf?.url || `${baseJobUrl}/pdf`,
+      url: links?.pdf?.url || `${baseJobUrl}/files/output/translated.pdf`,
     } : links?.pdf,
   };
 }

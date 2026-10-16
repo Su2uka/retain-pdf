@@ -41,7 +41,7 @@ export function BoardHtmlPane({ jobId, name, onClose, baseUrl, apiKey }: PanePro
     const abort = new AbortController();
     (async () => {
       try {
-        const url = `${baseUrl}/api/v1/jobs/${encodeURIComponent(jobId)}/board/${encodeURIComponent(name)}`;
+        const url = `${baseUrl}/api/v1/jobs/${encodeURIComponent(jobId)}/ai/board/${encodeURIComponent(name)}`;
         const response = await fetch(url, {
           headers: { "X-API-Key": apiKey },
           signal: abort.signal,

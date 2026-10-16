@@ -98,7 +98,7 @@ export function resolveReaderTranslatedPdfUrl(
   const canUseTranslatedPdfRoute = (actions as any)?.pdfEnabled
     || (`${jobPayload?.status || ""}`.trim().toLowerCase() === "succeeded" && workflow !== "ocr");
   if (canUseTranslatedPdfRoute && jobPayload?.job_id) {
-    return resolveResourceUrl(`/api/v1/jobs/${encodeURIComponent(jobPayload.job_id)}/pdf`);
+    return resolveResourceUrl(`/api/v1/jobs/${encodeURIComponent(jobPayload.job_id)}/files/output/translated.pdf`);
   }
   return "";
 }
