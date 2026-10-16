@@ -10,9 +10,10 @@ Files under `src/routes/**` should only:
 
 - extract Axum state, headers, path params, query params, and JSON bodies;
 - compute HTTP-only context such as `base_url`;
-- call application facades (`JobsFacade`, `library_api`, `glossaries::api`,
-  `uploads::api`, `ai::api`, `public_document_operations_api`, and the
-  backend-only Agent APIs) through deps builders in `routes/common.rs`;
+- call domain facades (`crate::services::<domain>`, see "Domain Facades"
+  below: `JobsFacade`, the library / glossary / upload view functions, the AI
+  proxy, public document operations, and the backend-only Agent APIs) through
+  deps builders in `routes/common.rs`;
 - wrap results in `ApiResponse` or stream files via `stream_file` /
   `download_response`.
 
@@ -33,14 +34,15 @@ module to reuse a private download helper.
 Create routes are the intentional input-side exception: they parse JSON or
 multipart request bodies before delegating to `JobsFacade`, then still return a
 typed `ApiResponse`. Library asset upload is the same pattern: multipart stays
-in the route; persistence goes through `library_api::store_asset_view`.
+in the route; persistence goes through `services::library::store_asset_view`.
 
 AI routes follow the same boundary:
 
 - `routes/ai_proxy.rs` streams ask bytes or buffers runtime config through
-  `ai::api`; it does not interpret the AI payload;
+  `services::ai` (`ask`, `get_runtime_config`, `update_runtime_config`); it does
+  not interpret the AI payload;
 - `routes/public_document_operations.rs` delegates browser-safe queries and CAS
-  actions to `public_document_operations_api`;
+  actions to the public document operation functions of `services::ai`;
 - `routes/document_operations.rs`, `agent_capabilities.rs`, and
   `agent_runtime_sessions.rs` are internal CLI/host adapters and delegate to
   their corresponding application APIs;
@@ -66,9 +68,10 @@ after route usage shows no callers.
 ## Library Facade
 
 Files under `src/services/library/**` implement library-domain use cases.
-`src/services/library_api.rs` is the only application entry routes may import
-for library work (books, documents, media, translate-from-library, favorites,
-search, assets, conversations, collections).
+Routes import library work (books, documents, media, translate-from-library,
+favorites, search, assets, conversations, collections) only from the
+`services::library` facade; the route-facing view functions live in
+`library/api.rs`.
 
 - Routes use `build_library_route_deps` (`LibraryDeps` + `JobsFacade`).
 - Translate-from-library binds a document's stored upload, then creates jobs
@@ -175,17 +178,43 @@ It sits below `services` (jobs, files, library and merge all call it) and must
 not depend on `services`, `routes` or `AppState`. List filtering before
 presentation stays in `src/services/jobs/query.rs`.
 
-## Service Dependencies
-
-There are no dependency cycles between top-level `services::<x>` modules, and
-`check_service_dependency_cycles` rejects any new one. `merge` (merged reading)
-depends on `derived_artifacts` and `jobs`, never the other way: building the
-merged directory lives in `services/library/merge/build.rs`, and reading a virtual job
-lives in `job_loading`. `FileDownload` is defined in `download_generation`
-(re-exported by `services::jobs`).
-
 Do not put these checks in presentation code. Presentation should receive a job
 that has already passed the route/facade scope.
+
+## Domain Facades
+
+`src/services/` holds exactly nine domain directories, one per future crate
+(see `docs/ops/planning/api-reorg/20261015-模块化单体拆包规划.md`):
+`accounts`, `providers`, `ingest`, `files`, `jobs`, `library`, `glossaries`,
+`ai`, `platform`. A new module goes inside one of them;
+`check_service_domains` rejects anything else at the top level.
+
+Each domain's `mod.rs` is its only facade. Submodules are private (`mod x;`),
+so the compiler rejects `crate::services::<domain>::<submodule>::…` from
+outside the domain; what other domains, routes and app assembly need is
+re-exported with `pub(crate) use` in one block marked `// 门面`. Items only tests
+use sit under `#[cfg(test)]` in the same block. `check_domain_facades` rejects a
+`pub mod` in a domain's `mod.rs`. Inside a domain, code may use any path.
+
+Domains depend downward only. The allowed edges are listed in
+`ALLOWED_DOMAIN_DEPENDENCIES` (`check_domain_dependency_direction` rejects a
+new edge and an edge nothing uses any more):
+
+```
+library ─▶ jobs ─▶ ingest ─▶ accounts ─▶ providers
+   │        ├────────────────▶ accounts
+   │        ├────────────────────────────▶ providers
+   │        ├─▶ glossaries
+   └────────┴─▶ files
+```
+
+`accounts → providers` exists because platform settings (in `accounts`) test
+provider connectivity. `check_service_dependency_cycles` also stays on, now at
+domain level. `library::merge` (merged reading) depends on `files` and `jobs`,
+never the other way: building the merged directory lives in
+`services/library/merge/build.rs`, and reading a virtual job lives in
+`job_loading`. `FileDownload` is defined in `files::download_generation`
+(re-exported by `services::jobs`).
 
 ## Presentation
 

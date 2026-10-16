@@ -66,8 +66,11 @@ cargo test -p rust_api -p retain-jobs -p retain-db -p retain-data -p retain-core
   旧地址紧跟在新地址下面、行尾标 `// 旧地址`。`services/jobs/` 根目录只放各类共用的（门面、依赖、返回视图）。
 - 建新任务只走 `services/jobs/lifecycle/creation/submit.rs` 的 `submit_job`，原地重跑已有任务走 `relaunch_in_place`；
   别处直接落库或发射任务，`check_job_entry_ownership` 会报错。
-- services 之间不许有依赖环（`KNOWN_SERVICE_CYCLE_EDGES` 已清空）；两边都要用的东西往下放。按编号读出任务在
-  `src/job_loading/`，它在 services 下面一层，不许依赖 `services`、`routes`。
+- `services/` 下只有 9 个领域目录（`accounts`、`providers`、`ingest`、`files`、`jobs`、`library`、`glossaries`、
+  `ai`、`platform`），新模块放进其中一个。每个领域的 `mod.rs` 是唯一的门面：子模块私有，领域外要用的东西在
+  `// 门面` 那一块 `pub(crate) use` 出来，只给测试用的标 `#[cfg(test)]`。
+- 领域之间只能往下依赖，允许的方向登记在 `ALLOWED_DOMAIN_DEPENDENCIES`，也不许有环；两边都要用的东西往下放。
+  按编号读出任务在 `src/job_loading/`，它在 services 下面一层，不许依赖 `services`、`routes`。
 - 产物文件路径只许出口模块拼（`services/jobs/files/downloads`、`services/jobs/reader/markdown.rs`、`services/library/media.rs`、`services/files/artifacts`、
   `services/files/derived_artifacts`）。`KNOWN_ARTIFACT_PATH_READERS` 是冻结的现状名单，只许减不许加。
 

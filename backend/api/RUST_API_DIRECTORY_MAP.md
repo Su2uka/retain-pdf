@@ -128,12 +128,15 @@ jobs 的依赖装配由 `app/jobs.rs` 完成；依赖定义在 `services/jobs/de
 ### `src/services`
 
 - 作用：
-  application service 入口和内部业务实现。
+  application service 入口和内部业务实现，按 9 个领域分目录（`accounts`、`providers`、`ingest`、`files`、
+  `jobs`、`library`、`glossaries`、`ai`、`platform`，见 `src/services/mod.rs`）。
+- 每个领域的 `mod.rs` 是它唯一的门面：子模块私有，路由、装配和别的领域只用门面导出的东西
+  （见 `BOUNDARIES.md` 的 "Domain Facades"）。
 
 #### `src/services/ingest/uploads` 与 `src/services/ai`
 
-- 路由分别调用 `uploads::api` 和 `ai::api`；装配和跨业务调用通过模块根部的
-  明确能力导出，不访问私有实现文件。
+- 路由通过 `services::ingest`、`services::ai` 的门面调用（实现分别在 `uploads/api.rs`、`ai/api.rs`）；
+  装配和跨业务调用也只用门面导出的能力，不访问私有实现文件。
 - `uploads` 的 `service/capacity/staging/pdf/error` 分别负责流程、处理容量、
   文件发布与清理、PDF 处理和业务错误；独立上传、OCR、Bundle 共享服务实例。
 - `ai` 的 `gateway` 持有 HTTP 客户端和启动配置；`api` 处理 HTTP/SSE 适配。
