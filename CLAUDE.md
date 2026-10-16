@@ -71,6 +71,8 @@ cargo test -p rust_api -p retain-jobs -p retain-db -p retain-data -p retain-core
   `// 门面` 那一块 `pub(crate) use` 出来，只给测试用的标 `#[cfg(test)]`。
 - 领域之间只能往下依赖，允许的方向登记在 `ALLOWED_DOMAIN_DEPENDENCIES`，也不许有环；两边都要用的东西往下放。
   按编号读出任务在 `src/job_loading/`，它在 services 下面一层，不许依赖 `services`、`routes`。
+- 读任务请求里的东西用 retain-core `models/job/questions.rs` 的方法（`job.source_job_id()`、`job.uses_model_executor()`……），
+  不要一路点进 `job.request_payload.<字段>`；只有 `KNOWN_REQUEST_PAYLOAD_WRITERS` 里生成、改写请求的模块可以，名单只许减不许加。
 - 产物文件路径只许出口模块拼（`services/jobs/files/downloads`、`services/jobs/reader/markdown.rs`、`services/library/media.rs`、`services/files/artifacts`、
   `services/files/derived_artifacts`）。`KNOWN_ARTIFACT_PATH_READERS` 是冻结的现状名单，只许减不许加。
 
