@@ -268,19 +268,33 @@ mod tests { fn fixture() { let runtime: ProcessRuntimeDeps; } }
         ))
 
     def check_sources(self, sources, check=None):
-        """sources 的键是 src/ 下的相对路径；以 packages/ 开头的是拆出去的领域包里的文件。"""
+        """sources 的键是 src/ 下的逻辑路径；以 packages/ 开头的是拆出去的领域包里的文件。
+
+        逻辑路径经 abs_src() 落到实际目录：任务、书库挂在别处时（见 MovedDomainMounts），文件也写到那里。
+        """
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            for relative, source in sources.items():
-                path = root / relative if relative.startswith("packages/") else root / "src" / relative
-                path.parent.mkdir(parents=True, exist_ok=True)
-                path.write_text(source, encoding="utf-8")
+            mounts = getattr(self, "domain_mounts", None)
             with patch.object(checks, "REPO_ROOT", root), patch.object(
                 checks, "SRC_ROOT", root / "src"
             ), patch.object(checks, "ALL_SRC_ROOTS", (root / "src",)), patch.object(
                 checks, "extracted_domain_root",
-                lambda domain: root / "packages" / checks.EXTRACTED_DOMAINS[domain],
-            ):
+                # 没登记的领域（DomainFacadeTests 清空了 EXTRACTED_DOMAINS）照包名的规矩找。
+                lambda domain: root / "packages" / checks.EXTRACTED_DOMAINS.get(domain, f"retain-pdf-{domain}"),
+            ), patch.dict(checks.DOMAIN_MOUNTS, mounts(root) if mounts else {}):
+                for relative, source in sources.items():
+                    logical = Path("src") / relative
+                    if relative.startswith("packages/"):
+                        path = root / relative
+                    elif logical.parts[1:2] == ("services",) and logical.parts[2:3] and logical.parts[2] in checks.DOMAIN_MOUNTS:
+                        # 只有任务、书库按挂载表落地；其余照旧写在临时的 src/ 下（abs_src 会把
+                        # job_runner 等映射到临时目录外面的真实包位置）。
+                        path = checks.abs_src(logical)
+                    else:
+                        path = root / logical
+                    assert path.resolve().is_relative_to(root.resolve()), path
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_text(source, encoding="utf-8")
                 errors = []
                 (check or checks.check_upload_boundaries)(errors)
                 return errors
@@ -606,6 +620,8 @@ class ServiceCycleTests(unittest.TestCase):
 
 class DomainFacadeTests(unittest.TestCase):
     _check_sources = UploadBoundaryTests.check_sources
+    # 这一组测的就是 services/<领域>/ 目录本身，任务、书库挪进包以后也按"还在 services/ 下"来搭。
+    domain_mounts = staticmethod(lambda root: {domain: None for domain in checks.DOMAIN_MOUNTS})
 
     def check_sources(self, sources, check=None):
         # 这一组只管 services/ 下的领域目录；拆成独立包的领域另有测试。
@@ -809,6 +825,180 @@ class JobEntryOwnershipTests(unittest.TestCase):
                 const NOTE: &str = "runtime.launch(id)";
             """,
         }))
+
+class JobsAndLibraryRuleTests(unittest.TestCase):
+    """任务、书库里的每条规则都要能报出违规。拆包前这些规则没有单测，挪目录后漏改了也看不出来。"""
+
+    check_sources = UploadBoundaryTests.check_sources
+
+    def assertReports(self, sources, check, fragment):
+        errors = self.check_sources(sources, check)
+        self.assertTrue(any(fragment in error for error in errors), errors)
+
+    def test_process_runtime_deps_are_assembled_only_in_app_or_creation_tests(self):
+        self.assertReports({"services/jobs/actions/x.rs": "ProcessRuntimeDeps::new(a)"},
+                           checks.check_process_runtime_deps_usage, "src/services/jobs/actions/x.rs: ProcessRuntimeDeps::new")
+        self.assertEqual([], self.check_sources(
+            {"services/jobs/lifecycle/creation/tests.rs": "ProcessRuntimeDeps::new(a)"},
+            checks.check_process_runtime_deps_usage,
+        ))
+
+    def test_downloads_do_not_generate_artifacts(self):
+        base = {"services/jobs/files/downloads.rs": "pub use self::files::open;"}
+        self.assertEqual([], self.check_sources(base, checks.check_downloads_do_not_generate_artifacts))
+        self.assertReports({**base, "services/jobs/files/downloads/x.rs": 'Command::new("qpdf")'},
+                           checks.check_downloads_do_not_generate_artifacts, "must not spawn artifact generators")
+        self.assertReports({"services/jobs/files/downloads.rs": "resolve_output_pdf(job)"},
+                           checks.check_downloads_do_not_generate_artifacts, "downloads facade must stay thin")
+
+    def test_stage_view_consumers_use_the_shared_builder(self):
+        self.assertEqual([], self.check_sources(
+            {"services/library/book_projection/live.rs": "BookLiveProjection build_job_stage_view(job)"},
+            checks.check_stage_view_projection_boundary,
+        ))
+        self.assertReports({"services/jobs/presentation/listing.rs": "JobListItemView progress_current"},
+                           checks.check_stage_view_projection_boundary, "must use services::jobs::progress::stage_view")
+        self.assertReports({"services/library/book_projection/live.rs": "BookLiveProjection build_job_stage_view( progress_total"},
+                           checks.check_stage_view_projection_boundary, "found 'progress_total'")
+
+    def test_presentation_asks_job_readiness(self):
+        for path in ("services/jobs/presentation/x.rs", "services/library/book_projection/x.rs"):
+            with self.subTest(path=path):
+                self.assertReports({path: "readiness(job, resolve_output_pdf, resolve_markdown_path)"},
+                                   checks.check_job_readiness_boundary, "must use services::jobs::job_readiness")
+
+    def translation_debug_tree(self, **overrides):
+        tree = {f"services/jobs/translations/{name}": "" for name in ("artifacts.rs", "edits.rs", "index.rs", "item.rs", "queries.rs")}
+        tree["services/jobs/reports/translation_reports.rs"] = ""
+        tree.update(overrides)
+        return tree
+
+    def test_translation_debug_reads_through_artifacts_and_queries_do_not_replay(self):
+        self.assertEqual([], self.check_sources(self.translation_debug_tree(), checks.check_translation_debug_boundary))
+        self.assertReports(self.translation_debug_tree(**{"services/jobs/translations/index.rs": "resolve_translation_manifest(job)"}),
+                           checks.check_translation_debug_boundary, "belongs in translations/artifacts.rs")
+        self.assertReports(self.translation_debug_tree(**{"services/jobs/translations/queries.rs": 'Command::new("python")'}),
+                           checks.check_translation_debug_boundary, "query facade must not execute replay actions")
+        tree = self.translation_debug_tree()
+        del tree["services/jobs/translations/artifacts.rs"]
+        self.assertReports(tree, checks.check_translation_debug_boundary, "artifact reader boundary is missing")
+
+    def test_reader_projection_reads_through_reader_artifacts(self):
+        tree = {"services/jobs/reader/reader_regions.rs": "", "services/jobs/reader/reader_regions/artifacts.rs": ""}
+        self.assertEqual([], self.check_sources(tree, checks.check_reader_regions_boundary))
+        self.assertReports({**tree, "services/jobs/reader/reader_regions.rs": "serde_json::from_str(text)"},
+                           checks.check_reader_regions_boundary, "reader projection must not read/parse")
+
+    def test_summary_loaders_read_through_shared(self):
+        tree = {f"services/jobs/summary_loaders/{name}": "" for name in ("shared.rs", "glossary.rs", "invocation.rs")}
+        self.assertEqual([], self.check_sources(tree, checks.check_summary_loaders_boundary))
+        self.assertReports({**tree, "services/jobs/summary_loaders/glossary.rs": "read_json_value(path)"},
+                           checks.check_summary_loaders_boundary, "summary_loaders/shared.rs")
+
+    def test_snapshot_factory_does_not_build_worker_commands(self):
+        tree = {
+            "services/jobs/lifecycle/snapshot_factory.rs": "use crate::worker_command::build_ocr_command;",
+            "job_runner/translation_flow_child.rs": "",
+        }
+        # job_runner、worker_command 照旧映射到真实的包；这里让它们也落在临时目录里。
+        with patch.object(checks, "_CRATE_OF_MODULE", {}):
+            self.assertReports(tree, checks.check_worker_command_boundary, "snapshot creation must not build worker commands")
+
+    def test_shell_code_reaches_job_runner_only_through_runtime_gateway(self):
+        self.assertReports({"services/jobs/actions/x.rs": "use crate::job_runner::request_cancel;"},
+                           checks.check_job_runner_boundary, "src/services/jobs/actions/x.rs: shell code must reach the job runtime")
+        self.assertEqual([], self.check_sources(
+            {"services/jobs/runtime_gateway.rs": "use crate::job_runner::request_cancel;"},
+            checks.check_job_runner_boundary,
+        ))
+
+    def test_jobs_and_library_import_models_through_facades(self):
+        for path in ("services/jobs/presentation/x.rs", "services/library/x.rs"):
+            with self.subTest(path=path):
+                self.assertReports({path: "use crate::models::job::Internal;"},
+                                   checks.check_service_model_facade_boundaries, "must import models through")
+                self.assertEqual([], self.check_sources(
+                    {path: "use crate::models::domain::JobSnapshot;"}, checks.check_service_model_facade_boundaries,
+                ))
+
+
+class RulePathTests(unittest.TestCase):
+    """规则里写的路径必须存在；挪走的模块不能绕过 abs_src、scan_logical。"""
+
+    def run_check(self, rule_source, must_not_exist=frozenset()):
+        with tempfile.TemporaryDirectory() as directory:
+            script = Path(directory) / "check_architecture.py"
+            script.write_text(rule_source, encoding="utf-8")
+            with patch.object(checks, "RULE_SOURCE", script), patch.object(
+                checks, "RULE_PATHS_MUST_NOT_EXIST", {Path(p) for p in must_not_exist}
+            ):
+                errors = []
+                checks.check_rule_paths(errors)
+                return errors
+
+    def test_the_real_rules_name_only_existing_paths(self):
+        errors = []
+        checks.check_rule_paths(errors)
+        self.assertEqual([], errors)
+
+    def test_missing_paths_are_reported(self):
+        errors = self.run_check('X = Path("src/services/jobs/no_such_module.rs")\nY = Path("src/routes")\n')
+        self.assertEqual(1, len(errors), errors)
+        self.assertIn("src/services/jobs/no_such_module.rs does not exist", errors[0])
+
+    def test_module_directories_and_must_not_exist_paths_pass(self):
+        source = 'A = Path("src/services/jobs/files/queries")\nB = Path("src/services/jobs/gone.rs")\n'
+        self.assertEqual([], self.run_check(source, {"src/services/jobs/gone.rs"}))
+        errors = self.run_check('A = Path("src/routes")\n', {"src/services/jobs/gone.rs"})
+        self.assertIn("which no rule uses", errors[0])
+
+    def test_bypassing_the_module_map_is_reported(self):
+        for source in (
+            'scan_rs_files(SRC_ROOT / "job_runner")',
+            'p = SRC_ROOT / "services" / "jobs" / "query"',
+            'p = SRC_ROOT / "db.rs"',
+            "scan_rs_files(SRC_ROOT)",
+            'scan_rs_files(SRC_ROOT / "services")',
+        ):
+            with self.subTest(source=source):
+                self.assertTrue(self.run_check(source + "\n"))
+        self.assertEqual([], self.run_check('scan_rs_files(SRC_ROOT / "routes")\np = SRC_ROOT / "services" / "mod.rs"\n'))
+
+# ------------------------------------------------------------------ 任务、书库挪走以后规则还查得到
+
+def _moved_domain_mounts(root):
+    """模拟任务、书库已经挪进独立的包：文件在 rust_api 的 src/ 外面，门面叫 lib.rs。"""
+    return {
+        domain: (lambda domain=domain: root / "packages" / f"retain-pdf-{domain}" / "src")
+        for domain in checks.DOMAIN_MOUNTS
+    }
+
+
+class MovedDomainMounts:
+    """把下面这几组用例在"任务、书库已经挪走"的布局下再跑一遍。
+
+    规则如果还直接扫 rust_api 的 src/，这里会红：挪包时规则静悄悄地什么都不查，就是这么来的。
+    不放进来的：DomainFacadeTests 管 services/<领域>/ 目录本身，挪走的领域改由 EXTRACTED_DOMAINS 管，
+    有 ExtractedDomainTests；FailureCatalogueCoverageTests、ExtractedDomainTests 自己搭目录，不涉及任务、书库。
+    """
+
+    domain_mounts = staticmethod(_moved_domain_mounts)
+
+
+for _case in (
+    UploadBoundaryTests,
+    ServiceDependencyCycleTests,
+    ArtifactPathOwnershipTests,
+    ServiceCycleTests,
+    RequestPayloadAccessTests,
+    JobEntryOwnershipTests,
+    JobsAndLibraryRuleTests,
+):
+    globals()[f"{_case.__name__}WithMovedDomains"] = type(
+        f"{_case.__name__}WithMovedDomains", (MovedDomainMounts, _case), {}
+    )
+del _case
+
 
 if __name__ == "__main__":
     unittest.main()
