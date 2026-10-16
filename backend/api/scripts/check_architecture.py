@@ -671,7 +671,6 @@ def check_service_model_facade_boundaries(errors: list[str]) -> None:
         abs_src(Path("src/job_failure.rs")),
         abs_src(Path("src/job_failure_support.rs")),
         abs_src(Path("src/job_failure_structured.rs")),
-        SRC_ROOT / "services" / "ai" / "agent_calculations",
         SRC_ROOT / "services" / "jobs" / "lifecycle" / "snapshot_factory.rs",
         SRC_ROOT / "services" / "jobs" / "lifecycle" / "validation.rs",
         SRC_ROOT / "services" / "jobs" / "lifecycle" / "launcher.rs",
@@ -711,7 +710,6 @@ def check_service_model_facade_boundaries(errors: list[str]) -> None:
         SRC_ROOT / "services" / "jobs" / "support.rs",
         SRC_ROOT / "services" / "library",
         SRC_ROOT / "services" / "library" / "api.rs",
-        SRC_ROOT / "services" / "ai",
         SRC_ROOT / "services" / "library" / "book_projection",
         SRC_ROOT / "services" / "library" / "book_projection.rs",
     )
@@ -777,7 +775,7 @@ def check_jobs_dependency_boundaries(errors: list[str]) -> None:
 def check_runtime_ownership(errors: list[str]) -> None:
     # 健康检查（平台包）不自己读监督器：routes/common/health.rs 建依赖时读好状态传进 HealthApiDeps。
     allowed = {Path("src/app/server.rs"), Path("src/app/state.rs"),
-               Path("src/routes/common/health.rs"), Path("src/services/ai/gateway.rs")}
+               Path("src/routes/common/health.rs")}
     for path in scan_rs_files(SRC_ROOT):
         relative = rel(path)
         text = route_source_without_tests(path)
@@ -794,48 +792,37 @@ def check_runtime_ownership(errors: list[str]) -> None:
 
 
 def check_ai_gateway_dependencies(errors: list[str]) -> None:
-    # 只管 AI 网关本身；同目录下的 agent_*、document_operations 是挪进 ai 领域的别的模块。
-    for path in (SRC_ROOT / "services" / "ai" / name for name in ("mod.rs", "api.rs", "gateway.rs")):
+    """AI 网关的配置和健康状态由装配传进来，不自己读环境变量、不自己读监督器。
+
+    网关在 AI 包 retain-pdf-ai 里：碰 `crate::runtime` 的监督器、越过门面用 `gateway` 子模块，编译器已经挡住了。
+    只管网关本身（`lib.rs`、`api.rs`、`gateway.rs`）；同一个包里的 agent_*、document_operations 是别的模块。
+    """
+    crate_root = extracted_domain_root("ai")
+    for name in ("lib.rs", "api.rs", "gateway.rs"):
+        path = crate_root / "src" / name
         if not path.exists():
             continue
         text = route_source_without_tests(path)
         text = re.sub(r"/\*.*?\*/|//[^\n]*", "", text, flags=re.DOTALL)
         if re.search(r"\b(?:from_env|ai_service_status)\s*\(|\benv\s*::\s*var\s*\(|\bLazy\b", text):
-            errors.append(f"{rel(path)}: AI gateway must receive configuration and health source from app assembly")
-
-
-def check_business_private_modules(errors: list[str]) -> None:
-    """Public capability reexports are valid; implementation-path imports are not."""
-    private = {
-        "ai": {"gateway"},
-        "agent_calculations": {"service"},
-    }
-    homes = {
-        "ai": Path("ai"),
-        "agent_calculations": Path("ai/agent_calculations"),
-    }
-    for path in scan_rs_files(SRC_ROOT):
-        text = path.read_text(encoding="utf-8")
-        text = re.sub(r"/\*.*?\*/|//[^\n]*", "", text, flags=re.DOTALL)
-        for domain, members in private.items():
-            if path.is_relative_to(SRC_ROOT / "services" / homes[domain]):
-                continue
-            for suffix in re.findall(rf"\b{domain}\s*::\s*([^;]+)", text):
-                first = re.match(r"(\w+)", suffix)
-                grouped = set(re.findall(r"\b\w+\b", suffix)) if suffix.startswith("{") else set()
-                if (first and first.group(1) in members) or grouped & members:
-                    errors.append(f"{rel(path)}: external callers must use the {domain} public surface, not its internal modules")
-                    break
+            errors.append(
+                f"{Path(EXTRACTED_DOMAINS['ai']) / 'src' / name}: AI gateway must receive configuration and health source from app assembly"
+            )
 
 
 def check_agent_calculation_dependencies(errors: list[str]) -> None:
-    """Calculation storage needs Db and data_root, not application configuration."""
-    for path in scan_rs_files(SRC_ROOT / "services" / "ai" / "agent_calculations"):
+    """Calculation storage needs Db and data_root, not application configuration.
+
+    在 AI 包 retain-pdf-ai 的 `agent_calculations/` 里。`AppState`、rust_api 的 `api_tests` 包里本来就引用不到，
+    `AppConfig` 在 retain-pdf-core 里、引用得到，所以这条还要查。
+    """
+    crate_root = extracted_domain_root("ai")
+    for path in scan_rs_files(crate_root / "src" / "agent_calculations"):
         text = path.read_text(encoding="utf-8")
         text = re.sub(r"/\*.*?\*/|//[^\n]*", "", text, flags=re.DOTALL)
         if re.search(r"\b(?:AppConfig|AppState|api_tests)\b", text):
             errors.append(
-                f"{rel(path)}: agent calculations must use narrow Db/data_root dependencies, including test fixtures"
+                f"{Path(EXTRACTED_DOMAINS['ai']) / path.relative_to(crate_root)}: agent calculations must use narrow Db/data_root dependencies, including test fixtures"
             )
 
 
@@ -1439,6 +1426,7 @@ ALLOWED_DOMAIN_DEPENDENCIES = {
 # 这些领域的代码不在 services/ 下，services/mod.rs 里 `pub(crate) use <包> as <领域>;` 接上。
 EXTRACTED_DOMAINS = {
     "accounts": "retain-pdf-accounts",
+    "ai": "retain-pdf-ai",
     "files": "retain-pdf-files",
     "glossaries": "retain-pdf-glossaries",
     "ingest": "retain-pdf-ingest",
@@ -1803,7 +1791,6 @@ def main() -> int:
     check_route_model_boundary(errors)
     check_service_model_facade_boundaries(errors)
     check_upload_boundaries(errors)
-    check_business_private_modules(errors)
     check_agent_calculation_dependencies(errors)
     check_ai_gateway_dependencies(errors)
     check_runtime_ownership(errors)

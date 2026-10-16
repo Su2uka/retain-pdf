@@ -1,7 +1,7 @@
 //! Application facade for durable conversation-to-agent-runtime cursors.
 
-use crate::db::Db;
-use crate::error::AppError;
+use retain_pdf_data::db::Db;
+use retain_pdf_api_base::error::AppError;
 
 pub use super::agent_runtime_sessions::{
     AgentRuntimeSessionView, ClearAgentRuntimeSessionInput, PutAgentRuntimeSessionInput,

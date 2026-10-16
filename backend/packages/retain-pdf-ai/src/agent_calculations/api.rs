@@ -2,8 +2,8 @@
 
 use std::path::Path;
 
-use crate::db::Db;
-use crate::error::AppError;
+use retain_pdf_data::db::Db;
+use retain_pdf_api_base::error::AppError;
 
 pub use super::service::{
     AgentCalculationArtifactDownload, AgentCalculationListQuery, AgentCalculationListView,

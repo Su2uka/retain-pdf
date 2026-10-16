@@ -7,7 +7,7 @@ use futures_util::StreamExt;
 use serde_json::Value;
 
 use super::AiGateway;
-use crate::error::AppError;
+use retain_pdf_api_base::error::AppError;
 
 fn forwarded_api_key(headers: &HeaderMap) -> &str {
     headers

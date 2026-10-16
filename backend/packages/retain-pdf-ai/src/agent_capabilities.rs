@@ -8,7 +8,7 @@ use retain_pdf_data::db::Db;
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 
-use crate::error::AppError;
+use retain_pdf_api_base::error::AppError;
 
 pub const AGENT_CAPABILITY_ISSUE_SCHEMA: &str = "agent_capability_issue_v1";
 const AGENT_CAPABILITY_CLAIMS_SCHEMA: &str = "agent_capability_claims_v1";

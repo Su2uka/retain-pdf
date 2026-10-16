@@ -17,7 +17,8 @@
 
 // 账号已经拆成独立的包，这里接上。
 pub(crate) use retain_pdf_accounts as accounts;
-pub(crate) mod ai;
+// AI 已经拆成独立的包，这里接上。
+pub(crate) use retain_pdf_ai as ai;
 // 文件已经拆成独立的包，这里接上。
 pub(crate) use retain_pdf_files as files;
 // 术语表已经拆成独立的包，这里接上，`crate::services::glossaries::…` 的写法不变。

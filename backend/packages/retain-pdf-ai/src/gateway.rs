@@ -1,6 +1,6 @@
 //! Application-owned HTTP gateway for the retainpdf-ai sidecar.
-use crate::config::AiProxyConfig;
-use crate::error::AppError;
+use retain_pdf_core::config::AiProxyConfig;
+use retain_pdf_api_base::error::AppError;
 use reqwest::{Method, Response};
 use serde_json::Value;
 
@@ -13,7 +13,7 @@ pub struct AiGateway {
 
 impl AiGateway {
     /// ai_service 的基址。终端代理要把它换成 ws:// 再连过去。
-    pub(crate) fn base_url(&self) -> &str {
+    pub fn base_url(&self) -> &str {
         &self.base_url
     }
 
@@ -43,7 +43,7 @@ impl AiGateway {
         api_key: &str,
         payload: Option<&Value>,
     ) -> Result<Response, AppError> {
-        if (self.status)() == crate::runtime::ai_supervisor::AI_STATUS_UNHEALTHY {
+        if (self.status)() == retain_pdf_api_base::supervisor::SUPERVISOR_UNHEALTHY {
             return Err(AppError::service_unavailable(
                 "AI 服务暂不可用（监督器正在重启它），请稍后重试",
             ));

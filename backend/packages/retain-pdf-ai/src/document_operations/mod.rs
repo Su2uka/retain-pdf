@@ -27,7 +27,7 @@ pub use facade::{
     cancel_document_operation, commit_document_operation, create_document_operation,
     get_document_operation_view, run_document_operation,
 };
-#[cfg(test)]
+#[cfg(any(test, feature = "test-fixtures"))]
 pub use program::canonical_program_sha256;
 pub use program::{RetainPdfPageProgram, RetainPdfPageProgramStep};
 pub use workspace::OperationWorkspacePaths;

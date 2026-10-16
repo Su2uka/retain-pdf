@@ -1568,6 +1568,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "retain-pdf-ai"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "base64",
+ "chrono",
+ "fastrand",
+ "futures-util",
+ "getrandom 0.2.17",
+ "hmac",
+ "lopdf",
+ "reqwest",
+ "retain-pdf-api-base",
+ "retain-pdf-core",
+ "retain-pdf-data",
+ "retain-pdf-proc",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tokio",
+ "tracing",
+ "walkdir",
+]
+
+[[package]]
 name = "retain-pdf-api"
 version = "0.1.0"
 dependencies = [
@@ -1589,6 +1615,7 @@ dependencies = [
  "regex",
  "reqwest",
  "retain-pdf-accounts",
+ "retain-pdf-ai",
  "retain-pdf-api-base",
  "retain-pdf-config",
  "retain-pdf-core",

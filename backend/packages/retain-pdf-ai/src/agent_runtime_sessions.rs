@@ -7,7 +7,7 @@
 use retain_pdf_data::db::{AgentRuntimeSessionRecord, Db, PutAgentRuntimeSessionResult};
 use serde::{Deserialize, Serialize};
 
-use crate::error::AppError;
+use retain_pdf_api_base::error::AppError;
 
 pub const AGENT_RUNTIME_SESSION_PUT_SCHEMA: &str = "agent_runtime_session_put_v1";
 pub const AGENT_RUNTIME_SESSION_CLEAR_SCHEMA: &str = "agent_runtime_session_clear_v1";

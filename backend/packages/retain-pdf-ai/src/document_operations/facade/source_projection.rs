@@ -4,8 +4,8 @@ use retain_pdf_core::models::domain::{now_iso, DocumentOperationStatus, UploadRe
 use retain_pdf_core::storage_paths::resolve_data_path;
 use retain_pdf_data::db::Db;
 
-use crate::config::AppConfig;
-use crate::error::AppError;
+use retain_pdf_core::config::AppConfig;
+use retain_pdf_api_base::error::AppError;
 
 use super::super::workspace::require_regular_file;
 use super::super::RESTRICTED_PAGE_PROGRAM_PROFILE;

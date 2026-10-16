@@ -519,8 +519,8 @@ mod restricted_tests {
     use serde_json::json;
 
     use super::*;
-    use crate::services::ai::document_operations::program::canonical_program_sha256;
-    use crate::services::ai::document_operations::workspace::materialize_operation_workspace;
+    use crate::document_operations::program::canonical_program_sha256;
+    use crate::document_operations::workspace::materialize_operation_workspace;
 
     #[test]
     fn restricted_executor_uses_pipeline_subcommand() {
