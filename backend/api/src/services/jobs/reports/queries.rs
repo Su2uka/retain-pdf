@@ -1,7 +1,8 @@
 use crate::error::AppError;
 use crate::models::api::{JobReportView, TranslationDiagnosticsView};
 
-use crate::services::jobs::query::{load_supported_job, JobQueries};
+use crate::job_loading::load_supported_job;
+use crate::services::jobs::query::JobQueries;
 use crate::services::jobs::reports::translation_reports::{
     load_fit_report_view, load_refine_report_view, load_translation_diagnostics_view,
     load_translation_qa_view,

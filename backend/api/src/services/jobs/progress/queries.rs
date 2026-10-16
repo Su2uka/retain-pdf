@@ -1,7 +1,8 @@
 use crate::error::AppError;
 use crate::models::api::{JobEventListView, ListJobEventsQuery};
 
-use crate::services::jobs::query::{load_supported_job, JobQueries};
+use crate::job_loading::load_supported_job;
+use crate::services::jobs::query::JobQueries;
 
 impl JobQueries<'_> {
     pub fn live_translation_events_after(

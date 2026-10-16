@@ -7,7 +7,7 @@ use crate::services::jobs::actions::translation_request_recovery::load_translati
 use crate::services::jobs::lifecycle::managed_credential_gc::cleanup_deleted_job_credentials;
 
 use crate::services::jobs::lifecycle::creation::{relaunch_in_place, submit_job, NewJob};
-use crate::services::jobs::query::load_job_or_404;
+use crate::job_loading::load_job_or_404;
 use crate::services::jobs::facade::JobsFacade;
 use crate::services::jobs::actions::ocr_ambiguity::ambiguous_ocr_dispatch;
 use crate::services::jobs::actions::stage_retry_overrides::{apply_retry_overrides, discard_ocr_secret_sources};

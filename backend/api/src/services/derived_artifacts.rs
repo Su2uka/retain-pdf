@@ -3,7 +3,6 @@ use std::path::{Path, PathBuf};
 use crate::error::AppError;
 use crate::models::domain::JobSnapshot;
 
-pub(crate) mod merged;
 pub(crate) mod pdf;
 pub(crate) mod preview;
 pub(crate) mod side_by_side;
@@ -43,7 +42,7 @@ pub(crate) fn job_artifacts_dir(data_root: &Path, job: &JobSnapshot) -> Result<P
 /// `jobs/` 下凭空多出一个假任务目录 —— 它的缓存放进合并目录自己的 `artifacts/`：合并目录
 /// 按内容指纹命名、不可变，缓存天然跟着内容走。
 pub(crate) fn job_artifacts_dir_path(data_root: &Path, job: &JobSnapshot) -> Result<PathBuf, AppError> {
-    if crate::services::merge::reading::is_virtual_job_id(&job.job_id) {
+    if crate::job_loading::is_virtual_job_id(&job.job_id) {
         let root = crate::storage_paths::resolve_job_root(job, data_root)
             .ok_or_else(|| AppError::internal(format!("merged job has no root: {}", job.job_id)))?;
         return Ok(root.join("artifacts"));

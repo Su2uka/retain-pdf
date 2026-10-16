@@ -12,7 +12,7 @@ use crate::services::jobs::translations::{replay_translation_item, revise_transl
 use crate::services::jobs::progress::live_translation::{
     live_publication_view, prune_superseded_revision_snapshots, publish_translation_revisions,
 };
-use crate::services::jobs::query::load_supported_job;
+use crate::job_loading::load_supported_job;
 use crate::services::jobs::facade::JobsFacade;
 
 impl<'a> JobsFacade<'a> {
@@ -34,7 +34,7 @@ impl<'a> JobsFacade<'a> {
         item_id: &str,
         request: ReviseTranslationItemRequest,
     ) -> Result<TranslationRevisionView, AppError> {
-        if crate::services::merge::reading::is_virtual_job_id(job_id) {
+        if crate::job_loading::is_virtual_job_id(job_id) {
             return Err(AppError::translation_revision(
                 StatusCode::CONFLICT,
                 "read_only_job",

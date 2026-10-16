@@ -7,7 +7,7 @@ use crate::services::jobs::actions::stage_plan::stage_plan;
 use crate::services::jobs::actions::translation_request_recovery::load_translation_request_recovery;
 
 use crate::services::jobs::lifecycle::creation::{relaunch_in_place, submit_job, NewJob};
-use crate::services::jobs::query::load_job_or_404;
+use crate::job_loading::load_job_or_404;
 use crate::services::jobs::facade::JobsFacade;
 use crate::services::jobs::actions::ocr_ambiguity::ambiguous_ocr_dispatch;
 use crate::services::jobs::actions::rerun::prepare_in_place_render_job;

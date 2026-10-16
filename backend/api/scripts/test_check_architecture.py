@@ -656,6 +656,40 @@ mod tests { fn f() { resolve_output_pdf(job, root); } }
         self.assertIn("remove it from KNOWN_ARTIFACT_PATH_READERS", errors[0])
 
 
+class JobLoadingLayerTests(unittest.TestCase):
+    check_sources = UploadBoundaryTests.check_sources
+
+    def run_check(self, sources):
+        return self.check_sources(sources, checks.check_job_loading_is_below_services)
+
+    def test_storage_and_db_are_allowed(self):
+        self.assertEqual([], self.run_check({
+            "job_loading/mod.rs": "use crate::db::Db; use crate::storage_paths::MergedJobId;",
+            "job_loading/merged.rs": "// crate::services::merge writes the sidecar\nuse crate::error::AppError;",
+        }))
+
+    def test_services_routes_and_app_state_are_rejected(self):
+        for source in ("use crate::services::merge::build;", "use crate::routes::common;",
+                       "fn f(state: &AppState) {}"):
+            with self.subTest(source=source):
+                errors = self.run_check({"job_loading/merged.rs": source})
+                self.assertEqual(1, len(errors), errors)
+                self.assertIn("job_loading sits below services", errors[0])
+
+
+class ServiceCycleTests(unittest.TestCase):
+    check_sources = UploadBoundaryTests.check_sources
+
+    def test_no_cycle_is_grandfathered_any_more(self):
+        self.assertEqual(set(), checks.KNOWN_SERVICE_CYCLE_EDGES)
+        errors = self.check_sources({
+            "services/download_generation.rs": "use super::jobs::FileDownload;",
+            "services/jobs/files/downloads.rs": "use crate::services::download_generation::DownloadGeneration;",
+        }, checks.check_service_dependency_cycles)
+        self.assertEqual(2, len(errors), errors)
+        self.assertTrue(all("closes a dependency cycle" in error for error in errors), errors)
+
+
 class JobEntryOwnershipTests(unittest.TestCase):
     check_sources = UploadBoundaryTests.check_sources
 

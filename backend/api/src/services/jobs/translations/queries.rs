@@ -4,7 +4,8 @@ use crate::models::api::{
     TranslationRevisionHistoryView,
 };
 
-use crate::services::jobs::query::{load_supported_job, JobQueries};
+use crate::job_loading::load_supported_job;
+use crate::services::jobs::query::JobQueries;
 use crate::services::jobs::translations::{
     load_translation_debug_item_view, load_translation_debug_list_view,
     load_translation_revision_history,

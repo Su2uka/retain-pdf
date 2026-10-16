@@ -2,7 +2,8 @@ use crate::error::AppError;
 use crate::models::api::JobResumePlanView;
 use crate::models::domain::JobSnapshot;
 use crate::services::jobs::actions::stage_plan::resume_plan;
-use crate::services::jobs::query::{load_supported_job, JobQueries};
+use crate::job_loading::load_supported_job;
+use crate::services::jobs::query::JobQueries;
 
 impl JobQueries<'_> {
     pub fn resume_plan_view(&self, job_id: &str) -> Result<JobResumePlanView, AppError> {

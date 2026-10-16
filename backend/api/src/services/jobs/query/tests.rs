@@ -4,6 +4,7 @@ use super::*;
 use crate::api_tests::jobs_common::test_state;
 use crate::models::api::ListTranslationItemsQuery;
 use crate::models::domain::{CreateJobInput, JobArtifacts};
+use crate::storage_paths::LEGACY_JOB_UNSUPPORTED_MESSAGE;
 
 fn query_results(queries: &JobQueries<'_>, job_id: &str) -> [Result<(), AppError>; 7] {
     let query: ListTranslationItemsQuery =

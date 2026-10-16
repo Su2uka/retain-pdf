@@ -25,9 +25,9 @@ pub(crate) fn read_events(
 ) -> Result<JobEventListView, AppError> {
     // Scope/layout errors precede cursor validation, including OCR-only 404.
     let job = if ocr_only {
-        crate::services::jobs::query::load_ocr_job_with_supported_layout(db, data_root, job_id)?
+        crate::job_loading::load_ocr_job_with_supported_layout(db, data_root, job_id)?
     } else {
-        crate::services::jobs::query::load_supported_job(db, data_root, job_id)?
+        crate::job_loading::load_supported_job(db, data_root, job_id)?
     };
     if query.cursor.is_some() && query.start.is_some() {
         return Err(AppError::bad_request("cursor and start cannot be combined"));
