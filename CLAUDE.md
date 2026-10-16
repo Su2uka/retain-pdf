@@ -51,7 +51,7 @@ cargo test -p retain-pdf-api -p retain-pdf-api-base -p retain-pdf-accounts -p re
 - worktree 里没有 `backend/.venv`，跑 Python 和 rust_api 测试前指向主检出的环境：
   `UV_PROJECT_ENVIRONMENT=<主检出>/backend/.venv`，`PATH=<主检出>/backend/.venv/bin:$PATH`
   （rust_api 的部分测试要用 PATH 上的 `retainpdf-pipeline`）。
-- `model_executor` 的测试并行跑会偶发失败，单独用 `--test-threads=1` 跑：执行器本身的测试在 `retain-pdf-providers` 包里，
+- `model_executor` 的测试以前并行跑会偶发失败（测试用的超时太紧，2026-10-16 放宽了），合并前照旧再用 `--test-threads=1` 跑一遍：执行器本身的测试在 `retain-pdf-providers` 包里，
   要搭整个应用的几个在 `retain-pdf-api` 的 `api_tests::model_executor`。
 - 不要对整个已有文件跑 rustfmt（仓库没有整体格式化过）；从 stdin 喂给 `rustfmt --check` 永远返回 0，不能当检查用。
 - 本地多用户开发栈开着时，pipeline 测试收尾会报"测试污染了仓库的 data/ 目录"，是开发栈写的，CI 上不会出现。

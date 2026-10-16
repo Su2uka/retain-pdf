@@ -60,11 +60,12 @@ fn profile(url: &str) -> ModelConnection {
         thinking: Thinking::Auto,
         stream: Some(false),
         allow_private_endpoint: true,
+        // 和 retain-pdf-providers 里执行器测试的 profile 一样留足余量，见那边的注释。
         deadlines: Deadlines {
-            queue_ms: 500,
-            connect_ms: 100,
-            idle_ms: 200,
-            total_ms: 700,
+            queue_ms: 2_000,
+            connect_ms: 1_000,
+            idle_ms: 1_000,
+            total_ms: 3_000,
         },
     }
 }
