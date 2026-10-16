@@ -65,6 +65,9 @@ cargo test -p retain-pdf-api -p retain-pdf-api-base -p retain-pdf-accounts -p re
   `UPDATE_SUBMISSIONS=1 cargo test -p retain-pdf-api --lib submissions`。重新生成后看 diff，只该有预期的改动。
 - 加路由、加 service 前先读 `check_architecture.py` 的规则：新的路由文件要进白名单（按完整 import 字符串匹配）；
   新的路径参数要在账号包的 `backend/packages/retain-pdf-accounts/src/access.rs` 的 `classify_param` 里归类，否则多用户模式下 403 "not cleared"。
+- 改 `check_architecture.py`：任务、书库的规则写逻辑路径 `src/services/<领域>/...`，取文件用 `abs_src`，扫目录用 `scan_logical`，
+  不要直接写 `SRC_ROOT / ...`；实际目录只登记在 `DOMAIN_MOUNTS`。规则里写的路径必须存在（`check_rule_paths` 会查），
+  规则要求"不许存在"的路径登记在 `RULE_PATHS_MUST_NOT_EXIST`。
 - `/jobs` 按 9 类分：路由 `app/router/jobs/<类>.rs`、处理函数 `routes/jobs/<类>.rs`、业务逻辑
   `services/jobs/<类>/`，三处同名。新接口放进对应的类，不要再加 `/jobs/:job_id/<名字>` 这种顶层地址；
   旧地址紧跟在新地址下面、行尾标 `// 旧地址`。`services/jobs/` 根目录只放各类共用的（门面、依赖、返回视图）。
