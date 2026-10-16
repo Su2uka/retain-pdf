@@ -15,7 +15,7 @@ use crate::db::Db;
 use crate::error::AppError;
 use crate::models::domain::{JobSnapshot, JobStatusKind, WorkflowKind};
 use crate::services::document_pages::translated_document_pages;
-use crate::services::jobs::stage_view::terminal_completion_note;
+use crate::services::jobs::progress::stage_view::terminal_completion_note;
 
 use super::plan::{merge_plan, PageSource};
 use super::reading::document_merge_sources;

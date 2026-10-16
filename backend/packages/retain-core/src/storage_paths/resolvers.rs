@@ -121,7 +121,7 @@ pub fn resolve_ai_canvas(job: &JobSnapshot, data_root: &Path) -> Option<PathBuf>
 /// `<job>/ai/board/` —— agent 的画板目录。
 ///
 /// 返回的是**目录**，不是文件。里面具体读哪个文件由调用方决定，所以文件名的
-/// 校验必须在调用方做 —— 见 api 侧 `services/jobs/downloads/ai_board.rs`，
+/// 校验必须在调用方做 —— 见 api 侧 `services/jobs/ai/ai_board.rs`，
 /// 那里挡了路径穿越、符号链接和类型。
 pub fn resolve_ai_board_dir(job: &JobSnapshot, data_root: &Path) -> Option<PathBuf> {
     Some(resolve_ai_dir(job, data_root)?.join(AI_BOARD_DIR_NAME))

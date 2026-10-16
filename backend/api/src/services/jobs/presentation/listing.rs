@@ -1,9 +1,9 @@
 use std::path::Path;
 
-use super::super::live_stage::{load_live_stage_snapshots, LiveStageSnapshot};
-use super::super::query::list_jobs_filtered;
-use super::super::stage_view::build_job_stage_view;
-use super::super::summary_loaders::SummaryCache;
+use crate::services::jobs::progress::live_stage::{load_live_stage_snapshots, LiveStageSnapshot};
+use crate::services::jobs::query::list_jobs_filtered;
+use crate::services::jobs::progress::stage_view::build_job_stage_view;
+use crate::services::jobs::summary_loaders::SummaryCache;
 use super::helpers::{cover_url, job_path_prefix, thumbnail_url};
 use crate::config::limits::MAX_JOB_LIMIT;
 use crate::db::Db;
@@ -110,7 +110,7 @@ fn build_job_list_item_view(
     let detail_path = format!("{}/{}", job_path_prefix(job), job.job_id);
     let stage = build_job_stage_view(job, live_stage);
     let (output_pdf_ready, markdown_ready, bundle_ready) =
-        super::super::job_readiness(job, data_root);
+        crate::services::jobs::job_readiness(job, data_root);
     let cover_url = cover_url(job, data_root, base_url);
     let thumbnail_url = thumbnail_url(job, data_root, base_url);
     JobListItemView {
@@ -118,7 +118,7 @@ fn build_job_list_item_view(
         display_name: display_title(upload, job, titles),
         workflow: job.workflow.clone(),
         status: job.status.clone(),
-        completion_note: crate::services::jobs::stage_view::terminal_completion_note(job),
+        completion_note: crate::services::jobs::progress::stage_view::terminal_completion_note(job),
         attempt: job
             .runtime
             .as_ref()

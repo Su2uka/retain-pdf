@@ -97,7 +97,7 @@ Current internal boundary conventions:
 
 - `routes/*` only adapts HTTP requests/responses
 - `services/jobs/*` owns job query, presentation, creation orchestration, and control logic
-- `services/jobs/snapshot_factory` owns job snapshot assembly; `worker_command` owns Python worker command/spec construction
+- `services/jobs/lifecycle/snapshot_factory` owns job snapshot assembly; `worker_command` owns Python worker command/spec construction
 - `../packages/retain-jobs/src/job_runner/*` owns runtime execution, process lifecycle,
   OCR-child chaining, and cancellation
 - `services/ai/api.rs` owns the Rust-to-AI HTTP proxy boundary;

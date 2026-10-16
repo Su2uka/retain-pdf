@@ -3,8 +3,8 @@ use std::path::Path;
 use crate::db::Db;
 use crate::models::api::JobProgressView;
 use crate::models::domain::JobSnapshot;
-use crate::services::jobs::live_stage::{load_live_stage_snapshot, LiveStageSnapshot};
-use crate::services::jobs::stage_view::build_job_stage_view;
+use crate::services::jobs::progress::live_stage::{load_live_stage_snapshot, LiveStageSnapshot};
+use crate::services::jobs::progress::stage_view::build_job_stage_view;
 
 pub(super) struct BookLiveProjection {
     pub stage: Option<String>,

@@ -1,4 +1,4 @@
-use super::stage_view::build_job_stage_view;
+use crate::services::jobs::progress::stage_view::build_job_stage_view;
 use crate::error::AppError;
 use crate::models::api::{build_job_actions, build_job_links_with_workflow, JobSubmissionView};
 use crate::models::domain::{JobSnapshot, JobStatusKind, WorkflowKind};

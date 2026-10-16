@@ -7,23 +7,12 @@
 //! 清单从路由源码里读（和 `services::accounts::access` 的参数分类测试一样），不启动服务。
 
 use std::collections::BTreeMap;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use crate::services::accounts::access::{route_policy, RoutePolicy};
 
 const METHODS: [&str; 5] = ["get", "post", "put", "patch", "delete"];
 
-fn router_sources(root: &Path) -> Vec<PathBuf> {
-    let mut files = vec![root.join("app/router.rs"), root.join("routes/model_requests.rs")];
-    let mut routers: Vec<PathBuf> = std::fs::read_dir(root.join("app/router"))
-        .unwrap()
-        .map(|entry| entry.unwrap().path())
-        .filter(|path| path.extension().is_some_and(|ext| ext == "rs"))
-        .collect();
-    routers.sort();
-    files.extend(routers);
-    files
-}
 
 /// `.route("<path>", get(a).post(b))` 里的路径和方法。只认路由注册这一种写法；
 /// 测试代码（`#[cfg(test)]` 之后）不算。
@@ -81,10 +70,9 @@ fn policy_label(method: &str, path: &str, public: bool) -> &'static str {
 }
 
 fn manifest() -> String {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
     let mut table: BTreeMap<String, Vec<&'static str>> = BTreeMap::new();
     let mut public = std::collections::BTreeSet::new();
-    for file in router_sources(&root) {
+    for file in crate::test_support::routes::router_source_files() {
         let source = std::fs::read_to_string(&file).unwrap();
         // router/public.rs 挂在认证之外（健康检查、登录注册）。
         let is_public = file.ends_with("app/router/public.rs");

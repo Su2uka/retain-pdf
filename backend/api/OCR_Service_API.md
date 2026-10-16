@@ -47,15 +47,15 @@
 内部实现说明：
 
 - `app/router.rs` 负责挂载 `/api/v1/ocr/jobs*` 路由
-- `routes/jobs/create.rs` 负责 OCR `multipart/form-data` 入口
-- `routes/jobs/query.rs` / `routes/jobs/control.rs` / `routes/jobs/download.rs` 负责查询、取消和产物下载
+- `routes/jobs/lifecycle.rs` 负责 OCR `multipart/form-data` 入口和查询
+- `routes/jobs/actions.rs` / `routes/jobs/files.rs` 负责取消和产物下载
 - `routes/job_requests.rs` 负责 OCR 表单解析
 - `routes/common.rs` / `routes/download_response/**` / `routes/job_helpers.rs` 负责 OCR / 通用 job 的公共 response 与下载辅助逻辑
-- `services/jobs/facade/mod.rs` 负责稳定服务入口
-- `services/jobs/creation.rs` 与 `services/jobs/creation/bundle.rs` 负责 OCR job 构建
-- `services/jobs/validation.rs` 负责 provider 参数校验
-- `services/jobs/snapshot_factory.rs` 负责 snapshot / command 组装
-- `services/jobs/launcher.rs` 负责执行启动
+- `services/jobs/facade.rs` 负责稳定服务入口
+- `services/jobs/lifecycle/creation/submit.rs`（`submit_job`）负责 OCR job 构建
+- `services/jobs/lifecycle/validation.rs` 负责 provider 参数校验
+- `services/jobs/lifecycle/snapshot_factory.rs` 负责 snapshot / command 组装
+- `services/jobs/lifecycle/launcher.rs` 负责执行启动
 
 如果你在排查接口行为，请以这些拆分后的模块职责为准，而不是旧版集中式文件结构。
 
@@ -155,10 +155,10 @@ X-API-Key: your-rust-api-key
 实现补充：
 
 - 表单字段解析在 `routes/job_requests.rs`
-- 创建入口在 `routes/jobs/create.rs`
-- facade 收口在 `services/jobs/facade/mod.rs`
-- 创建前的 provider / token / URL / timeout 校验在 `services/jobs/validation.rs`
-- OCR job 的 snapshot 构建与启动由 `services/jobs/creation.rs`、`services/jobs/snapshot_factory.rs` 和 `services/jobs/launcher.rs` 协作完成
+- 创建入口在 `routes/jobs/lifecycle.rs`
+- facade 收口在 `services/jobs/facade.rs`
+- 创建前的 provider / token / URL / timeout 校验在 `services/jobs/lifecycle/validation.rs`
+- OCR job 的 snapshot 构建与启动由 `services/jobs/lifecycle/creation/submit.rs`（`submit_job`）、`services/jobs/lifecycle/snapshot_factory.rs` 和 `services/jobs/lifecycle/launcher.rs` 协作完成
 
 支持两种提交方式，二选一：
 

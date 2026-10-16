@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use super::super::summary_loaders::SummaryCache;
+use crate::services::jobs::summary_loaders::SummaryCache;
 use crate::models::api::{
     to_absolute_url, BookSummaryView, JobFailureDiagnosticView,
     OcrJobSummaryView,

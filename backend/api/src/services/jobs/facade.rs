@@ -1,0 +1,35 @@
+
+use crate::models::api::JobSubmissionView;
+use crate::models::domain::{JobSnapshot, JobStatusKind, WorkflowKind};
+
+use crate::services::jobs::support::build_submission_view;
+use crate::services::jobs::deps::{CommandJobsDeps, QueryJobsDeps};
+
+#[derive(Clone)]
+pub struct JobsFacade<'a> {
+    pub(in crate::services::jobs) command: CommandJobsDeps<'a>,
+    pub(in crate::services::jobs) query: QueryJobsDeps<'a>,
+}
+
+impl<'a> JobsFacade<'a> {
+    pub(crate) fn new(command: CommandJobsDeps<'a>, query: QueryJobsDeps<'a>) -> Self {
+        Self { command, query }
+    }
+
+    pub(in crate::services::jobs) fn build_submission_view(
+        &self,
+        base_url: &str,
+        job: &JobSnapshot,
+        status: JobStatusKind,
+        workflow: WorkflowKind,
+    ) -> JobSubmissionView {
+        build_submission_view(job, status, workflow, base_url)
+    }
+}
+
+pub(crate) fn build_jobs_facade<'a>(
+    command: CommandJobsDeps<'a>,
+    query: QueryJobsDeps<'a>,
+) -> JobsFacade<'a> {
+    JobsFacade::new(command, query)
+}

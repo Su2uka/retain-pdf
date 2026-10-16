@@ -20,10 +20,10 @@ Routes should not read job files, inspect artifacts, merge event streams,
 touch `state.db` / `state.config` directly, import internal services (e.g.
 `derived_artifacts`), or construct view payloads from DB rows.
 
-`src/routes/jobs/json_response/**` is the JSON response boundary for job routes:
-it calls `JobsFacade`, computes HTTP-only values such as `base_url`, and wraps
-typed views in `ApiResponse`. Axum handlers under `src/routes/jobs/query/**`
-should stay focused on extraction and delegation.
+Job handlers under `src/routes/jobs/<category>.rs` call `JobsFacade` /
+`JobQueries`, compute HTTP-only values such as `base_url`, and wrap typed views
+in `ApiResponse`; they stay focused on extraction and delegation (see "Job
+Routes" below for the nine categories).
 
 `src/routes/download_response/**` is the file response boundary for job-backed
 downloads, markdown documents, previews, covers, and thumbnails. Jobs and
@@ -47,6 +47,22 @@ AI routes follow the same boundary:
 - public routes must never mint Agent capabilities or expose internal operation
   manifests, cursor endpoints, workspace paths, or credentials.
 
+## Job Routes
+
+`/api/v1/jobs/**` is split into nine categories with the same name in the
+router (`src/app/router/jobs/<category>.rs`), the handlers
+(`src/routes/jobs/<category>.rs`) and the business logic
+(`src/services/jobs/<category>/`): `lifecycle`, `actions`, `progress`, `files`,
+`reports`, `reader`, `translations`, `data`, `ai` (prefixes
+`/jobs/:job_id/actions/…` and so on). A new job endpoint goes into the category that answers its question;
+do not add top-level `/jobs/:job_id/<name>` paths.
+
+Each legacy path is registered right below its new path, marked `// 旧地址`,
+and points at the same handler, so both return exactly the same thing. Paths
+are written out in full: `docs/routes.txt` and the path-parameter
+classification test read the router sources. Legacy paths are removed only
+after route usage shows no callers.
+
 ## Library Facade
 
 Files under `src/services/library/**` implement library-domain use cases.
@@ -56,7 +72,7 @@ search, assets, conversations, collections).
 
 - Routes use `build_library_route_deps` (`LibraryDeps` + `JobsFacade`).
 - Translate-from-library binds a document's stored upload, then creates jobs
-  only via `JobsFacade::create_submission`.
+  only via `JobsFacade::create_document_submission`.
 - Cover/thumbnail generation uses `derived_artifacts` inside `library/media`,
   not from routes.
 - Library DTOs are re-exported through `models::api`; do not import
@@ -78,23 +94,28 @@ test file.
 
 ## Jobs Facade
 
-Files under `src/services/jobs/facade/**` are the boundary for job API use cases.
-They decide which service operation to run and return typed views or download
-handles.
+`src/services/jobs/` is split into the same nine category directories as
+`routes/jobs/` (`lifecycle`, `actions`, `progress`, `files`, `reports`,
+`reader`, `translations`, `data`, `ai`). The root keeps only what every category
+shares: `facade.rs` (the `JobsFacade` struct), `deps/`, `presentation/`,
+`query.rs` (the `JobQueries` struct and job loading), `runtime_gateway.rs`,
+`summary_loaders/` and `support.rs`.
 
-Facade code may call:
+Each use case is an `impl JobsFacade` / `impl JobQueries` block in its category
+directory (read methods in `<category>/queries.rs`). They decide which service
+operation to run and return typed views or download handles, and may call:
 
 - `services/jobs/query.rs` for loading and scope checks;
 - `services/jobs/presentation/**` for public job/list/event view projection;
-- `services/jobs/downloads/**`, `reader_regions/**`, `debug/**`, and command
-  modules for their specific use cases.
+- the modules of their own category, and of another category where the work
+  belongs there (e.g. `reports/failure.rs` uses `actions/resume_plan.rs`).
 
 Callers outside `services/jobs/**` should not call presentation internals.
 
 ## Job Creation
 
 Every new job goes through one entry point,
-`submit_job(deps, NewJob)` (`src/services/jobs/creation/submit.rs`): `POST /jobs`,
+`submit_job(deps, NewJob)` (`src/services/jobs/lifecycle/creation/submit.rs`): `POST /jobs`,
 `/ocr/jobs`, `/translate/bundle`, library translate/OCR, stage retry, rerun and
 OCR-ambiguity recovery. The steps are written once, in this order: dev-stack
 translation defaults, platform models (multi-user, before validation and before
@@ -121,7 +142,7 @@ The outcome of every entry is pinned in `docs/submissions.txt`
 
 Every job file download goes through one entry point,
 `JobDownloads::open(job_id, JobScope, JobFile, Disposition)`
-(`src/services/jobs/downloads/files.rs`):
+(`src/services/jobs/files/downloads/files.rs`):
 
 - `JobFile` names the file (translated PDF, side-by-side PDF, Word, OCR
   Markdown, cover, page preview, bundle, or any other registry key). Where to
@@ -167,7 +188,7 @@ loading that is needed outside presentation belongs in a sibling module under
 These modules are shared inside the jobs service and, where needed, by sibling
 service projections such as `library::book_projection`:
 
-- `src/services/jobs/live_stage.rs`: combined event loading, canonical event
+- `src/services/jobs/progress/live_stage.rs`: combined event loading, canonical event
   projection, and live progress snapshots.
 - `src/services/jobs/summary_loaders.rs`: normalized/translation summary file
   readers, plus `SummaryCache::book_page_count` (the one page-count rule for

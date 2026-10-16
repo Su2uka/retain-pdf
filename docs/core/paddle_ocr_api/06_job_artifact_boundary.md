@@ -221,7 +221,7 @@ artifact 层不应该反向变成 provider 语义层。
 
 关键代码：
 
-- `backend/api/src/services/jobs/facade/query/downloads.rs`
+- `backend/api/src/services/jobs/files/downloads.rs`
 - `backend/api/src/services/artifacts/mod.rs`
 
 ### 稳定资源接口

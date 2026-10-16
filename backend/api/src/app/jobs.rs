@@ -7,7 +7,7 @@ use crate::db::Db;
 use crate::job_runner::{
     reconcile_stale_running_jobs, requeue_stuck_queued_jobs, spawn_job, ProcessRuntimeDeps,
 };
-use crate::services::jobs::launcher::JobLaunchDeps;
+use crate::services::jobs::lifecycle::launcher::JobLaunchDeps;
 use crate::services::jobs::{
     build_jobs_facade, CommandJobsDeps, ControlDeps, JobSubmitDeps, JobsFacade, QueryJobsDeps,
     ReplayDeps, SnapshotBuildDeps,

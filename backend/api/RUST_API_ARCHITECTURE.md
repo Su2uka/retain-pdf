@@ -374,7 +374,7 @@ Rust 侧关键落点：
 
 当前路由已经统一收口到 application facade：
 
-- jobs → [src/services/jobs/facade/mod.rs](src/services/jobs/facade/mod.rs)
+- jobs → [src/services/jobs/facade.rs](src/services/jobs/facade.rs)
 - library → [src/services/library_api.rs](src/services/library_api.rs)
 - glossaries → [src/services/glossaries/api.rs](src/services/glossaries/api.rs)
   → `services/glossaries/{records,entries,csv}.rs`
@@ -445,7 +445,7 @@ Rust 侧关键落点：
 
 当前已经成型的 application 入口：
 
-- [src/services/jobs/facade/mod.rs](src/services/jobs/facade/mod.rs)
+- [src/services/jobs/facade.rs](src/services/jobs/facade.rs)
 - [src/services/library_api.rs](src/services/library_api.rs)
 - [src/services/glossaries/api.rs](src/services/glossaries/api.rs)
 - [src/services/uploads/api.rs](src/services/uploads/api.rs)
@@ -493,7 +493,7 @@ routes/library*.rs, collections.rs
 
 其他跨域正确性边界：
 
-- live translation 由 `services/jobs/live_translation.rs` 从已提交的
+- live translation 由 `services/jobs/progress/live_translation.rs` 从已提交的
   `pipeline_units` 选择 immutable checkpoint；SSE 只是刷新提示，route
   不能直接把 worker 可变文件当权威译文；多页 flush 通过
   `pipeline_checkpoint_v1.committed_pages` 在一个 SQLite transaction 和
@@ -508,9 +508,9 @@ routes/library*.rs, collections.rs
 
 当前关键分工：
 
-- [src/services/jobs/snapshot_factory.rs](src/services/jobs/snapshot_factory.rs)
+- [src/services/jobs/lifecycle/snapshot_factory.rs](src/services/jobs/lifecycle/snapshot_factory.rs)
   负责 job snapshot / command 组装
-- [src/services/jobs/launcher.rs](src/services/jobs/launcher.rs)
+- [src/services/jobs/lifecycle/launcher.rs](src/services/jobs/lifecycle/launcher.rs)
   负责 job 持久化与执行启动
 - [src/services/jobs/runtime_gateway.rs](src/services/jobs/runtime_gateway.rs)
   负责 services 侧 runtime 能力收口
@@ -527,60 +527,68 @@ routes/library*.rs, collections.rs
 - [src/services/derived_artifacts](src/services/derived_artifacts)
   负责 cover/thumbnail/page preview 等派生产物（由 library media / jobs downloads 调用，**不**被 route 直连）
 
-其中 `services/jobs` 又拆成：
+其中 `services/jobs` 和 `routes/jobs/`、`app/router/jobs/` 一样按 9 类分目录（2026-10-16，
+见 `docs/ops/planning/api-reorg/20261016-任务接口分类实现记录.md`）：
 
-- `creation`
-- `control`
-- `query`
-- `debug`
-- `facade`
-- `presentation`
+| 目录 | 类 | 主要内容 |
+|---|---|---|
+| `lifecycle/` | 任务 | `creation/`（唯一入口 `submit_job`）、`validation`、`snapshot_factory`、`launcher`、列表和详情、`/jobs` 等提交入口 |
+| `actions/` | 操作 | 取消、整个重跑、重试阶段、续跑计划、阶段计划、OCR 歧义处理 |
+| `progress/` | 进度 | `event_feed/`、`live_stage`、`live_translation`、`stage_view` |
+| `files/` | 文件 | `downloads/`（唯一下载入口 `JobDownloads::open`）、文件列表、是否就绪 |
+| `reports/` | 报告 | 失败原因、翻译诊断和质检、排版缩放、精修报告 |
+| `reader/` | 阅读 | `reader_regions/`、原文 Markdown |
+| `translations/` | 译文 | 逐条看、人工改、修改历史、重翻一条 |
+| `data/` | 数据 | 按登记表通用取数 |
+| `ai/` | AI | 阅读路径、概念图、画板 |
 
-#### `services/jobs/facade`
+根目录只放各类共用的：`facade.rs`、`deps/`、`presentation/`、`query.rs`、`runtime_gateway.rs`、
+`summary_loaders/`、`support.rs`。
+
+#### `services/jobs/facade.rs`
 
 文件：
 
-- [src/services/jobs/facade/mod.rs](src/services/jobs/facade/mod.rs)
-- [src/services/jobs/facade/command](src/services/jobs/facade/command)
-- [src/services/jobs/facade/query](src/services/jobs/facade/query)
+- [src/services/jobs/facade.rs](src/services/jobs/facade.rs)
 
 职责：
 
-- 给路由层提供统一入口
+- 给路由层提供统一入口 `JobsFacade`
 - 屏蔽 `db/config/data_root` 等底层细节
-- 按 use case 继续拆成更小的 facade 子模块，而不是把所有入口堆回一个文件
+- `facade.rs` 只放结构体；各个 use case 的 `impl JobsFacade` 写在所属类的目录里
+  （例如 `lifecycle/submission.rs`、`actions/rerun.rs`、`translations/edits.rs`）
+- 只读查询的入口是 `query.rs` 的 `JobQueries`，各类的查询方法写在各自目录的 `queries.rs`
 - 命令侧和查询侧依赖分离，避免一个总 deps 同时拖着 create/query/debug/download 一起膨胀
 
 规则：
 
-- 新增 job 路由能力，优先先加到 facade，再由 route 调用
+- 新增 job 路由能力，先判断属于 9 类中的哪一类，加到那一类的目录里，再由 route 调用
 - 需要创建 / 取消类资源，优先放进 `CommandJobsDeps`
 - 需要查询 / 下载 / debug 类资源，优先放进 `QueryJobsDeps`
 
-#### `services/jobs/creation`
+#### `services/jobs/lifecycle/creation`
 
 目录：
 
-- [src/services/jobs/creation](src/services/jobs/creation)
+- [src/services/jobs/lifecycle/creation](src/services/jobs/lifecycle/creation)
 
 职责：
 
 - `submit.rs`
-  只负责“接收输入后创建并启动任务”
-- `bundle.rs`
-  只负责“同步跑完整链路并产出下载 bundle”
+  建新任务的唯一入口 `submit_job`，和原地重跑已有任务的 `relaunch_in_place`
 - `job_builders.rs`
   只负责把输入解析成 `JobSnapshot`
-- `upload.rs`
-  只负责 PDF 上传持久化和 upload record 读取
-- `context.rs`
-  只负责 creation 侧显式 deps
+- `prepare.rs`
+  按 workflow 校验输入、找上传、检查能否复用已有 OCR 产物
+- `ocr_credentials.rs`
+  明文 key 导入凭据库、加使用锁
+- `dev_defaults.rs`
+  开发栈的默认值
 
 规则：
 
-- 不要把“提交任务”和“同步打包”重新塞回一个文件
+- 别处要建新任务，调 `submit_job`；`check_architecture.py` 的 `check_job_entry_ownership` 会拦
 - 不要在 facade 或 route 里重新拼 upload 存储细节
-- 新增 creation use case 时，优先先判断它属于 `submit`、`bundle`、`job_builders` 还是 `upload`
 
 #### `services/jobs/presentation`
 
@@ -826,10 +834,10 @@ routes/library*.rs, collections.rs
 
 1. `POST /api/v1/jobs`
 2. `routes/jobs/create.rs`
-3. `services/jobs/facade/mod.rs`
-4. `services/jobs/creation.rs`
-5. `services/jobs/snapshot_factory.rs`
-6. `services/jobs/launcher.rs`
+3. `services/jobs/facade.rs`
+4. `services/jobs/lifecycle/creation.rs`
+5. `services/jobs/lifecycle/snapshot_factory.rs`
+6. `services/jobs/lifecycle/launcher.rs`
 7. `job_runner/lifecycle.rs`
 8. `worker_command.rs`
 9. `job_runner/process_runner.rs`
@@ -898,9 +906,9 @@ routes/library*.rs, collections.rs
 
 改动顺序：
 
-1. `routes/jobs/*`
-2. `services/jobs/facade/mod.rs`
-3. `services/jobs/query.rs` 或 `presentation/*`
+1. 先定属于 9 类中的哪一类，`app/router/jobs/<类>.rs` 和 `routes/jobs/<类>.rs`
+2. `services/jobs/<类>/queries.rs`（`JobQueries` 的方法）
+3. 需要组装返回视图时改 `services/jobs/presentation/*`
 
 不要直接从 route 跨过 facade 去摸底层。
 

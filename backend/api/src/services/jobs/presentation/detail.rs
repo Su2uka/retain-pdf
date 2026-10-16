@@ -9,8 +9,8 @@ use crate::models::api::{
 use crate::models::domain::JobSnapshot;
 use crate::services::artifacts::list_registry_for_job;
 
-use super::super::job_readiness;
-use super::super::translation_request_recovery::load_translation_request_recovery_with_db;
+use crate::services::jobs::job_readiness;
+use crate::services::jobs::actions::translation_request_recovery::load_translation_request_recovery_with_db;
 use super::detail_projection::{
     build_artifact_projection, build_core_projection, build_failure_projection,
     build_live_projection, build_summary_projection, detail_readiness,
@@ -52,7 +52,7 @@ pub fn build_job_detail_view(
         request_payload: core.request_payload,
         trace_id: core.trace_id,
         provider_trace_id: core.provider_trace_id,
-        completion_note: crate::services::jobs::stage_view::terminal_completion_note(job),
+        completion_note: crate::services::jobs::progress::stage_view::terminal_completion_note(job),
         stage_snapshot: live.stage_snapshot,
         background_snapshots: live.background_snapshots,
         stages: live.stages,

@@ -526,7 +526,7 @@ def _revise_locked(
         )
         raise
     # 旧 generation 的快照这里**不清理**。Rust 的实时译文读模型按数据库里登记的
-    # page_hash 去 .translation-checkpoints/ 下找快照(services/jobs/live_translation.rs);
+    # page_hash 去 .translation-checkpoints/ 下找快照(services/jobs/progress/live_translation.rs);
     # 修订不经过 worker stdout,要等 Rust 在本命令返回后把新 page_hash 登记进数据库
     # (live_translation/revisions.rs),登记成功前读模型要的还是旧快照。登记完成后
     # 由 Rust 清掉不再被引用的旧 generation;登记失败时它们留着,读模型照旧可读。

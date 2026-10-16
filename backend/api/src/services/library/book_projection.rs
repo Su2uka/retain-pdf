@@ -12,7 +12,7 @@ use crate::storage_paths::resolve_source_pdf;
 
 use crate::services::artifacts::build_artifacts_display;
 use crate::services::jobs::job_readiness;
-use crate::services::jobs::live_stage::{load_live_stage_snapshots, LiveStageSnapshot};
+use crate::services::jobs::progress::live_stage::{load_live_stage_snapshots, LiveStageSnapshot};
 use crate::services::jobs::summary_loaders::SummaryCache;
 
 mod live;

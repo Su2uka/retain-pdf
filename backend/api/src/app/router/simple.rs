@@ -8,6 +8,6 @@ use crate::routes::jobs;
 pub(super) fn routes() -> Router<AppState> {
     Router::new().route(
         "/api/v1/translate/bundle",
-        post(jobs::translate_bundle).layer(DefaultBodyLimit::disable()),
+        post(jobs::lifecycle::translate_bundle).layer(DefaultBodyLimit::disable()),
     )
 }

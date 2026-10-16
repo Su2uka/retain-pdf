@@ -128,7 +128,7 @@ fn provider_policy_is_explicit_and_custom_is_clean() {
 fn submission_snapshot_is_validated_and_publicly_roundtrips_without_a_key() {
     let p = profile("https://example.org/v1");
     let mut input:crate::models::request::CreateJobInput=serde_json::from_value(json!({"translation":{"model":p.model,"base_url":p.base_url,"credential_ref":p.credential_ref,"workers":p.concurrency,"execution_connection":p}})).unwrap();
-    crate::services::jobs::validation::validate_translation_credentials(&input).unwrap();
+    crate::services::jobs::lifecycle::validation::validate_translation_credentials(&input).unwrap();
     let snapshot =
         crate::models::domain::JobSnapshot::new("roundtrip".into(), input.clone(), vec![]);
     let public = serde_json::to_value(retain_core::models::public_request_payload(
@@ -143,10 +143,10 @@ fn submission_snapshot_is_validated_and_publicly_roundtrips_without_a_key() {
         .get("api_key")
         .is_none());
     input.translation.workers = 99;
-    assert!(crate::services::jobs::validation::validate_translation_credentials(&input).is_err());
+    assert!(crate::services::jobs::lifecycle::validation::validate_translation_credentials(&input).is_err());
     input.translation.workers = 2;
     input.translation.api_key = "inline-secret".into();
-    assert!(crate::services::jobs::validation::validate_translation_credentials(&input).is_err());
+    assert!(crate::services::jobs::lifecycle::validation::validate_translation_credentials(&input).is_err());
 }
 
 /// Rust 执行器只会发 `/chat/completions`：别的协议直接拒，不静默走错接口。
@@ -156,17 +156,17 @@ fn execution_connection_only_accepts_the_chat_completions_protocol() {
     let mut input: crate::models::request::CreateJobInput = serde_json::from_value(json!({"translation":{"model":p.model,"base_url":p.base_url,"credential_ref":p.credential_ref,"workers":p.concurrency,"execution_connection":p}})).unwrap();
     for protocol in ["openai_responses", "anthropic"] {
         input.translation.api_protocol = protocol.into();
-        let error = crate::services::jobs::validation::validate_translation_credentials(&input)
+        let error = crate::services::jobs::lifecycle::validation::validate_translation_credentials(&input)
             .expect_err(protocol);
         assert!(error.to_string().contains("api_protocol=openai"), "{error}");
     }
     input.translation.api_protocol = "openai".into();
-    crate::services::jobs::validation::validate_translation_credentials(&input).unwrap();
+    crate::services::jobs::lifecycle::validation::validate_translation_credentials(&input).unwrap();
 }
 
 #[test]
 fn recovery_projection_preserves_receipts_and_blocks_legacy_recovery() {
-    use crate::services::jobs::translation_request_recovery::{
+    use crate::services::jobs::actions::translation_request_recovery::{
         load_translation_request_recovery, load_translation_request_recovery_with_db,
     };
     let f = Fixture::new();
