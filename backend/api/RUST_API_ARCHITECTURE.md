@@ -259,8 +259,8 @@ Rust 侧关键落点：
 
 - [../packages/retain-core/src/storage_paths.rs](../packages/retain-core/src/storage_paths.rs)
   facade；现在已拆成 `constants / job_paths / path_ops / resolvers / registry`
-- [src/services/files/artifacts/mod.rs](src/services/files/artifacts/mod.rs)
-  artifact facade；现在已拆成 `registry / bundle / response`
+- [../packages/retain-pdf-files/src/artifacts/mod.rs](../packages/retain-pdf-files/src/artifacts/mod.rs)
+  artifact facade（文件已拆成独立的包 `retain-pdf-files`）；现在已拆成 `registry / bundle / response`
 - [src/routes/download_response.rs](src/routes/download_response.rs)
   负责文件下载、markdown、preview、cover、thumbnail 的 HTTP 响应出口
 - [src/routes/jobs/json_response](src/routes/jobs/json_response)
@@ -268,7 +268,7 @@ Rust 侧关键落点：
 
 边界规则：
 
-- `storage_paths.rs` 和 `services/files/artifacts/*`
+- `storage_paths.rs` 和文件包的 `src/artifacts/*`
   只处理文件、artifact key、稳定资源，不解释 provider raw 内部 JSON 结构
 - `db.rs`
   现在也只保留 `Db` facade；row decode 和 schema 检查分别下沉到
@@ -520,11 +520,11 @@ routes/library*.rs, collections.rs
   负责图书馆域业务（见 2.3）
 - [src/services/library/book_projection.rs](src/services/library/book_projection.rs)
   负责 library books 投影（由 `library/books` 调用）
-- [src/services/files/artifacts/presentation.rs](src/services/files/artifacts/presentation.rs)
-  只将 `ArtifactLinksView` 转为公共产物展示数据，通过 `services::files::artifacts` 的
-  crate 内导出供 book/job 投影共用；不读取 DB、任务状态或文件系统。
+- [../packages/retain-pdf-files/src/artifacts/presentation.rs](../packages/retain-pdf-files/src/artifacts/presentation.rs)
+  只将 `ArtifactLinksView` 转为公共产物展示数据，通过文件包门面（`services::files`）的
+  导出供 book/job 投影共用；不读取 DB、任务状态或文件系统。
   `jobs` 不能反向依赖 `book_projection`，公共展示也不能回调这些业务模块。
-- [src/services/files/derived_artifacts](src/services/files/derived_artifacts)
+- [../packages/retain-pdf-files/src/derived_artifacts](../packages/retain-pdf-files/src/derived_artifacts)
   负责 cover/thumbnail/page preview 等派生产物（由 library media / jobs downloads 调用，**不**被 route 直连）
 
 其中 `services/jobs` 和 `routes/jobs/`、`app/router/jobs/` 一样按 9 类分目录（2026-10-16，

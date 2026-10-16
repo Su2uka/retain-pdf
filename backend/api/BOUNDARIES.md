@@ -200,7 +200,7 @@ use sit under `#[cfg(test)]` in the same block. `check_domain_facades` rejects a
 `pub mod` in a domain's `mod.rs`. Inside a domain, code may use any path.
 
 A domain that has been split into its own crate is listed in
-`EXTRACTED_DOMAINS` (so far: `accounts` → `backend/packages/retain-pdf-accounts`, `glossaries` → `backend/packages/retain-pdf-glossaries`, `ingest` → `backend/packages/retain-pdf-ingest`, `platform` →
+`EXTRACTED_DOMAINS` (so far: `accounts` → `backend/packages/retain-pdf-accounts`, `files` → `backend/packages/retain-pdf-files`, `glossaries` → `backend/packages/retain-pdf-glossaries`, `ingest` → `backend/packages/retain-pdf-ingest`, `platform` →
 `backend/packages/retain-pdf-platform`, `providers` → `backend/packages/retain-pdf-providers`).
 Its `lib.rs` is the facade, `services/mod.rs` re-exports it as
 `services::<domain>` (`pub(crate) use retain_pdf_glossaries as glossaries;`),
@@ -266,13 +266,13 @@ service projections such as `library::book_projection`:
 They are intentionally outside `presentation` so library/book projections do not
 depend on job view internals.
 
-Shared artifact display belongs to `services/files/artifacts/presentation.rs`, exposed
-only through `services::files::artifacts::build_artifacts_display`. It consumes
+Shared artifact display belongs to `src/artifacts/presentation.rs` in the
+`retain-pdf-files` crate, exposed only through `services::files::build_artifacts_display`. It consumes
 `ArtifactLinksView` without loading jobs, files, or database records. Both book
 and job views may depend on it; jobs must not import `book_projection` back.
 
 The book title / upload id / source file name rules live once in
-`services/files/artifacts/titles.rs` (`display_title`, `job_upload_id`,
+`src/artifacts/titles.rs` of the `retain-pdf-files` crate (`display_title`, `job_upload_id`,
 `source_file_name`); job and book projections call them instead of keeping
 their own copies.
 
