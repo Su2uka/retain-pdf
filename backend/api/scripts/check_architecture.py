@@ -54,16 +54,62 @@ ALL_SRC_ROOTS = (
 )
 
 
+# 拆任务、书库的准备（2026-10-16）：这两个领域的规则一律写逻辑路径 `src/services/<领域>/...`，
+# 实际在哪个目录只登记在这里。值是 None 表示还在 rust_api 的 services/<领域>/ 下；挪进独立的包时只改这一处，例如
+#     "jobs": lambda: extracted_domain_root("jobs") / "src",
+# 挪进包以后门面从 mod.rs 变成 lib.rs，abs_src() 和 rel() 会对上。按目录扫文件用 scan_logical()，
+# 不要直接 scan_rs_files(SRC_ROOT / ...)，否则挪走的领域扫不到，规则会静悄悄地什么都不查。
+DOMAIN_MOUNTS: dict = {"jobs": None, "library": None}
+
+
+def mounted_domain_root(domain: str) -> Path:
+    target = DOMAIN_MOUNTS[domain]
+    return SRC_ROOT / "services" / domain if target is None else target()
+
+
+def _mounted_facade(domain: str) -> str:
+    return "mod.rs" if DOMAIN_MOUNTS[domain] is None else "lib.rs"
+
+
 def abs_src(rel_path: Path) -> Path:
     parts = rel_path.parts
+    if len(parts) >= 3 and parts[:2] == ("src", "services") and parts[2] in DOMAIN_MOUNTS:
+        rest = Path(*parts[3:]) if len(parts) > 3 else Path()
+        if rest == Path("mod.rs"):
+            rest = Path(_mounted_facade(parts[2]))
+        return mounted_domain_root(parts[2]) / rest
     key = parts[1].removesuffix(".rs") if len(parts) > 1 else ""
     crate = _CRATE_OF_MODULE.get(key)
     return (REPO_ROOT / crate / rel_path) if crate else (REPO_ROOT / rel_path)
 
 
+def _mounted_elsewhere() -> list[Path]:
+    """DOMAIN_MOUNTS 里已经挪出 rust_api 的领域的实际目录。"""
+    return [
+        mounted_domain_root(domain)
+        for domain in sorted(DOMAIN_MOUNTS)
+        if not mounted_domain_root(domain).resolve().is_relative_to(SRC_ROOT.resolve())
+    ]
+
+
+def scan_logical(logical_root: Path) -> list[Path]:
+    """逻辑路径下的所有 .rs 文件，包括登记在 DOMAIN_MOUNTS 里、已经挪到别处的领域。"""
+    root = abs_src(logical_root)
+    paths = set(scan_rs_files(root)) if root.is_dir() else set()
+    for domain in sorted(DOMAIN_MOUNTS):
+        mounted = mounted_domain_root(domain)
+        if (Path("src/services") / domain).is_relative_to(logical_root) and not mounted.resolve().is_relative_to(
+            root.resolve()
+        ):
+            paths.update(scan_rs_files(mounted))
+    return sorted(paths)
+
+
 def scan_all_rs_files() -> list:
     out = []
     for root in ALL_SRC_ROOTS:
+        out.extend(scan_rs_files(root))
+    for root in _mounted_elsewhere():
         out.extend(scan_rs_files(root))
     return out
 
@@ -301,13 +347,13 @@ ARTIFACT_BOUNDARY_FILES = {
     Path("src/storage_paths.rs"),
     Path("src/routes/jobs/files.rs"),
 }
-# 文件包 retain-pdf-files 里的产物清单和打包，路径相对包的根目录。
+# 文件包 retain-pdf-files 里的产物清单和打包，路径相对包的 src/。
 FILES_ARTIFACT_BOUNDARY_FILES = (
-    Path("src/artifacts/mod.rs"),
-    Path("src/artifacts/bundle.rs"),
-    Path("src/artifacts/registry.rs"),
-    Path("src/artifacts/response.rs"),
-    Path("src/artifacts/presentation.rs"),
+    Path("artifacts/mod.rs"),
+    Path("artifacts/bundle.rs"),
+    Path("artifacts/registry.rs"),
+    Path("artifacts/response.rs"),
+    Path("artifacts/presentation.rs"),
 )
 
 PROVIDER_RAW_INTERNAL_TOKENS = (
@@ -320,10 +366,10 @@ OCR_FLOW_ORCHESTRATOR_FILE = Path("src/job_runner/ocr_flow/mod.rs")
 OCR_FLOW_ALLOWED_RAW_TOKEN_FILES = {
     Path("src/job_runner/ocr_flow/paddle_markdown.rs"),
 }
-DOWNLOADS_ROOT = SRC_ROOT / "services" / "jobs" / "files" / "downloads"
+DOWNLOADS_ROOT = Path("src/services/jobs/files/downloads")
 STAGE_VIEW_CONSUMER_ROOTS = (
-    SRC_ROOT / "services" / "jobs" / "presentation",
-    SRC_ROOT / "services" / "library" / "book_projection",
+    Path("src/services/jobs/presentation"),
+    Path("src/services/library/book_projection"),
 )
 WORKER_COMMAND_FACADE = abs_src(Path("src/worker_command.rs"))
 
@@ -335,6 +381,14 @@ PERSIST_ONLY_RUNNER_MODULES = (
 )
 
 def rel(path: Path) -> Path:
+    resolved = path.resolve()
+    for domain in sorted(DOMAIN_MOUNTS):
+        root = mounted_domain_root(domain).resolve()
+        if resolved.is_relative_to(root):
+            rest = resolved.relative_to(root)
+            if rest == Path(_mounted_facade(domain)):
+                rest = Path("mod.rs")
+            return Path("src/services") / domain / rest
     for root in ALL_SRC_ROOTS[1:]:
         if path.resolve().is_relative_to(root.resolve()):
             return Path("src") / path.resolve().relative_to(root.resolve())
@@ -356,7 +410,7 @@ def scan_rs_files(root: Path) -> list[Path]:
 
 def check_appstate_boundaries(errors: list[str]) -> None:
     for guarded_dir in APPSTATE_GUARDED_DIRS:
-        for path in scan_rs_files(abs_src(guarded_dir)):
+        for path in scan_logical(guarded_dir):
             rel_path = rel(path)
             if rel_path in ALLOWED_APPSTATE_FILES:
                 continue
@@ -631,7 +685,6 @@ def check_service_model_facade_boundaries(errors: list[str]) -> None:
         abs_src(Path("src/worker_command")),
         abs_src(Path("src/worker_command.rs")),
         SRC_ROOT / "app" / "state.rs",
-        SRC_ROOT / "app" / "state_recovery.rs",
         abs_src(Path("src/ocr_provider")),
         abs_src(Path("src/job_runner")) / "mod.rs",
         abs_src(Path("src/job_runner")) / "lifecycle.rs",
@@ -671,47 +724,47 @@ def check_service_model_facade_boundaries(errors: list[str]) -> None:
         abs_src(Path("src/job_failure.rs")),
         abs_src(Path("src/job_failure_support.rs")),
         abs_src(Path("src/job_failure_structured.rs")),
-        SRC_ROOT / "services" / "jobs" / "lifecycle" / "snapshot_factory.rs",
-        SRC_ROOT / "services" / "jobs" / "lifecycle" / "validation.rs",
-        SRC_ROOT / "services" / "jobs" / "lifecycle" / "launcher.rs",
-        SRC_ROOT / "services" / "jobs" / "files" / "downloads",
-        SRC_ROOT / "services" / "jobs" / "files" / "downloads.rs",
-        SRC_ROOT / "services" / "jobs" / "lifecycle" / "creation",
-        SRC_ROOT / "services" / "jobs" / "lifecycle" / "submission.rs",
-        SRC_ROOT / "services" / "jobs" / "presentation",
-        SRC_ROOT / "services" / "jobs" / "actions" / "cancel.rs",
-        SRC_ROOT / "services" / "jobs" / "translations",
-        SRC_ROOT / "services" / "jobs" / "reports",
-        SRC_ROOT / "services" / "jobs" / "facade.rs",
-        SRC_ROOT / "services" / "jobs" / "deps",
-        SRC_ROOT / "services" / "jobs" / "progress" / "live_translation_queries.rs",
-        SRC_ROOT / "services" / "jobs" / "ai",
-        SRC_ROOT / "services" / "jobs" / "reader" / "markdown.rs",
-                SRC_ROOT / "services" / "jobs" / "actions" / "cancel_submission.rs",
-        SRC_ROOT / "services" / "jobs" / "actions" / "rerun.rs",
-        SRC_ROOT / "services" / "jobs" / "actions" / "stage_retry.rs",
-        SRC_ROOT / "services" / "jobs" / "actions" / "stage_retry_overrides.rs",
-        SRC_ROOT / "services" / "jobs" / "actions" / "stage_retry_request.rs",
-        SRC_ROOT / "services" / "jobs" / "actions" / "stage_retry_view.rs",
-        SRC_ROOT / "services" / "jobs" / "progress" / "live_stage",
-        SRC_ROOT / "services" / "jobs" / "progress" / "live_stage.rs",
-        SRC_ROOT / "services" / "jobs" / "reader" / "reader_regions",
-        SRC_ROOT / "services" / "jobs" / "reader" / "reader_regions.rs",
-        SRC_ROOT / "services" / "jobs" / "query.rs",
-        SRC_ROOT / "services" / "jobs" / "lifecycle" / "queries.rs",
-        SRC_ROOT / "services" / "jobs" / "progress" / "queries.rs",
-        SRC_ROOT / "services" / "jobs" / "files" / "queries.rs",
-        SRC_ROOT / "services" / "jobs" / "reader" / "queries.rs",
-        SRC_ROOT / "services" / "jobs" / "actions" / "resume_plan.rs",
-        SRC_ROOT / "services" / "jobs" / "actions" / "stage_plan.rs",
-        SRC_ROOT / "services" / "jobs" / "progress" / "stage_view.rs",
-        SRC_ROOT / "services" / "jobs" / "summary_loaders",
-        SRC_ROOT / "services" / "jobs" / "summary_loaders.rs",
-        SRC_ROOT / "services" / "jobs" / "support.rs",
-        SRC_ROOT / "services" / "library",
-        SRC_ROOT / "services" / "library" / "api.rs",
-        SRC_ROOT / "services" / "library" / "book_projection",
-        SRC_ROOT / "services" / "library" / "book_projection.rs",
+        abs_src(Path("src/services/jobs/lifecycle/snapshot_factory.rs")),
+        abs_src(Path("src/services/jobs/lifecycle/validation.rs")),
+        abs_src(Path("src/services/jobs/lifecycle/launcher.rs")),
+        abs_src(Path("src/services/jobs/files/downloads")),
+        abs_src(Path("src/services/jobs/files/downloads.rs")),
+        abs_src(Path("src/services/jobs/lifecycle/creation")),
+        abs_src(Path("src/services/jobs/lifecycle/submission.rs")),
+        abs_src(Path("src/services/jobs/presentation")),
+        abs_src(Path("src/services/jobs/actions/cancel.rs")),
+        abs_src(Path("src/services/jobs/translations")),
+        abs_src(Path("src/services/jobs/reports")),
+        abs_src(Path("src/services/jobs/facade.rs")),
+        abs_src(Path("src/services/jobs/deps")),
+        abs_src(Path("src/services/jobs/progress/live_translation_queries.rs")),
+        abs_src(Path("src/services/jobs/ai")),
+        abs_src(Path("src/services/jobs/reader/markdown.rs")),
+                abs_src(Path("src/services/jobs/actions/cancel_submission.rs")),
+        abs_src(Path("src/services/jobs/actions/rerun.rs")),
+        abs_src(Path("src/services/jobs/actions/stage_retry.rs")),
+        abs_src(Path("src/services/jobs/actions/stage_retry_overrides.rs")),
+        abs_src(Path("src/services/jobs/actions/stage_retry_request.rs")),
+        abs_src(Path("src/services/jobs/actions/stage_retry_view.rs")),
+        abs_src(Path("src/services/jobs/progress/live_stage")),
+        abs_src(Path("src/services/jobs/progress/live_stage.rs")),
+        abs_src(Path("src/services/jobs/reader/reader_regions")),
+        abs_src(Path("src/services/jobs/reader/reader_regions.rs")),
+        abs_src(Path("src/services/jobs/query.rs")),
+        abs_src(Path("src/services/jobs/lifecycle/queries.rs")),
+        abs_src(Path("src/services/jobs/progress/queries.rs")),
+        abs_src(Path("src/services/jobs/files/queries.rs")),
+        abs_src(Path("src/services/jobs/reader/queries.rs")),
+        abs_src(Path("src/services/jobs/actions/resume_plan.rs")),
+        abs_src(Path("src/services/jobs/actions/stage_plan.rs")),
+        abs_src(Path("src/services/jobs/progress/stage_view.rs")),
+        abs_src(Path("src/services/jobs/summary_loaders")),
+        abs_src(Path("src/services/jobs/summary_loaders.rs")),
+        abs_src(Path("src/services/jobs/support.rs")),
+        abs_src(Path("src/services/library")),
+        abs_src(Path("src/services/library/api.rs")),
+        abs_src(Path("src/services/library/book_projection")),
+        abs_src(Path("src/services/library/book_projection.rs")),
     )
     for root in scoped_roots:
         paths = [root] if root.is_file() else scan_rs_files(root)
@@ -735,22 +788,22 @@ def check_service_model_facade_boundaries(errors: list[str]) -> None:
 
 
 def check_jobs_dependency_boundaries(errors: list[str]) -> None:
-    root = SRC_ROOT / "services" / "jobs" / "deps"
+    root = abs_src(Path("src/services/jobs/deps"))
     paths = scan_rs_files(root)
     narrow_modules = (
-        SRC_ROOT / "services" / "jobs" / "query",
-        SRC_ROOT / "services" / "jobs" / "files" / "downloads",
-        SRC_ROOT / "services" / "jobs" / "lifecycle" / "queries",
-        SRC_ROOT / "services" / "jobs" / "progress" / "queries",
-        SRC_ROOT / "services" / "jobs" / "files" / "queries",
-        SRC_ROOT / "services" / "jobs" / "reader" / "queries",
-        SRC_ROOT / "services" / "jobs" / "reports" / "queries",
-        SRC_ROOT / "services" / "jobs" / "translations" / "queries",
+        abs_src(Path("src/services/jobs/query")),
+        abs_src(Path("src/services/jobs/files/downloads")),
+        abs_src(Path("src/services/jobs/lifecycle/queries")),
+        abs_src(Path("src/services/jobs/progress/queries")),
+        abs_src(Path("src/services/jobs/files/queries")),
+        abs_src(Path("src/services/jobs/reader/queries")),
+        abs_src(Path("src/services/jobs/reports/queries")),
+        abs_src(Path("src/services/jobs/translations/queries")),
         # 原来在 query/、downloads/ 里，按类挪出去的只读部分。
-        SRC_ROOT / "services" / "jobs" / "reports" / "failure",
-        SRC_ROOT / "services" / "jobs" / "actions" / "resume_plan",
-        SRC_ROOT / "services" / "jobs" / "reader" / "markdown",
-        SRC_ROOT / "services" / "jobs" / "ai",
+        abs_src(Path("src/services/jobs/reports/failure")),
+        abs_src(Path("src/services/jobs/actions/resume_plan")),
+        abs_src(Path("src/services/jobs/reader/markdown")),
+        abs_src(Path("src/services/jobs/ai")),
     )
     for module in narrow_modules:
         paths.extend(scan_rs_files(module))
@@ -768,7 +821,7 @@ def check_jobs_dependency_boundaries(errors: list[str]) -> None:
             errors.append(f"{rel(path)}: query dependencies must not acquire submission or runtime control capabilities")
         if any(is_rust_module_path(path, module) for module in narrow_modules) and re.search(r"\b(?:ReplayDeps|QueryJobsDeps)\b", text):
             errors.append(f"{rel(path)}: read/download dependencies must not acquire replay capabilities")
-    if (SRC_ROOT / "services" / "jobs" / "lifecycle" / "creation" / "context.rs").exists():
+    if (abs_src(Path("src/services/jobs/lifecycle/creation/context.rs"))).exists():
         errors.append("jobs/creation/context.rs: shared dependencies belong in jobs/deps")
 
 
@@ -776,7 +829,7 @@ def check_runtime_ownership(errors: list[str]) -> None:
     # 健康检查（平台包）不自己读监督器：routes/common/health.rs 建依赖时读好状态传进 HealthApiDeps。
     allowed = {Path("src/app/server.rs"), Path("src/app/state.rs"),
                Path("src/routes/common/health.rs")}
-    for path in scan_rs_files(SRC_ROOT):
+    for path in scan_logical(Path("src")):
         relative = rel(path)
         text = route_source_without_tests(path)
         text = re.sub(r"/\*.*?\*/|//[^\n]*", "", text, flags=re.DOTALL)
@@ -901,7 +954,7 @@ def check_job_persist_deps_usage(errors: list[str]) -> None:
 
 
 def check_shared_artifact_presentation(errors: list[str]) -> None:
-    for path in scan_rs_files(SRC_ROOT / "services"):
+    for path in scan_logical(Path("src/services")):
         if path.stem == "tests" or path.stem.endswith("_tests"):
             continue
         relative = rel(path)
@@ -916,10 +969,10 @@ def check_shared_artifact_presentation(errors: list[str]) -> None:
     for path in scan_rs_files(files_root / "src"):
         if path.stem == "tests" or path.stem.endswith("_tests"):
             continue
-        in_crate = path.relative_to(files_root)
-        relative = Path(EXTRACTED_DOMAINS["files"]) / in_crate
+        in_crate = path.relative_to(files_root / "src")
+        relative = Path(EXTRACTED_DOMAINS["files"]) / "src" / in_crate
         text = rust_boundary_source(path)
-        if is_rust_module_path(in_crate, Path("src/artifacts/presentation")):
+        if is_rust_module_path(in_crate, Path("artifacts/presentation")):
             if re.search(
                 r"\b(?:jobs|book_projection|library|AppState|AppConfig|JobSnapshot|Db|storage_paths|ocr_provider|fs|File|OpenOptions|Command|process|reqwest)\b",
                 text,
@@ -930,7 +983,7 @@ def check_shared_artifact_presentation(errors: list[str]) -> None:
             for token in PROVIDER_RAW_INTERNAL_TOKENS:
                 if token in route_source_without_tests(path):
                     errors.append(f"{relative}: shared artifact presentation must not interpret provider raw token '{token}'")
-    if (SRC_ROOT / "services" / "library" / "book_projection" / "artifacts.rs").exists():
+    if (abs_src(Path("src/services/library/book_projection/artifacts.rs"))).exists():
         errors.append("services/library/book_projection/artifacts.rs: shared artifact display belongs in retain-pdf-files src/artifacts/presentation.rs")
 
 
@@ -954,16 +1007,16 @@ def check_state_recovery_boundary(errors: list[str]) -> None:
     text = state_path.read_text(encoding="utf-8")
     if "fn reconcile_stale_running_jobs(" in text:
         errors.append(
-            "src/app/state.rs: stale running job recovery must stay in src/app/state_recovery.rs"
+            "src/app/state.rs: stale running job recovery must stay in src/job_runner/startup_recovery.rs"
         )
 
-    recovery_path = REPO_ROOT / "src/app/state_recovery.rs"
-    if recovery_path.exists():
-        recovery_text = recovery_path.read_text(encoding="utf-8")
-        if "reconcile_stale_running_jobs" not in recovery_text:
-            errors.append(
-                "src/app/state_recovery.rs: expected reconcile_stale_running_jobs(...) helper is missing"
-            )
+    # 原来查的 src/app/state_recovery.rs 早就不在了（这半条一直什么都没查）；恢复在 job_runner 的 startup_recovery.rs。
+    recovery_path = abs_src(Path("src/job_runner/startup_recovery.rs"))
+    recovery_text = recovery_path.read_text(encoding="utf-8")
+    if "fn reconcile_stale_running_jobs(" not in recovery_text:
+        errors.append(
+            "src/job_runner/startup_recovery.rs: expected reconcile_stale_running_jobs(...) helper is missing"
+        )
 
 
 def check_lifecycle_helper_boundaries(errors: list[str]) -> None:
@@ -1006,7 +1059,7 @@ def check_artifact_boundary_layer(errors: list[str]) -> None:
     files_root = extracted_domain_root("files")
     targets = [(rel_path, abs_src(rel_path)) for rel_path in sorted(ARTIFACT_BOUNDARY_FILES)]
     targets += [
-        (Path(EXTRACTED_DOMAINS["files"]) / rel_path, files_root / rel_path)
+        (Path(EXTRACTED_DOMAINS["files"]) / "src" / rel_path, files_root / "src" / rel_path)
         for rel_path in FILES_ARTIFACT_BOUNDARY_FILES
     ]
     for rel_path, path in targets:
@@ -1024,7 +1077,7 @@ def check_artifact_boundary_layer(errors: list[str]) -> None:
 
 
 def check_downloads_do_not_generate_artifacts(errors: list[str]) -> None:
-    for path in scan_rs_files(DOWNLOADS_ROOT):
+    for path in scan_rs_files(abs_src(DOWNLOADS_ROOT)):
         rel_path = rel(path)
         text = path.read_text(encoding="utf-8")
         if "std::process::Command" in text or "Command::new(" in text:
@@ -1036,7 +1089,7 @@ def check_downloads_do_not_generate_artifacts(errors: list[str]) -> None:
                 f"{rel_path}: downloads layer must not embed PDF generation scripts; use services::files::derived_artifacts"
             )
 
-    downloads_facade = SRC_ROOT / "services" / "jobs" / "files" / "downloads.rs"
+    downloads_facade = abs_src(Path("src/services/jobs/files/downloads.rs"))
     text = route_source_without_tests(downloads_facade)
     for token in (
         "crate::storage_paths::",
@@ -1064,7 +1117,7 @@ def check_stage_view_projection_boundary(errors: list[str]) -> None:
         "background_stages.iter()",
     )
     for root in STAGE_VIEW_CONSUMER_ROOTS:
-        for path in scan_rs_files(root):
+        for path in scan_rs_files(abs_src(root)):
             rel_path = rel(path)
             text = route_source_without_tests(path)
             if "JobDetailView" not in text and "JobListItemView" not in text and "BookLiveProjection" not in text:
@@ -1084,8 +1137,8 @@ def check_stage_view_projection_boundary(errors: list[str]) -> None:
 
 def check_job_readiness_boundary(errors: list[str]) -> None:
     scoped_roots = (
-        SRC_ROOT / "services" / "jobs" / "presentation",
-        SRC_ROOT / "services" / "library" / "book_projection",
+        abs_src(Path("src/services/jobs/presentation")),
+        abs_src(Path("src/services/library/book_projection")),
     )
     for root in scoped_roots:
         for path in scan_rs_files(root):
@@ -1102,7 +1155,7 @@ def check_job_readiness_boundary(errors: list[str]) -> None:
 
 
 def check_translation_debug_boundary(errors: list[str]) -> None:
-    debug_root = SRC_ROOT / "services" / "jobs" / "translations"
+    debug_root = abs_src(Path("src/services/jobs/translations"))
     query_translation_debug = debug_root / "queries.rs"
     command_translation_debug = debug_root / "edits.rs"
     artifact_module = debug_root / "artifacts.rs"
@@ -1118,7 +1171,7 @@ def check_translation_debug_boundary(errors: list[str]) -> None:
     projection_files = (
         debug_root / "index.rs",
         debug_root / "item.rs",
-        SRC_ROOT / "services" / "jobs" / "reports" / "translation_reports.rs",
+        abs_src(Path("src/services/jobs/reports/translation_reports.rs")),
     )
     for path in projection_files:
         rel_path = rel(path)
@@ -1151,8 +1204,8 @@ def check_translation_debug_boundary(errors: list[str]) -> None:
 
 
 def check_reader_regions_boundary(errors: list[str]) -> None:
-    reader_projection = SRC_ROOT / "services" / "jobs" / "reader" / "reader_regions.rs"
-    reader_artifacts = SRC_ROOT / "services" / "jobs" / "reader" / "reader_regions" / "artifacts.rs"
+    reader_projection = abs_src(Path("src/services/jobs/reader/reader_regions.rs"))
+    reader_artifacts = abs_src(Path("src/services/jobs/reader/reader_regions/artifacts.rs"))
     if not reader_artifacts.exists():
         errors.append(
             "src/services/jobs/reader/reader_regions/artifacts.rs: expected reader artifact reader boundary is missing"
@@ -1172,7 +1225,7 @@ def check_reader_regions_boundary(errors: list[str]) -> None:
 
 
 def check_summary_loaders_boundary(errors: list[str]) -> None:
-    summary_root = SRC_ROOT / "services" / "jobs" / "summary_loaders"
+    summary_root = abs_src(Path("src/services/jobs/summary_loaders"))
     shared = summary_root / "shared.rs"
     if not shared.exists():
         errors.append(
@@ -1309,7 +1362,7 @@ def check_ocr_flow_boundaries(errors: list[str]) -> None:
 
 def check_job_runner_boundary(errors: list[str]) -> None:
     # 只扫壳自己的 src/：子 crate 内部当然可以自由使用 job_runner。
-    for path in scan_rs_files(SRC_ROOT):
+    for path in scan_logical(Path("src")):
         rel_path = rel(path)
         if rel_path in JOB_RUNNER_IMPORT_ALLOWLIST:
             continue
@@ -1356,7 +1409,7 @@ def check_worker_command_boundary(errors: list[str]) -> None:
         "build_translate_only_command",
         "build_render_only_command",
     )
-    for path in scan_rs_files(SRC_ROOT / "job_runner"):
+    for path in scan_rs_files(abs_src(Path("src/job_runner"))):
         rel_path = rel(path)
         text = route_source_without_tests(path)
         for token in job_runner_forbidden_tokens:
@@ -1365,7 +1418,7 @@ def check_worker_command_boundary(errors: list[str]) -> None:
                     f"{rel_path}: job_runner must request WorkerStageCommand instead of direct {token}"
                 )
 
-    snapshot_factory_path = SRC_ROOT / "services" / "jobs" / "lifecycle" / "snapshot_factory.rs"
+    snapshot_factory_path = abs_src(Path("src/services/jobs/lifecycle/snapshot_factory.rs"))
     snapshot_factory_text = route_source_without_tests(snapshot_factory_path)
     if "crate::worker_command" in snapshot_factory_text or "build_ocr_command" in snapshot_factory_text:
         errors.append(
@@ -1535,9 +1588,8 @@ def _rust_use_paths(tree: str) -> list[str]:
 def service_dependency_edges() -> dict[tuple[str, str], Path]:
     """(from, to) top-level services modules -> one file that creates the edge. Tests excluded."""
     edges: dict[tuple[str, str], Path] = {}
-    services_root = SRC_ROOT / "services"
-    for path in scan_rs_files(services_root):
-        relative = path.relative_to(SRC_ROOT)
+    for path in scan_logical(Path("src/services")):
+        relative = rel(path).relative_to("src")
         if "tests" in relative.parts or path.name == "tests.rs" or path.name.endswith("_tests.rs"):
             continue
         module_path = list(relative.with_suffix("").parts)
@@ -1663,10 +1715,10 @@ ARTIFACT_PATH_OWNERS = (
     # 书的文件（原文、封面、原文页）的出口。
     Path("src/services/library/media.rs"),
 )
-# 文件包 retain-pdf-files 里只有这两块能拼，路径相对包的根目录；下载文件名、生成去重、门面都不许。
+# 文件包 retain-pdf-files 里只有这两块能拼，路径相对包的 src/；下载文件名、生成去重、门面都不许。
 FILES_ARTIFACT_PATH_OWNERS = (
-    Path("src/artifacts"),
-    Path("src/derived_artifacts"),
+    Path("artifacts"),
+    Path("derived_artifacts"),
 )
 # 2026-10-15 冻结的现状：这些文件还直接拼产物路径。只许删，不许加；删掉一个之后名单里还留着
 # 就报错（免得名单悄悄变宽）。要读产物内容就去调出口，不要往这里加文件。
@@ -1688,8 +1740,8 @@ KNOWN_ARTIFACT_PATH_READERS = {
 
 def check_artifact_path_ownership(errors: list[str]) -> None:
     readers = set()
-    for root in (SRC_ROOT / "services", SRC_ROOT / "routes"):
-        for path in scan_rs_files(root):
+    for root in (Path("src/services"), Path("src/routes")):
+        for path in scan_logical(root):
             if path.stem == "tests" or path.stem.endswith("_tests"):
                 continue
             relative = rel(path)
@@ -1701,11 +1753,11 @@ def check_artifact_path_ownership(errors: list[str]) -> None:
     for path in scan_rs_files(files_root / "src"):
         if path.stem == "tests" or path.stem.endswith("_tests"):
             continue
-        in_crate = path.relative_to(files_root)
+        in_crate = path.relative_to(files_root / "src")
         if any(is_rust_module_path(in_crate, owner) for owner in FILES_ARTIFACT_PATH_OWNERS):
             continue
         if ARTIFACT_PATH_RESOLVER.search(rust_boundary_source(path)):
-            readers.add(Path(EXTRACTED_DOMAINS["files"]) / in_crate)
+            readers.add(Path(EXTRACTED_DOMAINS["files"]) / "src" / in_crate)
     for relative in sorted(readers - KNOWN_ARTIFACT_PATH_READERS):
         errors.append(
             f"{relative}: builds artifact paths itself (storage_paths::resolve_*); "
@@ -1728,8 +1780,8 @@ JOB_ENTRY_OWNER = Path("src/services/jobs/lifecycle/creation/submit.rs")
 
 
 def check_job_entry_ownership(errors: list[str]) -> None:
-    for root in (SRC_ROOT / "services", SRC_ROOT / "routes", SRC_ROOT / "app"):
-        for path in scan_rs_files(root):
+    for root in (Path("src/services"), Path("src/routes"), Path("src/app")):
+        for path in scan_logical(root):
             if path.stem == "tests" or path.stem.endswith("_tests"):
                 continue
             relative = rel(path)
@@ -1760,7 +1812,7 @@ KNOWN_REQUEST_PAYLOAD_WRITERS = {
 
 def check_request_payload_access(errors: list[str]) -> None:
     accessors = set()
-    for path in scan_rs_files(SRC_ROOT) + scan_rs_files(abs_src(Path("src/job_loading"))):
+    for path in scan_logical(Path("src")) + scan_rs_files(abs_src(Path("src/job_loading"))):
         relative = rel(path)
         if path.stem == "tests" or path.stem.endswith("_tests") or "tests" in relative.parts:
             continue
@@ -1776,6 +1828,57 @@ def check_request_payload_access(errors: list[str]) -> None:
     for relative in sorted(KNOWN_REQUEST_PAYLOAD_WRITERS - accessors):
         errors.append(
             f"{relative}: no longer touches request_payload fields; remove it from KNOWN_REQUEST_PAYLOAD_WRITERS"
+        )
+
+
+# 规则里写的路径必须真的存在。挪目录、拆包以后，写死的旧路径不会报错，只会让那条规则什么都不查
+# （平台拆包后的字体条目、早已不在的 src/app/state_recovery.rs、扫了几个月空目录的 rust_api 下的 job_runner，都是这么来的）。
+# 这里登记的是规则要求"不许存在"的路径，不算。
+RULE_PATHS_MUST_NOT_EXIST = {
+    Path("src/services/jobs/lifecycle/creation/context.rs"),
+    Path("src/services/library/book_projection/artifacts.rs"),
+}
+RULE_SOURCE = Path(__file__).resolve()
+
+
+def check_rule_paths(errors: list[str]) -> None:
+    source = RULE_SOURCE.read_text(encoding="utf-8")
+    meta_start = source.find("\nRULE_PATHS_MUST_NOT_EXIST")
+    body = source[:meta_start] if meta_start >= 0 else source
+    for literal in sorted(set(re.findall(r'Path\("(src/[^"]+)"\)', body))):
+        logical = Path(literal)
+        if logical in RULE_PATHS_MUST_NOT_EXIST:
+            continue
+        physical = abs_src(logical)
+        if not (physical.exists() or physical.with_suffix(".rs").exists()):
+            errors.append(
+                f"check_architecture.py: rule path {literal} does not exist; update the rule (it checks nothing now)"
+            )
+    for literal in sorted(RULE_PATHS_MUST_NOT_EXIST):
+        if literal.as_posix() not in body:
+            errors.append(f"check_architecture.py: RULE_PATHS_MUST_NOT_EXIST lists {literal}, which no rule uses")
+    files_root = extracted_domain_root("files") / "src"
+    for relative in (*FILES_ARTIFACT_BOUNDARY_FILES, *FILES_ARTIFACT_PATH_OWNERS):
+        physical = files_root / relative
+        if not (physical.exists() or physical.with_suffix(".rs").exists()):
+            errors.append(
+                f"check_architecture.py: rule path {EXTRACTED_DOMAINS['files']}/src/{relative.as_posix()} does not exist"
+            )
+    # 挪走了的模块（_CRATE_OF_MODULE）和挂在别处的领域（DOMAIN_MOUNTS）不能直接写 SRC_ROOT / ...，要经 abs_src、scan_logical。
+    for match in re.finditer(r'SRC_ROOT((?:\s*/\s*"[^"]+")+)', body):
+        parts = re.findall(r'"([^"]+)"', match.group(1))
+        moved_module = parts[0].removesuffix(".rs") in _CRATE_OF_MODULE
+        mounted = parts[0] == "services" and len(parts) > 1 and parts[1] in DOMAIN_MOUNTS
+        if moved_module or mounted:
+            line = body[: match.start()].count("\n") + 1
+            errors.append(
+                f"check_architecture.py:{line}: SRC_ROOT / {' / '.join(parts)} bypasses the module map; "
+                "use abs_src(Path(...)) or scan_logical(Path(...))"
+            )
+    for match in re.finditer(r'scan_rs_files\(SRC_ROOT(?:\s*/\s*"services")?\)', body):
+        line = body[: match.start()].count("\n") + 1
+        errors.append(
+            f"check_architecture.py:{line}: scanning SRC_ROOT directly misses mounted domains; use scan_logical(Path(...))"
         )
 
 
@@ -1820,6 +1923,7 @@ def main() -> int:
     check_domain_facades(errors)
     check_domain_dependency_direction(errors)
     check_request_payload_access(errors)
+    check_rule_paths(errors)
     check_artifact_path_ownership(errors)
     check_job_entry_ownership(errors)
 
