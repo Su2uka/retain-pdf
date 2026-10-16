@@ -16,11 +16,7 @@ pub(crate) fn load_translation_request_recovery(
 ) -> Option<TranslationRequestRecoveryView> {
     // Legacy stage planners have no database handle. Never mistake absence of
     // a Python journal for permission to retry a Rust-owned request.
-    if job
-        .request_payload
-        .translation
-        .execution_connection
-        .is_some()
+    if job.uses_model_executor()
     {
         return Some(model_retry_blocked_view());
     }
@@ -42,11 +38,7 @@ pub(crate) fn load_translation_request_recovery_with_db(
     job: &JobSnapshot,
     data_root: &Path,
 ) -> Option<TranslationRequestRecoveryView> {
-    if job
-        .request_payload
-        .translation
-        .execution_connection
-        .is_none()
+    if !job.uses_model_executor()
     {
         return load_translation_request_recovery(job, data_root);
     }

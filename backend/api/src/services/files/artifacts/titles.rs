@@ -68,7 +68,7 @@ pub(crate) fn source_file_name(upload: Option<&UploadRecord>, job: &JobSnapshot)
         .map(|upload| upload.filename.trim())
         .filter(|name| !name.is_empty())
         .map(str::to_string)
-        .or_else(|| source_url_file_name(&job.request_payload.source.source_url))
+        .or_else(|| source_url_file_name(job.source_url()))
 }
 
 /// 来源 URL 的最后一段（去掉 `#…` 和 `?…`）。书架、任务列表、下载命名共用这一份。

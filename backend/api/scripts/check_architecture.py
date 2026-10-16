@@ -1705,6 +1705,43 @@ def check_job_entry_ownership(errors: list[str]) -> None:
                 )
 
 
+# 任务提交时的完整请求（`request_payload`）只许生成和改写它的模块直接动字段；别处问任务的问题，
+# 用 retain-core `models/job/questions.rs` 里的方法（`job.source_job_id()`、`job.uses_model_executor()`……）。
+# 整份请求原样传给别的函数（脱敏、对外投影、快照）不算。这样拆包以后，别的包不依赖请求的内部结构。
+REQUEST_PAYLOAD_FIELD_ACCESS = re.compile(r"\brequest_payload\s*\.\s*[a-z_]")
+# 2026-10-16 冻结：建任务（凭据）、重跑、重试阶段、合并阅读的虚拟任务，都在生成或改写请求。只许删不许加；
+# 删掉一个之后名单里还留着就报错。要读请求里的东西，去 questions.rs 加一个方法。
+KNOWN_REQUEST_PAYLOAD_WRITERS = {
+    Path("src/job_loading/merged.rs"),
+    Path("src/services/jobs/actions/rerun.rs"),
+    Path("src/services/jobs/actions/stage_retry.rs"),
+    Path("src/services/jobs/actions/stage_retry_refine.rs"),
+    Path("src/services/jobs/actions/stage_retry_request.rs"),
+    Path("src/services/jobs/lifecycle/creation/ocr_credentials.rs"),
+}
+
+
+def check_request_payload_access(errors: list[str]) -> None:
+    accessors = set()
+    for path in scan_rs_files(SRC_ROOT):
+        relative = rel(path)
+        if path.stem == "tests" or path.stem.endswith("_tests") or "tests" in relative.parts:
+            continue
+        if relative.parts[:2] in (("src", "api_tests"), ("src", "test_support")):
+            continue
+        if REQUEST_PAYLOAD_FIELD_ACCESS.search(rust_boundary_source(path)):
+            accessors.add(relative)
+    for relative in sorted(accessors - KNOWN_REQUEST_PAYLOAD_WRITERS):
+        errors.append(
+            f"{relative}: reaches into job.request_payload fields; ask the job instead "
+            "(retain-core models/job/questions.rs, e.g. job.source_job_id())"
+        )
+    for relative in sorted(KNOWN_REQUEST_PAYLOAD_WRITERS - accessors):
+        errors.append(
+            f"{relative}: no longer touches request_payload fields; remove it from KNOWN_REQUEST_PAYLOAD_WRITERS"
+        )
+
+
 def main() -> int:
     errors: list[str] = []
     check_appstate_boundaries(errors)
@@ -1747,6 +1784,7 @@ def main() -> int:
     check_service_domains(errors)
     check_domain_facades(errors)
     check_domain_dependency_direction(errors)
+    check_request_payload_access(errors)
     check_artifact_path_ownership(errors)
     check_job_entry_ownership(errors)
 

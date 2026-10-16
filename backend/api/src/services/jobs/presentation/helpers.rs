@@ -21,7 +21,7 @@ pub(super) fn build_book_summary(
         title: display_name.to_string(),
         authors: None,
         page_count: summaries.book_page_count(upload, job, data_root),
-        source_language: Some(job.request_payload.ocr.language.clone())
+        source_language: Some(job.ocr_language().to_string())
             .filter(|value| !value.trim().is_empty()),
         target_language: None,
         source_file_name: source_file_name(upload, job),

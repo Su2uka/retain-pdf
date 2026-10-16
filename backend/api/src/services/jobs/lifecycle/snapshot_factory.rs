@@ -54,7 +54,7 @@ fn write_render_config_snapshot(
         "source": "rust_api_resolved_job_spec",
         "job_id": job.job_id,
         "workflow": job.workflow,
-        "render": job.request_payload.render,
+        "render": job.render_options(),
     });
     write_json_pretty(&path, &payload)?;
     if let Some(artifacts) = job.artifacts.as_mut() {

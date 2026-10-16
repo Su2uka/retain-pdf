@@ -87,9 +87,8 @@ fn quota_exceeded(required: i64, balance: i64) -> AppError {
 /// 新任务开跑前预扣。返回 true 表示这次扣上了（提交没成要调 [`release_for_job`] 退回）；
 /// false 表示不用扣（不计费的任务、不计费的人，或者这个任务早就扣过）。
 pub(crate) fn reserve_for_job(db: &Db, job: &JobSnapshot) -> Result<bool, AppError> {
-    let spec = &job.request_payload;
     let Some(source) = db
-        .billing_source(&spec.source.upload_id, &spec.source.artifact_job_id)
+        .billing_source(job.source_upload_id(), job.source_job_id().unwrap_or(""))
         .map_err(db_error)?
     else {
         // 找不到上传（多用户下网站账号不能从网址建任务），没法定价也没人可记。
@@ -102,17 +101,17 @@ pub(crate) fn reserve_for_job(db: &Db, job: &JobSnapshot) -> Result<bool, AppErr
         Some(user) if user.role != "admin" => {}
         _ => return Ok(false),
     }
-    let pages = if spec.workflow == WorkflowKind::Render {
-        // 原地重新渲染时 artifact_job_id 就是它自己。
+    let pages = if *job.requested_workflow() == WorkflowKind::Render {
+        // 原地重新渲染时源任务就是它自己。
         match db
-            .page_charge(&spec.source.artifact_job_id)
+            .page_charge(job.source_job_id().unwrap_or(""))
             .map_err(db_error)?
         {
             Some(charge) if charge.status == "refunded" => charge.pages,
             _ => return Ok(false),
         }
     } else {
-        i64::from(billable_pages(spec, source.page_count))
+        i64::from(billable_pages(&job.request_payload, source.page_count))
     };
     if pages <= 0 {
         return Ok(false);

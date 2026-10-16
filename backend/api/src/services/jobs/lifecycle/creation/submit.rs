@@ -160,11 +160,7 @@ fn persist_and_launch(
     }
     // The new contract must never silently use the legacy Python transport.
     // Worker rollout is a separate, explicit gate while migration is in flight.
-    if job
-        .request_payload
-        .translation
-        .execution_connection
-        .is_some()
+    if job.uses_model_executor()
         && (std::env::var("RETAIN_MODEL_EXECUTOR_ENABLED").as_deref() != Ok("1")
             || std::env::var("RETAIN_MODEL_WORKER_ENABLED").as_deref() != Ok("1"))
     {

@@ -64,11 +64,7 @@ fn stage_plan_with(
     // 精修在 Python 渲染子进程里直接调模型；Rust 模型执行器的任务不允许回落到
     // Python transport（job_launcher 同一条规则），所以这类任务不提供精修。
     if matches!(plan.stage, RetryStageKind::Refine)
-        && job
-            .request_payload
-            .translation
-            .execution_connection
-            .is_some()
+        && job.uses_model_executor()
     {
         plan.can_retry = false;
         plan.disabled_reason =
@@ -77,11 +73,7 @@ fn stage_plan_with(
         return plan;
     }
 
-    if job
-        .request_payload
-        .translation
-        .execution_connection
-        .is_some()
+    if job.uses_model_executor()
         && !matches!(plan.stage, RetryStageKind::Render)
     {
         plan.can_retry = false;
@@ -127,11 +119,7 @@ pub(crate) fn resume_plan(job: &JobSnapshot, data_root: &Path) -> JobResumePlan 
             reason: None,
         };
     }
-    if job
-        .request_payload
-        .translation
-        .execution_connection
-        .is_some()
+    if job.uses_model_executor()
     {
         return JobResumePlan {
             can_resume: false,
@@ -201,8 +189,7 @@ pub(crate) fn stage_name(stage: &RetryStageKind) -> &'static str {
 }
 
 fn has_request_source(job: &JobSnapshot) -> bool {
-    !job.request_payload.source.upload_id.trim().is_empty()
-        || !job.request_payload.source.source_url.trim().is_empty()
+    job.has_stored_source()
 }
 
 fn base_stage_plan(

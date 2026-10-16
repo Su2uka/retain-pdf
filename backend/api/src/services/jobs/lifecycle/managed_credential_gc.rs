@@ -15,18 +15,7 @@ pub(crate) fn cleanup_deleted_job_credentials(
 ) {
     let mut credential_refs = BTreeSet::new();
     for job in deleted_jobs {
-        let translation_ref = job.request_payload.translation.credential_ref.trim();
-        if !translation_ref.is_empty() {
-            credential_refs.insert(translation_ref.to_string());
-        }
-        let reviewer_ref = job.request_payload.translation.reviewer_credential_ref.trim();
-        if !reviewer_ref.is_empty() {
-            credential_refs.insert(reviewer_ref.to_string());
-        }
-        let ocr_ref = job.request_payload.ocr.credential_ref.trim();
-        if !ocr_ref.is_empty() {
-            credential_refs.insert(ocr_ref.to_string());
-        }
+        credential_refs.extend(job.credential_refs().map(str::to_string));
     }
 
     for credential_ref in credential_refs {

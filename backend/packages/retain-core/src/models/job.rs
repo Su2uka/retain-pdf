@@ -6,6 +6,8 @@ mod failure;
 mod lifecycle;
 #[path = "job/process.rs"]
 mod process;
+#[path = "job/questions.rs"]
+mod questions;
 #[path = "job/record.rs"]
 mod record;
 #[path = "job/runtime.rs"]

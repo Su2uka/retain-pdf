@@ -216,6 +216,18 @@ never the other way: building the merged directory lives in
 `job_loading`. `FileDownload` is defined in `files::download_generation`
 (re-exported by `services::jobs`).
 
+## Job Request Questions
+
+Code that needs something from a job's submitted request asks the job:
+`job.source_job_id()`, `job.uses_model_executor()`, `job.credential_refs()`
+and the other methods in retain-core `models/job/questions.rs`. Do not reach
+into `job.request_payload.<field>`; add a method there instead. Only the
+modules that build or rewrite the request (credential handling at creation,
+rerun, retry-stage, the merged-reading virtual job) touch fields directly; they
+are listed in `KNOWN_REQUEST_PAYLOAD_WRITERS` and the list only shrinks
+(`check_request_payload_access`). Passing the whole request on (redaction,
+public projection, snapshots) is fine.
+
 ## Presentation
 
 `src/services/jobs/presentation/**` owns view construction for job detail, job
