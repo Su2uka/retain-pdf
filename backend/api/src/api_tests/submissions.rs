@@ -26,8 +26,7 @@ use crate::error::AppError;
 use crate::models::api::{OcrAmbiguityResolutionRequest, RetryStageRequest};
 use crate::models::request::CreateJobInput;
 use crate::models::{now_iso, JobArtifacts, JobStatusKind, UploadRecord};
-use crate::services::jobs::runtime_gateway::JobRuntimeLauncher;
-use crate::services::jobs::JobsFacade;
+use crate::services::jobs::{JobRuntimeLauncher, JobsFacade};
 use crate::test_support::config::TestDirs;
 use crate::AppState;
 
@@ -102,7 +101,7 @@ impl Fixture {
     }
 
     fn credential_count(&self) -> usize {
-        crate::services::credentials::api::list_credentials_with_values(&self.state.config.data_root, false)
+        crate::services::providers::list_credentials_with_values(&self.state.config.data_root, false)
             .map(|view| view.credentials.len())
             .unwrap_or(0)
     }
@@ -515,7 +514,7 @@ async fn single_user_cases(recorder: &mut Recorder) {
         .case(&fixture, "POST /documents/:id/translate", None, || async {
             let mut request = book_with_keys("");
             request["source"] = json!({});
-            view(crate::services::library::api::translate_document_view(
+            view(crate::services::library::translate_document_view(
                 &library,
                 &jobs,
                 "doc-up-library",
@@ -526,7 +525,7 @@ async fn single_user_cases(recorder: &mut Recorder) {
         .await;
     recorder
         .case(&fixture, "POST /documents/:id/translate  workflow=ocr", None, || async {
-            view(crate::services::library::api::translate_document_view(
+            view(crate::services::library::translate_document_view(
                 &library,
                 &jobs,
                 "doc-up-library",
@@ -538,7 +537,7 @@ async fn single_user_cases(recorder: &mut Recorder) {
     recorder
         .case(&fixture, "POST /documents/:id/ocr", None, || async {
             view(
-                crate::services::library::api::ocr_document_view(
+                crate::services::library::ocr_document_view(
                     &library,
                     &jobs,
                     "doc-up-library",
@@ -554,14 +553,14 @@ async fn single_user_cases(recorder: &mut Recorder) {
 async fn multi_user_cases(recorder: &mut Recorder) {
     let fixture = Fixture::new("multi", true);
     let state = &fixture.state;
-    crate::services::platform_settings::save(
+    crate::services::accounts::save_platform_settings(
         &state.db,
         &state.config.data_root,
         &state.config.accounts.platform,
         &state.config.provider_runtime.deepseek,
         "u_root",
-        crate::services::platform_settings::SavePlatformSettingsInput {
-            translation: crate::services::platform_settings::SaveTranslationSettings {
+        crate::services::accounts::SavePlatformSettingsInput {
+            translation: crate::services::accounts::SaveTranslationSettings {
                 model: "platform-model".into(),
                 base_url: "https://platform.example/v1".into(),
                 api_protocol: "openai".into(),
@@ -569,7 +568,7 @@ async fn multi_user_cases(recorder: &mut Recorder) {
                 max_workers: 3,
                 api_key: Some("sk-platform-key-1234".into()),
             },
-            ocr: crate::services::platform_settings::SaveOcrSettings {
+            ocr: crate::services::accounts::SaveOcrSettings {
                 provider: "mineru".into(),
                 token: Some("mineru-platform-token".into()),
             },

@@ -5,8 +5,7 @@ use crate::models::{
     domain::{JobSnapshot, JobStatusKind},
     request::CreateJobInput,
 };
-use crate::services::model_executor::ModelExecutor;
-use crate::services::model_requests_api::{ModelConnection, ModelRequest, ModelRequestsApi};
+use crate::services::providers::{ModelConnection, ModelExecutor, ModelRequest, ModelRequestsApi};
 use axum::{
     body::Body,
     http::{Request, StatusCode},

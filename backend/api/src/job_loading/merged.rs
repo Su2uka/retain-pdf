@@ -1,7 +1,7 @@
 //! 合并阅读的虚拟任务：`merged-<文档 id>-<指纹前 16 位>`。
 //!
 //! 读路径上它和普通任务一样经过 [`super::load_supported_job`]，所以"认出虚拟 id、读出它的任务快照"
-//! 放在这一层；生成合并目录、写说明文件的是 `services::merge`。
+//! 放在这一层；生成合并目录、写说明文件的是 `services::library::merge`。
 
 use std::path::{Path, PathBuf};
 

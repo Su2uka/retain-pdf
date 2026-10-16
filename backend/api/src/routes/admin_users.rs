@@ -19,7 +19,7 @@ use crate::models::api::ApiResponse;
 use crate::routes::common::{
     build_accounts_route_deps, build_jobs_route_deps, ok_json, ApiJson, ApiPath, ApiQuery,
 };
-use crate::services::accounts::api::{
+use crate::services::accounts::{
     admin_view, AdminUserDetailView, AdminUserJobsView, AdminUserListView, Principal, UserListQuery,
     UserSortKey, UserStatusFilter,
 };

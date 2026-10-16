@@ -82,22 +82,22 @@ app -> routes -> application services -> internal services -> job_runner / ocr_p
   - `build_glossary_route_deps` / `build_upload_route_deps` / `build_health_route_deps`
 - `routes/download_response.rs` / `routes/download_response/**`
   负责文件下载、markdown、preview、cover、thumbnail 的 response boundary
-- `services/provider_api.rs`
+- `services/providers/provider_api.rs`
   负责 provider 凭据探测的 application facade；route 只接触窄化后的
   `ProviderApiDeps` 和公开 DTO，不直接依赖 provider client / probe 实现
-- `services/provider_probe.rs` / `services/provider_probe/*`
+- `services/providers/provider_probe.rs` / `services/providers/provider_probe/*`
   是 crate 内部实现边界，按 `types / url_policy / ocr / deepseek` 分离；
   新 provider 不应把 URL 策略、HTTP 分类和公开 DTO 重新堆回单文件
-- `services/fonts/api.rs` / `services/fonts/service.rs`
+- `services/platform/fonts/api.rs` / `services/platform/fonts/service.rs`
   分别负责字体 application facade 与内部扫描/持久化；`routes/fonts.rs`
   只保留有界 multipart 消费和 HTTP envelope，不执行 fontconfig 或文件业务
 - `services/ai/api.rs` / `services/ai/gateway.rs`
   分别负责 AI 代理的 HTTP application facade 与内部 sidecar gateway；
   `routes/ai_proxy.rs` 不读取环境变量、不管理 HTTP client、也不查询 supervisor
-- `services/agent_runtime_session_api.rs`
+- `services/ai/agent_runtime_session_api.rs`
   是 Agent session cursor 的 application facade；它拥有独立窄依赖，不能再
   借用 document-operation route deps 或让 route 直接持有数据库引用
-- `services/health_api.rs`
+- `services/platform/health_api.rs`
   负责 liveness/readiness 投影和 supervisor 状态聚合；公共 health route
   只做 HTTP 状态码映射，不直接读取数据库或 supervisor 全局状态
 - `routes/jobs/json_response/**`
@@ -259,7 +259,7 @@ Rust 侧关键落点：
 
 - [../packages/retain-core/src/storage_paths.rs](../packages/retain-core/src/storage_paths.rs)
   facade；现在已拆成 `constants / job_paths / path_ops / resolvers / registry`
-- [src/services/artifacts/mod.rs](src/services/artifacts/mod.rs)
+- [src/services/files/artifacts/mod.rs](src/services/files/artifacts/mod.rs)
   artifact facade；现在已拆成 `registry / bundle / response`
 - [src/routes/download_response.rs](src/routes/download_response.rs)
   负责文件下载、markdown、preview、cover、thumbnail 的 HTTP 响应出口
@@ -268,7 +268,7 @@ Rust 侧关键落点：
 
 边界规则：
 
-- `storage_paths.rs` 和 `services/artifacts/*`
+- `storage_paths.rs` 和 `services/files/artifacts/*`
   只处理文件、artifact key、稳定资源，不解释 provider raw 内部 JSON 结构
 - `db.rs`
   现在也只保留 `Db` facade；row decode 和 schema 检查分别下沉到
@@ -378,14 +378,14 @@ Rust 侧关键落点：
 - library → [src/services/library_api.rs](src/services/library_api.rs)
 - glossaries → [src/services/glossaries/api.rs](src/services/glossaries/api.rs)
   → `services/glossaries/{records,entries,csv}.rs`
-- uploads → [src/services/uploads/api.rs](src/services/uploads/api.rs)
+- uploads → [src/services/ingest/uploads/api.rs](src/services/ingest/uploads/api.rs)
 - AI proxy → [src/services/ai/api.rs](src/services/ai/api.rs)
 - public Agent operation actions →
-  [src/services/public_document_operations_api.rs](src/services/public_document_operations_api.rs)
+  [src/services/ai/public_document_operations_api.rs](src/services/ai/public_document_operations_api.rs)
 - internal Agent operation lifecycle →
-  [src/services/document_operation_api.rs](src/services/document_operation_api.rs)
+  [src/services/ai/document_operation_api.rs](src/services/ai/document_operation_api.rs)
 - runtime cursor CAS →
-  [src/services/agent_runtime_session_api.rs](src/services/agent_runtime_session_api.rs)
+  [src/services/ai/agent_runtime_session_api.rs](src/services/ai/agent_runtime_session_api.rs)
 
 也就是：
 
@@ -402,11 +402,11 @@ Rust 侧关键落点：
 - `routes/glossaries.rs`
   只调 `services/glossaries/api.rs`
 - `routes/uploads.rs`
-  只调 `services/uploads/api.rs`
+  只调 `services/ingest/uploads/api.rs`
 - `routes/ai_proxy.rs`
   只调 `services/ai/api.rs`，问答保持流式字节代理，runtime config 禁止缓存
 - `routes/public_document_operations.rs`
-  只调 `services/public_document_operations_api.rs`，输出浏览器安全投影并要求
+  只调 `services/ai/public_document_operations_api.rs`，输出浏览器安全投影并要求
   status / attempt / program hash CAS
 - `routes/document_operations.rs` / `agent_runtime_sessions.rs` /
   `agent_capabilities.rs`
@@ -448,11 +448,11 @@ Rust 侧关键落点：
 - [src/services/jobs/facade.rs](src/services/jobs/facade.rs)
 - [src/services/library_api.rs](src/services/library_api.rs)
 - [src/services/glossaries/api.rs](src/services/glossaries/api.rs)
-- [src/services/uploads/api.rs](src/services/uploads/api.rs)
+- [src/services/ingest/uploads/api.rs](src/services/ingest/uploads/api.rs)
 - [src/services/ai/api.rs](src/services/ai/api.rs)
-- [src/services/public_document_operations_api.rs](src/services/public_document_operations_api.rs)
-- [src/services/document_operation_api.rs](src/services/document_operation_api.rs)
-- [src/services/agent_runtime_session_api.rs](src/services/agent_runtime_session_api.rs)
+- [src/services/ai/public_document_operations_api.rs](src/services/ai/public_document_operations_api.rs)
+- [src/services/ai/document_operation_api.rs](src/services/ai/document_operation_api.rs)
+- [src/services/ai/agent_runtime_session_api.rs](src/services/ai/agent_runtime_session_api.rs)
 
 词汇表应用入口使用 `GlossaryApiDeps` 隐藏 `Db`，HTTP route 只能持有该窄依赖；
 内部实现按职责拆为 `records.rs`（持久化 CRUD）、`entries.rs`（任务合并与规范化）
@@ -520,11 +520,11 @@ routes/library*.rs, collections.rs
   负责图书馆域业务（见 2.3）
 - [src/services/library/book_projection.rs](src/services/library/book_projection.rs)
   负责 library books 投影（由 `library/books` 调用）
-- [src/services/artifacts/presentation.rs](src/services/artifacts/presentation.rs)
-  只将 `ArtifactLinksView` 转为公共产物展示数据，通过 `services::artifacts` 的
+- [src/services/files/artifacts/presentation.rs](src/services/files/artifacts/presentation.rs)
+  只将 `ArtifactLinksView` 转为公共产物展示数据，通过 `services::files::artifacts` 的
   crate 内导出供 book/job 投影共用；不读取 DB、任务状态或文件系统。
   `jobs` 不能反向依赖 `book_projection`，公共展示也不能回调这些业务模块。
-- [src/services/derived_artifacts](src/services/derived_artifacts)
+- [src/services/files/derived_artifacts](src/services/files/derived_artifacts)
   负责 cover/thumbnail/page preview 等派生产物（由 library media / jobs downloads 调用，**不**被 route 直连）
 
 其中 `services/jobs` 和 `routes/jobs/`、`app/router/jobs/` 一样按 9 类分目录（2026-10-16，

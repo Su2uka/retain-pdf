@@ -13,9 +13,9 @@ use crate::auth::{session_cookie, SessionToken};
 use crate::error::AppError;
 use crate::models::api::ApiResponse;
 use crate::routes::common::{build_accounts_route_deps, ok_json, ApiJson, ApiPath};
-use crate::services::accounts::api::{
-    account_view, admin_view, AccountUserView, AccountsService, PageQuotaView, Principal, Role,
-    SessionView, SESSION_COOKIE,
+use crate::services::accounts::{
+    account_view, admin_view, AccountsService, AccountUserView, PageQuotaView, Principal, Role,
+    SESSION_COOKIE, SessionView,
 };
 use crate::AppState;
 

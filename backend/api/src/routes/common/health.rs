@@ -1,5 +1,5 @@
 use crate::app::AppState;
-use crate::services::health_api::HealthApiDeps;
+use crate::services::platform::HealthApiDeps;
 
 pub fn build_health_route_deps(state: &AppState) -> HealthApiDeps<'_> {
     HealthApiDeps::new(

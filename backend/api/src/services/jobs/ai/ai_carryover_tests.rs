@@ -19,7 +19,7 @@ use crate::db::Db;
 use crate::models::domain::{
     CreateJobInput, JobArtifacts, JobSnapshot, UploadRecord,
 };
-use crate::services::download_generation::DownloadGeneration;
+use crate::services::files::DownloadGeneration;
 
 use crate::services::jobs::ai::DocumentDownloadKind;
 use crate::services::jobs::files::downloads::JobDownloads;

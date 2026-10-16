@@ -24,13 +24,12 @@ use crate::routes::common::{
     ApiJson, ApiPath, ApiQuery,
 };
 use crate::routes::download_response::file_download_response;
-use crate::services::library::api::{
-    apply_document_metadata_suggestion_view,
-    create_document_metadata_suggestion_view,
+use crate::services::library::{
+    apply_document_metadata_suggestion_view, create_document_metadata_suggestion_view,
     delete_document_view, document_files, document_reading, document_translation_coverage,
-    get_document, open_document_file, Disposition, DocumentFile, list_document_metadata_suggestions_view,
-    list_documents, ocr_document_view, patch_document, search_blocks_view,
-    translate_document_view, DocumentReadingView, TranslationCoverageView,
+    get_document, list_document_metadata_suggestions_view, list_documents, ocr_document_view,
+    open_document_file, patch_document, search_blocks_view, translate_document_view, Disposition,
+    DocumentFile, DocumentReadingView, TranslationCoverageView,
 };
 use crate::AppState;
 

@@ -9,7 +9,7 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
-use crate::services::accounts::access::{route_policy, RoutePolicy};
+use crate::services::accounts::{route_policy, RoutePolicy};
 
 const METHODS: [&str; 5] = ["get", "post", "put", "patch", "delete"];
 

@@ -9,7 +9,7 @@ use crate::models::api::{
     PatchDocumentInput,
 };
 use crate::models::domain::UploadRecord;
-use crate::services::jobs::lifecycle::managed_credential_gc::cleanup_deleted_job_credentials;
+use crate::services::jobs::cleanup_deleted_job_credentials;
 
 use super::books::{ensure_deletable, remove_job_files, remove_path_if_exists};
 use super::LibraryDeps;

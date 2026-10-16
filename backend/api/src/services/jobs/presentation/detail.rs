@@ -7,7 +7,7 @@ use crate::models::api::{
     JobDetailView,
 };
 use crate::models::domain::JobSnapshot;
-use crate::services::artifacts::list_registry_for_job;
+use crate::services::files::list_registry_for_job;
 
 use crate::services::jobs::job_readiness;
 use crate::services::jobs::actions::translation_request_recovery::load_translation_request_recovery_with_db;

@@ -20,12 +20,13 @@ use crate::config::{AccountsConfig, DeploymentMode, LOCAL_USERNAME, LOCAL_USER_I
 use crate::db::{Db, OwnedKind, UserRecord, UsernameTaken};
 use crate::error::AppError;
 
-pub(crate) mod access;
-pub(crate) mod admin;
-pub(crate) mod api;
+mod access;
+mod admin;
+mod api;
 mod console;
 mod invites;
-pub mod page_quota;
+mod page_quota;
+mod platform_settings;
 
 pub const SESSION_COOKIE: &str = "retain_session";
 const LOCK_AFTER_FAILURES: i64 = 5;
@@ -509,3 +510,22 @@ impl AccountsService {
 
 #[cfg(test)]
 mod tests;
+
+// 门面：领域外只能用这里导出的东西，子模块都是私有的（见 BOUNDARIES.md「Domain Facades」）。
+pub(crate) use api::{
+    json_references, query_references, AdminUserDetailView, AdminUserJobsView, AdminUserListView,
+    InviteDetailView, InviteView, NewInvite, PageQuotaView, UserListQuery, UserSortKey,
+    UserStatusFilter,
+};
+pub(crate) use page_quota::{release_for_job, reserve_for_job};
+pub(crate) use platform_settings::{PlatformSource, SavePlatformSettingsInput};
+pub(crate) use platform_settings::api::{
+    PlatformSettingsApiDeps, PlatformSettingsView, PlatformTestView, TestPlatformInput,
+};
+// 只给测试用的。
+#[cfg(test)]
+pub(crate) use access::{route_policy, RoutePolicy};
+#[cfg(test)]
+pub(crate) use platform_settings::{
+    save as save_platform_settings, SaveOcrSettings, SaveTranslationSettings,
+};

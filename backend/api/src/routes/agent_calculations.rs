@@ -7,7 +7,7 @@ use crate::error::AppError;
 use crate::models::api::ApiResponse;
 use crate::routes::common::{build_agent_calculation_route_deps, ApiJson, ApiPath, ApiQuery};
 use crate::routes::job_helpers::stream_file;
-use crate::services::agent_calculations::api::{
+use crate::services::ai::{
     agent_calculation_artifact_download, complete_agent_calculation, create_agent_calculation,
     fail_agent_calculation, get_agent_calculation, list_agent_calculations,
     AgentCalculationListQuery, AgentCalculationListView, AgentCalculationView,

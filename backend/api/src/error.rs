@@ -552,9 +552,9 @@ impl From<std::io::Error> for AppError {
 }
 
 // Uploads owns domain failures; this application boundary owns the HTTP contract.
-impl From<crate::services::uploads::UploadError> for AppError {
-    fn from(value: crate::services::uploads::UploadError) -> Self {
-        use crate::services::uploads::UploadError;
+impl From<crate::services::ingest::UploadError> for AppError {
+    fn from(value: crate::services::ingest::UploadError) -> Self {
+        use crate::services::ingest::UploadError;
         match value {
             UploadError::BadRequest(message) => Self::bad_request(message),
             UploadError::PayloadTooLarge(message) => Self::payload_too_large(message),

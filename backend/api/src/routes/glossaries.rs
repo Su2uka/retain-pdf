@@ -10,7 +10,7 @@ use crate::models::api::{
     GlossaryUpsertInput, ListGlossariesQuery,
 };
 use crate::routes::common::{build_glossary_route_deps, ok_json, ApiJson, ApiPath, ApiQuery};
-use crate::services::glossaries::api::{
+use crate::services::glossaries::{
     create_glossary_view, delete_glossary_view, export_glossary_csv_view, get_glossary_view,
     import_glossary_view, list_glossaries_view, parse_glossary_csv_view, update_glossary_view,
 };

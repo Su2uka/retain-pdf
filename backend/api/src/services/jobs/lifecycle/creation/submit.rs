@@ -172,10 +172,10 @@ fn persist_and_launch(
     }
     // 预扣放在落库之前：余额不够就不留下任务行。原地重跑也经过这里（只重新渲染不计费，
     // 规则见 accounts::page_quota）。
-    let reserved = deps.page_quota && crate::services::accounts::page_quota::reserve_for_job(deps.db, &job)?;
+    let reserved = deps.page_quota && crate::services::accounts::reserve_for_job(deps.db, &job)?;
     if let Err(error) = persist_job_with_resources(deps.db, deps.data_root, deps.output_root, &job) {
         if reserved {
-            crate::services::accounts::page_quota::release_for_job(deps.db, &job.job_id);
+            crate::services::accounts::release_for_job(deps.db, &job.job_id);
         }
         return Err(error.into());
     }

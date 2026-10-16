@@ -5,7 +5,7 @@ use crate::models::domain::{JobSnapshot, WorkflowKind};
 use crate::ocr_provider::{
     is_configured_command_provider, parse_provider_kind, provider_token, OcrProviderKind,
 };
-use crate::services::credentials::{
+use crate::services::providers::{
     acquire_credential_usage_lock, get_or_create_managed_credential, CredentialUsageLock,
 };
 use crate::services::jobs::lifecycle::validation::map_credential_reference_error;

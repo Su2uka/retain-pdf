@@ -28,7 +28,7 @@
 
 - `ai_supervisor.rs`、`jobsd_supervisor.rs`：子进程启动、探活、退避重启和退出回收。
 - `app/server.rs` 持有 shutdown 通道并等待监督任务结束；`app/state.rs` 给 AI 网关注入状态读取函数。
-- `services/health_api.rs` 保留 HTTP 健康状态投影；任务控制接口 `services/jobs/runtime_gateway.rs` 不属于进程监督器，不随目录名搬迁。
+- `services/platform/health_api.rs` 保留 HTTP 健康状态投影；任务控制接口 `services/jobs/runtime_gateway.rs` 不属于进程监督器，不随目录名搬迁。
 - 当前状态仍由进程级原子量持有；本批不改变默认启动方式和 in-process/remote 语义。
 
 ### `src/app`
@@ -128,12 +128,15 @@ jobs 的依赖装配由 `app/jobs.rs` 完成；依赖定义在 `services/jobs/de
 ### `src/services`
 
 - 作用：
-  application service 入口和内部业务实现。
+  application service 入口和内部业务实现，按 9 个领域分目录（`accounts`、`providers`、`ingest`、`files`、
+  `jobs`、`library`、`glossaries`、`ai`、`platform`，见 `src/services/mod.rs`）。
+- 每个领域的 `mod.rs` 是它唯一的门面：子模块私有，路由、装配和别的领域只用门面导出的东西
+  （见 `BOUNDARIES.md` 的 "Domain Facades"）。
 
-#### `src/services/uploads` 与 `src/services/ai`
+#### `src/services/ingest/uploads` 与 `src/services/ai`
 
-- 路由分别调用 `uploads::api` 和 `ai::api`；装配和跨业务调用通过模块根部的
-  明确能力导出，不访问私有实现文件。
+- 路由通过 `services::ingest`、`services::ai` 的门面调用（实现分别在 `uploads/api.rs`、`ai/api.rs`）；
+  装配和跨业务调用也只用门面导出的能力，不访问私有实现文件。
 - `uploads` 的 `service/capacity/staging/pdf/error` 分别负责流程、处理容量、
   文件发布与清理、PDF 处理和业务错误；独立上传、OCR、Bundle 共享服务实例。
 - `ai` 的 `gateway` 持有 HTTP 客户端和启动配置；`api` 处理 HTTP/SSE 适配。
@@ -164,7 +167,7 @@ jobs 的依赖装配由 `app/jobs.rs` 完成；依赖定义在 `services/jobs/de
   **不要** 把逻辑写回 `routes/library_*`。
 - 子模块：
   - `books.rs` — library books 列表/详情/删除（投影委托 `book_projection/`）
-  - `book_projection.rs` + `book_projection/` — 书架列表 / 书籍详情投影；书名、页数规则调 `services::artifacts` 和 `SummaryCache`，不另抄
+  - `book_projection.rs` + `book_projection/` — 书架列表 / 书籍详情投影；书名、页数规则调 `services::files::artifacts` 和 `SummaryCache`，不另抄
   - `collection_workspace.rs` — 文件夹级 agent 工作区（把一个合集的书物化成目录，给 AI 服务读）
   - `documents.rs` / `media.rs` — 文档 CRUD 与 source.pdf/cover/thumbnail
   - `translate.rs` — 绑定文档 upload 后调 `JobsFacade::create_submission`
@@ -181,7 +184,7 @@ jobs 的依赖装配由 `app/jobs.rs` 完成；依赖定义在 `services/jobs/de
   输入解析、存在性检查、前置校验，只产出 `Prepared*` 输入，不生成 `JobSnapshot`。
 - `job_builders.rs`
   workflow 级快照编排；只消费 `Prepared*` 输入并调用 snapshot factory，不再自己做前置校验。
-- 上传持久化委托 `services/uploads`；已有 upload record 的输入查询在 `prepare.rs`。
+- 上传持久化委托 `services/ingest/uploads`；已有 upload record 的输入查询在 `prepare.rs`。
 
 #### `src/services/jobs/presentation`
 
@@ -192,15 +195,15 @@ jobs 的依赖装配由 `app/jobs.rs` 完成；依赖定义在 `services/jobs/de
 
 #### 其他 service 入口
 
-- [`src/services/uploads/api.rs`](src/services/uploads/api.rs)
+- [`src/services/ingest/uploads/api.rs`](src/services/ingest/uploads/api.rs)
   上传接口入口。
 - [`src/services/glossaries/api.rs`](src/services/glossaries/api.rs)
   术语表接口入口。
-- [`src/services/fonts/api.rs`](src/services/fonts/api.rs)
+- [`src/services/platform/fonts/api.rs`](src/services/platform/fonts/api.rs)
   字体查询入口，具体发现逻辑位于私有 `service.rs`。
-- [`src/services/credentials/api.rs`](src/services/credentials/api.rs)
+- [`src/services/providers/credentials/api.rs`](src/services/providers/credentials/api.rs)
   HTTP 凭据入口；jobs 所需凭据使用锁等能力由模块根部明确导出，不经 HTTP 入口。
-- [`src/services/agent_calculations/api.rs`](src/services/agent_calculations/api.rs)
+- [`src/services/ai/agent_calculations/api.rs`](src/services/ai/agent_calculations/api.rs)
   Agent 计算记录与产物接口，内部只依赖数据库和目录，不接收完整配置。
 - [`src/services/library/api.rs`](src/services/library/api.rs)
   图书馆接口入口（见上）。
@@ -212,11 +215,11 @@ jobs 的依赖装配由 `app/jobs.rs` 完成；依赖定义在 `services/jobs/de
   services 访问 runtime 能力的收口层。
 - [`src/services/ai/api.rs`](src/services/ai/api.rs)
   Rust 到受监督 AI sidecar 的 HTTP 代理入口。
-- [`src/services/public_document_operations_api.rs`](src/services/public_document_operations_api.rs)
+- [`src/services/ai/public_document_operations_api.rs`](src/services/ai/public_document_operations_api.rs)
   浏览器安全 operation 投影、显式动作 CAS 与 candidate 读取入口。
-- [`src/services/document_operation_api.rs`](src/services/document_operation_api.rs)
+- [`src/services/ai/document_operation_api.rs`](src/services/ai/document_operation_api.rs)
   internal CLI operation lifecycle 入口。
-- [`src/services/agent_runtime_session_api.rs`](src/services/agent_runtime_session_api.rs)
+- [`src/services/ai/agent_runtime_session_api.rs`](src/services/ai/agent_runtime_session_api.rs)
   opaque runtime cursor revision CAS 入口。
 
 ### `../packages/retain-data/src/worker_command.rs` + `worker_command/*`

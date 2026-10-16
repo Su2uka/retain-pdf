@@ -4,7 +4,7 @@ use axum::Json;
 
 use crate::models::api::ApiResponse;
 use crate::routes::common::build_health_route_deps;
-use crate::services::health_api::{
+use crate::services::platform::{
     build_current_readiness_view, build_health_view, HealthView, ReadinessView,
 };
 use crate::AppState;

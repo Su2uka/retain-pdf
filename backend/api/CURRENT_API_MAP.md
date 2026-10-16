@@ -452,8 +452,8 @@ conversation/document/action。OpenAI-compatible / FX 模型进程都拿不到 t
 - [`src/app/router/ai.rs`](src/app/router/ai.rs)
 - [`src/routes/document_operations.rs`](src/routes/document_operations.rs)
 - [`src/routes/public_document_operations.rs`](src/routes/public_document_operations.rs)
-- [`src/services/document_operations`](src/services/document_operations)
-- [`src/services/public_document_operations.rs`](src/services/public_document_operations.rs)
+- [`src/services/ai/document_operations`](src/services/ai/document_operations)
+- [`src/services/ai/public_document_operations.rs`](src/services/ai/public_document_operations.rs)
 - [`../../database/retain-db/src/db/document_operations.rs`](../../database/retain-db/src/db/document_operations.rs)
 
 对外入口与实际 runtime 链如下：

@@ -1,35 +1,26 @@
+//! 业务逻辑按领域分成 9 个目录，一个领域以后拆成一个包（拆包规划第 3 节）。
+//!
+//! | 领域 | 管什么 |
+//! |---|---|
+//! | `accounts` | 账号、登录会话、页额度、邀请码、管理后台、平台设置 |
+//! | `providers` | 模型和 OCR 服务商、凭据库、模型调用、连通性测试 |
+//! | `ingest` | 上传 |
+//! | `files` | 产物清单和打包、派生产物生成、下载文件名 |
+//! | `jobs` | 任务：按 9 类分（见 `jobs/mod.rs`），含质量报告、模型用量 |
+//! | `library` | 书、书架、合集、全文检索、合并阅读 |
+//! | `glossaries` | 术语表 |
+//! | `ai` | AI 问答、Agent、计算、文档操作 |
+//! | `platform` | 同步、备份、字体、健康检查 |
+//!
+//! 每个领域的 `mod.rs` 是它唯一的门面：子模块私有，领域外只能用门面导出的东西。领域之间只能往下
+//! 依赖，允许的方向登记在 `scripts/check_architecture.py` 的 `ALLOWED_DOMAIN_DEPENDENCIES`。
+
 pub(crate) mod accounts;
-pub mod agent_calculations;
-pub mod agent_capabilities;
-pub mod agent_capability_api;
-pub mod agent_runtime_session_api;
-pub(crate) mod agent_runtime_sessions;
 pub(crate) mod ai;
-pub mod artifacts;
-pub mod credentials;
-pub(crate) mod derived_artifacts;
-pub mod document_operation_api;
-pub mod document_operations;
-pub mod download_generation;
-pub(crate) mod download_names;
-pub(crate) mod fonts;
+pub(crate) mod files;
 pub(crate) mod glossaries;
-pub mod health_api;
-pub mod jobs;
-pub mod library;
-pub mod model_executor;
-pub mod model_requests_api;
-pub mod platform_settings;
-pub(crate) mod document_pages;
-pub(crate) mod merge;
-pub(crate) mod model_provider_headers;
-pub mod provider_api;
-pub(crate) mod provider_probe;
-pub mod public_document_operations;
-pub mod public_document_operations_api;
-pub mod quality;
-pub(crate) mod query_execution;
-pub mod backup;
-pub mod sync;
-pub(crate) mod uploads;
-pub mod usage;
+pub(crate) mod ingest;
+pub(crate) mod jobs;
+pub(crate) mod library;
+pub(crate) mod platform;
+pub(crate) mod providers;

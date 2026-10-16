@@ -1,7 +1,7 @@
 //! Launcher routes require the application API key. Worker routes instead use
 //! a short-lived capability bound to exactly one job; never accept an API key
 //! as a worker capability and never accept an upstream URL in a model request.
-use crate::services::model_requests_api::{ModelConnection, ModelRequest};
+use crate::services::providers::{ModelConnection, ModelRequest};
 use crate::{
     app::{build_model_requests_api_from_state, AppState},
     error::AppError,

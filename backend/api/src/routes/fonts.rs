@@ -8,14 +8,14 @@ use crate::models::api::ApiResponse;
 use crate::routes::common::{
     build_fonts_route_deps, read_multipart_field_limited, safe_multipart_error, ApiMultipart,
 };
-use crate::services::fonts::api::{self, FontInfo};
+use crate::services::platform::{self, FontInfo};
 use crate::AppState;
 
 pub async fn list_fonts(
     State(state): State<AppState>,
 ) -> Result<Json<ApiResponse<Vec<FontInfo>>>, AppError> {
     let deps = build_fonts_route_deps(&state);
-    Ok(Json(ApiResponse::ok(api::list_fonts(&deps.font_api))))
+    Ok(Json(ApiResponse::ok(platform::list_fonts(&deps.font_api))))
 }
 
 pub async fn upload_font(
@@ -25,7 +25,7 @@ pub async fn upload_font(
     let deps = build_fonts_route_deps(&state);
     let (filename, bytes) =
         read_font_upload(ApiMultipart(multipart), deps.upload_max_bytes).await?;
-    let info = api::upload_font(&deps.font_api, &filename, &bytes)?;
+    let info = platform::upload_font(&deps.font_api, &filename, &bytes)?;
     Ok(Json(ApiResponse::ok(info)))
 }
 

@@ -8,7 +8,7 @@ use crate::db::Db;
 use crate::error::AppError;
 use crate::models::api::PagePreviewQuery;
 use crate::models::domain::{CreateJobInput, JobArtifacts, JobSnapshot};
-use crate::services::download_generation::DownloadGeneration;
+use crate::services::files::DownloadGeneration;
 
 use crate::services::jobs::files::downloads::{Disposition, JobDownloads, JobFile, JobScope};
 
@@ -252,7 +252,7 @@ async fn preview_validation_keeps_job_scope_before_parameter_errors() {
 async fn document_images_use_the_same_bounded_generation_without_jobs() {
     use crate::config::AssetConfig;
     use crate::models::domain::{now_iso, UploadRecord};
-    use crate::services::library::api::{open_document_file, DocumentFile};
+    use crate::services::library::{DocumentFile, open_document_file};
     use crate::services::library::LibraryDeps;
 
     let fixture = Fixture::new();

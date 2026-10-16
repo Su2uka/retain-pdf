@@ -1,5 +1,5 @@
 use crate::app::AppState;
-use crate::services::platform_settings::api::PlatformSettingsApiDeps;
+use crate::services::accounts::PlatformSettingsApiDeps;
 
 pub fn build_platform_settings_route_deps(state: &AppState) -> PlatformSettingsApiDeps {
     PlatformSettingsApiDeps::new(

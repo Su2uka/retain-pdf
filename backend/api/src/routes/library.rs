@@ -15,9 +15,8 @@ use crate::routes::common::{
 };
 use crate::routes::download_response::job_file;
 use crate::services::jobs::{Disposition, JobFile};
-use crate::services::library::api::{
-    delete_library_book_view, get_library_book_view,
-    list_library_books_view,
+use crate::services::library::{
+    delete_library_book_view, get_library_book_view, list_library_books_view,
 };
 use crate::AppState;
 

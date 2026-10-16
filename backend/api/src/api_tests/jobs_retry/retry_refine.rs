@@ -9,7 +9,7 @@ use tower::util::ServiceExt;
 use crate::api_tests::jobs_common::{read_json, test_state};
 use crate::app::build_app;
 use crate::models::{JobArtifacts, JobSnapshot, JobStatusKind, WorkflowKind};
-use crate::services::credentials::api::{create_credential, CreateCredentialInput};
+use crate::services::providers::{create_credential, CreateCredentialInput};
 
 use super::common::{seed_translation_result_files, source_job_with_artifacts};
 

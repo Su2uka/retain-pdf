@@ -1,8 +1,8 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use crate::config::JobSnapshotRuntimeConfig;
 use crate::error::AppError;
-use crate::models::domain::{JobSnapshot, ResolvedJobSpec, UploadRecord};
+use crate::models::domain::{JobSnapshot, ResolvedJobSpec};
 use crate::ocr_provider::{ensure_provider_diagnostics, parse_provider_kind};
 use crate::storage_paths::{attach_job_paths, build_job_paths};
 
@@ -80,17 +80,6 @@ fn write_json_pretty(path: &Path, payload: &serde_json::Value) -> Result<(), App
             path.display()
         ))
     })
-}
-
-pub fn require_upload_path(upload: &UploadRecord) -> Result<PathBuf, AppError> {
-    let upload_path = PathBuf::from(&upload.stored_path);
-    if !upload_path.exists() {
-        return Err(AppError::not_found(format!(
-            "uploaded file missing: {}",
-            upload.stored_path
-        )));
-    }
-    Ok(upload_path)
 }
 
 fn build_ocr_trace_id(job_id: &str) -> String {

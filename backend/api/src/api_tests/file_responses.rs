@@ -22,7 +22,7 @@ use crate::db::documents::sha256_hex;
 use crate::models::domain::{
     now_iso, CreateJobInput, JobArtifacts, JobSnapshot, JobStatusKind, UploadRecord, WorkflowKind,
 };
-use crate::services::derived_artifacts::word::LayoutDocxOptions;
+use crate::services::files::LayoutDocxOptions;
 
 const JOB: &str = "files-contract-job";
 const OCR_JOB: &str = "files-contract-job-ocr";

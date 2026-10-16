@@ -1,11 +1,7 @@
-//! 账号的应用接口：路由只经这里。
+//! 账号给路由用的接口，由 accounts 的门面（`mod.rs`）统一导出。
 
 pub use super::access::{json_references, query_references};
 pub use super::console::{AdminUserDetailView, AdminUserJobsView, AdminUserListView};
 pub use super::invites::{InviteDetailView, InviteView, NewInvite};
-pub use super::{
-    account_view, admin_view, AccountUserView, AccountsService, AuthVia, Principal, Role,
-    SessionView, SESSION_COOKIE,
-};
 pub use crate::db::{UserListQuery, UserSortKey, UserStatusFilter};
 pub use crate::services::accounts::page_quota::PageQuotaView;

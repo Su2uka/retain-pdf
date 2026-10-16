@@ -12,7 +12,7 @@ use crate::api_tests::jobs_common::{minimal_pdf_bytes, read_json, test_state};
 use crate::app::build_app;
 use crate::db::DocumentVersionRecord;
 use crate::models::domain::{now_iso, DocumentOperationStatus, UploadRecord};
-use crate::services::document_operations::{
+use crate::services::ai::{
     canonical_program_sha256, DocumentOperationControl, RestrictedPageProgramExecutor,
 };
 

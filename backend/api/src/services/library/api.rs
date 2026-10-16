@@ -1,14 +1,14 @@
 //! Application facade for the Library domain.
 //!
-//! Routes must import only this module from `services::*` (see architecture check).
+//! The library facade (`mod.rs`) re-exports these for routes.
 //! Domain functions that already implement the API contract are re-exported
 //! directly; a public entrypoint does not need an extra forwarding function.
 
 pub use super::documents::{get_document, list_documents, patch_document};
 pub(crate) use super::reading::{collection_agent_workspace, document_reading, document_translation_coverage};
 pub use super::collection_workspace::CollectionWorkspace;
-pub use crate::services::merge::coverage::TranslationCoverageView;
-pub use crate::services::merge::reading::DocumentReadingView;
+pub use crate::services::library::merge::coverage::TranslationCoverageView;
+pub use crate::services::library::merge::reading::DocumentReadingView;
 
 use crate::error::AppError;
 use crate::models::api::{
@@ -102,8 +102,7 @@ pub fn apply_document_metadata_suggestion_view(
 
 // --- media ---
 
-pub use super::{DocumentFile, DocumentFilesView};
-pub(crate) use super::open_document_file;
+pub use super::media::DocumentFilesView;
 pub(crate) use crate::services::jobs::Disposition;
 
 pub fn document_files(
