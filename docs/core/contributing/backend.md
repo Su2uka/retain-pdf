@@ -7,6 +7,7 @@
 | 目录 | 包名（`cargo -p`） | crate 名（`use`） | 可执行文件 |
 |---|---|---|---|
 | `backend/api` | `retain-pdf-api` | `retain_pdf_api` | `rust_api`、`retainpdf-agent` |
+| `backend/packages/retain-pdf-api-base` | `retain-pdf-api-base` | `retain_pdf_api_base` | |
 | `backend/packages/retain-core` | `retain-pdf-core` | `retain_pdf_core` | |
 | `backend/packages/retain-data` | `retain-pdf-data` | `retain_pdf_data` | |
 | `database/retain-db` | `retain-pdf-db` | `retain_pdf_db` | |
@@ -16,7 +17,8 @@
 | `backend/jobs` | `retain-pdf-runnerd` | | `retain-jobsd` |
 | `backend/cli` | `retain-pdf-cli` | | `retainpdf` |
 
-下面和别的文档里写的 `retain-core`、`retain-jobs` 等指的是目录。
+下面和别的文档里写的 `retain-core`、`retain-jobs` 等指的是目录。`retain-pdf-api-base`（2026-10-16 新建）是 API 各领域包共用的底座：
+错误类型 `AppError` 和按编号读出任务 `job_loading`，在 `services` 下面一层。
 
 ## 分层方向
 
