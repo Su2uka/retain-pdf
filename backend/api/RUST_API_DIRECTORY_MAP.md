@@ -133,7 +133,7 @@ jobs 的依赖装配由 `app/jobs.rs` 完成；依赖定义在 `services/jobs/de
 - 每个领域的 `mod.rs` 是它唯一的门面：子模块私有，路由、装配和别的领域只用门面导出的东西
   （见 `BOUNDARIES.md` 的 "Domain Facades"）。
 
-#### `src/services/ingest/uploads` 与 `src/services/ai`
+#### 入口包的 `uploads` 与 `src/services/ai`
 
 - 路由通过 `services::ingest`、`services::ai` 的门面调用（实现分别在 `uploads/api.rs`、`ai/api.rs`）；
   装配和跨业务调用也只用门面导出的能力，不访问私有实现文件。
@@ -184,7 +184,7 @@ jobs 的依赖装配由 `app/jobs.rs` 完成；依赖定义在 `services/jobs/de
   输入解析、存在性检查、前置校验，只产出 `Prepared*` 输入，不生成 `JobSnapshot`。
 - `job_builders.rs`
   workflow 级快照编排；只消费 `Prepared*` 输入并调用 snapshot factory，不再自己做前置校验。
-- 上传持久化委托 `services/ingest/uploads`；已有 upload record 的输入查询在 `prepare.rs`。
+- 上传持久化委托入口包（`retain-pdf-ingest`）的 `uploads`；已有 upload record 的输入查询在 `prepare.rs`。
 
 #### `src/services/jobs/presentation`
 
@@ -195,7 +195,7 @@ jobs 的依赖装配由 `app/jobs.rs` 完成；依赖定义在 `services/jobs/de
 
 #### 其他 service 入口
 
-- [`src/services/ingest/uploads/api.rs`](src/services/ingest/uploads/api.rs)
+- [`../packages/retain-pdf-ingest/src/uploads/api.rs`](../packages/retain-pdf-ingest/src/uploads/api.rs)（入口已拆成独立的包）
   上传接口入口。
 - [`../packages/retain-pdf-glossaries/src/api.rs`](../packages/retain-pdf-glossaries/src/api.rs)（术语表已拆成独立的包）
   术语表接口入口。
