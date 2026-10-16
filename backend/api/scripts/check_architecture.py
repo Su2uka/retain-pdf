@@ -24,6 +24,9 @@ _CRATE_OF_MODULE = {
     "job_failure": "../packages/retain-core",
     "job_failure_structured": "../packages/retain-core",
     "job_failure_support": "../packages/retain-core",
+    # 2026-10-16 挪进 API 各领域包共用的底座。
+    "error": "../packages/retain-pdf-api-base",
+    "job_loading": "../packages/retain-pdf-api-base",
 }
 
 # 失败分类由两个地方产生：Python 流水线的 structured_errors.py（worker 打出
@@ -47,6 +50,7 @@ ALL_SRC_ROOTS = (
     REPO_ROOT.parent / "packages" / "retain-core" / "src",
     REPO_ROOT.parent / "packages" / "retain-data" / "src",
     REPO_ROOT.parent / "packages" / "retain-jobs" / "src",
+    REPO_ROOT.parent / "packages" / "retain-pdf-api-base" / "src",
 )
 
 
@@ -1426,18 +1430,6 @@ def check_protocol_docs(errors: list[str]) -> None:
 KNOWN_SERVICE_CYCLE_EDGES: set[tuple[str, str]] = set()
 
 
-# 按编号读出任务（含合并阅读的虚拟任务）在 services 下面一层：任务、文件、书库、合并阅读都往下依赖它，
-# 它反过来依赖哪个 service，环就回来了。
-def check_job_loading_is_below_services(errors: list[str]) -> None:
-    for path in scan_rs_files(SRC_ROOT / "job_loading"):
-        text = rust_boundary_source(path)
-        for token in ("crate::services", "crate::routes", "crate::app", "AppState"):
-            if token in text:
-                errors.append(
-                    f"{rel(path)}: job_loading sits below services and must not depend on {token}"
-                )
-
-
 # services 按拆包规划分成 9 个领域，一个领域以后拆成一个包（docs/ops/planning/api-reorg/
 # 20261015-模块化单体拆包规划.md 第 3 节）。新模块放进某个领域，不另开顶层目录。
 SERVICE_DOMAINS = {
@@ -1723,7 +1715,7 @@ KNOWN_REQUEST_PAYLOAD_WRITERS = {
 
 def check_request_payload_access(errors: list[str]) -> None:
     accessors = set()
-    for path in scan_rs_files(SRC_ROOT):
+    for path in scan_rs_files(SRC_ROOT) + scan_rs_files(abs_src(Path("src/job_loading"))):
         relative = rel(path)
         if path.stem == "tests" or path.stem.endswith("_tests") or "tests" in relative.parts:
             continue
@@ -1780,7 +1772,6 @@ def main() -> int:
     check_worker_command_boundary(errors)
     check_protocol_docs(errors)
     check_service_dependency_cycles(errors)
-    check_job_loading_is_below_services(errors)
     check_service_domains(errors)
     check_domain_facades(errors)
     check_domain_dependency_direction(errors)

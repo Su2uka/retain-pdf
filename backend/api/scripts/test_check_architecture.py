@@ -656,27 +656,6 @@ mod tests { fn f() { resolve_output_pdf(job, root); } }
         self.assertIn("remove it from KNOWN_ARTIFACT_PATH_READERS", errors[0])
 
 
-class JobLoadingLayerTests(unittest.TestCase):
-    check_sources = UploadBoundaryTests.check_sources
-
-    def run_check(self, sources):
-        return self.check_sources(sources, checks.check_job_loading_is_below_services)
-
-    def test_storage_and_db_are_allowed(self):
-        self.assertEqual([], self.run_check({
-            "job_loading/mod.rs": "use crate::db::Db; use crate::storage_paths::MergedJobId;",
-            "job_loading/merged.rs": "// crate::services::library::merge writes the sidecar\nuse crate::error::AppError;",
-        }))
-
-    def test_services_routes_and_app_state_are_rejected(self):
-        for source in ("use crate::services::library::merge::build;", "use crate::routes::common;",
-                       "fn f(state: &AppState) {}"):
-            with self.subTest(source=source):
-                errors = self.run_check({"job_loading/merged.rs": source})
-                self.assertEqual(1, len(errors), errors)
-                self.assertIn("job_loading sits below services", errors[0])
-
-
 class ServiceCycleTests(unittest.TestCase):
     check_sources = UploadBoundaryTests.check_sources
 

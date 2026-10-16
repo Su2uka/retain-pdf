@@ -167,16 +167,19 @@ The response contract for all download endpoints is pinned in
 
 ## Query Scope
 
-`src/job_loading/` owns job loading and compatibility checks:
+`job_loading` in the `retain-pdf-api-base` crate
+(`backend/packages/retain-pdf-api-base`, re-exported as `crate::job_loading`)
+owns job loading and compatibility checks:
 
 - missing job -> `404`;
 - OCR-only scope checks;
 - legacy layout rejection;
 - merged-reading virtual job ids (`merged-<document>-<fingerprint>`), read-only.
 
-It sits below `services` (jobs, files, library and merge all call it) and must
-not depend on `services`, `routes` or `AppState`. List filtering before
-presentation stays in `src/services/jobs/query.rs`.
+It sits below `services` (jobs, files, library and merge all call it). Being a
+separate crate, it cannot see `services`, `routes` or `AppState`. `AppError`
+(`crate::error`) lives in the same crate. List filtering before presentation
+stays in `src/services/jobs/query.rs`.
 
 Do not put these checks in presentation code. Presentation should receive a job
 that has already passed the route/facade scope.

@@ -1,11 +1,11 @@
 pub mod app;
 pub mod auth;
-pub mod error;
-pub(crate) mod job_loading;
 pub mod routes;
 pub(crate) mod runtime;
 pub mod services;
 
+pub use retain_pdf_api_base::error;
+pub(crate) use retain_pdf_api_base::job_loading;
 pub use retain_pdf_core::{config, job_failure, models, storage_paths};
 pub use retain_pdf_data::{db, job_events, ocr_provider, worker_command};
 pub use retain_pdf_runner::job_runner;
