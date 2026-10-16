@@ -197,7 +197,7 @@ jobs 的依赖装配由 `app/jobs.rs` 完成；依赖定义在 `services/jobs/de
 
 - [`src/services/ingest/uploads/api.rs`](src/services/ingest/uploads/api.rs)
   上传接口入口。
-- [`src/services/glossaries/api.rs`](src/services/glossaries/api.rs)
+- [`../packages/retain-pdf-glossaries/src/api.rs`](../packages/retain-pdf-glossaries/src/api.rs)（术语表已拆成独立的包）
   术语表接口入口。
 - [`src/services/platform/fonts/api.rs`](src/services/platform/fonts/api.rs)
   字体查询入口，具体发现逻辑位于私有 `service.rs`。

@@ -1,30 +1,19 @@
-use std::collections::HashSet;
-use std::sync::Arc;
-
 use super::*;
-use crate::config::AppConfig;
-use crate::models::api::{glossary_to_csv_export, ListGlossariesQuery};
-use crate::models::domain::{now_iso, GlossaryRecord};
-use crate::models::request::{CreateJobInput, GlossaryEntryInput, GlossaryUpsertInput};
-use crate::test_support::config::TestDirs;
-use crate::test_support::state::assemble_app_state;
-use crate::AppState;
+use retain_pdf_core::models::api::{glossary_to_csv_export, ListGlossariesQuery};
+use retain_pdf_core::models::domain::{now_iso, GlossaryRecord};
+use retain_pdf_core::models::request::{CreateJobInput, GlossaryEntryInput, GlossaryUpsertInput};
+use retain_pdf_data::db::Db;
 
-fn test_state() -> AppState {
-    // 服务层测试按服务层的旧约定：python 而非 python3、无 API key。
-    let dirs = TestDirs::create(&format!(
-        "rust-api-glossaries-{}-{}",
+fn test_db() -> Db {
+    let root = std::env::temp_dir().join(format!(
+        "retain-pdf-glossaries-{}-{}",
         std::process::id(),
         fastrand::u64(..)
     ));
-    let state = assemble_app_state(Arc::new(AppConfig {
-        python_bin: "python".to_string(),
-        simple_port: 41001,
-        api_keys: HashSet::new(),
-        ..dirs.config()
-    }));
-    state.db.init().expect("init db");
-    state
+    std::fs::create_dir_all(&root).expect("create test dir");
+    let db = Db::new(root.join("jobs.db"), root.join("data"));
+    db.init().expect("init db");
+    db
 }
 
 fn entry(source: &str, target: &str) -> GlossaryEntryInput {
@@ -159,9 +148,9 @@ fn merge_glossary_entries_prefers_overlay() {
 
 #[test]
 fn resolve_task_glossary_request_merges_resource_and_inline_entries() {
-    let state = test_state();
+    let db = test_db();
     let glossary = create_glossary(
-        state.db.as_ref(),
+        &db,
         &GlossaryUpsertInput {
             glossary_id: String::new(),
             name: "chemistry".to_string(),
@@ -178,7 +167,7 @@ fn resolve_task_glossary_request_merges_resource_and_inline_entries() {
     input.translation.glossary_entries = vec![entry("DNA", "DNA"), entry("band gap", "带隙")];
 
     let resolved =
-        resolve_task_glossary_request(state.db.as_ref(), &input).expect("resolve glossary");
+        resolve_task_glossary_request(&db, &input).expect("resolve glossary");
 
     assert_eq!(resolved.translation.glossary_id, glossary.glossary_id);
     assert_eq!(resolved.translation.glossary_name, "chemistry");
@@ -188,9 +177,9 @@ fn resolve_task_glossary_request_merges_resource_and_inline_entries() {
 
 #[test]
 fn glossary_crud_round_trip() {
-    let state = test_state();
+    let db = test_db();
     let created = create_glossary(
-        state.db.as_ref(),
+        &db,
         &GlossaryUpsertInput {
             glossary_id: String::new(),
             name: "semiconductor".to_string(),
@@ -203,17 +192,17 @@ fn glossary_crud_round_trip() {
     )
     .expect("create glossary");
     let loaded =
-        load_glossary_or_404(state.db.as_ref(), &created.glossary_id).expect("load glossary");
+        load_glossary_or_404(&db, &created.glossary_id).expect("load glossary");
     assert_eq!(loaded.name, "semiconductor");
     assert_eq!(
-        list_glossaries(state.db.as_ref(), None)
+        list_glossaries(&db, None)
             .expect("list glossaries")
             .len(),
         1
     );
 
     let updated = update_glossary(
-        state.db.as_ref(),
+        &db,
         &created.glossary_id,
         &GlossaryUpsertInput {
             glossary_id: String::new(),
@@ -230,17 +219,17 @@ fn glossary_crud_round_trip() {
     assert!(!updated.enabled);
     assert_eq!(updated.entries.len(), 2);
 
-    delete_glossary(state.db.as_ref(), &created.glossary_id).expect("delete glossary");
-    let err = load_glossary_or_404(state.db.as_ref(), &created.glossary_id)
+    delete_glossary(&db, &created.glossary_id).expect("delete glossary");
+    let err = load_glossary_or_404(&db, &created.glossary_id)
         .expect_err("deleted glossary");
     assert!(err.to_string().contains("not found"));
 }
 
 #[test]
 fn import_glossary_payload_can_update_existing_record() {
-    let state = test_state();
+    let db = test_db();
     let created = create_glossary(
-        state.db.as_ref(),
+        &db,
         &GlossaryUpsertInput {
             glossary_id: String::new(),
             name: "initial".to_string(),
@@ -254,7 +243,7 @@ fn import_glossary_payload_can_update_existing_record() {
     .expect("create glossary");
 
     let updated = update_glossary(
-        state.db.as_ref(),
+        &db,
         &created.glossary_id,
         &GlossaryUpsertInput {
             glossary_id: created.glossary_id.clone(),
@@ -317,12 +306,12 @@ fn filter_glossaries_filters_by_enabled_and_language_and_query() {
 
 #[test]
 fn resolve_task_glossary_request_rejects_merged_entries_over_limit() {
-    let state = test_state();
+    let db = test_db();
     let resource_entries = (0..MAX_GLOSSARY_ENTRIES)
         .map(|index| entry(&format!("term-{index}"), &format!("词-{index}")))
         .collect();
     let glossary = create_glossary(
-        state.db.as_ref(),
+        &db,
         &GlossaryUpsertInput {
             glossary_id: String::new(),
             name: "large".to_string(),
@@ -339,7 +328,7 @@ fn resolve_task_glossary_request_rejects_merged_entries_over_limit() {
     input.translation.glossary_id = glossary.glossary_id;
     input.translation.glossary_entries = vec![entry("extra-term", "额外词")];
 
-    let err = resolve_task_glossary_request(state.db.as_ref(), &input).expect_err("should reject");
+    let err = resolve_task_glossary_request(&db, &input).expect_err("should reject");
     assert!(err
         .to_string()
         .contains("merged glossary entry count exceeds"));

@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use crate::db::Db;
-use crate::error::AppError;
-use crate::models::request::{CreateJobInput, GlossaryEntryInput};
+use retain_pdf_data::db::Db;
+use retain_pdf_api_base::error::AppError;
+use retain_pdf_core::models::request::{CreateJobInput, GlossaryEntryInput};
 
 use super::records::load_glossary_or_404;
 
@@ -10,7 +10,7 @@ pub(crate) const MAX_GLOSSARY_ENTRIES: usize = 200;
 const MAX_GLOSSARY_TERM_LEN: usize = 200;
 const MAX_GLOSSARY_NOTE_LEN: usize = 500;
 
-pub(crate) fn resolve_task_glossary_request(
+pub fn resolve_task_glossary_request(
     db: &Db,
     input: &CreateJobInput,
 ) -> Result<CreateJobInput, AppError> {

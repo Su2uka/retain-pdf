@@ -1,4 +1,8 @@
-//! Glossary HTTP entry points and task glossary resolution.
+//! 术语表领域（从 retain-pdf-api 拆出来的第一个领域包，2026-10-16）。
+//!
+//! 管术语表的增删改查、CSV 导入导出，以及建任务时解析任务用的术语（`resolve_task_glossary_request`）。
+//! 这个文件就是门面：子模块私有，外面只能用下面导出的东西。retain-pdf-api 里以
+//! `crate::services::glossaries` 接上（`services/mod.rs`）。
 
 mod api;
 mod csv;
@@ -18,10 +22,10 @@ use records::{
 #[cfg(test)]
 mod tests;
 
-// 门面：领域外只能用这里导出的东西，子模块都是私有的（见 BOUNDARIES.md「Domain Facades」）。
-pub(crate) use api::{
+// 门面。
+pub use api::{
     create_glossary_view, delete_glossary_view, export_glossary_csv_view, get_glossary_view,
     import_glossary_view, list_glossaries_view, parse_glossary_csv_view, update_glossary_view,
     GlossaryApiDeps,
 };
-pub(crate) use entries::resolve_task_glossary_request;
+pub use entries::resolve_task_glossary_request;

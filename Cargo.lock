@@ -1568,6 +1568,7 @@ dependencies = [
  "retain-pdf-config",
  "retain-pdf-core",
  "retain-pdf-data",
+ "retain-pdf-glossaries",
  "retain-pdf-proc",
  "retain-pdf-runner",
  "rusqlite",
@@ -1679,6 +1680,17 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+]
+
+[[package]]
+name = "retain-pdf-glossaries"
+version = "0.1.0"
+dependencies = [
+ "csv",
+ "fastrand",
+ "retain-pdf-api-base",
+ "retain-pdf-core",
+ "retain-pdf-data",
 ]
 
 [[package]]

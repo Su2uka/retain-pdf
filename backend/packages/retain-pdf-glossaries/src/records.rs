@@ -1,8 +1,8 @@
-use crate::db::Db;
-use crate::error::AppError;
-use crate::models::api::ListGlossariesQuery;
-use crate::models::domain::{build_glossary_id, now_iso, GlossaryRecord};
-use crate::models::request::GlossaryUpsertInput;
+use retain_pdf_data::db::Db;
+use retain_pdf_api_base::error::AppError;
+use retain_pdf_core::models::api::ListGlossariesQuery;
+use retain_pdf_core::models::domain::{build_glossary_id, now_iso, GlossaryRecord};
+use retain_pdf_core::models::request::GlossaryUpsertInput;
 
 use super::entries::normalize_glossary_entries;
 
