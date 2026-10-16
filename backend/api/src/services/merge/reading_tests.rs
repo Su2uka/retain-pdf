@@ -1,4 +1,5 @@
 use super::*;
+use crate::models::domain::JobArtifacts;
 use crate::models::request::CreateJobInput;
 
 fn job_page(id: &str, local: usize) -> PageSource {

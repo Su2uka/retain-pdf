@@ -4,7 +4,8 @@ use crate::models::api::{ArtifactLinksView, JobArtifactManifestView};
 use crate::services::jobs::presentation::{
     build_job_artifact_links_view, build_job_artifact_manifest_view,
 };
-use crate::services::jobs::query::{load_supported_job, JobQueries};
+use crate::job_loading::load_supported_job;
+use crate::services::jobs::query::JobQueries;
 
 impl JobQueries<'_> {
     pub fn job_artifacts_view(

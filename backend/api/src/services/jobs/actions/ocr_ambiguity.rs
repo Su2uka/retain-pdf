@@ -9,7 +9,7 @@ use crate::models::api::{
 use crate::services::jobs::actions::stage_plan::stage_plan;
 
 use crate::services::jobs::lifecycle::creation::{submit_job, NewJob};
-use crate::services::jobs::query::load_job_or_404;
+use crate::job_loading::load_job_or_404;
 use crate::services::jobs::facade::JobsFacade;
 use crate::services::jobs::actions::stage_retry_request::build_retry_request;
 use crate::services::jobs::actions::stage_retry_view::build_retry_stage_submission_view;

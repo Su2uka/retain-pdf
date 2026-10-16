@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::Arc;
 
 use crate::db::Db;
@@ -23,6 +23,8 @@ mod tests;
 
 pub(crate) use catalog::{job_files_view, FileGroup, JobFilesView};
 pub(crate) use files::{Disposition, JobFile, JobScope};
+/// 文件句柄的类型定义在下载调度里（它调度的就是这个），这里转出去，任务这边照旧这么叫。
+pub use crate::services::download_generation::FileDownload;
 
 /// Download capabilities contain no launcher, upload, control, or replay state.
 pub struct JobDownloads<'a> {
@@ -51,42 +53,3 @@ impl<'a> JobDownloads<'a> {
     }
 }
 
-#[derive(Clone, Debug)]
-pub struct FileDownload {
-    pub path: PathBuf,
-    pub content_type: String,
-    pub download_name: Option<String>,
-    /// 不强制下载（照常在浏览器里打开）但给个文件名：`inline; filename=…`。
-    /// 译文 PDF、Markdown 这类「查看」和「下载」共用一个端点的，用这个。
-    pub inline_name: Option<String>,
-    pub job_id_header: Option<String>,
-    /// `Cache-Control`。封面、缩略图这种按书不变的图片让浏览器缓存。
-    pub cache_control: Option<&'static str>,
-}
-
-impl FileDownload {
-    pub fn new(
-        path: PathBuf,
-        content_type: impl Into<String>,
-        download_name: Option<String>,
-    ) -> Self {
-        Self {
-            path,
-            content_type: content_type.into(),
-            download_name,
-            inline_name: None,
-            job_id_header: None,
-            cache_control: None,
-        }
-    }
-
-    pub fn with_inline_name(mut self, name: impl Into<String>) -> Self {
-        self.inline_name = Some(name.into());
-        self
-    }
-
-    pub fn with_job_id_header(mut self, job_id: impl Into<String>) -> Self {
-        self.job_id_header = Some(job_id.into());
-        self
-    }
-}

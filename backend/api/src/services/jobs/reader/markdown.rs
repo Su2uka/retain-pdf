@@ -3,7 +3,7 @@ use crate::models::api::{to_absolute_url, MarkdownDocumentView, MarkdownImageVie
 use crate::models::domain::JobSnapshot;
 use crate::storage_paths::{resolve_markdown_images_dir, resolve_markdown_path};
 
-use crate::services::jobs::query::load_supported_job;
+use crate::job_loading::load_supported_job;
 use crate::services::jobs::files::downloads::{DownloadJobsDeps, JobDownloads};
 
 // 匹配 ![alt](images/...)，路径内可含空格；可选 "title"/'title'、尖括号、./ 前缀

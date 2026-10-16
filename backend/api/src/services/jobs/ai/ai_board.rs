@@ -31,7 +31,7 @@ use crate::error::AppError;
 use crate::storage_paths::resolve_ai_board_dir;
 
 use crate::services::jobs::ai::ai_carryover::carry_over_ai_workspace;
-use crate::services::jobs::query::load_supported_job;
+use crate::job_loading::load_supported_job;
 use crate::services::jobs::files::downloads::{DownloadJobsDeps, FileDownload};
 
 /// 单个文件的上限。画板是给人看的，超过这个尺寸多半是 agent 写错了东西

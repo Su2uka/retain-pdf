@@ -16,7 +16,7 @@ impl<'a> JobDownloads<'a> {
             .download_generation
             .run(format!("{job_id}:ai:{}", kind.label()), move || {
                 let deps = deps.borrowed();
-                let job = crate::services::jobs::query::load_supported_job(
+                let job = crate::job_loading::load_supported_job(
                     deps.db,
                     deps.data_root,
                     &job_id,

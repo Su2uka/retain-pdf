@@ -1,6 +1,6 @@
 //! 合并译文：同一本书的多个范围任务合成一个整本长度、「长得和普通任务一样」的目录。
 //!
-//! 计划由 `merge::plan::merge_plan` 算，各任务的产物路径由 `merge::sources` 读出。产物分两半，各交给一个 Python 子命令：
+//! 计划由 `plan::merge_plan` 算，各任务的产物路径由 `sources` 读出。产物分两半，各交给一个 Python 子命令：
 //!
 //! - `merge-translated-artifacts`：译文 JSON + manifest、OCR 规范化文档、图片，页号改写成
 //!   文档页号。阅读器选区、Word 导出、AI 问答、全文搜索读的是这些。
@@ -30,10 +30,11 @@ use std::time::{Duration, UNIX_EPOCH};
 use sha2::{Digest, Sha256};
 
 use crate::error::AppError;
-use crate::services::merge::plan::PageSource;
-use crate::services::merge::sources::BuildInputs;
+use crate::job_loading::MergedTranslation;
+use crate::services::derived_artifacts::{document_artifacts_dir, DerivedArtifactDeps};
 
-use super::{document_artifacts_dir, DerivedArtifactDeps};
+use super::plan::PageSource;
+use super::sources::BuildInputs;
 
 /// 拼接器的行为一变就加一。它进了指纹，旧缓存自动作废 —— Word 导出就吃过「改了代码、
 /// 缓存不认」的亏（`word.rs` 的 `RENDERER_VERSION`）。
@@ -167,26 +168,6 @@ fn artifacts_plan_json(
     .to_string())
 }
 
-/// 合并目录。布局与普通任务目录一致，下游按读普通任务的方式读。
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct MergedTranslation {
-    pub root: PathBuf,
-}
-
-impl MergedTranslation {
-    pub fn output_pdf(&self) -> PathBuf {
-        self.root.join("rendered").join("merged.pdf")
-    }
-
-    pub fn translations_dir(&self) -> PathBuf {
-        self.root.join("translated")
-    }
-
-    pub fn normalized_document(&self) -> PathBuf {
-        self.root.join("ocr").join("normalized").join("document.v1.json")
-    }
-}
-
 pub(crate) fn merged_root(
     data_root: &Path,
     document_id: &str,
@@ -216,7 +197,7 @@ fn run_step(
     let mut command = std::process::Command::new(deps.pipeline_command);
     command.arg(subcommand).args(args);
     let (status, diagnostics) =
-        super::side_by_side::run_supervised(anchor, label, BUILD_TIMEOUT, command)?;
+        crate::services::derived_artifacts::side_by_side::run_supervised(anchor, label, BUILD_TIMEOUT, command)?;
     if !status.success() {
         return Err(diagnostics.error(format!("failed to build {label}")));
     }
@@ -333,5 +314,5 @@ fn prune_stale(merged_dir: &Path, keep: &Path, now: std::time::SystemTime) {
 }
 
 #[cfg(test)]
-#[path = "merged_tests.rs"]
+#[path = "build_tests.rs"]
 mod tests;

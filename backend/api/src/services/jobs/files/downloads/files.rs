@@ -183,8 +183,8 @@ impl JobScope {
 
     fn load(self, deps: &DownloadJobsDeps<'_>, job_id: &str) -> Result<JobSnapshot, AppError> {
         match self {
-            Self::Any => crate::services::jobs::query::load_supported_job(deps.db, deps.data_root, job_id),
-            Self::OcrOnly => crate::services::jobs::query::load_ocr_job_with_supported_layout(
+            Self::Any => crate::job_loading::load_supported_job(deps.db, deps.data_root, job_id),
+            Self::OcrOnly => crate::job_loading::load_ocr_job_with_supported_layout(
                 deps.db,
                 deps.data_root,
                 job_id,

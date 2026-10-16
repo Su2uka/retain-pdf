@@ -105,7 +105,7 @@ Each use case is an `impl JobsFacade` / `impl JobQueries` block in its category
 directory (read methods in `<category>/queries.rs`). They decide which service
 operation to run and return typed views or download handles, and may call:
 
-- `services/jobs/query.rs` for loading and scope checks;
+- `crate::job_loading` for loading and scope checks;
 - `services/jobs/presentation/**` for public job/list/event view projection;
 - the modules of their own category, and of another category where the work
   belongs there (e.g. `reports/failure.rs` uses `actions/resume_plan.rs`).
@@ -164,12 +164,25 @@ The response contract for all download endpoints is pinned in
 
 ## Query Scope
 
-`src/services/jobs/query.rs` owns job loading and compatibility checks:
+`src/job_loading/` owns job loading and compatibility checks:
 
 - missing job -> `404`;
 - OCR-only scope checks;
 - legacy layout rejection;
-- list filtering before presentation.
+- merged-reading virtual job ids (`merged-<document>-<fingerprint>`), read-only.
+
+It sits below `services` (jobs, files, library and merge all call it) and must
+not depend on `services`, `routes` or `AppState`. List filtering before
+presentation stays in `src/services/jobs/query.rs`.
+
+## Service Dependencies
+
+There are no dependency cycles between top-level `services::<x>` modules, and
+`check_service_dependency_cycles` rejects any new one. `merge` (merged reading)
+depends on `derived_artifacts` and `jobs`, never the other way: building the
+merged directory lives in `services/merge/build.rs`, and reading a virtual job
+lives in `job_loading`. `FileDownload` is defined in `download_generation`
+(re-exported by `services::jobs`).
 
 Do not put these checks in presentation code. Presentation should receive a job
 that has already passed the route/facade scope.

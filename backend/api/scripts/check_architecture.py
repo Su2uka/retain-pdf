@@ -1413,17 +1413,21 @@ def check_protocol_docs(errors: list[str]) -> None:
 
 
 # services 之间不准成环：成了环，改其中任何一个都得连着改另外几个——「牵一发而动全身」的来源。
-# 按模块对登记（不按文件路径，挪文件不用改这里）。下面是加这条规则时已经存在的环，只许删、不许加；
-# 环拆开后，这里对应的条目也要删（留着会报「已不在环里」）。
-KNOWN_SERVICE_CYCLE_EDGES = {
-    ("derived_artifacts", "merge"),
-    ("download_generation", "jobs"),
-    ("jobs", "derived_artifacts"),
-    ("jobs", "download_generation"),
-    ("jobs", "merge"),
-    ("merge", "derived_artifacts"),
-    ("merge", "jobs"),
-}
+# 按模块对登记（不按文件路径，挪文件不用改这里）。加这条规则时已有的环在 2026-10-16 拆完
+# （`refactor/api-cycles`），名单是空的，以后出现任何环都直接报错。名单只许删、不许加。
+KNOWN_SERVICE_CYCLE_EDGES: set[tuple[str, str]] = set()
+
+
+# 按编号读出任务（含合并阅读的虚拟任务）在 services 下面一层：任务、文件、书库、合并阅读都往下依赖它，
+# 它反过来依赖哪个 service，环就回来了。
+def check_job_loading_is_below_services(errors: list[str]) -> None:
+    for path in scan_rs_files(SRC_ROOT / "job_loading"):
+        text = rust_boundary_source(path)
+        for token in ("crate::services", "crate::routes", "crate::app", "AppState"):
+            if token in text:
+                errors.append(
+                    f"{rel(path)}: job_loading sits below services and must not depend on {token}"
+                )
 
 
 def _rust_use_paths(tree: str) -> list[str]:
@@ -1668,6 +1672,7 @@ def main() -> int:
     check_worker_command_boundary(errors)
     check_protocol_docs(errors)
     check_service_dependency_cycles(errors)
+    check_job_loading_is_below_services(errors)
     check_artifact_path_ownership(errors)
     check_job_entry_ownership(errors)
 
