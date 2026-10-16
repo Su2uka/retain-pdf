@@ -315,7 +315,7 @@ mod compact_tests {
                 "stage":stage, "progress_current":seq, "progress_total":1000, "progress_unit":"page"
             }))
             .unwrap();
-            crate::services::jobs::live_stage::canonicalize_job_event(&mut event, "db");
+            crate::services::jobs::progress::live_stage::canonicalize_job_event(&mut event, "db");
             if seq % 3 == 0 {
                 event.lane = Some("background".into());
                 event.substage = Some(format!("background-{}", seq % 7));
@@ -355,7 +355,7 @@ mod compact_tests {
             "stage_detail": detail, "progress_current": current, "progress_total": total, "progress_unit": unit,
         }))
         .unwrap();
-        crate::services::jobs::live_stage::canonicalize_job_event(&mut event, "pipeline");
+        crate::services::jobs::progress::live_stage::canonicalize_job_event(&mut event, "pipeline");
         event
     }
 

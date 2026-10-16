@@ -1,29 +1,22 @@
-mod control;
-mod creation;
+//! 任务的业务逻辑，和 `routes/jobs/` 一样按 9 类分目录（见 `routes/jobs/mod.rs` 的分类表）。
+//! 根目录只放各类共用的：门面、依赖、返回视图、只读查询的入口、运行时。
+
+pub mod actions;
 mod debug;
 mod deps;
 mod downloads;
-pub(crate) mod event_feed;
 mod facade;
-pub mod launcher;
-pub(super) mod live_stage;
-mod live_translation;
-pub(crate) mod managed_credential_gc;
-pub(crate) mod ocr_artifact_reuse;
+pub mod files;
+pub mod lifecycle;
 mod presentation;
+pub mod progress;
 mod query;
-mod reader_regions;
-mod readiness;
+pub mod reader;
 pub mod runtime_gateway;
-pub mod snapshot_factory;
-mod stage_plan;
-pub(crate) mod stage_view;
 pub(super) mod summary_loaders;
 mod support;
-pub(crate) mod translation_request_recovery;
-pub mod validation;
 
-pub use control::wait_for_terminal_job;
+pub use actions::wait_for_terminal_job;
 pub(crate) use deps::{
     CommandJobsDeps, ControlDeps, JobSubmitDeps, QueryJobsDeps, ReplayDeps, SnapshotBuildDeps,
 };
@@ -31,14 +24,14 @@ pub(crate) use downloads::{
     Disposition, DocumentDownloadKind, FileDownload, FileGroup, JobDownloads, JobFile,
     JobFilesView, JobScope, MarkdownDownload,
 };
-pub(crate) use creation::with_dev_translation_defaults;
+pub(crate) use lifecycle::with_dev_translation_defaults;
 #[cfg(test)]
-pub(crate) use creation::{DevDefaultsGuard, DevTranslationDefaults};
+pub(crate) use lifecycle::{DevDefaultsGuard, DevTranslationDefaults};
 pub(crate) use facade::build_jobs_facade;
 pub use facade::JobsFacade;
 pub use query::JobQueries;
-pub(crate) use readiness::job_readiness;
+pub(crate) use files::job_readiness;
 
-pub use validation::{
+pub use lifecycle::validation::{
     validate_mineru_upload_limits, validate_ocr_provider_request, validate_provider_credentials,
 };

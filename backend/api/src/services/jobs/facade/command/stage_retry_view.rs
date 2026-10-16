@@ -6,7 +6,7 @@ use crate::models::api::{
     RetryStageSubmissionView, StageActionsView, StageRetryActionLinkView, StageRetryActionView,
 };
 use crate::models::domain::{JobSnapshot, JobStatusKind, WorkflowKind};
-use crate::services::jobs::stage_plan::{stage_name, stage_plans, JobStagePlan};
+use crate::services::jobs::actions::stage_plan::{stage_name, stage_plans, JobStagePlan};
 
 pub(super) fn build_stage_actions_view(
     base_url: &str,

@@ -122,21 +122,21 @@ fn expired() -> AppError {
     AppError::event_cursor_expired("event history changed; reload from head or tail")
 }
 
-pub(super) fn live_snapshot(
+pub(in crate::services::jobs) fn live_snapshot(
     db: &Db,
     root: &Path,
     job: &JobSnapshot,
-) -> Option<crate::services::jobs::live_stage::LiveStageSnapshot> {
+) -> Option<crate::services::jobs::progress::live_stage::LiveStageSnapshot> {
     let feed = synchronize(db, root, job).ok()?;
     let checkpoints: sync::Checkpoints = serde_json::from_value(feed.checkpoints).ok()?;
-    crate::services::jobs::live_stage::select_live_stage_snapshot(&checkpoints.stage_basis, &job.status)
+    crate::services::jobs::progress::live_stage::select_live_stage_snapshot(&checkpoints.stage_basis, &job.status)
 }
 
-pub(super) fn live_snapshots(
+pub(in crate::services::jobs) fn live_snapshots(
     db: &Db,
     root: &Path,
     jobs: &[JobSnapshot],
-) -> std::collections::HashMap<String, crate::services::jobs::live_stage::LiveStageSnapshot> {
+) -> std::collections::HashMap<String, crate::services::jobs::progress::live_stage::LiveStageSnapshot> {
     let ids: Vec<_> = jobs.iter().map(|job| job.job_id.as_str()).collect();
     let inputs = db.load_event_projection_inputs(&ids).ok();
     jobs.iter()
@@ -147,7 +147,7 @@ pub(super) fn live_snapshots(
                     .flatten()
             });
             let live = match basis {
-                Some(basis) => crate::services::jobs::live_stage::select_live_stage_snapshot(&basis, &job.status),
+                Some(basis) => crate::services::jobs::progress::live_stage::select_live_stage_snapshot(&basis, &job.status),
                 None => live_snapshot(db, root, job),
             };
             live.map(|live| (job.job_id.clone(), live))

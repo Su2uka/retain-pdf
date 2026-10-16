@@ -3,7 +3,7 @@ use crate::models::api::{
     LiveTranslationCommitEventView, LiveTranslationLayoutView, LiveTranslationPageView,
 };
 
-use crate::services::jobs::live_translation::{
+use crate::services::jobs::progress::live_translation::{
     heal_live_translation_revisions, load_live_translation_events_after,
     load_live_translation_layout, load_live_translation_page,
 };

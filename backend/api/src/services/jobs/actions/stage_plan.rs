@@ -2,7 +2,7 @@ use std::path::Path;
 
 use crate::models::api::RetryStageKind;
 use crate::models::domain::{JobSnapshot, JobStatusKind, WorkflowKind};
-use crate::services::jobs::translation_request_recovery::load_translation_request_recovery;
+use crate::services::jobs::actions::translation_request_recovery::load_translation_request_recovery;
 use crate::services::jobs::runtime_gateway::{
     translation_artifacts_are_ready, translation_checkpoint_candidate_is_ready,
 };

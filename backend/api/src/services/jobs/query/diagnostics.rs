@@ -2,8 +2,8 @@ use crate::error::AppError;
 use crate::job_failure::classify_job_failure;
 use crate::models::api::{JobDiagnosticsView, JobResumePlanView, OcrAmbiguityView};
 use crate::models::domain::{JobFailureInfo, JobSnapshot, JobStatusKind};
-use crate::services::jobs::stage_plan::resume_plan;
-use crate::services::jobs::translation_request_recovery::load_translation_request_recovery_with_db;
+use crate::services::jobs::actions::stage_plan::resume_plan;
+use crate::services::jobs::actions::translation_request_recovery::load_translation_request_recovery_with_db;
 use crate::storage_paths::resolve_pipeline_summary;
 
 use crate::services::jobs::presentation::build_ocr_ambiguity_view;

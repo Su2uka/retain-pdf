@@ -6,9 +6,9 @@ use crate::models::api::{
     AmbiguousRequestPolicy, OcrAmbiguityResolutionKind, OcrAmbiguityResolutionRequest,
     OcrAmbiguityResolutionView, RetryStageKind, RetryStageRequest,
 };
-use crate::services::jobs::stage_plan::stage_plan;
+use crate::services::jobs::actions::stage_plan::stage_plan;
 
-use crate::services::jobs::creation::{submit_job, NewJob};
+use crate::services::jobs::lifecycle::creation::{submit_job, NewJob};
 use crate::services::jobs::query::load_job_or_404;
 use crate::services::jobs::facade::JobsFacade;
 use crate::services::jobs::facade::command::stage_retry_request::build_retry_request;

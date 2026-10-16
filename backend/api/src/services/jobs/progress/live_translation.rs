@@ -25,11 +25,11 @@ use typography::{load_typography_index, TypographyIndex};
 #[path = "live_translation/revisions.rs"]
 mod revisions;
 
-pub(super) use revisions::{
+pub(in crate::services::jobs) use revisions::{
     live_publication_view, prune_superseded_revision_snapshots, publish_translation_revisions,
 };
 
-pub(super) fn load_live_translation_layout(
+pub(in crate::services::jobs) fn load_live_translation_layout(
     data_root: &Path,
     job: &JobSnapshot,
 ) -> Result<LiveTranslationLayoutView, AppError> {
@@ -85,7 +85,7 @@ pub(super) fn load_live_translation_layout(
 /// 读取时对账修订登记:写回成功、但当时没登记进数据库的修订(进程崩溃、数据库
 /// 忙……)在打开实时译文时补上。只对不在跑的任务、且译文目录归它自己所有时做;
 /// 从没修订过的任务只多一次 stat。失败只记日志,不影响读取。
-pub(super) fn heal_live_translation_revisions(db: &Db, data_root: &Path, job: &JobSnapshot) {
+pub(in crate::services::jobs) fn heal_live_translation_revisions(db: &Db, data_root: &Path, job: &JobSnapshot) {
     if matches!(job.status, JobStatusKind::Queued | JobStatusKind::Running) {
         return;
     }
@@ -108,7 +108,7 @@ pub(super) fn heal_live_translation_revisions(db: &Db, data_root: &Path, job: &J
     }
 }
 
-pub(super) fn load_live_translation_page(
+pub(in crate::services::jobs) fn load_live_translation_page(
     db: &Db,
     data_root: &Path,
     job: &JobSnapshot,
@@ -179,7 +179,7 @@ pub(super) fn load_live_translation_page(
     })
 }
 
-pub(super) fn load_live_translation_events_after(
+pub(in crate::services::jobs) fn load_live_translation_events_after(
     db: &Db,
     job_id: &str,
     after_seq: i64,

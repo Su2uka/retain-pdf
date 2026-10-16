@@ -9,9 +9,9 @@ mod canonical_events;
 mod pipeline_events;
 mod snapshot;
 
-pub(super) use canonical_events::canonicalize_job_event;
-pub(super) use pipeline_events::parse_feed_line;
-pub(super) use snapshot::{compact_stage_basis, select_live_stage_snapshot};
+pub(in crate::services::jobs) use canonical_events::canonicalize_job_event;
+pub(in crate::services::jobs) use pipeline_events::parse_feed_line;
+pub(in crate::services::jobs) use snapshot::{compact_stage_basis, select_live_stage_snapshot};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct LiveStageSnapshot {
@@ -31,7 +31,7 @@ pub(crate) fn load_live_stage_snapshot(
     job: &JobSnapshot,
     data_root: &Path,
 ) -> Option<LiveStageSnapshot> {
-    crate::services::jobs::event_feed::live_snapshot(db, data_root, job)
+    crate::services::jobs::progress::event_feed::live_snapshot(db, data_root, job)
 }
 
 pub(crate) fn load_live_stage_snapshots(
@@ -39,5 +39,5 @@ pub(crate) fn load_live_stage_snapshots(
     jobs: &[JobSnapshot],
     data_root: &Path,
 ) -> std::collections::HashMap<String, LiveStageSnapshot> {
-    crate::services::jobs::event_feed::live_snapshots(db, data_root, jobs)
+    crate::services::jobs::progress::event_feed::live_snapshots(db, data_root, jobs)
 }

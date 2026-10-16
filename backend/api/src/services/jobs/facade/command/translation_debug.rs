@@ -9,7 +9,7 @@ use crate::models::api::{
 use crate::models::domain::JobStatusKind;
 
 use crate::services::jobs::debug::{replay_translation_item, revise_translation_item};
-use crate::services::jobs::live_translation::{
+use crate::services::jobs::progress::live_translation::{
     live_publication_view, prune_superseded_revision_snapshots, publish_translation_revisions,
 };
 use crate::services::jobs::query::load_supported_job;

@@ -13,8 +13,8 @@ use crate::models::domain::{JobFailureInfo, JobRuntimeInfo, JobSnapshot, OcrProv
 use crate::services::artifacts::{build_artifacts_display, display_title, job_upload_id};
 
 use crate::services::jobs::job_readiness;
-use crate::services::jobs::live_stage::load_live_stage_snapshot;
-use crate::services::jobs::stage_view::build_job_stage_view;
+use crate::services::jobs::progress::live_stage::load_live_stage_snapshot;
+use crate::services::jobs::progress::stage_view::build_job_stage_view;
 use crate::services::jobs::summary_loaders::SummaryCache;
 use super::contracts::build_job_contracts_view;
 use super::helpers::{build_book_summary, build_ocr_job_summary, job_failure_to_legacy_view};

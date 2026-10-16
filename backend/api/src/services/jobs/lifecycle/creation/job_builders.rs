@@ -1,13 +1,13 @@
 use crate::error::AppError;
 use crate::models::domain::{JobSnapshot, UploadRecord, WorkflowKind};
 use crate::models::request::CreateJobInput;
-use crate::services::jobs::snapshot_factory::{build_job_snapshot, JobCommandKind, JobInit};
+use crate::services::jobs::lifecycle::snapshot_factory::{build_job_snapshot, JobCommandKind, JobInit};
 
 use super::prepare::{
     prepare_full_pipeline_input, prepare_ocr_input, prepare_render_input,
     prepare_translate_only_input,
 };
-use crate::services::jobs::validation::validate_runtime_limits;
+use crate::services::jobs::lifecycle::validation::validate_runtime_limits;
 use crate::services::jobs::deps::SnapshotBuildDeps;
 
 pub(super) fn build_translation_job_snapshot(

@@ -2,11 +2,11 @@ use crate::error::AppError;
 use crate::models::api::JobSubmissionView;
 use crate::models::domain::{now_iso, JobSnapshot, JobStatusKind, WorkflowKind};
 use crate::models::request::{CreateJobInput, JobSourceInput};
-use crate::services::jobs::stage_plan::resume_plan;
-use crate::services::jobs::translation_request_recovery::load_translation_request_recovery;
-use crate::services::jobs::managed_credential_gc::cleanup_deleted_job_credentials;
+use crate::services::jobs::actions::stage_plan::resume_plan;
+use crate::services::jobs::actions::translation_request_recovery::load_translation_request_recovery;
+use crate::services::jobs::lifecycle::managed_credential_gc::cleanup_deleted_job_credentials;
 
-use crate::services::jobs::creation::{relaunch_in_place, submit_job, NewJob};
+use crate::services::jobs::lifecycle::creation::{relaunch_in_place, submit_job, NewJob};
 use crate::services::jobs::query::load_job_or_404;
 use crate::services::jobs::facade::JobsFacade;
 use crate::services::jobs::facade::command::ocr_ambiguity::ambiguous_ocr_dispatch;

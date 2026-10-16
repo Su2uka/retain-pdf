@@ -15,7 +15,7 @@ use crate::models::domain::{now_iso, CreateJobInput, JobSnapshot, RefineOverride
 use crate::services::credentials::{
     acquire_credential_usage_lock, get_or_create_managed_credential, CredentialUsageLock,
 };
-use crate::services::jobs::validation::validate_translation_credential_reference;
+use crate::services::jobs::lifecycle::validation::validate_translation_credential_reference;
 use crate::storage_paths::JobPaths;
 use crate::worker_command::refine_override::clear_refine_override;
 
@@ -120,7 +120,7 @@ pub(super) fn import_inline_refine_keys(
     let guard = acquire_credential_usage_lock(data_root)?;
     for reference in &imported {
         retain_data::credentials::resolve_credential(data_root, reference, "translation_api_key")
-            .map_err(crate::services::jobs::validation::map_credential_reference_error)?;
+            .map_err(crate::services::jobs::lifecycle::validation::map_credential_reference_error)?;
     }
     Ok((overrides, Some(guard)))
 }

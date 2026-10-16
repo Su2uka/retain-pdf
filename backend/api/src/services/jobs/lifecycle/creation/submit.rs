@@ -20,10 +20,10 @@ use crate::job_events::persist_job_with_resources;
 use crate::models::domain::{JobSnapshot, UploadRecord, WorkflowKind};
 use crate::models::request::CreateJobInput;
 use crate::services::jobs::deps::JobSubmitDeps;
-use crate::services::jobs::launcher::{
+use crate::services::jobs::lifecycle::launcher::{
     apply_platform_models, apply_platform_models_to_input, link_new_job_to_document, JobLaunchDeps,
 };
-use crate::services::jobs::validation::validate_mineru_upload_limits;
+use crate::services::jobs::lifecycle::validation::validate_mineru_upload_limits;
 
 use super::dev_defaults::with_dev_translation_defaults;
 use super::job_builders::{build_ocr_job_snapshot, build_translation_job_snapshot};

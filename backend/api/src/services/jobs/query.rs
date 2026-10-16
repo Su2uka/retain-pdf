@@ -37,7 +37,7 @@ impl<'a> JobQueries<'a> {
         limit: u32,
     ) -> Result<Vec<crate::models::api::LiveTranslationCommitEventView>, AppError> {
         load_supported_job(self.db, self.data_root, job_id)?;
-        crate::services::jobs::live_translation::load_live_translation_events_after(
+        crate::services::jobs::progress::live_translation::load_live_translation_events_after(
             self.db,
             job_id,
             after_seq.max(0),
@@ -124,7 +124,7 @@ impl<'a> JobQueries<'a> {
         query: &ListJobEventsQuery,
         ocr_only: bool,
     ) -> Result<JobEventListView, AppError> {
-        crate::services::jobs::event_feed::read_events(self.db, self.data_root, job_id, query, ocr_only)
+        crate::services::jobs::progress::event_feed::read_events(self.db, self.data_root, job_id, query, ocr_only)
     }
 
     fn load_supported_job_snapshot(

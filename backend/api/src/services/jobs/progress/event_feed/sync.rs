@@ -1,4 +1,4 @@
-use crate::services::jobs::live_stage::{canonicalize_job_event, compact_stage_basis, parse_feed_line};
+use crate::services::jobs::progress::live_stage::{canonicalize_job_event, compact_stage_basis, parse_feed_line};
 use super::files::{self, SourceFile};
 use crate::db::{Db, EventProjectionInput, EventSourceVersion, NewFeedItem, StoredEventFeed};
 use crate::error::AppError;

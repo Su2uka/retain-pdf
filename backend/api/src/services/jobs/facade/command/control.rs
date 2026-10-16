@@ -2,7 +2,7 @@ use crate::error::AppError;
 use crate::models::api::JobSubmissionView;
 use crate::models::domain::JobStatusKind;
 
-use crate::services::jobs::control::cancel_job as cancel_job_service;
+use crate::services::jobs::actions::cancel::cancel_job as cancel_job_service;
 use crate::services::jobs::query::load_job_or_404;
 use crate::services::jobs::query::load_ocr_job_or_404;
 use crate::services::jobs::support::ensure_cancelable;

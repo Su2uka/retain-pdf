@@ -1,8 +1,8 @@
 use std::path::Path;
 
-use crate::services::jobs::live_stage::{load_live_stage_snapshots, LiveStageSnapshot};
+use crate::services::jobs::progress::live_stage::{load_live_stage_snapshots, LiveStageSnapshot};
 use crate::services::jobs::query::list_jobs_filtered;
-use crate::services::jobs::stage_view::build_job_stage_view;
+use crate::services::jobs::progress::stage_view::build_job_stage_view;
 use crate::services::jobs::summary_loaders::SummaryCache;
 use super::helpers::{cover_url, job_path_prefix, thumbnail_url};
 use crate::config::limits::MAX_JOB_LIMIT;
@@ -118,7 +118,7 @@ fn build_job_list_item_view(
         display_name: display_title(upload, job, titles),
         workflow: job.workflow.clone(),
         status: job.status.clone(),
-        completion_note: crate::services::jobs::stage_view::terminal_completion_note(job),
+        completion_note: crate::services::jobs::progress::stage_view::terminal_completion_note(job),
         attempt: job
             .runtime
             .as_ref()
