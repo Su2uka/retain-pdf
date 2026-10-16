@@ -94,7 +94,7 @@ Docker 使用 `/data`，桌面端传入应用数据目录；`services/data/` 不
 恢复需要数据库状态和匹配的 job/checkpoint 文件，因此备份或迁移必须覆盖整个数据根，
 不能只复制 `jobs.db`。
 
-多设备同步（`retain-data::sync`；应用服务 `services/platform/sync` 在 rust_api 里定时同步，设置在
+多设备同步（`retain-data::sync`；应用服务在平台包 `retain-pdf-platform` 的 `sync`，由 rust_api 定时同步，设置在
 「设置 → 同步」，接口见 `docs/api/09-同步`）通过一个
 「同步文件夹」（网盘客户端同步的目录，或 WebDAV）交换书库，不需要任何一端跑服务。同步的单位是实体：
 上传、书（含标题状态与标题建议）、合集、合集成员、收藏、结束了的任务（行 + 产物登记 + 流水线记录 +
@@ -108,7 +108,7 @@ AI 对话（含消息；本机会话进度列不带）、AI 计算、AI 改文�
 `backend/packages/retain-data/src/sync.rs`；调试用 `cargo run -p retain-pdf-data --example
 sync_cycle -- <数据目录> <同步文件夹>`。
 
-数据库备份（`retain_pdf_db::db::backup`；调度在 `services/platform/backup`，接口见 `docs/api/10-备份`）：
+数据库备份（`retain_pdf_db::db::backup`；调度在平台包 `retain-pdf-platform` 的 `backup`，接口见 `docs/api/10-备份`）：
 每天一份 `VACUUM INTO` 快照，gzip 后放在 `<数据目录>/backups/db/`，按种类保留；结构升级前
 （`ensure_schema` 第一次连上、版本落后时）自动存一份。恢复用 SQLite 在线备份接口整体写进
 正在用的库，不用重启；恢复前先存一份、有任务在跑时拒绝、期间停住同步；同步记账按「带着旧数据
