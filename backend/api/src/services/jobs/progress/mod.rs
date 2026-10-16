@@ -3,4 +3,6 @@
 pub(crate) mod event_feed;
 pub(in crate::services) mod live_stage;
 pub(crate) mod live_translation;
+mod live_translation_queries;
+mod queries;
 pub(crate) mod stage_view;

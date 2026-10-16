@@ -1,133 +1,31 @@
-mod diagnostics;
-mod reader_regions;
+//! 只读查询的入口 `JobQueries` 和各类共用的取任务函数。各类的查询方法写在各自目录的 `queries.rs` 里。
+
 #[cfg(test)]
 mod tests;
-mod translation_debug;
 
 use std::path::Path;
 
 use crate::db::Db;
 use crate::error::AppError;
-use crate::models::api::{
-    ArtifactLinksView, DocumentJobListView, JobArtifactManifestView, JobDetailView,
-    JobEventListView, JobListView, ListDocumentJobsQuery, ListJobEventsQuery, ListJobsQuery,
-};
+use crate::models::api::ListJobsQuery;
 use crate::models::domain::{JobSnapshot, WorkflowKind};
 use crate::storage_paths::{
     job_uses_legacy_output_layout, job_uses_legacy_path_storage, LEGACY_JOB_UNSUPPORTED_MESSAGE,
 };
 
-use crate::services::jobs::presentation::{
-    build_document_job_list_view, build_job_artifact_links_view, build_job_artifact_manifest_view,
-    build_job_detail_view, build_job_list_view,
-};
-
 /// Read-only job views require only persisted state and its artifacts, never a
 /// launcher, upload service, or download/replay configuration.
 pub struct JobQueries<'a> {
-    db: &'a Db,
-    data_root: &'a Path,
+    pub(in crate::services::jobs) db: &'a Db,
+    pub(in crate::services::jobs) data_root: &'a Path,
 }
 
 impl<'a> JobQueries<'a> {
-    pub fn live_translation_events_after(
-        &self,
-        job_id: &str,
-        after_seq: i64,
-        limit: u32,
-    ) -> Result<Vec<crate::models::api::LiveTranslationCommitEventView>, AppError> {
-        load_supported_job(self.db, self.data_root, job_id)?;
-        crate::services::jobs::progress::live_translation::load_live_translation_events_after(
-            self.db,
-            job_id,
-            after_seq.max(0),
-            limit,
-        )
-    }
     pub(crate) fn new(db: &'a Db, data_root: &'a Path) -> Self {
         Self { db, data_root }
     }
 
-    pub fn document_jobs_view(
-        &self,
-        base_url: &str,
-        document_id: &str,
-        query: &ListDocumentJobsQuery,
-    ) -> Result<DocumentJobListView, AppError> {
-        self.db
-            .get_document(document_id)
-            .map_err(|_| AppError::not_found(format!("document not found: {document_id}")))?;
-        build_document_job_list_view(self.db, self.data_root, document_id, query, base_url)
-    }
-
-    pub fn list_jobs_view(
-        &self,
-        base_url: &str,
-        query: &ListJobsQuery,
-    ) -> Result<JobListView, AppError> {
-        build_job_list_view(self.db, self.data_root, query, base_url)
-    }
-
-    pub fn job_detail_view(
-        &self,
-        base_url: &str,
-        job_id: &str,
-        ocr_only: bool,
-    ) -> Result<JobDetailView, AppError> {
-        let job = self.load_supported_job_snapshot(job_id, ocr_only)?;
-        Ok(build_job_detail_view(
-            self.db,
-            self.data_root,
-            &job,
-            base_url,
-        ))
-    }
-
-    pub fn job_artifacts_view(
-        &self,
-        base_url: &str,
-        job_id: &str,
-        ocr_only: bool,
-    ) -> Result<ArtifactLinksView, AppError> {
-        let job = self.load_supported_job_snapshot(job_id, ocr_only)?;
-        Ok(build_job_artifact_links_view(
-            self.data_root,
-            &job,
-            base_url,
-        ))
-    }
-
-    /// `/jobs/:id/files`：按 output / pages / internal 列出文件。`internal` 只给管理员。
-    pub fn job_files_view(
-        &self,
-        base_url: &str,
-        job_id: &str,
-        include_internal: bool,
-    ) -> Result<crate::services::jobs::JobFilesView, AppError> {
-        let job = load_supported_job(self.db, self.data_root, job_id)?;
-        crate::services::jobs::downloads::job_files_view(self.db, self.data_root, &job, include_internal, base_url)
-    }
-
-    pub fn job_artifact_manifest_view(
-        &self,
-        base_url: &str,
-        job_id: &str,
-        ocr_only: bool,
-    ) -> Result<JobArtifactManifestView, AppError> {
-        let job = self.load_supported_job_snapshot(job_id, ocr_only)?;
-        build_job_artifact_manifest_view(self.db, self.data_root, &job, base_url)
-    }
-
-    pub fn job_events_view(
-        &self,
-        job_id: &str,
-        query: &ListJobEventsQuery,
-        ocr_only: bool,
-    ) -> Result<JobEventListView, AppError> {
-        crate::services::jobs::progress::event_feed::read_events(self.db, self.data_root, job_id, query, ocr_only)
-    }
-
-    fn load_supported_job_snapshot(
+    pub(in crate::services::jobs) fn load_supported_job_snapshot(
         &self,
         job_id: &str,
         ocr_only: bool,

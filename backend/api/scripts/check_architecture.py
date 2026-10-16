@@ -79,9 +79,9 @@ ALLOWED_APPSTATE_FILES = {
     Path("src/routes/backups.rs"),
     Path("src/routes/uploads.rs"),
     Path("src/services/glossaries/tests.rs"),
-    Path("src/services/jobs/creation/tests.rs"),
+    Path("src/services/jobs/lifecycle/creation/tests.rs"),
     # 同一组建任务测试（按页额度），复用 creation/tests.rs 的 AppState 夹具。
-    Path("src/services/jobs/creation/page_quota_tests.rs"),
+    Path("src/services/jobs/lifecycle/creation/page_quota_tests.rs"),
     Path("src/services/jobs/support.rs"),
 }
 
@@ -259,10 +259,10 @@ ROUTE_SERVICE_IMPORT_ALLOWLIST = {
         "crate::services::usage::api::",
     ),
     Path("src/routes/jobs/data.rs"): (
-        "crate::services::job_data::api::",
+        "crate::services::jobs::data::api::",
     ),
     Path("src/routes/common/job_data.rs"): (
-        "crate::services::job_data::api::JobDataApiDeps",
+        "crate::services::jobs::data::api::JobDataApiDeps",
     ),
     Path("src/routes/token_usage.rs"): (
         "crate::services::usage::api::",
@@ -316,7 +316,7 @@ OCR_FLOW_ORCHESTRATOR_FILE = Path("src/job_runner/ocr_flow/mod.rs")
 OCR_FLOW_ALLOWED_RAW_TOKEN_FILES = {
     Path("src/job_runner/ocr_flow/paddle_markdown.rs"),
 }
-DOWNLOADS_ROOT = SRC_ROOT / "services" / "jobs" / "downloads"
+DOWNLOADS_ROOT = SRC_ROOT / "services" / "jobs" / "files" / "downloads"
 STAGE_VIEW_CONSUMER_ROOTS = (
     SRC_ROOT / "services" / "jobs" / "presentation",
     SRC_ROOT / "services" / "library" / "book_projection",
@@ -674,31 +674,40 @@ def check_service_model_facade_boundaries(errors: list[str]) -> None:
         SRC_ROOT / "services" / "fonts",
         SRC_ROOT / "services" / "credentials",
         SRC_ROOT / "services" / "agent_calculations",
-        SRC_ROOT / "services" / "jobs" / "snapshot_factory.rs",
-        SRC_ROOT / "services" / "jobs" / "validation.rs",
-        SRC_ROOT / "services" / "jobs" / "launcher.rs",
-        SRC_ROOT / "services" / "jobs" / "downloads",
-        SRC_ROOT / "services" / "jobs" / "creation",
+        SRC_ROOT / "services" / "jobs" / "lifecycle" / "snapshot_factory.rs",
+        SRC_ROOT / "services" / "jobs" / "lifecycle" / "validation.rs",
+        SRC_ROOT / "services" / "jobs" / "lifecycle" / "launcher.rs",
+        SRC_ROOT / "services" / "jobs" / "files" / "downloads",
+        SRC_ROOT / "services" / "jobs" / "files" / "downloads.rs",
+        SRC_ROOT / "services" / "jobs" / "lifecycle" / "creation",
+        SRC_ROOT / "services" / "jobs" / "lifecycle" / "submission.rs",
         SRC_ROOT / "services" / "jobs" / "presentation",
-        SRC_ROOT / "services" / "jobs" / "control.rs",
-        SRC_ROOT / "services" / "jobs" / "debug",
-        SRC_ROOT / "services" / "jobs" / "facade" / "mod.rs",
+        SRC_ROOT / "services" / "jobs" / "actions" / "cancel.rs",
+        SRC_ROOT / "services" / "jobs" / "translations",
+        SRC_ROOT / "services" / "jobs" / "reports",
+        SRC_ROOT / "services" / "jobs" / "facade.rs",
         SRC_ROOT / "services" / "jobs" / "deps",
-        SRC_ROOT / "services" / "jobs" / "facade" / "query",
-        SRC_ROOT / "services" / "jobs" / "facade" / "command" / "creation.rs",
-        SRC_ROOT / "services" / "jobs" / "facade" / "command" / "control.rs",
-        SRC_ROOT / "services" / "jobs" / "facade" / "command" / "rerun.rs",
-        SRC_ROOT / "services" / "jobs" / "facade" / "command" / "stage_retry.rs",
-        SRC_ROOT / "services" / "jobs" / "facade" / "command" / "stage_retry_overrides.rs",
-        SRC_ROOT / "services" / "jobs" / "facade" / "command" / "stage_retry_request.rs",
-        SRC_ROOT / "services" / "jobs" / "facade" / "command" / "stage_retry_view.rs",
-        SRC_ROOT / "services" / "jobs" / "live_stage",
-        SRC_ROOT / "services" / "jobs" / "live_stage.rs",
-        SRC_ROOT / "services" / "jobs" / "reader_regions",
-        SRC_ROOT / "services" / "jobs" / "reader_regions.rs",
+        SRC_ROOT / "services" / "jobs" / "progress" / "live_translation_queries.rs",
+        SRC_ROOT / "services" / "jobs" / "ai",
+        SRC_ROOT / "services" / "jobs" / "reader" / "markdown.rs",
+                SRC_ROOT / "services" / "jobs" / "actions" / "cancel_submission.rs",
+        SRC_ROOT / "services" / "jobs" / "actions" / "rerun.rs",
+        SRC_ROOT / "services" / "jobs" / "actions" / "stage_retry.rs",
+        SRC_ROOT / "services" / "jobs" / "actions" / "stage_retry_overrides.rs",
+        SRC_ROOT / "services" / "jobs" / "actions" / "stage_retry_request.rs",
+        SRC_ROOT / "services" / "jobs" / "actions" / "stage_retry_view.rs",
+        SRC_ROOT / "services" / "jobs" / "progress" / "live_stage",
+        SRC_ROOT / "services" / "jobs" / "progress" / "live_stage.rs",
+        SRC_ROOT / "services" / "jobs" / "reader" / "reader_regions",
+        SRC_ROOT / "services" / "jobs" / "reader" / "reader_regions.rs",
         SRC_ROOT / "services" / "jobs" / "query.rs",
-        SRC_ROOT / "services" / "jobs" / "stage_plan.rs",
-        SRC_ROOT / "services" / "jobs" / "stage_view.rs",
+        SRC_ROOT / "services" / "jobs" / "lifecycle" / "queries.rs",
+        SRC_ROOT / "services" / "jobs" / "progress" / "queries.rs",
+        SRC_ROOT / "services" / "jobs" / "files" / "queries.rs",
+        SRC_ROOT / "services" / "jobs" / "reader" / "queries.rs",
+        SRC_ROOT / "services" / "jobs" / "actions" / "resume_plan.rs",
+        SRC_ROOT / "services" / "jobs" / "actions" / "stage_plan.rs",
+        SRC_ROOT / "services" / "jobs" / "progress" / "stage_view.rs",
         SRC_ROOT / "services" / "jobs" / "summary_loaders",
         SRC_ROOT / "services" / "jobs" / "summary_loaders.rs",
         SRC_ROOT / "services" / "jobs" / "support.rs",
@@ -736,7 +745,18 @@ def check_jobs_dependency_boundaries(errors: list[str]) -> None:
     paths = scan_rs_files(root)
     narrow_modules = (
         SRC_ROOT / "services" / "jobs" / "query",
-        SRC_ROOT / "services" / "jobs" / "downloads",
+        SRC_ROOT / "services" / "jobs" / "files" / "downloads",
+        SRC_ROOT / "services" / "jobs" / "lifecycle" / "queries",
+        SRC_ROOT / "services" / "jobs" / "progress" / "queries",
+        SRC_ROOT / "services" / "jobs" / "files" / "queries",
+        SRC_ROOT / "services" / "jobs" / "reader" / "queries",
+        SRC_ROOT / "services" / "jobs" / "reports" / "queries",
+        SRC_ROOT / "services" / "jobs" / "translations" / "queries",
+        # 原来在 query/、downloads/ 里，按类挪出去的只读部分。
+        SRC_ROOT / "services" / "jobs" / "reports" / "failure",
+        SRC_ROOT / "services" / "jobs" / "actions" / "resume_plan",
+        SRC_ROOT / "services" / "jobs" / "reader" / "markdown",
+        SRC_ROOT / "services" / "jobs" / "ai",
     )
     for module in narrow_modules:
         paths.extend(scan_rs_files(module))
@@ -754,7 +774,7 @@ def check_jobs_dependency_boundaries(errors: list[str]) -> None:
             errors.append(f"{rel(path)}: query dependencies must not acquire submission or runtime control capabilities")
         if any(is_rust_module_path(path, module) for module in narrow_modules) and re.search(r"\b(?:ReplayDeps|QueryJobsDeps)\b", text):
             errors.append(f"{rel(path)}: read/download dependencies must not acquire replay capabilities")
-    if (SRC_ROOT / "services" / "jobs" / "creation" / "context.rs").exists():
+    if (SRC_ROOT / "services" / "jobs" / "lifecycle" / "creation" / "context.rs").exists():
         errors.append("jobs/creation/context.rs: shared dependencies belong in jobs/deps")
 
 
@@ -864,7 +884,7 @@ def check_process_runtime_deps_usage(errors: list[str]) -> None:
     allowed_new_callers = {
         Path("src/app/jobs.rs"),
         Path("src/job_runner/process_runner.rs"),
-        Path("src/services/jobs/creation/tests.rs"),
+        Path("src/services/jobs/lifecycle/creation/tests.rs"),
     }
     for path in scan_all_rs_files():
         rel_path = rel(path)
@@ -1032,7 +1052,7 @@ def check_downloads_do_not_generate_artifacts(errors: list[str]) -> None:
                 f"{rel_path}: downloads layer must not embed PDF generation scripts; use services::derived_artifacts"
             )
 
-    downloads_facade = SRC_ROOT / "services" / "jobs" / "downloads.rs"
+    downloads_facade = SRC_ROOT / "services" / "jobs" / "files" / "downloads.rs"
     text = route_source_without_tests(downloads_facade)
     for token in (
         "crate::storage_paths::",
@@ -1043,7 +1063,7 @@ def check_downloads_do_not_generate_artifacts(errors: list[str]) -> None:
     ):
         if token in text:
             errors.append(
-                f"{rel(downloads_facade)}: downloads facade must stay thin; move concrete download behavior into services/jobs/downloads/* ({token})"
+                f"{rel(downloads_facade)}: downloads facade must stay thin; move concrete download behavior into services/jobs/files/downloads/* ({token})"
             )
 
 
@@ -1070,12 +1090,12 @@ def check_stage_view_projection_boundary(errors: list[str]) -> None:
                 continue
             if "build_job_stage_view(" not in text:
                 errors.append(
-                    f"{rel_path}: stage/progress presentation must use services::jobs::stage_view::build_job_stage_view"
+                    f"{rel_path}: stage/progress presentation must use services::jobs::progress::stage_view::build_job_stage_view"
                 )
             for token in forbidden_tokens:
                 if token in text:
                     errors.append(
-                        f"{rel_path}: stage/progress fallback belongs in services::jobs::stage_view, found '{token}'"
+                        f"{rel_path}: stage/progress fallback belongs in services::jobs::progress::stage_view, found '{token}'"
                     )
 
 
@@ -1099,38 +1119,38 @@ def check_job_readiness_boundary(errors: list[str]) -> None:
 
 
 def check_translation_debug_boundary(errors: list[str]) -> None:
-    debug_root = SRC_ROOT / "services" / "jobs" / "debug"
-    query_translation_debug = SRC_ROOT / "services" / "jobs" / "facade" / "query" / "translation_debug.rs"
-    command_translation_debug = SRC_ROOT / "services" / "jobs" / "facade" / "command" / "translation_debug.rs"
+    debug_root = SRC_ROOT / "services" / "jobs" / "translations"
+    query_translation_debug = debug_root / "queries.rs"
+    command_translation_debug = debug_root / "edits.rs"
     artifact_module = debug_root / "artifacts.rs"
     if not artifact_module.exists():
         errors.append(
-            "src/services/jobs/debug/artifacts.rs: expected translation debug artifact reader boundary is missing"
+            "src/services/jobs/translations/artifacts.rs: expected translation debug artifact reader boundary is missing"
         )
     if not command_translation_debug.exists():
         errors.append(
-            "src/services/jobs/facade/command/translation_debug.rs: expected translation debug command facade is missing"
+            "src/services/jobs/translations/edits.rs: expected translation debug command facade is missing"
         )
 
     projection_files = (
         debug_root / "index.rs",
         debug_root / "item.rs",
-        debug_root / "diagnostics.rs",
+        SRC_ROOT / "services" / "jobs" / "reports" / "translation_reports.rs",
     )
     for path in projection_files:
         rel_path = rel(path)
         text = route_source_without_tests(path)
         if "super::index::load_manifest_pages" in text:
             errors.append(
-                f"{rel_path}: debug projection must read manifest pages through debug::artifacts, not debug::index"
+                f"{rel_path}: debug projection must read manifest pages through translations::artifacts, not translations::index"
             )
         if path.name in {"index.rs", "item.rs"} and "resolve_translation_manifest" in text:
             errors.append(
-                f"{rel_path}: translation manifest path resolution belongs in debug/artifacts.rs"
+                f"{rel_path}: translation manifest path resolution belongs in translations/artifacts.rs"
             )
         if path.name == "index.rs" and "resolve_translation_debug_index" in text:
             errors.append(
-                f"{rel_path}: translation debug index file resolution belongs in debug/artifacts.rs"
+                f"{rel_path}: translation debug index file resolution belongs in translations/artifacts.rs"
             )
 
     if query_translation_debug.exists():
@@ -1143,16 +1163,16 @@ def check_translation_debug_boundary(errors: list[str]) -> None:
         ):
             if token in text:
                 errors.append(
-                    f"{rel(query_translation_debug)}: query facade must not execute replay actions ({token}); use facade/command/translation_debug.rs"
+                    f"{rel(query_translation_debug)}: query facade must not execute replay actions ({token}); use translations/edits.rs"
                 )
 
 
 def check_reader_regions_boundary(errors: list[str]) -> None:
-    reader_projection = SRC_ROOT / "services" / "jobs" / "reader_regions.rs"
-    reader_artifacts = SRC_ROOT / "services" / "jobs" / "reader_regions" / "artifacts.rs"
+    reader_projection = SRC_ROOT / "services" / "jobs" / "reader" / "reader_regions.rs"
+    reader_artifacts = SRC_ROOT / "services" / "jobs" / "reader" / "reader_regions" / "artifacts.rs"
     if not reader_artifacts.exists():
         errors.append(
-            "src/services/jobs/reader_regions/artifacts.rs: expected reader artifact reader boundary is missing"
+            "src/services/jobs/reader/reader_regions/artifacts.rs: expected reader artifact reader boundary is missing"
         )
         return
     text = route_source_without_tests(reader_projection)
@@ -1362,11 +1382,11 @@ def check_worker_command_boundary(errors: list[str]) -> None:
                     f"{rel_path}: job_runner must request WorkerStageCommand instead of direct {token}"
                 )
 
-    snapshot_factory_path = SRC_ROOT / "services" / "jobs" / "snapshot_factory.rs"
+    snapshot_factory_path = SRC_ROOT / "services" / "jobs" / "lifecycle" / "snapshot_factory.rs"
     snapshot_factory_text = route_source_without_tests(snapshot_factory_path)
     if "crate::worker_command" in snapshot_factory_text or "build_ocr_command" in snapshot_factory_text:
         errors.append(
-            "src/services/jobs/snapshot_factory.rs: snapshot creation must not build worker commands"
+            "src/services/jobs/lifecycle/snapshot_factory.rs: snapshot creation must not build worker commands"
         )
 
     child_creation_path = abs_src(Path("src/job_runner/translation_flow_child.rs"))
@@ -1528,7 +1548,7 @@ def check_service_dependency_cycles(errors: list[str]) -> None:
         )
 
 
-# 任务产物的路径只有出口模块能拼：任务的文件走 services/jobs/downloads 的 `open`，书的文件走
+# 任务产物的路径只有出口模块能拼：任务的文件走 services/jobs/files/downloads 的 `open`，书的文件走
 # library/media.rs，派生产物的生成在 derived_artifacts，产物清单和打包在 artifacts。其它地方直接拼路径，流水线一改输出布局就跟着坏，
 # 而且每个读的人都要知道文件放在哪（"牵一发动全身"的来源之一）。
 ARTIFACT_PATH_RESOLVER = re.compile(
@@ -1539,22 +1559,24 @@ ARTIFACT_PATH_RESOLVER = re.compile(
 ARTIFACT_PATH_OWNERS = (
     Path("src/services/artifacts"),
     Path("src/services/derived_artifacts"),
-    Path("src/services/jobs/downloads"),
+    Path("src/services/jobs/files/downloads"),
+    # 原文 Markdown 的出口，原来在 downloads 里，按类挪到了阅读。
+    Path("src/services/jobs/reader/markdown.rs"),
     # 书的文件（原文、封面、原文页）的出口。
     Path("src/services/library/media.rs"),
 )
 # 2026-10-15 冻结的现状：这些文件还直接拼产物路径。只许删，不许加；删掉一个之后名单里还留着
 # 就报错（免得名单悄悄变宽）。要读产物内容就去调出口，不要往这里加文件。
 KNOWN_ARTIFACT_PATH_READERS = {
-    Path("src/services/jobs/debug/artifacts.rs"),
-    Path("src/services/jobs/debug/revision.rs"),
-    Path("src/services/jobs/live_translation.rs"),
+    Path("src/services/jobs/actions/translation_request_recovery.rs"),
+    Path("src/services/jobs/files/readiness.rs"),
     Path("src/services/jobs/presentation/helpers.rs"),
-    Path("src/services/jobs/reader_regions/artifacts.rs"),
-    Path("src/services/jobs/reader_regions/metadata.rs"),
-    Path("src/services/jobs/readiness.rs"),
+    Path("src/services/jobs/progress/live_translation.rs"),
+    Path("src/services/jobs/reader/reader_regions/artifacts.rs"),
+    Path("src/services/jobs/reader/reader_regions/metadata.rs"),
     Path("src/services/jobs/summary_loaders/shared.rs"),
-    Path("src/services/jobs/translation_request_recovery.rs"),
+    Path("src/services/jobs/translations/artifacts.rs"),
+    Path("src/services/jobs/translations/revision.rs"),
     Path("src/services/library/book_projection.rs"),
     Path("src/services/library/metadata_suggestions.rs"),
     Path("src/services/merge/sources.rs"),
@@ -1583,14 +1605,14 @@ def check_artifact_path_ownership(errors: list[str]) -> None:
         )
 
 
-# 建任务只有一个入口：services/jobs/creation/submit.rs 的 `submit_job`（新任务）和
+# 建任务只有一个入口：services/jobs/lifecycle/creation/submit.rs 的 `submit_job`（新任务）和
 # `relaunch_in_place`（原地重跑已有任务）。补默认值、换平台模型、校验、凭据入库、预扣页额度、
 # 落库、归属到书、发射，都只在那里写一次。以前五个入口各抄一遍，抄漏了就出事（例如一键翻译没先换
 # 平台模型，用户自带的 key 进了服务器的凭据库）。别处要建任务，调 submit_job。
 JOB_ENTRY_PRIMITIVE = re.compile(
     r"\bpersist_job_with_resources\s*\(|\bcreate_ocr_recovery_job_state\s*\(|\bruntime\s*\.\s*launch\s*\("
 )
-JOB_ENTRY_OWNER = Path("src/services/jobs/creation/submit.rs")
+JOB_ENTRY_OWNER = Path("src/services/jobs/lifecycle/creation/submit.rs")
 
 
 def check_job_entry_ownership(errors: list[str]) -> None:
@@ -1604,7 +1626,7 @@ def check_job_entry_ownership(errors: list[str]) -> None:
             if JOB_ENTRY_PRIMITIVE.search(rust_boundary_source(path)):
                 errors.append(
                     f"{relative}: persists or launches a new job itself; create jobs through "
-                    "services::jobs::creation::submit_job (or relaunch_in_place for an existing job)"
+                    "services::jobs::lifecycle::creation::submit_job (or relaunch_in_place for an existing job)"
                 )
 
 

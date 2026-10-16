@@ -98,7 +98,7 @@ mod tests { fn fixture() { let runtime: ProcessRuntimeDeps; } }
             with self.subTest(source=source):
                 self.assertTrue(self.check_sources({"services/jobs/deps/query.rs": source},
                                                    checks.check_jobs_dependency_boundaries))
-        self.assertTrue(self.check_sources({"services/jobs/creation/context.rs": ""},
+        self.assertTrue(self.check_sources({"services/jobs/lifecycle/creation/context.rs": ""},
                                            checks.check_jobs_dependency_boundaries))
 
     def test_runtime_ownership_allows_assembly_and_health(self):
@@ -135,19 +135,24 @@ mod tests { fn fixture() { let runtime: ProcessRuntimeDeps; } }
 
     def test_narrow_job_service_boundaries_follow_module_splits(self):
         for path in (
-            "services/jobs/query/diagnostics.rs", "services/jobs/query/reader/metadata.rs",
-            "services/jobs/deps/query/nested.rs", "services/jobs/downloads.rs",
-            "services/jobs/downloads/deps.rs", "services/jobs/downloads/files/cache.rs",
+            "services/jobs/query/nested.rs", "services/jobs/deps/query/nested.rs",
+            "services/jobs/files/downloads.rs", "services/jobs/files/downloads/deps.rs",
+            "services/jobs/files/downloads/files/cache.rs", "services/jobs/files/queries.rs",
+            "services/jobs/lifecycle/queries.rs", "services/jobs/progress/queries.rs",
+            "services/jobs/reader/queries.rs", "services/jobs/reports/queries.rs",
+            "services/jobs/translations/queries.rs", "services/jobs/reports/failure.rs",
+            "services/jobs/actions/resume_plan.rs", "services/jobs/reader/markdown.rs",
+            "services/jobs/ai/ai_board.rs",
         ):
             for capability in ("AppState", "AppConfig", "JobsFacade", "JobRuntimeLauncher", "UploadService"):
                 with self.subTest(path=path, capability=capability):
                     self.assertTrue(self.check_sources({path: capability}, checks.check_jobs_dependency_boundaries))
-        for path in ("services/jobs/query/diagnostics.rs", "services/jobs/downloads/deps.rs"):
+        for path in ("services/jobs/reports/failure.rs", "services/jobs/files/downloads/deps.rs"):
             for capability in ("ReplayDeps", "QueryJobsDeps"):
                 self.assertTrue(self.check_sources({path: capability}, checks.check_jobs_dependency_boundaries))
         self.assertEqual([], self.check_sources({
             "services/jobs/query/reader.rs": "struct ReadDeps<'a> { db: &'a Db, events: &'a JobEventFeed }",
-            "services/jobs/downloads/deps.rs": "struct DownloadJobsDeps { scheduler: DownloadGenerationScheduler }",
+            "services/jobs/files/downloads/deps.rs": "struct DownloadJobsDeps { scheduler: DownloadGenerationScheduler }",
             "services/jobs/deps/query.rs": "struct QueryJobsDeps<'a> { replay: ReplayDeps<'a> }",
         }, checks.check_jobs_dependency_boundaries))
 
@@ -281,7 +286,7 @@ mod tests { fn fixture() { let runtime: ProcessRuntimeDeps; } }
             "services/uploads/service.rs": "use crate::db::Db; use super::capacity::UploadCapacity;",
             "services/uploads/tests.rs": "let root = std::env::temp_dir();",
             "app/state.rs": "use crate::services::uploads::{UploadService, UploadConfig};",
-            "services/jobs/creation/submit.rs": "use crate::services::uploads::UploadedPdfInput;",
+            "services/jobs/lifecycle/creation/submit.rs": "use crate::services::uploads::UploadedPdfInput;",
         }))
 
     def test_forbidden_dependencies_include_grouped_imports(self):
@@ -618,7 +623,8 @@ class ArtifactPathOwnershipTests(unittest.TestCase):
 
     def test_exit_modules_may_build_paths(self):
         self.assertEqual([], self.run_check({
-            "services/jobs/downloads/files.rs": "fn f() { resolve_output_pdf(job, root); }",
+            "services/jobs/files/downloads/files.rs": "fn f() { resolve_output_pdf(job, root); }",
+            "services/jobs/reader/markdown.rs": "fn f() { resolve_markdown_path(job, root); }",
             "services/derived_artifacts/word.rs": "use crate::storage_paths::resolve_source_pdf;",
             "services/artifacts/bundle.rs": "fn f() { resolve_markdown_path(job, root); }",
         }))
@@ -658,7 +664,7 @@ class JobEntryOwnershipTests(unittest.TestCase):
 
     def test_the_entry_module_may_persist_and_launch(self):
         self.assertEqual([], self.run_check({
-            "services/jobs/creation/submit.rs": """
+            "services/jobs/lifecycle/creation/submit.rs": """
                 fn f() {
                     persist_job_with_resources(db, a, b, &job)?;
                     deps.db.create_ocr_recovery_job_state(d, &job, r, None)?;
@@ -669,8 +675,8 @@ class JobEntryOwnershipTests(unittest.TestCase):
 
     def test_other_modules_are_rejected(self):
         for path, body in (
-            ("services/jobs/facade/command/rerun.rs", "fn f() { persist_job_with_resources(db, a, b, &job); }"),
-            ("services/jobs/facade/command/x.rs", "fn f() { self.db.create_ocr_recovery_job_state(d, &j, r, None); }"),
+            ("services/jobs/actions/rerun.rs", "fn f() { persist_job_with_resources(db, a, b, &job); }"),
+            ("services/jobs/actions/x.rs", "fn f() { self.db.create_ocr_recovery_job_state(d, &j, r, None); }"),
             ("services/library/translate.rs", "fn f() { deps.launcher.runtime.launch(id); }"),
             ("routes/jobs/lifecycle.rs", "fn f() { deps.runtime . launch(id); }"),
         ):
@@ -681,8 +687,8 @@ class JobEntryOwnershipTests(unittest.TestCase):
 
     def test_cas_writes_tests_and_comments_do_not_count(self):
         self.assertEqual([], self.run_check({
-            "services/jobs/control.rs": "fn f() { cas_persist_job_with_resources(db, a, b, &job, &[]); }",
-            "services/jobs/creation/tests.rs": "fn f() { persist_job_with_resources(db, a, b, &job); }",
+            "services/jobs/actions/cancel.rs": "fn f() { cas_persist_job_with_resources(db, a, b, &job, &[]); }",
+            "services/jobs/lifecycle/creation/tests.rs": "fn f() { persist_job_with_resources(db, a, b, &job); }",
             "services/jobs/x.rs": """
                 // persist_job_with_resources(db, a, b, &job)
                 const NOTE: &str = "runtime.launch(id)";

@@ -15,7 +15,6 @@ pub(crate) mod download_names;
 pub(crate) mod fonts;
 pub(crate) mod glossaries;
 pub mod health_api;
-pub mod job_data;
 pub mod jobs;
 pub mod library;
 pub mod model_executor;

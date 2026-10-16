@@ -9,7 +9,7 @@ use axum::Json;
 use crate::error::AppError;
 use crate::models::api::ApiResponse;
 use crate::routes::common::{build_job_data_route_deps, ok_json, ApiPath, ApiQuery};
-use crate::services::job_data::api::{job_data_catalog_view, job_data_view, JobDataCatalogView, JobDataView};
+use crate::services::jobs::data::api::{job_data_catalog_view, job_data_view, JobDataCatalogView, JobDataView};
 use crate::AppState;
 
 async fn blocking<T: Send + 'static>(
