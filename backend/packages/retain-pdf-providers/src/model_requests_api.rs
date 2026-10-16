@@ -4,11 +4,9 @@ use std::sync::Arc;
 
 pub use super::model_executor::{ModelConnection, ModelRequest};
 use super::model_executor::{ModelConnectionPolicy, ModelExecutor, ModelExecutorError};
-use crate::{
-    db::Db,
-    error::AppError,
-    models::domain::{JobSnapshot, JobStatusKind},
-};
+use retain_pdf_api_base::error::AppError;
+use retain_pdf_core::models::domain::{JobSnapshot, JobStatusKind};
+use retain_pdf_data::db::Db;
 use retain_pdf_data::db::ModelOperation;
 use serde_json::{json, Value};
 

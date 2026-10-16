@@ -1,8 +1,8 @@
 use serde_json::Value;
 
-use crate::config::DeepSeekRuntimeConfig;
-use crate::error::AppError;
-use crate::models::domain::now_iso;
+use retain_pdf_core::config::DeepSeekRuntimeConfig;
+use retain_pdf_api_base::error::AppError;
+use retain_pdf_core::models::domain::now_iso;
 
 use super::types::{
     DeepSeekBalanceInfoView, DeepSeekBalanceView, DeepSeekTokenValidationRequest,
@@ -24,7 +24,7 @@ use super::url_policy::validate_provider_base_url;
 /// 改用 `max_tokens: 1` 的最小 chat 请求后，一次请求同时验证 base_url、
 /// Key 与模型三者。代价是每次检测消耗个位数 token，这是拿到真实结论的
 /// 必要成本。模型名为空时无法构造 chat 请求，才退回 `/models` 连通性探针。
-pub(crate) async fn validate_deepseek_token_view(
+pub async fn validate_deepseek_token_view(
     payload: DeepSeekTokenValidationRequest,
     runtime: DeepSeekRuntimeConfig,
 ) -> Result<MineruTokenValidationView, AppError> {
@@ -45,7 +45,7 @@ pub(crate) async fn validate_deepseek_token_view(
     let checked_at = now_iso();
     let session_id = format!("provider-probe-{}-{:016x}", checked_at, fastrand::u64(..));
     let client = reqwest::Client::builder()
-        .default_headers(crate::services::providers::model_provider_headers::opencode_headers(
+        .default_headers(crate::model_provider_headers::opencode_headers(
             &base_url,
             &session_id,
         ))

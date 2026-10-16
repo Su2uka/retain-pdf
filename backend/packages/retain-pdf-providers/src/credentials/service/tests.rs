@@ -3,8 +3,8 @@ use std::time::Duration;
 
 use serde_json::json;
 
-use crate::models::domain::JobSnapshot;
-use crate::models::request::CreateJobInput;
+use retain_pdf_core::models::domain::JobSnapshot;
+use retain_pdf_core::models::request::CreateJobInput;
 
 use super::*;
 

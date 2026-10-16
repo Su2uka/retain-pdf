@@ -11,9 +11,9 @@ use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::db::Db;
-use crate::error::AppError;
-use crate::models::domain::now_iso;
+use retain_pdf_data::db::Db;
+use retain_pdf_api_base::error::AppError;
+use retain_pdf_core::models::domain::now_iso;
 
 // 文件格式（版本号、大小上限、路径、名字规则、读之前的安全检查）和任务运行时读密钥的一侧共用。
 use retain_pdf_data::credentials::{
@@ -51,7 +51,7 @@ impl Drop for VaultFileLock {
 /// Keeps a credential reference stable from validation through job
 /// persistence. The process-local read guard permits concurrent submissions;
 /// the file guard extends the same ordering across backend processes on POSIX.
-pub(crate) struct CredentialUsageLock {
+pub struct CredentialUsageLock {
     _process_guard: RwLockReadGuard<'static, ()>,
     _file_guard: VaultFileLock,
 }
@@ -305,7 +305,7 @@ pub fn update_credential(
 /// submission. Only credentials created by this same import path are eligible
 /// for reuse; user-created credentials remain distinct even when their secret
 /// and metadata happen to match.
-pub(crate) fn get_or_create_managed_credential(
+pub fn get_or_create_managed_credential(
     data_root: &Path,
     kind: &str,
     provider: &str,
@@ -363,7 +363,7 @@ pub(crate) fn get_or_create_managed_credential(
 /// The check and removal share the same cross-process vault write lock used by
 /// job credential usage guards.
 #[allow(dead_code)] // wired by job/document deletion in the lifecycle integration phase
-pub(crate) fn delete_unreferenced_managed_credential(
+pub fn delete_unreferenced_managed_credential(
     db: &Db,
     data_root: &Path,
     credential_ref: &str,
@@ -644,7 +644,7 @@ fn prepare_vault_directory(data_root: &Path) -> Result<PathBuf, AppError> {
     Ok(directory)
 }
 
-pub(crate) fn acquire_credential_usage_lock(
+pub fn acquire_credential_usage_lock(
     data_root: &Path,
 ) -> Result<CredentialUsageLock, AppError> {
     let process_guard = VAULT_ACCESS_LOCK

@@ -671,8 +671,6 @@ def check_service_model_facade_boundaries(errors: list[str]) -> None:
         abs_src(Path("src/job_failure.rs")),
         abs_src(Path("src/job_failure_support.rs")),
         abs_src(Path("src/job_failure_structured.rs")),
-        SRC_ROOT / "services" / "platform" / "fonts",
-        SRC_ROOT / "services" / "providers" / "credentials",
         SRC_ROOT / "services" / "ai" / "agent_calculations",
         SRC_ROOT / "services" / "jobs" / "lifecycle" / "snapshot_factory.rs",
         SRC_ROOT / "services" / "jobs" / "lifecycle" / "validation.rs",
@@ -713,7 +711,6 @@ def check_service_model_facade_boundaries(errors: list[str]) -> None:
         SRC_ROOT / "services" / "jobs" / "support.rs",
         SRC_ROOT / "services" / "library",
         SRC_ROOT / "services" / "library" / "api.rs",
-        SRC_ROOT / "services" / "providers" / "provider_probe.rs",
         SRC_ROOT / "services" / "ai",
         SRC_ROOT / "services" / "ingest" / "uploads",
         SRC_ROOT / "services" / "library" / "book_projection",
@@ -812,14 +809,10 @@ def check_business_private_modules(errors: list[str]) -> None:
     """Public capability reexports are valid; implementation-path imports are not."""
     private = {
         "ai": {"gateway"},
-        "fonts": {"service"},
-        "credentials": {"service"},
         "agent_calculations": {"service"},
     }
     homes = {
         "ai": Path("ai"),
-        "fonts": Path("platform/fonts"),
-        "credentials": Path("providers/credentials"),
         "agent_calculations": Path("ai/agent_calculations"),
     }
     for path in scan_rs_files(SRC_ROOT):
@@ -1453,6 +1446,7 @@ ALLOWED_DOMAIN_DEPENDENCIES = {
 EXTRACTED_DOMAINS = {
     "glossaries": "retain-pdf-glossaries",
     "platform": "retain-pdf-platform",
+    "providers": "retain-pdf-providers",
 }
 
 

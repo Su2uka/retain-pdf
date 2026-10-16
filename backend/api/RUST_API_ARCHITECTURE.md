@@ -82,11 +82,11 @@ app -> routes -> application services -> internal services -> job_runner / ocr_p
   - `build_glossary_route_deps` / `build_upload_route_deps` / `build_health_route_deps`
 - `routes/download_response.rs` / `routes/download_response/**`
   负责文件下载、markdown、preview、cover、thumbnail 的 response boundary
-- `services/providers/provider_api.rs`
+- 服务商包 `retain-pdf-providers` 的 `provider_api.rs`
   负责 provider 凭据探测的 application facade；route 只接触窄化后的
   `ProviderApiDeps` 和公开 DTO，不直接依赖 provider client / probe 实现
-- `services/providers/provider_probe.rs` / `services/providers/provider_probe/*`
-  是 crate 内部实现边界，按 `types / url_policy / ocr / deepseek` 分离；
+- 服务商包 `retain-pdf-providers` 的 `provider_probe.rs` / `provider_probe/*`
+  是包内部实现边界，按 `types / url_policy / ocr / deepseek` 分离；
   新 provider 不应把 URL 策略、HTTP 分类和公开 DTO 重新堆回单文件
 - 平台包 `retain-pdf-platform` 的 `fonts/api.rs` / `fonts/service.rs`
   分别负责字体 application facade 与内部扫描/持久化；`routes/fonts.rs`
