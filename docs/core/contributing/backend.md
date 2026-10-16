@@ -10,6 +10,7 @@
 | `backend/packages/retain-pdf-api-base` | `retain-pdf-api-base` | `retain_pdf_api_base` | |
 | `backend/packages/retain-pdf-glossaries` | `retain-pdf-glossaries` | `retain_pdf_glossaries` | |
 | `backend/packages/retain-pdf-platform` | `retain-pdf-platform` | `retain_pdf_platform` | |
+| `backend/packages/retain-pdf-providers` | `retain-pdf-providers` | `retain_pdf_providers` | |
 | `backend/packages/retain-core` | `retain-pdf-core` | `retain_pdf_core` | |
 | `backend/packages/retain-data` | `retain-pdf-data` | `retain_pdf_data` | |
 | `database/retain-db` | `retain-pdf-db` | `retain_pdf_db` | |

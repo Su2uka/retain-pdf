@@ -201,7 +201,7 @@ use sit under `#[cfg(test)]` in the same block. `check_domain_facades` rejects a
 
 A domain that has been split into its own crate is listed in
 `EXTRACTED_DOMAINS` (so far: `glossaries` → `backend/packages/retain-pdf-glossaries`, `platform` →
-`backend/packages/retain-pdf-platform`).
+`backend/packages/retain-pdf-platform`, `providers` → `backend/packages/retain-pdf-providers`).
 Its `lib.rs` is the facade, `services/mod.rs` re-exports it as
 `services::<domain>` (`pub(crate) use retain_pdf_glossaries as glossaries;`),
 and nothing for it stays under `services/`. It depends only on the base

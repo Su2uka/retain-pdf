@@ -201,7 +201,7 @@ jobs 的依赖装配由 `app/jobs.rs` 完成；依赖定义在 `services/jobs/de
   术语表接口入口。
 - [`../packages/retain-pdf-platform/src/fonts/api.rs`](../packages/retain-pdf-platform/src/fonts/api.rs)（平台已拆成独立的包）
   字体查询入口，具体发现逻辑位于私有 `service.rs`。
-- [`src/services/providers/credentials/api.rs`](src/services/providers/credentials/api.rs)
+- [`../packages/retain-pdf-providers/src/credentials/api.rs`](../packages/retain-pdf-providers/src/credentials/api.rs)（服务商已拆成独立的包）
   HTTP 凭据入口；jobs 所需凭据使用锁等能力由模块根部明确导出，不经 HTTP 入口。
 - [`src/services/ai/agent_calculations/api.rs`](src/services/ai/agent_calculations/api.rs)
   Agent 计算记录与产物接口，内部只依赖数据库和目录，不接收完整配置。
