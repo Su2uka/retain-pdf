@@ -119,7 +119,7 @@ pub(super) fn import_inline_refine_keys(
     }
     let guard = acquire_credential_usage_lock(data_root)?;
     for reference in &imported {
-        retain_data::credentials::resolve_credential(data_root, reference, "translation_api_key")
+        retain_pdf_data::credentials::resolve_credential(data_root, reference, "translation_api_key")
             .map_err(crate::services::jobs::lifecycle::validation::map_credential_reference_error)?;
     }
     Ok((overrides, Some(guard)))

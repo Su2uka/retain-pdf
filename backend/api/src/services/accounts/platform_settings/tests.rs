@@ -68,7 +68,7 @@ fn error_code(error: AppError) -> &'static str {
 }
 
 fn credential_exists(root: &Path, credential_ref: &str, kind: &str) -> bool {
-    retain_data::credentials::resolve_credential(root, credential_ref, kind).is_ok()
+    retain_pdf_data::credentials::resolve_credential(root, credential_ref, kind).is_ok()
 }
 
 #[test]
@@ -321,7 +321,7 @@ fn switching_ocr_provider_requires_a_new_token_tagged_with_that_provider() {
         ("paddle", true, "…2222")
     );
     let record = env_.db.platform_settings().unwrap().unwrap();
-    let resolved = retain_data::credentials::resolve_credential(
+    let resolved = retain_pdf_data::credentials::resolve_credential(
         &env_.root,
         &record.ocr_credential_ref,
         OCR_TOKEN_KIND,

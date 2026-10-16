@@ -1,4 +1,4 @@
-use retain_data::credentials::resolve_credential;
+use retain_pdf_data::credentials::resolve_credential;
 use tokio::process::Command;
 
 use crate::error::AppError;

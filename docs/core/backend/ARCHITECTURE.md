@@ -105,10 +105,10 @@ AI 对话（含消息；本机会话进度列不带）、AI 计算、AI 改文�
 每台设备每天最多一次整理自己的目录——改动记录合并成每个实体最后一条并登记 `base`、没人用的包停用 7 天
 后删、大半没用的包重新打包；各设备的整理状态在 `devices/<设备号>/state.json`，十分钟重读一次。合并按字段：每个字段
 各带一个混合逻辑时钟，新的胜出；删除也带时钟，不会被旧改动复活。格式和规则见
-`backend/packages/retain-data/src/sync.rs`；调试用 `cargo run -p retain-data --example
+`backend/packages/retain-data/src/sync.rs`；调试用 `cargo run -p retain-pdf-data --example
 sync_cycle -- <数据目录> <同步文件夹>`。
 
-数据库备份（`retain_db::db::backup`；调度在 `services/platform/backup`，接口见 `docs/api/10-备份`）：
+数据库备份（`retain_pdf_db::db::backup`；调度在 `services/platform/backup`，接口见 `docs/api/10-备份`）：
 每天一份 `VACUUM INTO` 快照，gzip 后放在 `<数据目录>/backups/db/`，按种类保留；结构升级前
 （`ensure_schema` 第一次连上、版本落后时）自动存一份。恢复用 SQLite 在线备份接口整体写进
 正在用的库，不用重启；恢复前先存一份、有任务在跑时拒绝、期间停住同步；同步记账按「带着旧数据

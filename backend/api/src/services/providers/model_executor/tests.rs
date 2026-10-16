@@ -131,7 +131,7 @@ fn submission_snapshot_is_validated_and_publicly_roundtrips_without_a_key() {
     crate::services::jobs::validate_translation_credentials(&input).unwrap();
     let snapshot =
         crate::models::domain::JobSnapshot::new("roundtrip".into(), input.clone(), vec![]);
-    let public = serde_json::to_value(retain_core::models::public_request_payload(
+    let public = serde_json::to_value(retain_pdf_core::models::public_request_payload(
         &snapshot.request_payload,
     ))
     .unwrap();

@@ -4,9 +4,9 @@
 
 use std::path::{Path, PathBuf};
 
-use retain_data::db::Db;
-use retain_data::models::domain::{JobSnapshot, JobStatusKind};
-use retain_data::models::request::CreateJobInput;
+use retain_pdf_data::db::Db;
+use retain_pdf_data::models::domain::{JobSnapshot, JobStatusKind};
+use retain_pdf_data::models::request::CreateJobInput;
 
 /// `<prefix>-<label>-<pid>-<随机数>`；只给路径，不建目录（各测试建的时机不同）。
 pub fn fixture_root(prefix: &str, label: &str) -> PathBuf {

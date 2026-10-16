@@ -14,11 +14,11 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-use retain_core::models::api::{
+use retain_pdf_core::models::api::{
     SyncMaintenanceView, SyncPeerView, SyncPendingItemView, SyncRunView, SyncSettingsInput, SyncStatusView,
     SyncTestView,
 };
-use retain_core::models::domain::now_iso;
+use retain_pdf_core::models::domain::now_iso;
 
 use super::{SyncEngine, WebDavBackend, WebDavConfig};
 use crate::db::Db;

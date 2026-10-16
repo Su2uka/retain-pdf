@@ -34,7 +34,8 @@ python3 -m unittest backend/api/scripts/test_check_architecture.py
 python3 backend/pipeline/devtools/check_pipeline_architecture.py
 backend/.venv/bin/python backend/pipeline/devtools/extract_pipeline_requirements.py --services-root backend --check
 python3 .github/scripts/sync_backend_python_requirements.py --repo-root . --services-root backend --check
-cargo test -p rust_api -p retain-jobs -p retain-db -p retain-data -p retain-core -p retain-config
+backend/.venv/bin/python -m pytest -q .github/scripts/tests   # 文档相对链接、交付和 CI 约定；改了文档也要跑
+cargo test -p retain-pdf-api -p retain-pdf-runner -p retain-pdf-db -p retain-pdf-data -p retain-pdf-core -p retain-pdf-config
 ```
 
 - 改了 `backend/pipeline/retainpdf_pipeline/translate/`：再跑
@@ -45,6 +46,8 @@ cargo test -p rust_api -p retain-jobs -p retain-db -p retain-data -p retain-core
 
 ## 本地环境的坑
 
+- Rust 包名是 `retain-pdf-*`（`cargo -p` 用这个），目录名和可执行文件名（`rust_api`、`retain-jobsd`、`retainpdf`）没改，
+  对照表在 `docs/core/contributing/backend.md`。
 - worktree 里没有 `backend/.venv`，跑 Python 和 rust_api 测试前指向主检出的环境：
   `UV_PROJECT_ENVIRONMENT=<主检出>/backend/.venv`，`PATH=<主检出>/backend/.venv/bin:$PATH`
   （rust_api 的部分测试要用 PATH 上的 `retainpdf-pipeline`）。
@@ -56,9 +59,9 @@ cargo test -p rust_api -p retain-jobs -p retain-db -p retain-data -p retain-core
 
 - 三份快照钉住对外行为：接口清单 `backend/api/docs/routes.txt`、文件出口返回 `backend/api/docs/file-responses.txt`、
   建任务各入口的结果 `backend/api/docs/submissions.txt`。有意改了才重新生成：
-  `UPDATE_ROUTES=1 cargo test -p rust_api --lib route_manifest`、
-  `UPDATE_FILE_RESPONSES=1 cargo test -p rust_api --lib file_responses`、
-  `UPDATE_SUBMISSIONS=1 cargo test -p rust_api --lib submissions`。重新生成后看 diff，只该有预期的改动。
+  `UPDATE_ROUTES=1 cargo test -p retain-pdf-api --lib route_manifest`、
+  `UPDATE_FILE_RESPONSES=1 cargo test -p retain-pdf-api --lib file_responses`、
+  `UPDATE_SUBMISSIONS=1 cargo test -p retain-pdf-api --lib submissions`。重新生成后看 diff，只该有预期的改动。
 - 加路由、加 service 前先读 `check_architecture.py` 的规则：新的路由文件要进白名单（按完整 import 字符串匹配）；
   新的路径参数要在 `services/accounts/access.rs` 的 `classify_param` 里归类，否则多用户模式下 403 "not cleared"。
 - `/jobs` 按 9 类分：路由 `app/router/jobs/<类>.rs`、处理函数 `routes/jobs/<类>.rs`、业务逻辑

@@ -1,5 +1,5 @@
-use retain_core::models::domain::{DocumentOperationLimits, DocumentOperationWorkspaceManifest};
-use retain_data::db::Db;
+use retain_pdf_core::models::domain::{DocumentOperationLimits, DocumentOperationWorkspaceManifest};
+use retain_pdf_data::db::Db;
 use sha2::{Digest, Sha256};
 
 use crate::config::AppConfig;
@@ -30,8 +30,8 @@ pub(super) fn executor_for(
 pub(super) fn require_operation(
     db: &Db,
     operation_id: &str,
-) -> Result<retain_data::db::StoredDocumentOperation, AppError> {
-    retain_core::models::domain::validate_operation_id(operation_id)
+) -> Result<retain_pdf_data::db::StoredDocumentOperation, AppError> {
+    retain_pdf_core::models::domain::validate_operation_id(operation_id)
         .map_err(AppError::bad_request)?;
     db.get_document_operation(operation_id)
         .map_err(internal_error)?

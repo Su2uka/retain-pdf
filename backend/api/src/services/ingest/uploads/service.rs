@@ -7,7 +7,7 @@ use super::staging::{prepare_upload, publish_upload, sanitize_upload_filename};
 use super::UploadError;
 use crate::db::Db;
 use crate::models::domain::UploadRecord;
-use retain_core::config::{effective_upload_max_bytes, UploadProcessingConfig};
+use retain_pdf_core::config::{effective_upload_max_bytes, UploadProcessingConfig};
 
 #[derive(Debug)]
 pub(crate) struct UploadedPdfInput {

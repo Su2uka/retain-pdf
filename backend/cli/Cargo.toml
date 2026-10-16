@@ -1,5 +1,5 @@
 [package]
-name = "retainpdf-cli"
+name = "retain-pdf-cli"
 version = "0.1.0"
 edition = "2021"
 description = "RetainPDF 命令行:配置、状态、环境检查、备份、同步"
@@ -9,9 +9,9 @@ name = "retainpdf"
 path = "src/main.rs"
 
 [dependencies]
-retain-config = { path = "../packages/retain-config" }
-retain-core = { path = "../packages/retain-core" }
-retain-data = { path = "../packages/retain-data" }
+retain-pdf-config = { path = "../packages/retain-config" }
+retain-pdf-core = { path = "../packages/retain-core" }
+retain-pdf-data = { path = "../packages/retain-data" }
 anyhow = "1"
 chrono = "0.4"
 clap = { version = "4.5", features = ["derive"] }

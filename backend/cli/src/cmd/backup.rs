@@ -7,7 +7,7 @@ use anyhow::{bail, Result};
 use clap::Subcommand;
 use serde_json::{json, Value};
 
-use retain_data::db::backup::{KIND_BEFORE_RESTORE, KIND_MANUAL};
+use retain_pdf_data::db::backup::{KIND_BEFORE_RESTORE, KIND_MANUAL};
 
 use crate::context::Ctx;
 use crate::ui;

@@ -4,7 +4,7 @@
 //! and rebuild from conversation history, but it may not overwrite a cursor
 //! published by a newer adapter instance without passing revision CAS.
 
-use retain_data::db::{AgentRuntimeSessionRecord, Db, PutAgentRuntimeSessionResult};
+use retain_pdf_data::db::{AgentRuntimeSessionRecord, Db, PutAgentRuntimeSessionResult};
 use serde::{Deserialize, Serialize};
 
 use crate::error::AppError;

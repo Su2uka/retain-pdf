@@ -1,6 +1,6 @@
 use std::process::Stdio;
 
-use retain_data::credentials::resolve_credential;
+use retain_pdf_data::credentials::resolve_credential;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use tokio::process::Command;

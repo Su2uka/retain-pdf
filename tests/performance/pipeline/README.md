@@ -110,7 +110,7 @@ backend/.venv/bin/python tests/performance/pipeline/checkpoint_benchmark.py --ro
 
 ```bash
 # 先构建当前 Rust API，再预检（不计费）
-cargo build --manifest-path backend/api/Cargo.toml -p rust_api --bin rust_api --offline
+cargo build --manifest-path backend/api/Cargo.toml -p retain-pdf-api --bin rust_api --offline
 backend/.venv/bin/python tests/performance/pipeline/live_smoke.py --source-job SOURCE_JOB
 # 实测会计费；若本机代理使用 198.18/15 Fake-IP，需审查后另加 --allow-fake-ip
 backend/.venv/bin/python tests/performance/pipeline/live_smoke.py --source-job SOURCE_JOB --run

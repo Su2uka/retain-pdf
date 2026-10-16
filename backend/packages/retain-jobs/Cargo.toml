@@ -1,12 +1,12 @@
 [package]
-name = "retain-jobs"
+name = "retain-pdf-runner"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-retain-core = { path = "../retain-core" }
-retain-data = { path = "../retain-data" }
-retain-proc = { path = "../retain-proc" }
+retain-pdf-core = { path = "../retain-core" }
+retain-pdf-data = { path = "../retain-data" }
+retain-pdf-proc = { path = "../retain-proc" }
 anyhow = "1"
 base64 = "0.22"
 fastrand = "2"

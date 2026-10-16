@@ -4,8 +4,8 @@ use serde_json::{json, Value};
 use std::net::{IpAddr, SocketAddr};
 
 #[cfg(test)]
-pub use retain_core::model_connection::Deadlines;
-pub use retain_core::model_connection::{ModelConnection, Provider, Thinking};
+pub use retain_pdf_core::model_connection::Deadlines;
+pub use retain_pdf_core::model_connection::{ModelConnection, Provider, Thinking};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

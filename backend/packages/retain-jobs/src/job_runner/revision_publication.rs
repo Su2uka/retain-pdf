@@ -5,7 +5,7 @@
 //! worker stdout，所以数据库 `pipeline_units` 里登记的还是精修前的 page_hash。
 //!
 //! 这里在 workflow 落终态、pipeline attempt 收尾**之后**调用与 PATCH 同一套对账
-//! （`retain_data::translation_revisions`）：checkpoint 里出现在修订日志中的页登记成新
+//! （`retain_pdf_data::translation_revisions`）：checkpoint 里出现在修订日志中的页登记成新
 //! page_hash，并追加 `pipeline_unit_committed` 事件（source=translation_revision）。
 //! 必须在 attempt 收尾之后：Book/Translate 的精修页归属于本次正在跑的 attempt，
 //! 对账会把 running attempt 的页跳过（generation 是 worker 的 fencing token）。
@@ -21,7 +21,7 @@ use tracing::warn;
 use super::ProcessRuntimeDeps;
 use crate::db::Db;
 use crate::storage_paths::JobPaths;
-use retain_data::translation_revisions::{
+use retain_pdf_data::translation_revisions::{
     prune_superseded_revision_snapshots, publish_translation_revisions,
 };
 

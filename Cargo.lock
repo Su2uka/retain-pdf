@@ -1544,7 +1544,69 @@ dependencies = [
 ]
 
 [[package]]
-name = "retain-config"
+name = "retain-pdf-api"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "argon2",
+ "axum",
+ "base64",
+ "chrono",
+ "csv",
+ "fastrand",
+ "futures-util",
+ "getrandom 0.2.17",
+ "hmac",
+ "httpdate",
+ "libc",
+ "lopdf",
+ "mime_guess",
+ "once_cell",
+ "regex",
+ "reqwest",
+ "retain-pdf-config",
+ "retain-pdf-core",
+ "retain-pdf-data",
+ "retain-pdf-proc",
+ "retain-pdf-runner",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "serde_urlencoded",
+ "sha2",
+ "thiserror 1.0.69",
+ "tokio",
+ "tokio-tungstenite 0.21.0",
+ "tokio-util",
+ "tower",
+ "tower-http 0.5.2",
+ "tracing",
+ "tracing-subscriber",
+ "url",
+ "walkdir",
+ "zip",
+]
+
+[[package]]
+name = "retain-pdf-cli"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "clap",
+ "reqwest",
+ "retain-pdf-config",
+ "retain-pdf-core",
+ "retain-pdf-data",
+ "rpassword",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "toml_edit",
+]
+
+[[package]]
+name = "retain-pdf-config"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -1555,7 +1617,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "retain-core"
+name = "retain-pdf-core"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -1566,7 +1628,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "retain-data"
+name = "retain-pdf-data"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -1575,8 +1637,8 @@ dependencies = [
  "once_cell",
  "regex",
  "reqwest",
- "retain-core",
- "retain-db",
+ "retain-pdf-core",
+ "retain-pdf-db",
  "rusqlite",
  "serde",
  "serde_json",
@@ -1587,14 +1649,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "retain-db"
+name = "retain-pdf-db"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "chrono",
  "fastrand",
  "flate2",
- "retain-core",
+ "retain-pdf-core",
  "rusqlite",
  "serde",
  "serde_json",
@@ -1602,7 +1664,16 @@ dependencies = [
 ]
 
 [[package]]
-name = "retain-jobs"
+name = "retain-pdf-proc"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "libc",
+ "tokio",
+]
+
+[[package]]
+name = "retain-pdf-runner"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -1615,9 +1686,9 @@ dependencies = [
  "once_cell",
  "regex",
  "reqwest",
- "retain-core",
- "retain-data",
- "retain-proc",
+ "retain-pdf-core",
+ "retain-pdf-data",
+ "retain-pdf-proc",
  "serde",
  "serde_json",
  "sha2",
@@ -1626,48 +1697,21 @@ dependencies = [
 ]
 
 [[package]]
-name = "retain-jobsd"
+name = "retain-pdf-runnerd"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "axum",
- "retain-core",
- "retain-data",
- "retain-jobs",
- "retain-proc",
+ "retain-pdf-core",
+ "retain-pdf-data",
+ "retain-pdf-proc",
+ "retain-pdf-runner",
  "serde",
  "serde_json",
  "sha2",
  "tokio",
  "tracing",
  "tracing-subscriber",
-]
-
-[[package]]
-name = "retain-proc"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "libc",
- "tokio",
-]
-
-[[package]]
-name = "retainpdf-cli"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "chrono",
- "clap",
- "reqwest",
- "retain-config",
- "retain-core",
- "retain-data",
- "rpassword",
- "rusqlite",
- "serde",
- "serde_json",
- "toml_edit",
 ]
 
 [[package]]
@@ -1717,50 +1761,6 @@ dependencies = [
  "hashlink",
  "libsqlite3-sys",
  "smallvec",
-]
-
-[[package]]
-name = "rust_api"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "argon2",
- "axum",
- "base64",
- "chrono",
- "csv",
- "fastrand",
- "futures-util",
- "getrandom 0.2.17",
- "hmac",
- "httpdate",
- "libc",
- "lopdf",
- "mime_guess",
- "once_cell",
- "regex",
- "reqwest",
- "retain-config",
- "retain-core",
- "retain-data",
- "retain-jobs",
- "retain-proc",
- "rusqlite",
- "serde",
- "serde_json",
- "serde_urlencoded",
- "sha2",
- "thiserror 1.0.69",
- "tokio",
- "tokio-tungstenite 0.21.0",
- "tokio-util",
- "tower",
- "tower-http 0.5.2",
- "tracing",
- "tracing-subscriber",
- "url",
- "walkdir",
- "zip",
 ]
 
 [[package]]

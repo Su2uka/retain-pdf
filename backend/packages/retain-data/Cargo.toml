@@ -1,11 +1,11 @@
 [package]
-name = "retain-data"
+name = "retain-pdf-data"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-retain-db = { path = "../../../database/retain-db" }
-retain-core = { path = "../retain-core" }
+retain-pdf-db = { path = "../../../database/retain-db" }
+retain-pdf-core = { path = "../retain-core" }
 anyhow = "1"
 chrono = { version = "0.4", features = ["serde", "clock"] }
 fastrand = "2"

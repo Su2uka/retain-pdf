@@ -1,9 +1,9 @@
-use retain_core::models::domain::{
+use retain_pdf_core::models::domain::{
     now_iso, DocumentOperationStatus, DocumentOperationWorkspaceManifest,
     DocumentOperationWorkspaceState, DOCUMENT_OPERATION_SCHEMA_VERSION,
     DOCUMENT_OPERATION_STATE_SCHEMA,
 };
-use retain_data::db::Db;
+use retain_pdf_data::db::Db;
 use serde_json::Value;
 
 use crate::config::AppConfig;
@@ -125,7 +125,7 @@ pub fn run_document_operation(
 fn create_retry_attempt(
     db: &Db,
     config: &AppConfig,
-    operation: &retain_data::db::StoredDocumentOperation,
+    operation: &retain_pdf_data::db::StoredDocumentOperation,
     input: &RunDocumentOperationInput,
 ) -> Result<(), AppError> {
     let previous = db

@@ -115,7 +115,7 @@ pub fn reconcile_stale_running_jobs(config: &AppConfig, db: &Db) -> Result<usize
                     job.finished_at = Some(timestamp.clone());
                     // 查目录而不是写死:新增失败类型只该改 job_failure_catalogue 一处。
                     let recovery =
-                        retain_core::job_failure_catalogue::recovery_for(failure_category);
+                        retain_pdf_core::job_failure_catalogue::recovery_for(failure_category);
                     job.replace_failure_info(Some(JobFailureInfo {
                         stage: "startup_recovery".to_string(),
                         category: failure_category.to_string(),

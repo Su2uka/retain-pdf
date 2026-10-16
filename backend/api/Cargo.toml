@@ -1,20 +1,22 @@
 [package]
-# NOTE: Package name stays `rust_api` for compatibility. Renaming to `retain-api`
-# would change the binary to `retain-api`/`retain_api` and require coordinated
-# updates in services/docker/Dockerfile.app, services/docker/entrypoint-app.sh,
-# frontend/desktop/scripts/prepare-app.mjs, backend/api/src/main.rs (`use rust_api::...`),
-# and Cargo.lock. Defer rename until a coordinated `retain-api` migration is planned.
-name = "rust_api"
+# 包名 2026-10-16 从 `rust_api` 改成 `retain-pdf-api`（库的 crate 名随之是 `retain_pdf_api`）。
+# 可执行文件名不变，仍是 `rust_api`：Docker 的 entrypoint-app.sh、桌面版打包脚本、
+# ops/development/dev_stack.py 和 CI 的 desktop 打包都按这个名字找它。
+name = "retain-pdf-api"
 version = "0.1.0"
 edition = "2021"
 build = "build.rs"
 
+[[bin]]
+name = "rust_api"
+path = "src/main.rs"
+
 [dependencies]
-retain-core = { path = "../packages/retain-core" }
-retain-data = { path = "../packages/retain-data" }
-retain-config = { path = "../packages/retain-config" }
-retain-jobs = { path = "../packages/retain-jobs" }
-retain-proc = { path = "../packages/retain-proc" }
+retain-pdf-core = { path = "../packages/retain-core" }
+retain-pdf-data = { path = "../packages/retain-data" }
+retain-pdf-config = { path = "../packages/retain-config" }
+retain-pdf-runner = { path = "../packages/retain-jobs" }
+retain-pdf-proc = { path = "../packages/retain-proc" }
 axum = { version = "0.7", features = ["multipart", "macros", "ws"] }
 tokio = { version = "1", features = ["full"] }
 tokio-util = { version = "0.7", features = ["io"] }

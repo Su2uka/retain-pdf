@@ -1,10 +1,10 @@
 [package]
-name = "retain-db"
+name = "retain-pdf-db"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-retain-core = { path = "../../backend/packages/retain-core" }
+retain-pdf-core = { path = "../../backend/packages/retain-core" }
 anyhow = "1"
 chrono = { version = "0.4", features = ["serde", "clock"] }
 fastrand = "2"

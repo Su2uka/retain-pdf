@@ -47,7 +47,7 @@ fn builtin_ocr_credential_ref_is_resolved_into_provider_env() {
 }
 
 fn model_job() -> JobRuntimeState {
-    let profile:retain_core::model_connection::ModelConnection=serde_json::from_value(serde_json::json!({"id":"qwen-main","revision":1,"provider":"qwen","base_url":"https://dashscope.aliyuncs.com/compatible-mode/v1","model":"qwen3.8-flash","credential_ref":"cred_translation","concurrency":2})).unwrap();
+    let profile:retain_pdf_core::model_connection::ModelConnection=serde_json::from_value(serde_json::json!({"id":"qwen-main","revision":1,"provider":"qwen","base_url":"https://dashscope.aliyuncs.com/compatible-mode/v1","model":"qwen3.8-flash","credential_ref":"cred_translation","concurrency":2})).unwrap();
     let mut input = CreateJobInput::default();
     input.translation.model = profile.model.clone();
     input.translation.base_url = profile.base_url.clone();
@@ -69,7 +69,7 @@ fn model_job() -> JobRuntimeState {
 #[test]
 fn model_worker_uses_capability_without_resolving_translation_key() {
     let root = credential_test_root("model-capability");
-    let db = retain_data::db::Db::new(root.join("jobs.db"), root.clone());
+    let db = retain_pdf_data::db::Db::new(root.join("jobs.db"), root.clone());
     db.init().unwrap();
     let job = model_job();
     db.save_job(&JobSnapshot {
@@ -132,7 +132,7 @@ fn model_worker_uses_capability_without_resolving_translation_key() {
 #[test]
 fn model_worker_rejects_remote_or_mismatched_configuration() {
     let root = credential_test_root("model-binding-policy");
-    let db = retain_data::db::Db::new(root.join("jobs.db"), root.clone());
+    let db = retain_pdf_data::db::Db::new(root.join("jobs.db"), root.clone());
     db.init().unwrap();
     let job = model_job();
     db.save_job(&JobSnapshot {
@@ -155,7 +155,7 @@ fn model_worker_rejects_remote_or_mismatched_configuration() {
         .execution_connection
         .as_mut()
         .unwrap()
-        .thinking = retain_core::model_connection::Thinking::On;
+        .thinking = retain_pdf_core::model_connection::Thinking::On;
     assert!(
         prepare_model_worker_binding(&db, &changed, Some("http://127.0.0.1:41000")).is_err()
     );

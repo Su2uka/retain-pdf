@@ -3,7 +3,7 @@ use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
 use anyhow::{bail, Context, Result};
-use retain_core::models::domain::{
+use retain_pdf_core::models::domain::{
     DocumentOperationWorkspaceManifest, DocumentOperationWorkspaceState,
 };
 use serde::Serialize;
@@ -245,7 +245,7 @@ fn set_mode(_path: &Path, _mode: u32) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use retain_core::models::domain::{
+    use retain_pdf_core::models::domain::{
         DocumentOperationLimits, DocumentOperationStatus, DOCUMENT_OPERATION_MANIFEST_SCHEMA,
         DOCUMENT_OPERATION_SCHEMA_VERSION, DOCUMENT_OPERATION_STATE_SCHEMA,
     };

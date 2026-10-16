@@ -111,7 +111,7 @@ fn resolve_secret(
         return None;
     }
     let resolved =
-        retain_data::credentials::resolve_credential(data_root, credential_ref, kind).ok()?;
+        retain_pdf_data::credentials::resolve_credential(data_root, credential_ref, kind).ok()?;
     if let Some(provider) = provider {
         if !resolved
             .provider

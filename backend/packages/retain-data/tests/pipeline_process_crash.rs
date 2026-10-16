@@ -6,7 +6,7 @@ use std::process::{Child, Command, Stdio};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use retain_data::db::{PipelineDispatchBegin, PipelineDispatchIntent, PipelineUnitCommit};
+use retain_pdf_data::db::{PipelineDispatchBegin, PipelineDispatchIntent, PipelineUnitCommit};
 
 use support::{db, fixture_root, seed_running_job};
 

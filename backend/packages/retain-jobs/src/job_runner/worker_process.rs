@@ -5,7 +5,7 @@ use std::process::Stdio;
 #[cfg(windows)]
 use anyhow::anyhow;
 use anyhow::{Context, Result};
-use retain_data::credentials::resolve_credential;
+use retain_pdf_data::credentials::resolve_credential;
 use sha2::{Digest, Sha256};
 use tokio::process::{Child, Command};
 
@@ -18,11 +18,11 @@ pub(super) struct ModelWorkerBinding {
 }
 
 pub(super) struct ModelWorkerLease {
-    db: retain_data::db::Db,
+    db: retain_pdf_data::db::Db,
     job_id: Option<String>,
 }
 impl ModelWorkerLease {
-    pub(super) fn for_job(db: &retain_data::db::Db, job: &JobRuntimeState) -> Self {
+    pub(super) fn for_job(db: &retain_pdf_data::db::Db, job: &JobRuntimeState) -> Self {
         Self {
             db: db.clone(),
             job_id: if job
@@ -53,7 +53,7 @@ impl Drop for ModelWorkerLease {
 }
 
 pub(super) fn prepare_model_worker_binding(
-    db: &retain_data::db::Db,
+    db: &retain_pdf_data::db::Db,
     job: &JobRuntimeState,
     api_url: Option<&str>,
 ) -> Result<Option<ModelWorkerBinding>> {
@@ -385,7 +385,7 @@ fn configured_provider_token(job: &JobRuntimeState) -> String {
 
 // 进程工具已迁往 retain-proc（ADR-002 Phase 2：零任务语义的 OS 操作
 // 不应住在任务执行栈里）。此处 re-export 保持 job_runner:: 路径不变。
-pub use retain_proc::{
+pub use retain_pdf_proc::{
     configure_child_process, terminate_child_process_tree, terminate_job_process_tree,
     terminate_job_process_tree_blocking, worker_process_exists,
 };

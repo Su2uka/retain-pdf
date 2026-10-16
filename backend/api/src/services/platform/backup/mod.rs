@@ -1,7 +1,7 @@
 //! 数据库备份的应用服务:后台每天自动备份、立即备份、恢复、删除。
 //!
 //! 备份本身(格式、保留规则、怎么恢复进正在用的库、同步记账怎么处理)在
-//! `retain_db::db::backup`。这里负责:
+//! `retain_pdf_db::db::backup`。这里负责:
 //! - 后台每小时看一次,最新的自动备份超过 `RUST_API_BACKUP_INTERVAL_HOURS`(默认 24,
 //!   0 关掉自动备份)就再存一份,并按保留规则清掉多余的;
 //! - 同一时间只做一件事(备份或恢复);
@@ -26,7 +26,7 @@ use crate::services::platform::sync::SyncService;
 const CHECK_EVERY: Duration = Duration::from_secs(3600);
 
 fn interval_hours_from_env() -> u64 {
-    retain_core::config::env_vars::env_u64("RUST_API_BACKUP_INTERVAL_HOURS", 24)
+    retain_pdf_core::config::env_vars::env_u64("RUST_API_BACKUP_INTERVAL_HOURS", 24)
 }
 
 /// 不能照做的原因(给用户看)。

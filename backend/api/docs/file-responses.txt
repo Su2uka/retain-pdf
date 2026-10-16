@@ -1,5 +1,5 @@
 # 文件出口的返回快照。由 src/api_tests/file_responses.rs 生成，不要手改：
-#   UPDATE_FILE_RESPONSES=1 cargo test -p rust_api --lib file_responses
+#   UPDATE_FILE_RESPONSES=1 cargo test -p retain-pdf-api --lib file_responses
 # PDF / zip 只记类型；ETag、Last-Modified、Content-Length 不记；content-range 的总长记成 *。
 
 ## 译文 PDF

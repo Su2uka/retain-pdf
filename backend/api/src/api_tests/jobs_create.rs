@@ -1,6 +1,6 @@
 use axum::body::{to_bytes, Body};
 use axum::http::{header, Request, StatusCode};
-use retain_data::credentials::resolve_credential;
+use retain_pdf_data::credentials::resolve_credential;
 use serde_json::Value;
 use tower::util::ServiceExt;
 

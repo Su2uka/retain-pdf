@@ -1,7 +1,7 @@
 use crate::config::ProviderLimitsConfig;
 use crate::error::AppError;
 use axum::http::StatusCode;
-use retain_data::credentials::{resolve_credential, CredentialResolveError};
+use retain_pdf_data::credentials::{resolve_credential, CredentialResolveError};
 use std::path::Path;
 
 use crate::models::domain::{
