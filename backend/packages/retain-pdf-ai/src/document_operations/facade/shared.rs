@@ -2,8 +2,8 @@ use retain_pdf_core::models::domain::{DocumentOperationLimits, DocumentOperation
 use retain_pdf_data::db::Db;
 use sha2::{Digest, Sha256};
 
-use crate::config::AppConfig;
-use crate::error::AppError;
+use retain_pdf_core::config::AppConfig;
+use retain_pdf_api_base::error::AppError;
 
 use super::super::contracts::CreateDocumentOperationInput;
 use super::super::{

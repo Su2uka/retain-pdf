@@ -9,8 +9,8 @@ use retain_pdf_data::db::Db;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use crate::config::AppConfig;
-use crate::error::AppError;
+use retain_pdf_core::config::AppConfig;
+use retain_pdf_api_base::error::AppError;
 
 use super::document_operations::{
     cancel_document_operation, commit_document_operation, get_document_operation_view,

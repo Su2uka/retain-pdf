@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 
-use crate::error::AppError;
+use retain_pdf_api_base::error::AppError;
 
 pub const AGENT_CALCULATION_CREATE_SCHEMA: &str = "agent_calculation_create_v1";
 pub const AGENT_CALCULATION_COMPLETE_SCHEMA: &str = "agent_calculation_complete_v1";

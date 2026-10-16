@@ -1,8 +1,8 @@
 use retain_pdf_core::models::domain::{now_iso, DocumentOperationStatus};
 use retain_pdf_data::db::Db;
 
-use crate::config::AppConfig;
-use crate::error::AppError;
+use retain_pdf_core::config::AppConfig;
+use retain_pdf_api_base::error::AppError;
 
 use super::super::contracts::{
     DocumentOperationEventView, DocumentOperationView, DOCUMENT_OPERATION_VIEW_SCHEMA,

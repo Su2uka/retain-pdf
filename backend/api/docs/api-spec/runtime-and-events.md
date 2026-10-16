@@ -100,9 +100,9 @@ Current internal boundary conventions:
 - `services/jobs/lifecycle/snapshot_factory` owns job snapshot assembly; `worker_command` owns Python worker command/spec construction
 - `../packages/retain-jobs/src/job_runner/*` owns runtime execution, process lifecycle,
   OCR-child chaining, and cancellation
-- `services/ai/api.rs` owns the Rust-to-AI HTTP proxy boundary;
+- `retain-pdf-ai/src/api.rs` owns the Rust-to-AI HTTP proxy boundary;
   `services/library_api.rs` owns conversation persistence;
-  `services/ai/public_document_operations_api.rs` owns the browser-safe operation
+  `retain-pdf-ai/src/public_document_operations_api.rs` owns the browser-safe operation
   projection and CAS actions
 - `AppState` should stay at route entrypoints and runtime coordination layers; pure assembly helpers should prefer `&Db`, narrow config projections, and explicit arguments
 

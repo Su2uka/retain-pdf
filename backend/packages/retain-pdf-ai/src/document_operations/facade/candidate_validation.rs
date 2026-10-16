@@ -6,7 +6,7 @@ use serde_json::Value;
 use sha2::{Digest, Sha256};
 use walkdir::WalkDir;
 
-use crate::config::AppConfig;
+use retain_pdf_core::config::AppConfig;
 
 use super::super::program::canonical_program_sha256;
 use super::super::workspace::{

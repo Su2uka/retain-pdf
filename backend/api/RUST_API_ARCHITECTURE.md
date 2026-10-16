@@ -91,10 +91,10 @@ app -> routes -> application services -> internal services -> job_runner / ocr_p
 - 平台包 `retain-pdf-platform` 的 `fonts/api.rs` / `fonts/service.rs`
   分别负责字体 application facade 与内部扫描/持久化；`routes/fonts.rs`
   只保留有界 multipart 消费和 HTTP envelope，不执行 fontconfig 或文件业务
-- `services/ai/api.rs` / `services/ai/gateway.rs`
+- `retain-pdf-ai/src/api.rs` / `retain-pdf-ai/src/gateway.rs`
   分别负责 AI 代理的 HTTP application facade 与内部 sidecar gateway；
   `routes/ai_proxy.rs` 不读取环境变量、不管理 HTTP client、也不查询 supervisor
-- `services/ai/agent_runtime_session_api.rs`
+- `retain-pdf-ai/src/agent_runtime_session_api.rs`
   是 Agent session cursor 的 application facade；它拥有独立窄依赖，不能再
   借用 document-operation route deps 或让 route 直接持有数据库引用
 - 平台包 `retain-pdf-platform` 的 `health_api.rs`
@@ -379,13 +379,13 @@ Rust 侧关键落点：
 - glossaries → [../packages/retain-pdf-glossaries/src/api.rs](../packages/retain-pdf-glossaries/src/api.rs)
   → `retain-pdf-glossaries` 包里的 `{records,entries,csv}.rs`
 - uploads → [../packages/retain-pdf-ingest/src/uploads/api.rs](../packages/retain-pdf-ingest/src/uploads/api.rs)（入口已拆成独立的包 `retain-pdf-ingest`）
-- AI proxy → [src/services/ai/api.rs](src/services/ai/api.rs)
+- AI proxy → [../packages/retain-pdf-ai/src/api.rs](../packages/retain-pdf-ai/src/api.rs)
 - public Agent operation actions →
-  [src/services/ai/public_document_operations_api.rs](src/services/ai/public_document_operations_api.rs)
+  [../packages/retain-pdf-ai/src/public_document_operations_api.rs](../packages/retain-pdf-ai/src/public_document_operations_api.rs)
 - internal Agent operation lifecycle →
-  [src/services/ai/document_operation_api.rs](src/services/ai/document_operation_api.rs)
+  [../packages/retain-pdf-ai/src/document_operation_api.rs](../packages/retain-pdf-ai/src/document_operation_api.rs)
 - runtime cursor CAS →
-  [src/services/ai/agent_runtime_session_api.rs](src/services/ai/agent_runtime_session_api.rs)
+  [../packages/retain-pdf-ai/src/agent_runtime_session_api.rs](../packages/retain-pdf-ai/src/agent_runtime_session_api.rs)
 
 也就是：
 
@@ -404,9 +404,9 @@ Rust 侧关键落点：
 - `routes/uploads.rs`
   只调入口包（`retain-pdf-ingest`）的门面
 - `routes/ai_proxy.rs`
-  只调 `services/ai/api.rs`，问答保持流式字节代理，runtime config 禁止缓存
+  只调 `retain-pdf-ai/src/api.rs`，问答保持流式字节代理，runtime config 禁止缓存
 - `routes/public_document_operations.rs`
-  只调 `services/ai/public_document_operations_api.rs`，输出浏览器安全投影并要求
+  只调 `retain-pdf-ai/src/public_document_operations_api.rs`，输出浏览器安全投影并要求
   status / attempt / program hash CAS
 - `routes/document_operations.rs` / `agent_runtime_sessions.rs` /
   `agent_capabilities.rs`
@@ -449,10 +449,10 @@ Rust 侧关键落点：
 - [src/services/library_api.rs](src/services/library_api.rs)
 - [../packages/retain-pdf-glossaries/src/api.rs](../packages/retain-pdf-glossaries/src/api.rs)
 - [../packages/retain-pdf-ingest/src/uploads/api.rs](../packages/retain-pdf-ingest/src/uploads/api.rs)
-- [src/services/ai/api.rs](src/services/ai/api.rs)
-- [src/services/ai/public_document_operations_api.rs](src/services/ai/public_document_operations_api.rs)
-- [src/services/ai/document_operation_api.rs](src/services/ai/document_operation_api.rs)
-- [src/services/ai/agent_runtime_session_api.rs](src/services/ai/agent_runtime_session_api.rs)
+- [../packages/retain-pdf-ai/src/api.rs](../packages/retain-pdf-ai/src/api.rs)
+- [../packages/retain-pdf-ai/src/public_document_operations_api.rs](../packages/retain-pdf-ai/src/public_document_operations_api.rs)
+- [../packages/retain-pdf-ai/src/document_operation_api.rs](../packages/retain-pdf-ai/src/document_operation_api.rs)
+- [../packages/retain-pdf-ai/src/agent_runtime_session_api.rs](../packages/retain-pdf-ai/src/agent_runtime_session_api.rs)
 
 词汇表应用入口使用 `GlossaryApiDeps` 隐藏 `Db`，HTTP route 只能持有该窄依赖；
 内部实现按职责拆为 `records.rs`（持久化 CRUD）、`entries.rs`（任务合并与规范化）

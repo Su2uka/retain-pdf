@@ -246,10 +246,10 @@ mod tests { fn fixture() { let runtime: ProcessRuntimeDeps; } }
         for source in ("AiProxyConfig::from_env()", "std::env::var(\"BASE\")", "ai_service_status()", "Lazy<Client>"):
             with self.subTest(source=source):
                 self.assertTrue(self.check_sources(
-                    {"services/ai/gateway.rs": source}, checks.check_ai_gateway_dependencies,
+                    {"packages/retain-pdf-ai/src/gateway.rs": source}, checks.check_ai_gateway_dependencies,
                 ))
         self.assertEqual([], self.check_sources(
-            {"services/ai/gateway.rs": "fn new(config: &AiProxyConfig, status: fn() -> u8) {}"},
+            {"packages/retain-pdf-ai/src/gateway.rs": "fn new(config: &AiProxyConfig, status: fn() -> u8) {}"},
             checks.check_ai_gateway_dependencies,
         ))
 
@@ -258,12 +258,12 @@ mod tests { fn fixture() { let runtime: ProcessRuntimeDeps; } }
             for dependency in ("AppConfig", "AppState", "api_tests"):
                 with self.subTest(name=name, dependency=dependency):
                     errors = self.check_sources(
-                        {f"services/ai/{name}": f"use crate::{dependency};"},
+                        {f"packages/retain-pdf-ai/src/{name}": f"use retain_pdf_core::config::{dependency};"},
                         checks.check_agent_calculation_dependencies,
                     )
                     self.assertTrue(any("narrow Db/data_root" in error for error in errors))
         self.assertEqual([], self.check_sources(
-            {"services/ai/agent_calculations/service.rs": "use crate::db::Db; fn f(data_root: &Path) {}"},
+            {"packages/retain-pdf-ai/src/agent_calculations/service.rs": "use retain_pdf_data::db::Db; fn f(data_root: &Path) {}"},
             checks.check_agent_calculation_dependencies,
         ))
 
@@ -359,21 +359,6 @@ mod tests { fn fixture() { let runtime: ProcessRuntimeDeps; } }
                     {"routes/common/library.rs": source}, checks.check_route_service_imports,
                 ))
 
-    def test_ai_private_gateway_rejects_external_and_grouped_access(self):
-        for source in (
-            "use crate::services::ai::gateway::AiGateway;",
-            "use crate::services::ai::{gateway::AiGateway};",
-            "crate::services::ai::gateway::run();",
-        ):
-            with self.subTest(source=source):
-                self.assertTrue(self.check_sources(
-                    {"api_tests/ai_proxy.rs": source}, checks.check_business_private_modules,
-                ))
-        self.assertEqual([], self.check_sources({
-            "app/state.rs": "use crate::services::ai::AiGateway;",
-            "services/ai/api.rs": "use super::gateway::AiGateway;",
-        }, checks.check_business_private_modules))
-
     def test_ai_route_only_imports_its_domain_facade(self):
         for source in ("use crate::services::ai;", "use crate::services::ai::{ask, get_runtime_config};"):
             with self.subTest(source=source):
@@ -388,16 +373,6 @@ mod tests { fn fixture() { let runtime: ProcessRuntimeDeps; } }
                 {"routes/ai_proxy.rs": source}, checks.check_route_service_imports,
             ))
 
-    def test_ai_models_remain_in_facade_guard(self):
-        self.assertTrue(self.check_sources(
-            {"services/ai/gateway.rs": "use crate::models::UploadRecord;"},
-            checks.check_service_model_facade_boundaries,
-        ))
-        self.assertEqual([], self.check_sources(
-            {"services/ai/gateway.rs": "use crate::models::domain::UploadRecord;"},
-            checks.check_service_model_facade_boundaries,
-        ))
-
     def test_small_module_routes_import_only_their_domain_facade(self):
         for domain, route in (
             ("platform", "fonts"), ("providers", "credentials"),
@@ -411,32 +386,6 @@ mod tests { fn fixture() { let runtime: ProcessRuntimeDeps; } }
                 self.assertTrue(self.check_sources(
                     {f"routes/{route}.rs": "use crate::services::jobs::Entry;"},
                     checks.check_route_service_imports,
-                ))
-
-    def test_small_module_private_paths_are_guarded(self):
-        # 字体、凭据库拆进了平台包、服务商包，子模块由编译器保证私有，不再归这条规则管。
-        for domain, member in (("agent_calculations", "service"),):
-            with self.subTest(domain=domain, member=member):
-                for suffix in (f"{member}::Entry", f"{{{member}::Entry}}"):
-                    self.assertTrue(self.check_sources(
-                        {"api_tests/consumer.rs": f"use crate::services::{domain}::{suffix};"},
-                        checks.check_business_private_modules,
-                    ))
-                self.assertEqual([], self.check_sources(
-                    {"services/jobs/consumer.rs": f"use crate::services::{domain}::Entry;"},
-                    checks.check_business_private_modules,
-                ))
-
-    def test_small_module_model_facades_are_scanned(self):
-        for domain in ("ai/agent_calculations",):
-            with self.subTest(domain=domain):
-                self.assertTrue(self.check_sources(
-                    {f"services/{domain}/api.rs": "use crate::models::UploadRecord;"},
-                    checks.check_service_model_facade_boundaries,
-                ))
-                self.assertEqual([], self.check_sources(
-                    {f"services/{domain}/api.rs": "use crate::models::domain::UploadRecord;"},
-                    checks.check_service_model_facade_boundaries,
                 ))
 
 
