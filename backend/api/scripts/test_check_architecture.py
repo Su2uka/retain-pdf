@@ -281,25 +281,24 @@ mod tests { fn fixture() { let runtime: ProcessRuntimeDeps; } }
                 (check or checks.check_upload_boundaries)(errors)
                 return errors
 
-    def test_public_surface_and_narrow_dependencies_are_allowed(self):
-        self.assertEqual([], self.check_sources({
-            "services/ingest/uploads/service.rs": "use crate::db::Db; use super::capacity::UploadCapacity;",
-            "services/ingest/uploads/tests.rs": "let root = std::env::temp_dir();",
-            "app/state.rs": "use crate::services::ingest::uploads::{UploadService, UploadConfig};",
-            "services/jobs/lifecycle/creation/submit.rs": "use crate::services::ingest::uploads::UploadedPdfInput;",
-        }))
+    def check_upload_sources(self, sources):
+        """sources: {入口包里 uploads/ 下的相对路径: 源码}。"""
+        with tempfile.TemporaryDirectory() as directory:
+            crate_root = Path(directory) / "retain-pdf-ingest"
+            for relative, source in sources.items():
+                path = crate_root / "src" / "uploads" / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(source, encoding="utf-8")
+            with patch.object(checks, "extracted_domain_root", lambda domain: crate_root):
+                errors = []
+                checks.check_upload_boundaries(errors)
+                return errors
 
-    def test_forbidden_dependencies_include_grouped_imports(self):
-        for source in (
-            "use crate::services::jobs::JobsFacade;",
-            "use crate::services::{jobs::JobsFacade, runtime_gateway::JobRuntime};",
-            "use crate::routes::{common::UploadRouteDeps};",
-            "use crate::{routes, job_runner};",
-            "fn f(state: &AppState) {}",
-        ):
-            with self.subTest(source=source):
-                errors = self.check_sources({"services/ingest/uploads/service.rs": source})
-                self.assertTrue(any("must not depend" in error for error in errors))
+    def test_narrow_dependencies_are_allowed(self):
+        self.assertEqual([], self.check_upload_sources({
+            "service.rs": "use retain_pdf_data::db::Db; use super::capacity::UploadCapacity;",
+            "tests/mod.rs": "let root = std::env::temp_dir();",
+        }))
 
     def test_environment_reads_are_rejected(self):
         for source in (
@@ -308,46 +307,22 @@ mod tests { fn fixture() { let runtime: ProcessRuntimeDeps; } }
             "let values = env::vars_os();",
         ):
             with self.subTest(source=source):
-                errors = self.check_sources({"services/ingest/uploads/service.rs": source})
+                errors = self.check_upload_sources({"service.rs": source})
                 self.assertTrue(any("startup configuration" in error for error in errors))
 
     def test_http_error_mapping_stays_outside_uploads(self):
-        errors = self.check_sources({
-            "services/ingest/uploads/error.rs": "use crate::error::AppError;",
+        errors = self.check_upload_sources({
+            "error.rs": "use retain_pdf_api_base::error::AppError;",
         })
         self.assertTrue(any("HTTP error mapping" in error for error in errors))
-        self.assertEqual([], self.check_sources({
-            "error.rs": "use crate::services::ingest::uploads::UploadError; impl From<UploadError> for AppError {}",
-            "services/ingest/uploads/api.rs": "use crate::error::AppError;",
+        self.assertEqual([], self.check_upload_sources({
+            "api.rs": "use retain_pdf_api_base::error::AppError;",
         }))
 
-    def test_private_paths_are_rejected_from_callers_and_tests(self):
-        for member in ("capacity", "pdf", "staging", "service", "error"):
-            for source in (
-                f"use crate::services::ingest::uploads::{member}::Implementation;",
-                f"use crate::services::ingest::uploads::{{UploadService, {member}::Implementation}};",
-                f"crate::services::ingest::uploads::{member}::run();",
-            ):
-                with self.subTest(source=source):
-                    errors = self.check_sources({"api_tests/uploads.rs": source})
-                    self.assertTrue(any("public surface" in error for error in errors))
-
-    def test_comments_do_not_create_dependencies(self):
-        self.assertEqual([], self.check_sources({
-            "services/ingest/uploads/service.rs": "// AppState and jobs::X are forbidden\n/* env::var() */",
-            "app/state.rs": "// uploads::capacity::X is private",
+    def test_comments_do_not_trigger_the_upload_rules(self):
+        self.assertEqual([], self.check_upload_sources({
+            "service.rs": "// AppError is mapped in lib.rs\n/* env::var() */",
         }))
-
-    def test_upload_models_are_in_existing_facade_guard(self):
-        errors = self.check_sources(
-            {"services/ingest/uploads/service.rs": "use crate::models::UploadRecord;"},
-            checks.check_service_model_facade_boundaries,
-        )
-        self.assertTrue(any("models::api/domain/request" in error for error in errors))
-        self.assertEqual([], self.check_sources(
-            {"services/ingest/uploads/service.rs": "use crate::models::domain::UploadRecord;"},
-            checks.check_service_model_facade_boundaries,
-        ))
 
     def test_upload_route_deps_only_import_the_application_facade(self):
         self.assertEqual([], self.check_sources(

@@ -1,8 +1,8 @@
 use super::capacity::UploadCapacity;
 use super::pdf::run_repair_command;
 use super::*;
-use crate::db::Db;
-use crate::test_support::pdf::build_test_pdf_bytes;
+use retain_pdf_data::db::Db;
+use crate::build_test_pdf_bytes;
 use retain_pdf_core::config::UploadProcessingConfig;
 use std::path::PathBuf;
 use std::process::Command;

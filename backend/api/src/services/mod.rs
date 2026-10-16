@@ -21,7 +21,8 @@ pub(crate) mod ai;
 pub(crate) mod files;
 // 术语表已经拆成独立的包，这里接上，`crate::services::glossaries::…` 的写法不变。
 pub(crate) use retain_pdf_glossaries as glossaries;
-pub(crate) mod ingest;
+// 入口已经拆成独立的包，这里接上。
+pub(crate) use retain_pdf_ingest as ingest;
 pub(crate) mod jobs;
 pub(crate) mod library;
 // 平台已经拆成独立的包，这里接上。

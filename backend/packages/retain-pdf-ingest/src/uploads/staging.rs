@@ -1,7 +1,7 @@
 use super::pdf::load_pdf_page_count;
 use super::{UploadError, UploadedPdfInput};
-use crate::db::Db;
-use crate::models::domain::{build_job_id, now_iso, UploadRecord};
+use retain_pdf_data::db::Db;
+use retain_pdf_core::models::domain::{build_job_id, now_iso, UploadRecord};
 use std::path::{Path, PathBuf};
 
 struct PendingUpload(PathBuf);
@@ -61,7 +61,7 @@ pub(super) fn prepare_upload(
     std::fs::write(&upload_path, &upload.bytes)?;
 
     let page_count = load_pdf_page_count(&upload_path).ok();
-    let content_hash = crate::db::documents::sha256_hex(&upload.bytes);
+    let content_hash = retain_pdf_data::db::documents::sha256_hex(&upload.bytes);
     let record = UploadRecord {
         upload_id,
         filename: upload.filename,
@@ -84,7 +84,7 @@ pub(super) fn publish_upload(
     db: &Db,
     mut prepared: PreparedUpload,
     upload_max_pages: u32,
-    owner: &crate::services::accounts::Principal,
+    owner: &retain_pdf_accounts::Principal,
 ) -> Result<UploadRecord, UploadError> {
     let page_count = prepared
         .page_count

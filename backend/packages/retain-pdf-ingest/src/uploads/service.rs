@@ -5,23 +5,23 @@ use super::capacity::{busy, UploadCapacity};
 use super::pdf::{load_pdf_page_count, repair_pdf_with_pymupdf};
 use super::staging::{prepare_upload, publish_upload, sanitize_upload_filename};
 use super::UploadError;
-use crate::db::Db;
-use crate::models::domain::UploadRecord;
+use retain_pdf_data::db::Db;
+use retain_pdf_core::models::domain::UploadRecord;
 use retain_pdf_core::config::{effective_upload_max_bytes, UploadProcessingConfig};
 
 #[derive(Debug)]
-pub(crate) struct UploadedPdfInput {
-    pub(crate) filename: String,
-    pub(crate) bytes: Vec<u8>,
-    pub(crate) developer_mode: bool,
+pub struct UploadedPdfInput {
+    pub filename: String,
+    pub bytes: Vec<u8>,
+    pub developer_mode: bool,
 }
 
-pub(crate) struct UploadServiceConfig {
-    pub(crate) uploads_dir: PathBuf,
-    pub(crate) python_bin: String,
-    pub(crate) upload_max_bytes: u64,
-    pub(crate) upload_max_pages: u32,
-    pub(crate) processing: UploadProcessingConfig,
+pub struct UploadServiceConfig {
+    pub uploads_dir: PathBuf,
+    pub python_bin: String,
+    pub upload_max_bytes: u64,
+    pub upload_max_pages: u32,
+    pub processing: UploadProcessingConfig,
 }
 
 struct UploadServiceInner {
@@ -32,12 +32,12 @@ struct UploadServiceInner {
 
 /// An application-owned upload executor. Clones share the same resource limits.
 #[derive(Clone)]
-pub(crate) struct UploadService {
+pub struct UploadService {
     inner: Arc<UploadServiceInner>,
 }
 
 impl UploadService {
-    pub(crate) fn new(db: Arc<Db>, config: UploadServiceConfig) -> Self {
+    pub fn new(db: Arc<Db>, config: UploadServiceConfig) -> Self {
         let capacity = Arc::new(UploadCapacity::new(config.processing.clone()));
         Self {
             inner: Arc::new(UploadServiceInner {
@@ -53,18 +53,18 @@ impl UploadService {
         self.inner.capacity.clone()
     }
 
-    pub(crate) async fn store(
+    pub async fn store(
         &self,
         upload: UploadedPdfInput,
     ) -> Result<UploadRecord, UploadError> {
-        self.store_for(upload, crate::services::accounts::Principal::local()).await
+        self.store_for(upload, retain_pdf_accounts::Principal::local()).await
     }
 
     /// 记在 `owner` 名下。多用户模式下书的编号（上传指纹）按账号区分，见 `Principal::scoped_content_hash`。
-    pub(crate) async fn store_for(
+    pub async fn store_for(
         &self,
         upload: UploadedPdfInput,
-        owner: crate::services::accounts::Principal,
+        owner: retain_pdf_accounts::Principal,
     ) -> Result<UploadRecord, UploadError> {
         let uploads_dir = &self.inner.config.uploads_dir;
         let python_bin = &self.inner.config.python_bin;

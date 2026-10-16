@@ -1,7 +1,7 @@
 use thiserror::Error;
 
 #[derive(Debug, Error)]
-pub(crate) enum UploadError {
+pub enum UploadError {
     #[error("{0}")]
     BadRequest(String),
     #[error("{0}")]

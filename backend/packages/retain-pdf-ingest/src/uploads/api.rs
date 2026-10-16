@@ -1,20 +1,20 @@
 use super::{UploadService, UploadedPdfInput};
-use crate::error::AppError;
-use crate::services::accounts::Principal;
-use crate::models::api::{upload_to_response, UploadView};
-use crate::models::domain::UploadRecord;
+use retain_pdf_api_base::error::AppError;
+use retain_pdf_accounts::Principal;
+use retain_pdf_core::models::api::{upload_to_response, UploadView};
+use retain_pdf_core::models::domain::UploadRecord;
 
-pub(crate) struct UploadApiDeps<'a> {
+pub struct UploadApiDeps<'a> {
     uploads: &'a UploadService,
 }
 
 impl<'a> UploadApiDeps<'a> {
-    pub(crate) fn new(uploads: &'a UploadService) -> Self {
+    pub fn new(uploads: &'a UploadService) -> Self {
         Self { uploads }
     }
 }
 
-pub(crate) async fn store_upload(
+pub async fn store_upload(
     deps: &UploadApiDeps<'_>,
     filename: String,
     bytes: Vec<u8>,
@@ -34,7 +34,7 @@ pub(crate) async fn store_upload(
         .map_err(AppError::from)
 }
 
-pub(crate) async fn store_upload_view(
+pub async fn store_upload_view(
     deps: &UploadApiDeps<'_>,
     filename: String,
     bytes: Vec<u8>,

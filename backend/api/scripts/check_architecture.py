@@ -712,7 +712,6 @@ def check_service_model_facade_boundaries(errors: list[str]) -> None:
         SRC_ROOT / "services" / "library",
         SRC_ROOT / "services" / "library" / "api.rs",
         SRC_ROOT / "services" / "ai",
-        SRC_ROOT / "services" / "ingest" / "uploads",
         SRC_ROOT / "services" / "library" / "book_projection",
         SRC_ROOT / "services" / "library" / "book_projection.rs",
     )
@@ -841,43 +840,25 @@ def check_agent_calculation_dependencies(errors: list[str]) -> None:
 
 
 def check_upload_boundaries(errors: list[str]) -> None:
-    """Uploads is an app-owned capability, not a jobs/runtime implementation."""
-    upload_root = SRC_ROOT / "services" / "ingest" / "uploads"
-    private_modules = {"capacity", "pdf", "staging", "service", "error"}
-    forbidden_dependencies = {"jobs", "routes", "runtime_gateway", "job_runner"}
-    for path in scan_rs_files(SRC_ROOT):
-        # Include standalone test modules: their wiring must also use the facade.
+    """上传模块只返回自己的 UploadError、不读环境变量。
+
+    它在入口包 retain-pdf-ingest 里：越过门面、依赖任务和路由、碰 AppState，编译器已经挡住了；
+    HTTP 错误的转换写在入口包的 lib.rs，`uploads/api.rs` 是上传对外的入口，也可以用 AppError。
+    """
+    crate_root = extracted_domain_root("ingest")
+    upload_root = crate_root / "src" / "uploads"
+    for path in scan_rs_files(upload_root):
+        label = Path(EXTRACTED_DOMAINS["ingest"]) / path.relative_to(crate_root)
         text = path.read_text(encoding="utf-8")
         text = re.sub(r"/\*.*?\*/|//[^\n]*", "", text, flags=re.DOTALL)
-        inside = path.is_relative_to(upload_root)
-        imports = re.findall(r"\buse\s+([^;]+);", text)
-        if inside:
-            dependencies = set(re.findall(r"\b(\w+)\s*::", text))
-            for imported in imports:
-                dependencies.update(re.findall(r"\b\w+\b", imported))
-            forbidden = dependencies & forbidden_dependencies
-            if forbidden or re.search(r"\b(?:AppState|JobRuntime)\b", text):
-                errors.append(
-                    f"{rel(path)}: uploads must not depend on jobs/routes/AppState/job runtime"
-                )
-            if path != upload_root / "api.rs" and re.search(r"\bAppError\b", text):
-                errors.append(
-                    f"{rel(path)}: uploads must return UploadError; HTTP error mapping belongs outside the domain"
-                )
-            if re.search(r"\bfrom_env\s*\(|\benv\s*::\s*(?:var|var_os|vars|vars_os)\s*\(", text):
-                errors.append(
-                    f"{rel(path)}: uploads must receive startup configuration explicitly, not read environment"
-                )
-        else:
-            # Match both uploads::capacity::X and uploads::{capacity::X, ...}.
-            for suffix in re.findall(r"\buploads\s*::\s*([^;]+)", text):
-                first = re.match(r"(\w+)", suffix)
-                members = set(re.findall(r"\b\w+\b", suffix)) if suffix.startswith("{") else set()
-                if (first and first.group(1) in private_modules) or members & private_modules:
-                    errors.append(
-                        f"{rel(path)}: external callers must use the uploads public surface, not its internal modules"
-                    )
-                    break
+        if path != upload_root / "api.rs" and re.search(r"\bAppError\b", text):
+            errors.append(
+                f"{label}: uploads must return UploadError; HTTP error mapping belongs outside the domain"
+            )
+        if re.search(r"\bfrom_env\s*\(|\benv\s*::\s*(?:var|var_os|vars|vars_os)\s*\(", text):
+            errors.append(
+                f"{label}: uploads must receive startup configuration explicitly, not read environment"
+            )
 
 
 def check_process_runtime_deps_usage(errors: list[str]) -> None:
@@ -1446,6 +1427,7 @@ ALLOWED_DOMAIN_DEPENDENCIES = {
 EXTRACTED_DOMAINS = {
     "accounts": "retain-pdf-accounts",
     "glossaries": "retain-pdf-glossaries",
+    "ingest": "retain-pdf-ingest",
     "platform": "retain-pdf-platform",
     "providers": "retain-pdf-providers",
 }

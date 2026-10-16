@@ -1594,6 +1594,7 @@ dependencies = [
  "retain-pdf-core",
  "retain-pdf-data",
  "retain-pdf-glossaries",
+ "retain-pdf-ingest",
  "retain-pdf-platform",
  "retain-pdf-proc",
  "retain-pdf-providers",
@@ -1718,6 +1719,22 @@ dependencies = [
  "retain-pdf-api-base",
  "retain-pdf-core",
  "retain-pdf-data",
+]
+
+[[package]]
+name = "retain-pdf-ingest"
+version = "0.1.0"
+dependencies = [
+ "fastrand",
+ "lopdf",
+ "retain-pdf-accounts",
+ "retain-pdf-api-base",
+ "retain-pdf-core",
+ "retain-pdf-data",
+ "serde_json",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]
