@@ -1,8 +1,8 @@
 use crate::error::AppError;
 use crate::models::api::{ReaderMetadataView, ReaderRegionsView};
 
-use super::super::reader_regions::{load_reader_metadata_view, load_reader_regions_view};
-use super::{load_supported_job, JobQueries};
+use crate::services::jobs::reader_regions::{load_reader_metadata_view, load_reader_regions_view};
+use crate::services::jobs::query::{load_supported_job, JobQueries};
 
 impl JobQueries<'_> {
     pub fn reader_regions_view(&self, job_id: &str) -> Result<ReaderRegionsView, AppError> {

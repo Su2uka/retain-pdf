@@ -4,7 +4,7 @@ use crate::error::AppError;
 use crate::models::domain::JobSnapshot;
 use crate::services::derived_artifacts;
 
-use super::DownloadJobsDeps;
+use crate::services::jobs::downloads::DownloadJobsDeps;
 
 pub(super) fn linearized_pdf_or_original(
     deps: &DownloadJobsDeps<'_>,

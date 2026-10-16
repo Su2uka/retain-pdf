@@ -3,8 +3,8 @@ use crate::models::api::JobSubmissionView;
 use crate::models::domain::{JobStatusKind, UploadRecord, WorkflowKind};
 use crate::models::request::CreateJobInput;
 
-use super::super::super::creation::{submit_job, NewJob};
-use super::super::JobsFacade;
+use crate::services::jobs::creation::{submit_job, NewJob};
+use crate::services::jobs::facade::JobsFacade;
 use crate::services::uploads::UploadedPdfInput;
 
 impl<'a> JobsFacade<'a> {

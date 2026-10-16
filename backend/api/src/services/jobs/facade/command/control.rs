@@ -2,11 +2,11 @@ use crate::error::AppError;
 use crate::models::api::JobSubmissionView;
 use crate::models::domain::JobStatusKind;
 
-use super::super::super::control::cancel_job as cancel_job_service;
-use super::super::super::query::load_job_or_404;
-use super::super::super::query::load_ocr_job_or_404;
-use super::super::super::support::ensure_cancelable;
-use super::super::JobsFacade;
+use crate::services::jobs::control::cancel_job as cancel_job_service;
+use crate::services::jobs::query::load_job_or_404;
+use crate::services::jobs::query::load_ocr_job_or_404;
+use crate::services::jobs::support::ensure_cancelable;
+use crate::services::jobs::facade::JobsFacade;
 
 impl<'a> JobsFacade<'a> {
     pub async fn cancel_submission(

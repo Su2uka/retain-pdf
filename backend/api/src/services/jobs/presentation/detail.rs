@@ -9,8 +9,8 @@ use crate::models::api::{
 use crate::models::domain::JobSnapshot;
 use crate::services::artifacts::list_registry_for_job;
 
-use super::super::job_readiness;
-use super::super::translation_request_recovery::load_translation_request_recovery_with_db;
+use crate::services::jobs::job_readiness;
+use crate::services::jobs::translation_request_recovery::load_translation_request_recovery_with_db;
 use super::detail_projection::{
     build_artifact_projection, build_core_projection, build_failure_projection,
     build_live_projection, build_summary_projection, detail_readiness,

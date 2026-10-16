@@ -8,12 +8,12 @@ use crate::models::api::{
 };
 use crate::models::domain::JobStatusKind;
 
-use super::super::super::debug::{replay_translation_item, revise_translation_item};
-use super::super::super::live_translation::{
+use crate::services::jobs::debug::{replay_translation_item, revise_translation_item};
+use crate::services::jobs::live_translation::{
     live_publication_view, prune_superseded_revision_snapshots, publish_translation_revisions,
 };
-use super::super::super::query::load_supported_job;
-use super::super::JobsFacade;
+use crate::services::jobs::query::load_supported_job;
+use crate::services::jobs::facade::JobsFacade;
 
 impl<'a> JobsFacade<'a> {
     pub async fn replay_translation_item(

@@ -10,7 +10,7 @@ use crate::storage_paths::{
     resolve_translation_qa,
 };
 
-use super::common::read_json_value;
+use crate::services::jobs::debug::common::read_json_value;
 
 pub(crate) fn load_translation_diagnostics_view(
     data_root: &Path,

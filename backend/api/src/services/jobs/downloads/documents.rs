@@ -8,8 +8,8 @@ use crate::error::AppError;
 use crate::models::domain::JobSnapshot;
 use crate::storage_paths::{resolve_ai_canvas, resolve_ai_reading_path};
 
-use super::ai_carryover::carry_over_ai_workspace;
-use super::{DownloadJobsDeps, FileDownload};
+use crate::services::jobs::downloads::ai_carryover::carry_over_ai_workspace;
+use crate::services::jobs::downloads::{DownloadJobsDeps, FileDownload};
 
 #[derive(Clone, Copy)]
 pub(crate) enum DocumentDownloadKind {

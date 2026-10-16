@@ -17,7 +17,7 @@ use crate::storage_paths::{
     job_uses_legacy_output_layout, job_uses_legacy_path_storage, LEGACY_JOB_UNSUPPORTED_MESSAGE,
 };
 
-use super::presentation::{
+use crate::services::jobs::presentation::{
     build_document_job_list_view, build_job_artifact_links_view, build_job_artifact_manifest_view,
     build_job_detail_view, build_job_list_view,
 };
@@ -37,7 +37,7 @@ impl<'a> JobQueries<'a> {
         limit: u32,
     ) -> Result<Vec<crate::models::api::LiveTranslationCommitEventView>, AppError> {
         load_supported_job(self.db, self.data_root, job_id)?;
-        super::live_translation::load_live_translation_events_after(
+        crate::services::jobs::live_translation::load_live_translation_events_after(
             self.db,
             job_id,
             after_seq.max(0),
@@ -103,9 +103,9 @@ impl<'a> JobQueries<'a> {
         base_url: &str,
         job_id: &str,
         include_internal: bool,
-    ) -> Result<super::JobFilesView, AppError> {
+    ) -> Result<crate::services::jobs::JobFilesView, AppError> {
         let job = load_supported_job(self.db, self.data_root, job_id)?;
-        super::downloads::job_files_view(self.db, self.data_root, &job, include_internal, base_url)
+        crate::services::jobs::downloads::job_files_view(self.db, self.data_root, &job, include_internal, base_url)
     }
 
     pub fn job_artifact_manifest_view(
@@ -124,7 +124,7 @@ impl<'a> JobQueries<'a> {
         query: &ListJobEventsQuery,
         ocr_only: bool,
     ) -> Result<JobEventListView, AppError> {
-        super::event_feed::read_events(self.db, self.data_root, job_id, query, ocr_only)
+        crate::services::jobs::event_feed::read_events(self.db, self.data_root, job_id, query, ocr_only)
     }
 
     fn load_supported_job_snapshot(

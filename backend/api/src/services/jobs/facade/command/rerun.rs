@@ -6,11 +6,11 @@ use crate::services::jobs::stage_plan::resume_plan;
 use crate::services::jobs::translation_request_recovery::load_translation_request_recovery;
 use crate::services::jobs::managed_credential_gc::cleanup_deleted_job_credentials;
 
-use super::super::super::creation::{relaunch_in_place, submit_job, NewJob};
-use super::super::super::query::load_job_or_404;
-use super::super::JobsFacade;
-use super::ocr_ambiguity::ambiguous_ocr_dispatch;
-use super::stage_retry_overrides::{apply_retry_overrides, discard_ocr_secret_sources};
+use crate::services::jobs::creation::{relaunch_in_place, submit_job, NewJob};
+use crate::services::jobs::query::load_job_or_404;
+use crate::services::jobs::facade::JobsFacade;
+use crate::services::jobs::facade::command::ocr_ambiguity::ambiguous_ocr_dispatch;
+use crate::services::jobs::facade::command::stage_retry_overrides::{apply_retry_overrides, discard_ocr_secret_sources};
 
 impl<'a> JobsFacade<'a> {
     /// `overrides` 只会带换过的模型 key（路由层已校验）：续跑出新任务时替换原任务的旧凭据，
@@ -54,7 +54,7 @@ impl<'a> JobsFacade<'a> {
             let _ = std::fs::remove_dir_all(&rendered_dir);
             let job = prepare_in_place_render_job(source_job)?;
             // 续跑出来的渲染不精修：清掉没用完的一次性精修覆盖。
-            super::stage_retry_refine::clear_pending_refine_override(
+            crate::services::jobs::facade::command::stage_retry_refine::clear_pending_refine_override(
                 self.command.control.output_root,
                 &job.job_id,
             )?;

@@ -5,10 +5,10 @@ use crate::services::jobs::downloads::{
     FileDownload, MarkdownDownload,
 };
 
-use super::ai_board::{ai_board_file_download, ai_board_listing, AiBoardListing};
-use super::catalog::{named_file, FileGroup};
-use super::files::{generation_key, open_job_file, Disposition, JobFile, JobScope};
-use super::JobDownloads;
+use crate::services::jobs::downloads::ai_board::{ai_board_file_download, ai_board_listing, AiBoardListing};
+use crate::services::jobs::downloads::catalog::{named_file, FileGroup};
+use crate::services::jobs::downloads::files::{generation_key, open_job_file, Disposition, JobFile, JobScope};
+use crate::services::jobs::downloads::JobDownloads;
 
 impl<'a> JobDownloads<'a> {
     /// 任务文件的唯一下载入口。读文件、按需生成都放进 `download_generation`：

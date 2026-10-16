@@ -3,8 +3,8 @@ use crate::models::api::{to_absolute_url, MarkdownDocumentView, MarkdownImageVie
 use crate::models::domain::JobSnapshot;
 use crate::storage_paths::{resolve_markdown_images_dir, resolve_markdown_path};
 
-use super::super::query::load_supported_job;
-use super::{DownloadJobsDeps, MarkdownDownload};
+use crate::services::jobs::query::load_supported_job;
+use crate::services::jobs::downloads::{DownloadJobsDeps, MarkdownDownload};
 
 // 匹配 ![alt](images/...)，路径内可含空格；可选 "title"/'title'、尖括号、./ 前缀
 // path 用贪婪 [^)>\n]+；title 必须带引号，避免把 `chart a.png` 的空格误当 title 分隔

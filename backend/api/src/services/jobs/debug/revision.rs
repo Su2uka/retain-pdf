@@ -22,7 +22,7 @@ use crate::models::domain::JobSnapshot;
 use crate::services::jobs::deps::ReplayDeps;
 use crate::storage_paths::{resolve_job_root, resolve_translation_manifest};
 
-use super::item::load_translation_debug_item_view;
+use crate::services::jobs::debug::item::load_translation_debug_item_view;
 
 pub(crate) const TRANSLATION_REVISIONS_FILE_NAME: &str = "revisions.v1.jsonl";
 /// 与 Python 侧 MAX_REVISION_TEXT_CHARS 一致;这里先挡一道,免得大请求白起一个进程。

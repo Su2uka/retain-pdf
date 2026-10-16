@@ -5,7 +5,7 @@ use serde_json::json;
 
 use crate::models::{CreateJobInput, JobArtifacts, JobSnapshot, ListTranslationItemsQuery};
 
-use super::{load_translation_debug_item_view, load_translation_debug_list_view};
+use crate::services::jobs::debug::{load_translation_debug_item_view, load_translation_debug_list_view};
 
 fn build_job(root: &Path) -> JobSnapshot {
     let mut job = JobSnapshot::new(

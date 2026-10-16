@@ -21,7 +21,7 @@ use crate::models::domain::{
 };
 use crate::services::download_generation::DownloadGeneration;
 
-use super::{DocumentDownloadKind, JobDownloads};
+use crate::services::jobs::downloads::{DocumentDownloadKind, JobDownloads};
 
 const DOCUMENT_ID: &str = "sha256-of-the-very-same-pdf";
 

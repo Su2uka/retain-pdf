@@ -6,8 +6,8 @@ use crate::services::jobs::stage_plan::resume_plan;
 use crate::services::jobs::translation_request_recovery::load_translation_request_recovery_with_db;
 use crate::storage_paths::resolve_pipeline_summary;
 
-use super::super::presentation::build_ocr_ambiguity_view;
-use super::{load_supported_job, JobQueries};
+use crate::services::jobs::presentation::build_ocr_ambiguity_view;
+use crate::services::jobs::query::{load_supported_job, JobQueries};
 
 impl JobQueries<'_> {
     pub fn job_diagnostics_view(&self, job_id: &str) -> Result<JobDiagnosticsView, AppError> {

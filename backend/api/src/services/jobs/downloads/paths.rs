@@ -3,7 +3,7 @@ use std::path::{Component, Path, PathBuf};
 use crate::error::AppError;
 use crate::models::domain::JobSnapshot;
 
-use super::DownloadJobsDeps;
+use crate::services::jobs::downloads::DownloadJobsDeps;
 
 pub(super) fn safe_markdown_image_path(path: &str) -> Result<PathBuf, AppError> {
     let raw = Path::new(path);

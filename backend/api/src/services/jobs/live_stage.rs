@@ -31,7 +31,7 @@ pub(crate) fn load_live_stage_snapshot(
     job: &JobSnapshot,
     data_root: &Path,
 ) -> Option<LiveStageSnapshot> {
-    super::event_feed::live_snapshot(db, data_root, job)
+    crate::services::jobs::event_feed::live_snapshot(db, data_root, job)
 }
 
 pub(crate) fn load_live_stage_snapshots(
@@ -39,5 +39,5 @@ pub(crate) fn load_live_stage_snapshots(
     jobs: &[JobSnapshot],
     data_root: &Path,
 ) -> std::collections::HashMap<String, LiveStageSnapshot> {
-    super::event_feed::live_snapshots(db, data_root, jobs)
+    crate::services::jobs::event_feed::live_snapshots(db, data_root, jobs)
 }

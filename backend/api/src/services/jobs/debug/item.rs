@@ -4,8 +4,8 @@ use crate::error::AppError;
 use crate::models::api::{redact_json_value, sensitive_values, TranslationDebugItemView};
 use crate::models::domain::JobSnapshot;
 
-use super::artifacts::{load_manifest_pages, translation_manifest_path};
-use super::common::value_string;
+use crate::services::jobs::debug::artifacts::{load_manifest_pages, translation_manifest_path};
+use crate::services::jobs::debug::common::value_string;
 
 pub(crate) fn load_translation_debug_item_view(
     data_root: &Path,

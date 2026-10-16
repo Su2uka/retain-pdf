@@ -3,7 +3,7 @@ use crate::models::api::{
 };
 use crate::models::domain::{public_stage_for_raw_stage, JobSnapshot, JobStatusKind, WorkflowKind};
 
-use super::live_stage::LiveStageSnapshot;
+use crate::services::jobs::live_stage::LiveStageSnapshot;
 
 #[derive(Debug)]
 pub(crate) struct JobStageViewProjection {

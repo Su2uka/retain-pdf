@@ -8,11 +8,11 @@ use crate::models::api::{
 };
 use crate::services::jobs::stage_plan::stage_plan;
 
-use super::super::super::creation::{submit_job, NewJob};
-use super::super::super::query::load_job_or_404;
-use super::super::JobsFacade;
-use super::stage_retry_request::build_retry_request;
-use super::stage_retry_view::build_retry_stage_submission_view;
+use crate::services::jobs::creation::{submit_job, NewJob};
+use crate::services::jobs::query::load_job_or_404;
+use crate::services::jobs::facade::JobsFacade;
+use crate::services::jobs::facade::command::stage_retry_request::build_retry_request;
+use crate::services::jobs::facade::command::stage_retry_view::build_retry_stage_submission_view;
 
 const OCR_SUBMIT_DISPATCH_KEY: &str = "ocr-submit";
 

@@ -6,7 +6,7 @@ mod sync;
 
 use std::path::Path;
 
-use super::presentation::redact_job_events;
+use crate::services::jobs::presentation::redact_job_events;
 use crate::db::Db;
 use crate::error::AppError;
 use crate::models::api::{
@@ -25,9 +25,9 @@ pub(crate) fn read_events(
 ) -> Result<JobEventListView, AppError> {
     // Scope/layout errors precede cursor validation, including OCR-only 404.
     let job = if ocr_only {
-        super::query::load_ocr_job_with_supported_layout(db, data_root, job_id)?
+        crate::services::jobs::query::load_ocr_job_with_supported_layout(db, data_root, job_id)?
     } else {
-        super::query::load_supported_job(db, data_root, job_id)?
+        crate::services::jobs::query::load_supported_job(db, data_root, job_id)?
     };
     if query.cursor.is_some() && query.start.is_some() {
         return Err(AppError::bad_request("cursor and start cannot be combined"));
@@ -126,17 +126,17 @@ pub(super) fn live_snapshot(
     db: &Db,
     root: &Path,
     job: &JobSnapshot,
-) -> Option<super::live_stage::LiveStageSnapshot> {
+) -> Option<crate::services::jobs::live_stage::LiveStageSnapshot> {
     let feed = synchronize(db, root, job).ok()?;
     let checkpoints: sync::Checkpoints = serde_json::from_value(feed.checkpoints).ok()?;
-    super::live_stage::select_live_stage_snapshot(&checkpoints.stage_basis, &job.status)
+    crate::services::jobs::live_stage::select_live_stage_snapshot(&checkpoints.stage_basis, &job.status)
 }
 
 pub(super) fn live_snapshots(
     db: &Db,
     root: &Path,
     jobs: &[JobSnapshot],
-) -> std::collections::HashMap<String, super::live_stage::LiveStageSnapshot> {
+) -> std::collections::HashMap<String, crate::services::jobs::live_stage::LiveStageSnapshot> {
     let ids: Vec<_> = jobs.iter().map(|job| job.job_id.as_str()).collect();
     let inputs = db.load_event_projection_inputs(&ids).ok();
     jobs.iter()
@@ -147,7 +147,7 @@ pub(super) fn live_snapshots(
                     .flatten()
             });
             let live = match basis {
-                Some(basis) => super::live_stage::select_live_stage_snapshot(&basis, &job.status),
+                Some(basis) => crate::services::jobs::live_stage::select_live_stage_snapshot(&basis, &job.status),
                 None => live_snapshot(db, root, job),
             };
             live.map(|live| (job.job_id.clone(), live))

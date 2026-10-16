@@ -26,10 +26,10 @@ use crate::storage_paths::{
     ARTIFACT_KEY_SOURCE_PDF, ARTIFACT_KEY_TRANSLATED_PDF,
 };
 
-use super::artifact_deps::derived_artifact_deps;
-use super::paths::{job_artifacts_dir, safe_markdown_image_path};
-use super::pdf::linearized_pdf_or_original;
-use super::{DownloadJobsDeps, FileDownload};
+use crate::services::jobs::downloads::artifact_deps::derived_artifact_deps;
+use crate::services::jobs::downloads::paths::{job_artifacts_dir, safe_markdown_image_path};
+use crate::services::jobs::downloads::pdf::linearized_pdf_or_original;
+use crate::services::jobs::downloads::{DownloadJobsDeps, FileDownload};
 
 const DOCX_CONTENT_TYPE: &str =
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document";

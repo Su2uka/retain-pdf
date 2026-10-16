@@ -6,7 +6,7 @@ use crate::config::PlatformModels;
 use crate::models::domain::JobSnapshot;
 use crate::services::platform_settings::PlatformSource;
 
-use super::runtime_gateway::JobRuntimeLauncher;
+use crate::services::jobs::runtime_gateway::JobRuntimeLauncher;
 
 #[derive(Clone)]
 pub struct JobLaunchDeps<'a> {

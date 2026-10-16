@@ -18,7 +18,7 @@ use crate::models::domain::{JobSnapshot, JobStatusKind};
 use crate::services::artifacts::{job_upload_id, list_registry_for_job};
 use crate::storage_paths::{resolve_job_root, resolve_markdown_path, resolve_output_pdf, resolve_source_pdf};
 
-use super::files::JobFile;
+use crate::services::jobs::downloads::files::JobFile;
 use crate::services::jobs::summary_loaders::SummaryCache;
 
 /// `internal/` 组：新文件名 ↔ 产物清单里的名字。

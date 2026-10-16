@@ -10,7 +10,7 @@ use crate::models::api::PagePreviewQuery;
 use crate::models::domain::{CreateJobInput, JobArtifacts, JobSnapshot};
 use crate::services::download_generation::DownloadGeneration;
 
-use super::{Disposition, JobDownloads, JobFile, JobScope};
+use crate::services::jobs::downloads::{Disposition, JobDownloads, JobFile, JobScope};
 
 const JOB_ID: &str = "preview-job";
 

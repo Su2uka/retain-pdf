@@ -6,20 +6,20 @@ use crate::models::api::{
 use crate::services::jobs::stage_plan::stage_plan;
 use crate::services::jobs::translation_request_recovery::load_translation_request_recovery;
 
-use super::super::super::creation::{relaunch_in_place, submit_job, NewJob};
-use super::super::super::query::load_job_or_404;
-use super::super::JobsFacade;
-use super::ocr_ambiguity::ambiguous_ocr_dispatch;
-use super::rerun::prepare_in_place_render_job;
-use super::stage_retry_overrides::{
+use crate::services::jobs::creation::{relaunch_in_place, submit_job, NewJob};
+use crate::services::jobs::query::load_job_or_404;
+use crate::services::jobs::facade::JobsFacade;
+use crate::services::jobs::facade::command::ocr_ambiguity::ambiguous_ocr_dispatch;
+use crate::services::jobs::facade::command::rerun::prepare_in_place_render_job;
+use crate::services::jobs::facade::command::stage_retry_overrides::{
     apply_retry_overrides, apply_retry_overrides_to_resolved_spec, discard_ocr_secret_sources,
 };
-use super::stage_retry_refine::{
+use crate::services::jobs::facade::command::stage_retry_refine::{
     clear_pending_refine_override, import_inline_refine_keys, prepare_in_place_refine_job,
     validate_refine_request,
 };
-use super::stage_retry_request::build_retry_request;
-use super::stage_retry_view::{build_retry_stage_submission_view, build_stage_actions_view};
+use crate::services::jobs::facade::command::stage_retry_request::build_retry_request;
+use crate::services::jobs::facade::command::stage_retry_view::{build_retry_stage_submission_view, build_stage_actions_view};
 
 impl<'a> JobsFacade<'a> {
     pub fn stage_actions_view(

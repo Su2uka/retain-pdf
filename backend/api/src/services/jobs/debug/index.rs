@@ -9,10 +9,10 @@ use crate::models::api::{
 };
 use crate::models::domain::JobSnapshot;
 
-use super::artifacts::{
+use crate::services::jobs::debug::artifacts::{
     load_manifest_pages, read_translation_debug_index_file, translation_manifest_path,
 };
-use super::common::{preview_text, value_string, StringExt};
+use crate::services::jobs::debug::common::{preview_text, value_string, StringExt};
 
 pub(crate) fn load_translation_debug_list_view(
     data_root: &Path,

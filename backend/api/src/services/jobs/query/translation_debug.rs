@@ -4,12 +4,12 @@ use crate::models::api::{
     TranslationDiagnosticsView, TranslationRevisionHistoryView,
 };
 
-use super::super::debug::{
+use crate::services::jobs::debug::{
     load_fit_report_view, load_refine_report_view, load_translation_debug_item_view, load_translation_debug_list_view,
     load_translation_diagnostics_view, load_translation_qa_view,
     load_translation_revision_history,
 };
-use super::{load_supported_job, JobQueries};
+use crate::services::jobs::query::{load_supported_job, JobQueries};
 
 impl JobQueries<'_> {
     pub fn translation_diagnostics_view(

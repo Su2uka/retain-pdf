@@ -7,7 +7,7 @@ use crate::models::api::TranslationDebugIndexView;
 use crate::models::domain::JobSnapshot;
 use crate::storage_paths::{resolve_translation_debug_index, resolve_translation_manifest};
 
-use super::common::{read_json_value, value_string};
+use crate::services::jobs::debug::common::{read_json_value, value_string};
 
 pub(super) fn read_translation_debug_index_file(
     data_root: &Path,

@@ -19,8 +19,8 @@ use crate::services::jobs::validation::validate_translation_credential_reference
 use crate::storage_paths::JobPaths;
 use crate::worker_command::refine_override::clear_refine_override;
 
-use super::rerun::prepare_in_place_render_job;
-use super::stage_retry_overrides::{apply_retry_overrides_to_resolved_spec, discard_ocr_secret_sources};
+use crate::services::jobs::facade::command::rerun::prepare_in_place_render_job;
+use crate::services::jobs::facade::command::stage_retry_overrides::{apply_retry_overrides_to_resolved_spec, discard_ocr_secret_sources};
 
 /// 精修重试允许的模式。`off` 不在里面：不精修的重渲染请用 stage=render。
 const REFINE_RETRY_MODES: &[&str] = &["review_only", "review_and_fix", "editorial"];

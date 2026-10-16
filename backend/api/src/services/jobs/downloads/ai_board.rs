@@ -30,9 +30,9 @@ use serde::Serialize;
 use crate::error::AppError;
 use crate::storage_paths::resolve_ai_board_dir;
 
-use super::ai_carryover::carry_over_ai_workspace;
-use super::super::query::load_supported_job;
-use super::{DownloadJobsDeps, FileDownload};
+use crate::services::jobs::downloads::ai_carryover::carry_over_ai_workspace;
+use crate::services::jobs::query::load_supported_job;
+use crate::services::jobs::downloads::{DownloadJobsDeps, FileDownload};
 
 /// 单个文件的上限。画板是给人看的，超过这个尺寸多半是 agent 写错了东西
 /// （比如把整份 document.v1.json 倒了进来）。

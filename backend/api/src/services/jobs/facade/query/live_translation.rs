@@ -3,12 +3,12 @@ use crate::models::api::{
     LiveTranslationCommitEventView, LiveTranslationLayoutView, LiveTranslationPageView,
 };
 
-use super::super::super::live_translation::{
+use crate::services::jobs::live_translation::{
     heal_live_translation_revisions, load_live_translation_events_after,
     load_live_translation_layout, load_live_translation_page,
 };
-use super::super::super::query::load_supported_job;
-use super::super::JobsFacade;
+use crate::services::jobs::query::load_supported_job;
+use crate::services::jobs::facade::JobsFacade;
 
 impl<'a> JobsFacade<'a> {
     pub fn live_translation_layout(
