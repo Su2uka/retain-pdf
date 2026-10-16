@@ -10,19 +10,19 @@ mod merged;
 
 use std::path::Path;
 
-use crate::db::Db;
+use retain_pdf_data::db::Db;
 use crate::error::AppError;
-use crate::models::domain::{JobSnapshot, WorkflowKind};
-use crate::storage_paths::{
+use retain_pdf_core::models::domain::{JobSnapshot, WorkflowKind};
+use retain_pdf_core::storage_paths::{
     job_uses_legacy_output_layout, job_uses_legacy_path_storage, LEGACY_JOB_UNSUPPORTED_MESSAGE,
 };
 
-pub(crate) use merged::{
+pub use merged::{
     contributing_jobs, is_virtual_job_id, load_virtual_job, MergedTranslation, ReadingSidecar,
     VirtualJobId, SIDECAR,
 };
 
-pub(crate) fn load_job_or_404(db: &Db, job_id: &str) -> Result<JobSnapshot, AppError> {
+pub fn load_job_or_404(db: &Db, job_id: &str) -> Result<JobSnapshot, AppError> {
     db.get_job(job_id)
         .map_err(|_| AppError::not_found(format!("job not found: {job_id}")))
 }
@@ -34,7 +34,7 @@ fn ensure_supported_job_layout(data_root: &Path, job: &JobSnapshot) -> Result<()
     Ok(())
 }
 
-pub(crate) fn load_supported_job(
+pub fn load_supported_job(
     db: &Db,
     data_root: &Path,
     job_id: &str,
@@ -49,7 +49,7 @@ pub(crate) fn load_supported_job(
     Ok(job)
 }
 
-pub(crate) fn load_ocr_job_or_404(db: &Db, job_id: &str) -> Result<JobSnapshot, AppError> {
+pub fn load_ocr_job_or_404(db: &Db, job_id: &str) -> Result<JobSnapshot, AppError> {
     let job = load_job_or_404(db, job_id)?;
     if !matches!(job.workflow, WorkflowKind::Ocr) {
         return Err(AppError::not_found(format!("ocr job not found: {job_id}")));
@@ -57,7 +57,7 @@ pub(crate) fn load_ocr_job_or_404(db: &Db, job_id: &str) -> Result<JobSnapshot, 
     Ok(job)
 }
 
-pub(crate) fn load_ocr_job_with_supported_layout(
+pub fn load_ocr_job_with_supported_layout(
     db: &Db,
     data_root: &Path,
     job_id: &str,

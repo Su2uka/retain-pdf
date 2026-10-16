@@ -551,29 +551,6 @@ impl From<std::io::Error> for AppError {
     }
 }
 
-// Uploads owns domain failures; this application boundary owns the HTTP contract.
-impl From<crate::services::ingest::UploadError> for AppError {
-    fn from(value: crate::services::ingest::UploadError) -> Self {
-        use crate::services::ingest::UploadError;
-        match value {
-            UploadError::BadRequest(message) => Self::bad_request(message),
-            UploadError::PayloadTooLarge(message) => Self::payload_too_large(message),
-            UploadError::Busy => {
-                Self::service_unavailable("PDF processing capacity is busy; please retry")
-            }
-            UploadError::QueueTimeout => {
-                Self::service_unavailable("PDF processing queue wait timed out")
-            }
-            UploadError::RepairUnavailable => {
-                Self::service_unavailable("PDF repair tool unavailable")
-            }
-            UploadError::RepairTimeout => Self::service_unavailable("PDF repair timed out"),
-            UploadError::Internal(message) => Self::internal(message),
-            UploadError::Io(error) => Self::from(error),
-        }
-    }
-}
-
 impl From<rusqlite::Error> for AppError {
     fn from(value: rusqlite::Error) -> Self {
         Self::Internal(value.to_string())

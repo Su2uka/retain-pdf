@@ -17,7 +17,10 @@ async fn run() -> anyhow::Result<()> {
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "retain_pdf_api=info,rust_api=info,tower_http=info".into()),
+                .unwrap_or_else(|_| {
+                    // 库的日志目标是 crate 名（retain_pdf_api、retain_pdf_api_base），rust_api 是 main.rs 自己。
+                    "retain_pdf_api=info,retain_pdf_api_base=info,rust_api=info,tower_http=info".into()
+                }),
         )
         .init();
 

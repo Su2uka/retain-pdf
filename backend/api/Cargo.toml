@@ -12,6 +12,7 @@ name = "rust_api"
 path = "src/main.rs"
 
 [dependencies]
+retain-pdf-api-base = { path = "../packages/retain-pdf-api-base" }
 retain-pdf-core = { path = "../packages/retain-core" }
 retain-pdf-data = { path = "../packages/retain-data" }
 retain-pdf-config = { path = "../packages/retain-config" }

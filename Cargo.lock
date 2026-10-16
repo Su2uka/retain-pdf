@@ -1564,6 +1564,7 @@ dependencies = [
  "once_cell",
  "regex",
  "reqwest",
+ "retain-pdf-api-base",
  "retain-pdf-config",
  "retain-pdf-core",
  "retain-pdf-data",
@@ -1584,6 +1585,23 @@ dependencies = [
  "tracing-subscriber",
  "url",
  "walkdir",
+ "zip",
+]
+
+[[package]]
+name = "retain-pdf-api-base"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "retain-pdf-core",
+ "retain-pdf-data",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
  "zip",
 ]
 
