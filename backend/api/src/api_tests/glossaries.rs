@@ -6,7 +6,7 @@ use tower::util::ServiceExt;
 use super::jobs_common::test_state;
 use crate::app::build_app;
 use crate::models::GlossaryUpsertInput;
-use crate::services::glossaries::api::{create_glossary_view, GlossaryApiDeps};
+use crate::services::glossaries::{create_glossary_view, GlossaryApiDeps};
 
 #[tokio::test]
 async fn export_glossary_csv_route_returns_csv() {

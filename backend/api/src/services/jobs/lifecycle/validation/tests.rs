@@ -1,6 +1,6 @@
 use super::*;
 use crate::models::domain::{now_iso, DEFAULT_SOURCE_CLEANUP_STRATEGY};
-use crate::services::providers::credentials::api::{create_credential, CreateCredentialInput};
+use crate::services::providers::{create_credential, CreateCredentialInput};
 
 fn default_limits() -> ProviderLimitsConfig {
     ProviderLimitsConfig::from_env()

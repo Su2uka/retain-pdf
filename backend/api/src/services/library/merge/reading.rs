@@ -22,7 +22,7 @@ use crate::db::Db;
 use crate::error::AppError;
 use crate::job_loading::{contributing_jobs, MergedTranslation, ReadingSidecar, VirtualJobId, SIDECAR};
 use crate::models::domain::JobSnapshot;
-use crate::services::files::derived_artifacts::DerivedArtifactDeps;
+use crate::services::files::DerivedArtifactDeps;
 use crate::storage_paths::{resolve_data_path, to_relative_data_path};
 
 use super::build::{ensure_merged_translation, JobInputs};

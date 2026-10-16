@@ -30,7 +30,7 @@ pub fn validate_provider_credentials(input: &CreateJobInput) -> Result<(), AppEr
 
 pub fn validate_translation_credentials(input: &CreateJobInput) -> Result<(), AppError> {
     if let Some(connection) = &input.translation.execution_connection {
-        use crate::services::providers::model_executor::ModelConnectionPolicy;
+        use crate::services::providers::ModelConnectionPolicy;
         connection
             .validate()
             .map_err(|_| AppError::bad_request("invalid translation.execution_connection"))?;

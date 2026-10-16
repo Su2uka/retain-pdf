@@ -3,7 +3,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::net::{IpAddr, SocketAddr};
 
-pub use retain_core::model_connection::{Deadlines, ModelConnection, Provider, Thinking};
+#[cfg(test)]
+pub use retain_core::model_connection::Deadlines;
+pub use retain_core::model_connection::{ModelConnection, Provider, Thinking};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

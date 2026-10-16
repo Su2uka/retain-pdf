@@ -6,7 +6,7 @@ use axum::Json;
 use crate::error::AppError;
 use crate::models::api::{ApiResponse, SyncSettingsInput, SyncStatusView, SyncTestView};
 use crate::routes::common::{build_sync_route_deps, ok_json, ApiJson};
-use crate::services::platform::sync::api::{
+use crate::services::platform::{
     run_sync_now_view, sync_status_view, test_sync_target_view, update_sync_settings_view,
 };
 use crate::AppState;

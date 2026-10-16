@@ -1,4 +1,4 @@
-use crate::services::files::derived_artifacts::DerivedArtifactDeps;
+use crate::services::files::DerivedArtifactDeps;
 
 use crate::services::jobs::files::downloads::DownloadJobsDeps;
 

@@ -351,12 +351,12 @@ mod tests { fn fixture() { let runtime: ProcessRuntimeDeps; } }
 
     def test_upload_route_deps_only_import_the_application_facade(self):
         self.assertEqual([], self.check_sources(
-            {"routes/common/uploads.rs": "use crate::services::ingest::uploads::api::UploadApiDeps;"},
+            {"routes/common/uploads.rs": "use crate::services::ingest::UploadApiDeps;"},
             checks.check_route_service_imports,
         ))
         for source in (
-            "use crate::services::ingest::uploads::UploadService;",
-            "use crate::services::ingest::uploads::api::UploadService;",
+            "use crate::services::ingest::UploadService;",
+            "use crate::services::ingest::uploads::api::UploadApiDeps;",
             "use crate::services::upload_api::UploadApiDeps;",
         ):
             with self.subTest(source=source):
@@ -395,15 +395,15 @@ mod tests { fn fixture() { let runtime: ProcessRuntimeDeps; } }
             "services/ai/api.rs": "use super::gateway::AiGateway;",
         }, checks.check_business_private_modules))
 
-    def test_ai_route_only_imports_application_entry(self):
-        self.assertEqual([], self.check_sources(
-            {"routes/ai_proxy.rs": "use crate::services::ai::api as ai_api;"},
-            checks.check_route_service_imports,
-        ))
+    def test_ai_route_only_imports_its_domain_facade(self):
+        for source in ("use crate::services::ai;", "use crate::services::ai::{ask, get_runtime_config};"):
+            with self.subTest(source=source):
+                self.assertEqual([], self.check_sources(
+                    {"routes/ai_proxy.rs": source}, checks.check_route_service_imports,
+                ))
         for source in (
-            "use crate::services::ai::AiGateway;",
+            "use crate::services::jobs::JobsFacade;",
             "use crate::services::ai_proxy_api;",
-            "use crate::services::ai::api_internal;",
         ):
             self.assertTrue(self.check_sources(
                 {"routes/ai_proxy.rs": source}, checks.check_route_service_imports,
@@ -419,18 +419,18 @@ mod tests { fn fixture() { let runtime: ProcessRuntimeDeps; } }
             checks.check_service_model_facade_boundaries,
         ))
 
-    def test_small_module_routes_use_api_not_implementation(self):
+    def test_small_module_routes_import_only_their_domain_facade(self):
         for domain, route in (
-            ("platform::fonts", "fonts"), ("providers::credentials", "credentials"),
-            ("ai::agent_calculations", "agent_calculations"), ("glossaries", "glossaries"),
+            ("platform", "fonts"), ("providers", "credentials"),
+            ("ai", "agent_calculations"), ("glossaries", "glossaries"),
         ):
             with self.subTest(domain=domain):
                 self.assertEqual([], self.check_sources(
-                    {f"routes/{route}.rs": f"use crate::services::{domain}::api::Entry;"},
+                    {f"routes/{route}.rs": f"use crate::services::{domain}::Entry;"},
                     checks.check_route_service_imports,
                 ))
                 self.assertTrue(self.check_sources(
-                    {f"routes/{route}.rs": f"use crate::services::{domain}::Entry;"},
+                    {f"routes/{route}.rs": "use crate::services::jobs::Entry;"},
                     checks.check_route_service_imports,
                 ))
 
@@ -688,6 +688,62 @@ class ServiceCycleTests(unittest.TestCase):
         }, checks.check_service_dependency_cycles)
         self.assertEqual(2, len(errors), errors)
         self.assertTrue(all("closes a dependency cycle" in error for error in errors), errors)
+
+
+class DomainFacadeTests(unittest.TestCase):
+    check_sources = UploadBoundaryTests.check_sources
+
+    def domain_tree(self, **extra):
+        sources = {f"services/{domain}/mod.rs": "mod inner;\npub(crate) use inner::Thing;\n"
+                   for domain in checks.SERVICE_DOMAINS}
+        sources["services/mod.rs"] = ""
+        sources.update(extra)
+        return sources
+
+    def test_current_layout_passes(self):
+        self.assertEqual([], self.check_sources(self.domain_tree(), checks.check_service_domains))
+        self.assertEqual([], self.check_sources(self.domain_tree(), checks.check_domain_facades))
+
+    def test_new_top_level_service_module_is_rejected(self):
+        for path in ("services/billing.rs", "services/billing/mod.rs"):
+            with self.subTest(path=path):
+                errors = self.check_sources(self.domain_tree(**{path: ""}), checks.check_service_domains)
+                self.assertEqual(1, len(errors), errors)
+                self.assertIn("services only holds the domains", errors[0])
+
+    def test_public_submodule_breaks_the_facade(self):
+        for declaration in ("pub mod inner;", "pub(crate) mod inner;", "pub(super) mod inner;"):
+            with self.subTest(declaration=declaration):
+                errors = self.check_sources(
+                    self.domain_tree(**{"services/files/mod.rs": declaration}), checks.check_domain_facades,
+                )
+                self.assertEqual(1, len(errors), errors)
+                self.assertIn("must stay private", errors[0])
+        # 测试模块里的声明不算
+        self.assertEqual([], self.check_sources(
+            self.domain_tree(**{"services/files/mod.rs": "mod inner;\n#[cfg(test)]\nmod tests {\npub mod x;\n}\n"}),
+            checks.check_domain_facades,
+        ))
+
+    def test_domain_dependencies_only_point_down(self):
+        self.assertEqual([], [
+            error for error in self.check_sources({
+                "services/library/media.rs": "use crate::services::files::DownloadGeneration;",
+            }, checks.check_domain_dependency_direction)
+            if "not an allowed domain dependency" in error
+        ])
+        errors = self.check_sources({
+            "services/files/download_generation.rs": "use crate::services::library::Disposition;",
+        }, checks.check_domain_dependency_direction)
+        self.assertTrue(any(
+            "services::files -> services::library is not an allowed domain dependency" in error
+            for error in errors
+        ), errors)
+
+    def test_unused_allowed_dependency_must_be_removed(self):
+        errors = self.check_sources({"services/jobs/x.rs": ""}, checks.check_domain_dependency_direction)
+        self.assertEqual(len(checks.ALLOWED_DOMAIN_DEPENDENCIES), len(errors), errors)
+        self.assertTrue(all("nothing uses any more" in error for error in errors), errors)
 
 
 class JobEntryOwnershipTests(unittest.TestCase):

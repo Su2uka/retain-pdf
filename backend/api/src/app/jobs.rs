@@ -7,12 +7,10 @@ use crate::db::Db;
 use crate::job_runner::{
     reconcile_stale_running_jobs, requeue_stuck_queued_jobs, spawn_job, ProcessRuntimeDeps,
 };
-use crate::services::jobs::lifecycle::launcher::JobLaunchDeps;
 use crate::services::jobs::{
-    build_jobs_facade, CommandJobsDeps, ControlDeps, JobSubmitDeps, JobsFacade, QueryJobsDeps,
-    ReplayDeps, SnapshotBuildDeps,
+    build_jobs_facade, CommandJobsDeps, ControlDeps, JobLaunchDeps, JobRuntimeLauncher, JobsFacade,
+    JobSubmitDeps, QueryJobsDeps, ReplayDeps, SnapshotBuildDeps,
 };
-use crate::services::jobs::runtime_gateway::JobRuntimeLauncher;
 
 use super::state::AppState;
 
@@ -80,7 +78,7 @@ pub(crate) fn build_jobs_facade_with_launcher(
         runtime_launcher,
     )
     .with_platform(state.config.accounts.mode.is_multi().then_some(
-        crate::services::accounts::platform_settings::PlatformSource {
+        crate::services::accounts::PlatformSource {
             db: state.db.as_ref(),
             env: &state.config.accounts.platform,
         },

@@ -12,14 +12,12 @@ use std::path::PathBuf;
 use crate::error::AppError;
 use crate::models::api::{LayoutDocxQuery, PagePreviewQuery};
 use crate::models::domain::{JobSnapshot, JobStatusKind};
-use crate::services::files::artifacts::{
+use crate::services::files::{
     artifact_is_direct_downloadable, build_bundle_for_job, build_markdown_bundle_for_job,
-    resolve_registry_artifact,
+    ensure_book_image, ensure_layout_docx, ensure_page_preview, ensure_side_by_side_pdf,
+    job_download_file_name, resolve_registry_artifact, BookImageKind, DownloadKind,
+    LayoutDocxOptions,
 };
-use crate::services::files::derived_artifacts;
-use crate::services::files::derived_artifacts::preview::BookImageKind;
-use crate::services::files::derived_artifacts::word::LayoutDocxOptions;
-use crate::services::files::download_names::{job_download_file_name, DownloadKind};
 use crate::storage_paths::{
     resolve_job_root, resolve_markdown_images_dir, resolve_markdown_path, resolve_output_pdf,
     resolve_source_pdf, ARTIFACT_KEY_MARKDOWN_BUNDLE_ZIP, ARTIFACT_KEY_MARKDOWN_RAW,
@@ -277,7 +275,7 @@ fn locate(deps: &DownloadJobsDeps<'_>, job: &JobSnapshot, file: &JobFile) -> Res
         JobFile::SideBySidePdf => {
             let source_pdf = require_file(resolve_source_pdf(job, data_root), "source pdf", job)?;
             let translated_pdf = require_file(resolve_output_pdf(job, data_root), "translated pdf", job)?;
-            let output_pdf = derived_artifacts::side_by_side::ensure_side_by_side_pdf(
+            let output_pdf = ensure_side_by_side_pdf(
                 derived_artifact_deps(deps),
                 data_root,
                 job,
@@ -295,7 +293,7 @@ fn locate(deps: &DownloadJobsDeps<'_>, job: &JobSnapshot, file: &JobFile) -> Res
             // 译文 PDF 是**可选**的：有它就从里面读回收敛后的字号和行距（最准），没有就走
             // 阅读器那套字号收敛（html_fit）。只翻译没渲染的任务一样导得出来。
             let translated_pdf = resolve_output_pdf(job, data_root).filter(|path| path.is_file());
-            let path = derived_artifacts::word::ensure_layout_docx(
+            let path = ensure_layout_docx(
                 derived_artifact_deps(deps),
                 data_root,
                 job,
@@ -348,7 +346,7 @@ fn locate(deps: &DownloadJobsDeps<'_>, job: &JobSnapshot, file: &JobFile) -> Res
             };
             let source_pdf = resolve_source_pdf(job, data_root)
                 .ok_or_else(|| AppError::not_found(format!("source pdf not ready: {}", job.job_id)))?;
-            let path = derived_artifacts::preview::ensure_book_image(
+            let path = ensure_book_image(
                 derived_artifact_deps(deps),
                 data_root,
                 job,
@@ -381,7 +379,7 @@ fn locate(deps: &DownloadJobsDeps<'_>, job: &JobSnapshot, file: &JobFile) -> Res
                 spec.width_px,
                 spec.dpi
             ));
-            let path = derived_artifacts::preview::ensure_page_preview(
+            let path = ensure_page_preview(
                 derived_artifact_deps(deps),
                 &output_path,
                 &pdf,

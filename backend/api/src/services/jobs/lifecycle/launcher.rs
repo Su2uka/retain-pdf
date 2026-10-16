@@ -4,7 +4,7 @@ use crate::db::Db;
 use crate::error::AppError;
 use crate::config::PlatformModels;
 use crate::models::domain::JobSnapshot;
-use crate::services::accounts::platform_settings::PlatformSource;
+use crate::services::accounts::PlatformSource;
 
 use crate::services::jobs::runtime_gateway::JobRuntimeLauncher;
 

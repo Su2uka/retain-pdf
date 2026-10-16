@@ -4,6 +4,7 @@ use retain_data::db::Db;
 
 use super::executor::{DocumentOperationExecutor, ExecutorObservation};
 
+#[cfg(test)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ReconciledDocumentOperation {
     pub operation_id: String,
@@ -345,6 +346,7 @@ impl<'a, E: DocumentOperationExecutor + ?Sized> DocumentOperationControl<'a, E> 
             .transition_document_operation(&cancelled, "cancelled", r#"{"cancelled":true}"#)
     }
 
+    #[cfg(test)]
     pub fn reconcile_unreceipted(&self) -> Result<Vec<ReconciledDocumentOperation>> {
         let states = self.db.list_unreceipted_document_operation_attempts()?;
         let mut reconciled = Vec::new();

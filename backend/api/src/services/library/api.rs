@@ -1,6 +1,6 @@
 //! Application facade for the Library domain.
 //!
-//! Routes must import only this module from `services::*` (see architecture check).
+//! The library facade (`mod.rs`) re-exports these for routes.
 //! Domain functions that already implement the API contract are re-exported
 //! directly; a public entrypoint does not need an extra forwarding function.
 
@@ -102,8 +102,7 @@ pub fn apply_document_metadata_suggestion_view(
 
 // --- media ---
 
-pub use super::{DocumentFile, DocumentFilesView};
-pub(crate) use super::open_document_file;
+pub use super::media::DocumentFilesView;
 pub(crate) use crate::services::jobs::Disposition;
 
 pub fn document_files(

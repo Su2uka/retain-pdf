@@ -10,7 +10,9 @@
 
 use std::collections::{BTreeMap, HashMap};
 use std::fs;
-use std::path::{Component, Path, PathBuf};
+#[cfg(test)]
+use std::path::Component;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::SystemTime;
 
@@ -105,6 +107,7 @@ fn is_rows(spec: &DatasetSpec) -> bool {
 }
 
 /// 登记表自检（契约测试也跑这一个）：来源种类、根目录、路径都必须在白名单里。
+#[cfg(test)]
 pub fn validate_registry() -> Result<(), String> {
     for (name, spec) in registry() {
         let source = &spec.source;
@@ -146,6 +149,7 @@ pub fn validate_registry() -> Result<(), String> {
     Ok(())
 }
 
+#[cfg(test)]
 fn safe_relative(path: &str) -> bool {
     let path = Path::new(path);
     !path.as_os_str().is_empty() && path.components().all(|component| matches!(component, Component::Normal(_)))

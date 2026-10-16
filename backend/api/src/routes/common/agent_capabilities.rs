@@ -1,6 +1,6 @@
 use crate::app::AppState;
 use crate::db::Db;
-use crate::services::ai::agent_capabilities::AgentCapabilityAuthority;
+use crate::services::ai::AgentCapabilityAuthority;
 
 pub struct AgentCapabilityRouteDeps<'a> {
     pub db: &'a Db,

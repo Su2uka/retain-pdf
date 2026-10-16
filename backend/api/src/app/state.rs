@@ -8,9 +8,9 @@ use tracing::{info, warn};
 use super::jobs::reconcile_owned_runtime;
 use crate::config::AppConfig;
 use crate::db::Db;
-use crate::services::ai::agent_capabilities::AgentCapabilityAuthority;
-use crate::services::jobs::runtime_gateway::{JobDriverRegistry, JobRuntime};
-use crate::services::ingest::uploads::{UploadService, UploadServiceConfig};
+use crate::services::ai::AgentCapabilityAuthority;
+use crate::services::jobs::{JobDriverRegistry, JobRuntime};
+use crate::services::ingest::{UploadService, UploadServiceConfig};
 
 #[derive(Clone)]
 pub struct AppState {
@@ -18,8 +18,8 @@ pub struct AppState {
     pub db: Arc<Db>,
     pub(crate) ai_gateway: Arc<crate::services::ai::AiGateway>,
     pub(crate) uploads: Arc<UploadService>,
-    pub download_generation: Arc<crate::services::files::download_generation::DownloadGeneration>,
-    pub(crate) query_execution: Arc<crate::services::jobs::query_execution::QueryExecution>,
+    pub download_generation: Arc<crate::services::files::DownloadGeneration>,
+    pub(crate) query_execution: Arc<crate::services::jobs::QueryExecution>,
     pub canceled_jobs: Arc<RwLock<HashSet<String>>>,
     pub job_slots: Arc<Semaphore>,
     pub job_drivers: Arc<JobDriverRegistry>,
@@ -28,10 +28,10 @@ pub struct AppState {
     /// Per-process signing authority for short-lived, least-privilege agent capabilities.
     pub agent_capabilities: Arc<AgentCapabilityAuthority>,
     /// Staged rollout: disabled until worker pause/resume integration is enabled.
-    pub model_executor: Option<Arc<crate::services::providers::model_executor::ModelExecutor>>,
+    pub model_executor: Option<Arc<crate::services::providers::ModelExecutor>>,
     /// 多设备同步(设置、后台定时同步、状态)。
-    pub(crate) sync: Arc<crate::services::platform::sync::SyncService>,
-    pub(crate) backup: Arc<crate::services::platform::backup::BackupService>,
+    pub(crate) sync: Arc<crate::services::platform::SyncService>,
+    pub(crate) backup: Arc<crate::services::platform::BackupService>,
     /// 账号、会话（多用户模式）；单机模式下只用来报告模式。
     pub(crate) accounts: Arc<crate::services::accounts::AccountsService>,
 }
@@ -65,7 +65,7 @@ pub fn build_state(config: Arc<AppConfig>) -> Result<AppState> {
 
     let model_executor = if std::env::var("RETAIN_MODEL_EXECUTOR_ENABLED").as_deref() == Ok("1") {
         Some(Arc::new(
-            crate::services::providers::model_executor::ModelExecutor::new(
+            crate::services::providers::ModelExecutor::new(
                 db.clone(),
                 config.data_root.clone(),
             )?,
@@ -73,7 +73,7 @@ pub fn build_state(config: Arc<AppConfig>) -> Result<AppState> {
     } else {
         None
     };
-    let sync = Arc::new(crate::services::platform::sync::SyncService::new(
+    let sync = Arc::new(crate::services::platform::SyncService::new(
         db.clone(),
         config.data_root.clone(),
     ));
@@ -103,7 +103,7 @@ pub fn build_state(config: Arc<AppConfig>) -> Result<AppState> {
         )),
         model_executor,
         sync: sync.clone(),
-        backup: Arc::new(crate::services::platform::backup::BackupService::new(db.clone(), sync)),
+        backup: Arc::new(crate::services::platform::BackupService::new(db.clone(), sync)),
         config: config.clone(),
         db,
         download_generation: Arc::default(),

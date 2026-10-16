@@ -16,41 +16,68 @@
 //! 根目录只放各类共用的：门面 `facade`、依赖 `deps`、返回视图 `presentation`、只读查询的入口
 //! `query`、运行时 `runtime_gateway`、产物摘要 `summary_loaders`。
 
-pub mod actions;
+mod actions;
 mod ai;
-pub mod data;
+mod data;
 mod deps;
 mod facade;
-pub mod files;
-pub mod lifecycle;
+mod files;
+mod lifecycle;
 mod presentation;
-pub mod progress;
+mod progress;
 mod query;
-pub(crate) mod query_execution;
-pub mod reader;
-pub mod reports;
-pub mod runtime_gateway;
-pub(super) mod summary_loaders;
+mod query_execution;
+mod reader;
+mod reports;
+mod runtime_gateway;
+mod summary_loaders;
 mod support;
 mod translations;
 
-pub use actions::wait_for_terminal_job;
+// 门面：领域外只能用这里导出的东西，子模块都是私有的（见 BOUNDARIES.md「Domain Facades」）。
 pub(crate) use ai::DocumentDownloadKind;
+pub(crate) use data::api::{
+    job_data_catalog_view, job_data_view, JobDataApiDeps, JobDataCatalogView, JobDataView,
+};
 pub(crate) use deps::{
     CommandJobsDeps, ControlDeps, JobSubmitDeps, QueryJobsDeps, ReplayDeps, SnapshotBuildDeps,
 };
-pub(crate) use facade::build_jobs_facade;
-pub use facade::JobsFacade;
+pub(crate) use facade::{build_jobs_facade, JobsFacade};
 pub(crate) use files::{
     job_readiness, Disposition, FileDownload, FileGroup, JobDownloads, JobFile, JobFilesView,
     JobScope,
 };
+pub(crate) use lifecycle::launcher::JobLaunchDeps;
+pub(crate) use lifecycle::managed_credential_gc::cleanup_deleted_job_credentials;
+pub(crate) use lifecycle::ocr_artifact_reuse::{reusable_ocr_coverage, validate_ocr_artifact_reuse};
+pub(crate) use lifecycle::validation::{
+    validate_ocr_credential_reference, validate_provider_credentials,
+};
 pub(crate) use lifecycle::with_dev_translation_defaults;
+pub(crate) use progress::live_stage::{
+    load_live_stage_snapshot, load_live_stage_snapshots, LiveStageSnapshot,
+};
+pub(crate) use progress::stage_view::{build_job_stage_view, terminal_completion_note};
+pub(crate) use query::JobQueries;
+pub(crate) use query_execution::QueryExecution;
+pub(crate) use reader::MarkdownDownload;
+pub(crate) use reports::quality::api::{
+    quality_items_view, quality_summary_view, QualityApiDeps, QualityItemsParams, QualityItemsView,
+    QualitySummaryView,
+};
+pub(crate) use reports::usage::api::{
+    all_usage_view, document_usage_view, job_usage_view, UsageApiDeps, UsageSummaryView,
+};
+pub(crate) use runtime_gateway::{JobDriverRegistry, JobRuntime, JobRuntimeLauncher};
+pub(crate) use summary_loaders::SummaryCache;
+// 只给测试用的。
+#[cfg(test)]
+pub(crate) use actions::translation_request_recovery::{
+    load_translation_request_recovery, load_translation_request_recovery_with_db,
+};
+#[cfg(test)]
+pub(crate) use lifecycle::validation::validate_translation_credentials;
 #[cfg(test)]
 pub(crate) use lifecycle::{DevDefaultsGuard, DevTranslationDefaults};
-pub use query::JobQueries;
-pub(crate) use reader::MarkdownDownload;
-
-pub use lifecycle::validation::{
-    validate_mineru_upload_limits, validate_ocr_provider_request, validate_provider_credentials,
-};
+#[cfg(test)]
+pub(crate) use reports::usage::job_usage_ledger_path;

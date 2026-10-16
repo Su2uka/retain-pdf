@@ -1,5 +1,5 @@
 use crate::app::AppState;
-use crate::services::jobs::reports::quality::api::QualityApiDeps;
+use crate::services::jobs::QualityApiDeps;
 
 pub fn build_quality_route_deps(state: &AppState) -> QualityApiDeps {
     QualityApiDeps::new(state.db.clone(), state.config.data_root.clone())

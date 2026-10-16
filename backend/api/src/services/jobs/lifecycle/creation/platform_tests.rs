@@ -2,7 +2,7 @@
 
 use crate::config::PlatformModels;
 use crate::models::domain::{now_iso, UploadRecord, WorkflowKind};
-use crate::services::accounts::platform_settings::{
+use crate::services::accounts::{
     self, PlatformSource, SaveOcrSettings, SavePlatformSettingsInput, SaveTranslationSettings,
 };
 use crate::test_support::pdf::build_test_pdf_bytes;
@@ -53,7 +53,7 @@ fn saved_platform_settings_apply_to_the_next_job_without_restart() {
         .unwrap();
     let runtime = state.config.provider_runtime.deepseek.clone();
     let save = |input| {
-        platform_settings::save(
+        accounts::save_platform_settings(
             &state.db,
             &state.config.data_root,
             &env,
@@ -121,7 +121,7 @@ fn default_platform_thinking_passes_job_validation() {
         })
         .unwrap();
     let runtime = state.config.provider_runtime.deepseek.clone();
-    platform_settings::save(
+    accounts::save_platform_settings(
         &state.db,
         &state.config.data_root,
         &env,

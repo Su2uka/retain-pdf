@@ -10,20 +10,19 @@ use crate::models::api::{
 use crate::models::domain::{JobSnapshot, UploadRecord};
 use crate::storage_paths::resolve_source_pdf;
 
-use crate::services::files::artifacts::build_artifacts_display;
-use crate::services::jobs::job_readiness;
-use crate::services::jobs::progress::live_stage::{load_live_stage_snapshots, LiveStageSnapshot};
-use crate::services::jobs::summary_loaders::SummaryCache;
+use crate::services::files::{
+    build_artifacts_display, display_title, document_titles_for, job_upload_id, source_file_name,
+    source_url_file_name, DocumentTitles,
+};
+use crate::services::jobs::{
+    job_readiness, load_live_stage_snapshots, LiveStageSnapshot, SummaryCache,
+};
 
 mod live;
 mod metadata;
 
 use live::{build_live_projection, project_live_stage};
 use metadata::build_book_summary;
-use crate::services::files::artifacts::{
-    display_title, document_titles_for, job_upload_id, source_file_name, source_url_file_name,
-    DocumentTitles,
-};
 
 pub(crate) fn build_library_book_list_view(
     db: &Db,

@@ -3,7 +3,7 @@ use crate::app::build_app;
 
 #[tokio::test]
 async fn upload_domain_errors_preserve_http_envelopes() {
-    use crate::services::ingest::uploads::UploadError;
+    use crate::services::ingest::UploadError;
     use axum::response::IntoResponse;
     let cases = [
         (
@@ -72,9 +72,9 @@ async fn all_upload_consumers_use_the_injected_processing_budget() {
     let mut state = test_state("upload-shared-budget");
     let mut processing = crate::config::UploadProcessingConfig::default();
     processing.buffer_mib = 1;
-    state.uploads = Arc::new(crate::services::ingest::uploads::UploadService::new(
+    state.uploads = Arc::new(crate::services::ingest::UploadService::new(
         state.db.clone(),
-        crate::services::ingest::uploads::UploadServiceConfig {
+        crate::services::ingest::UploadServiceConfig {
             uploads_dir: state.config.uploads_dir.clone(),
             python_bin: "/never-start-python".into(),
             upload_max_bytes: 0,
@@ -200,9 +200,9 @@ async fn upload_route_preserves_success_view_and_document_deduplication() {
 async fn upload_route_repair_unavailable_preserves_safe_error_and_cleanup() {
     let mut state = test_state("upload-route-repair-unavailable");
     let uploads_dir = state.config.uploads_dir.clone();
-    state.uploads = Arc::new(crate::services::ingest::uploads::UploadService::new(
+    state.uploads = Arc::new(crate::services::ingest::UploadService::new(
         state.db.clone(),
-        crate::services::ingest::uploads::UploadServiceConfig {
+        crate::services::ingest::UploadServiceConfig {
             uploads_dir: uploads_dir.clone(),
             python_bin: "/synthetic-private-missing-python".into(),
             upload_max_bytes: 0,

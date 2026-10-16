@@ -15,7 +15,7 @@ use crate::db::Db;
 use crate::error::AppError;
 use crate::models::api::{to_absolute_url, JobFilesQuery};
 use crate::models::domain::{JobSnapshot, JobStatusKind};
-use crate::services::files::artifacts::{job_upload_id, list_registry_for_job};
+use crate::services::files::{job_upload_id, list_registry_for_job};
 use crate::storage_paths::{resolve_job_root, resolve_markdown_path, resolve_output_pdf, resolve_source_pdf};
 
 use crate::services::jobs::files::downloads::files::JobFile;

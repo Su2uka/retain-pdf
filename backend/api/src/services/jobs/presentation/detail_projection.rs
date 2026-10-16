@@ -10,7 +10,7 @@ use crate::models::api::{
     OcrJobSummaryView, PublicResolvedJobSpec,
 };
 use crate::models::domain::{JobFailureInfo, JobRuntimeInfo, JobSnapshot, OcrProviderDiagnostics};
-use crate::services::files::artifacts::{build_artifacts_display, display_title, job_upload_id};
+use crate::services::files::{build_artifacts_display, display_title, job_upload_id};
 
 use crate::services::jobs::job_readiness;
 use crate::services::jobs::progress::live_stage::load_live_stage_snapshot;
@@ -143,7 +143,7 @@ pub(super) fn build_summary_projection(
     let upload = job_upload_id(job).and_then(|id| db.get_upload(id).ok());
     let upload = upload.as_ref();
     let mut summaries = SummaryCache::default();
-    let titles = crate::services::files::artifacts::document_titles_for(db, upload);
+    let titles = crate::services::files::document_titles_for(db, upload);
     let display_name = display_title(upload, job, &titles);
     let cover_url = super::helpers::cover_url(job, data_root, base_url);
     DetailSummaryProjection {

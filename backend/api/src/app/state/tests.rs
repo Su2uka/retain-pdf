@@ -65,7 +65,7 @@ fn sample_running_job(job_id: &str, pid: Option<u32>) -> JobSnapshot {
 
 #[tokio::test]
 async fn upload_processing_snapshot_changes_only_for_new_state() {
-    use crate::services::ingest::uploads::{UploadError, UploadedPdfInput};
+    use crate::services::ingest::{UploadedPdfInput, UploadError};
 
     let fs = TestStateFs::new("upload-config-snapshot");
     let mut config = (*fs.config()).clone();

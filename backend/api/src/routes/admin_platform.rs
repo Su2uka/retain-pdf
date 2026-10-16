@@ -10,9 +10,8 @@ use crate::models::api::ApiResponse;
 use crate::routes::common::{
     build_accounts_route_deps, build_platform_settings_route_deps, ok_json, ApiJson,
 };
-use crate::services::accounts::api::Principal;
-use crate::services::accounts::platform_settings::api::{
-    PlatformSettingsView, PlatformTestView, SavePlatformSettingsInput, TestPlatformInput,
+use crate::services::accounts::{
+    PlatformSettingsView, PlatformTestView, Principal, SavePlatformSettingsInput, TestPlatformInput,
 };
 use crate::AppState;
 

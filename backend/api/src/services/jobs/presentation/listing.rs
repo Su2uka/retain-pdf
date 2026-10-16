@@ -14,7 +14,7 @@ use crate::models::api::{
     JobListItemView, JobListView, ListDocumentJobsQuery, ListJobsQuery,
 };
 use crate::models::domain::{JobFailureInfo, JobSnapshot, UploadRecord};
-use crate::services::files::artifacts::{display_title, job_upload_id, source_file_name};
+use crate::services::files::{display_title, job_upload_id, source_file_name};
 
 pub fn build_job_list_view(
     db: &Db,
@@ -73,7 +73,7 @@ fn build_job_list_items(
     // Upload metadata was always optional: an unavailable record falls back to
     // job artifacts and the source URL, without retrying per display field.
     let uploads = db.get_uploads(&ids).unwrap_or_default();
-    let titles = crate::services::files::artifacts::document_titles_for(db, uploads.values());
+    let titles = crate::services::files::document_titles_for(db, uploads.values());
     let live_stages = if include_live_stage {
         load_live_stage_snapshots(db, jobs, data_root)
     } else {
@@ -103,7 +103,7 @@ fn build_job_list_item_view(
     job: &JobSnapshot,
     base_url: &str,
     upload: Option<&UploadRecord>,
-    titles: &crate::services::files::artifacts::DocumentTitles,
+    titles: &crate::services::files::DocumentTitles,
     summaries: &mut SummaryCache,
     live_stage: Option<&LiveStageSnapshot>,
 ) -> JobListItemView {

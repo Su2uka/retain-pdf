@@ -14,7 +14,6 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use anyhow::Result;
-pub use retain_data::sync::control::{sync_root_for, SYNC_SUBDIR};
 use retain_data::sync::{SyncControl, SyncSettingsError};
 
 use crate::db::Db;

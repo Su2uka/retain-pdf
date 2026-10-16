@@ -12,8 +12,8 @@ pub(crate) use deepseek::{query_deepseek_balance_view, validate_deepseek_token_v
 pub(crate) use ocr::{validate_mineru_token_view, validate_paddle_token_view};
 pub(crate) use url_policy::validate_provider_base_url;
 pub use types::{
-    DeepSeekBalanceInfoView, DeepSeekBalanceView, DeepSeekTokenValidationRequest,
-    MineruTokenValidationRequest, MineruTokenValidationView, PaddleTokenValidationRequest,
+    DeepSeekBalanceView, DeepSeekTokenValidationRequest, MineruTokenValidationRequest,
+    MineruTokenValidationView, PaddleTokenValidationRequest,
 };
 
 #[cfg(test)]

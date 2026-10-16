@@ -12,9 +12,10 @@ use crate::db::Db;
 use crate::error::AppError;
 use crate::models::api::{to_absolute_url, JobFilesQuery};
 use crate::models::api::DocumentRecord;
-use crate::services::files::derived_artifacts;
-use crate::services::files::derived_artifacts::preview::BookImageKind;
-use crate::services::files::download_generation::DownloadGeneration;
+use crate::services::files::{
+    document_artifacts_dir, ensure_document_book_image, ensure_page_preview, BookImageKind,
+    DerivedArtifactDeps, DownloadGeneration,
+};
 use crate::services::jobs::{Disposition, FileDownload};
 
 use super::LibraryDeps;
@@ -114,22 +115,22 @@ fn download_title(document: &DocumentRecord) -> String {
         .find(|value| !value.is_empty())
         .unwrap_or(document.document_id.as_str())
         .to_string();
-    crate::services::files::download_names::download_file_name(
+    crate::services::files::download_file_name(
         &title,
-        crate::services::files::download_names::DownloadKind::Source,
+        crate::services::files::DownloadKind::Source,
     )
 }
 
 fn locate(db: &Db, data_root: &Path, python_bin: &str, document_id: &str, file: &DocumentFile) -> Result<FileDownload, AppError> {
     let (document, source_pdf) = document_source(db, data_root, document_id)?;
-    let artifact_deps = derived_artifacts::DerivedArtifactDeps::new(python_bin);
+    let artifact_deps = DerivedArtifactDeps::new(python_bin);
     match file {
         DocumentFile::SourcePdf => {
             Ok(FileDownload::new(source_pdf, "application/pdf", None).with_inline_name(download_title(&document)))
         }
         DocumentFile::Cover | DocumentFile::Thumbnail => {
             let kind = file.book_image_kind().expect("cover or thumbnail");
-            let path = derived_artifacts::preview::ensure_document_book_image(
+            let path = ensure_document_book_image(
                 artifact_deps,
                 data_root,
                 document_id,
@@ -141,10 +142,10 @@ fn locate(db: &Db, data_root: &Path, python_bin: &str, document_id: &str, file: 
             Ok(download)
         }
         DocumentFile::Page { page, width_px, dpi } => {
-            let output = derived_artifacts::document_artifacts_dir(data_root, document_id)?
+            let output = document_artifacts_dir(data_root, document_id)?
                 .join("pages")
                 .join(format!("p{page:04}-w{width_px}-d{dpi}.jpg"));
-            let path = derived_artifacts::preview::ensure_page_preview(
+            let path = ensure_page_preview(
                 artifact_deps,
                 &output,
                 &source_pdf,

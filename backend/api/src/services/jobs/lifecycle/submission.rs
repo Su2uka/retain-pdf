@@ -5,7 +5,7 @@ use crate::models::request::CreateJobInput;
 
 use crate::services::jobs::lifecycle::creation::{submit_job, NewJob};
 use crate::services::jobs::facade::JobsFacade;
-use crate::services::ingest::uploads::UploadedPdfInput;
+use crate::services::ingest::UploadedPdfInput;
 
 impl<'a> JobsFacade<'a> {
     /// `POST /jobs`：已经上传过的文件（`source.upload_id`）或已有任务的产物（`source.artifact_job_id`）。

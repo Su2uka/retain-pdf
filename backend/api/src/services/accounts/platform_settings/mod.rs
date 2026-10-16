@@ -19,13 +19,11 @@ use crate::db::{Db, PlatformSettingsRecord};
 use crate::error::AppError;
 use crate::models::domain::{TRANSLATION_API_PROTOCOLS, TRANSLATION_THINKING_LEVELS};
 use crate::models::now_iso;
-use crate::services::providers::credentials::api::{
-    create_credential, delete_credential, CreateCredentialInput,
-};
-use crate::services::providers::provider_probe::{
-    validate_deepseek_token_view, validate_mineru_token_view, validate_paddle_token_view,
-    validate_provider_base_url, DeepSeekTokenValidationRequest, MineruTokenValidationRequest,
-    MineruTokenValidationView, PaddleTokenValidationRequest,
+use crate::services::providers::{
+    create_credential, delete_credential, validate_deepseek_token_view, validate_mineru_token_view,
+    validate_paddle_token_view, validate_provider_base_url, CreateCredentialInput,
+    DeepSeekTokenValidationRequest, MineruTokenValidationRequest, MineruTokenValidationView,
+    PaddleTokenValidationRequest,
 };
 
 pub const TRANSLATION_KEY_KIND: &str = "translation_api_key";

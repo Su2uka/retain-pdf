@@ -21,6 +21,7 @@ use crate::storage_paths::JobPaths;
 
 pub const ASSISTANT_USAGE_LEDGER_RELATIVE_PATH: &str = "usage/assistant.v1.jsonl";
 
+#[cfg(test)]
 pub fn job_usage_ledger_path(output_root: &Path, job_id: &str) -> PathBuf {
     JobPaths::for_job(output_root, job_id).token_usage_ledger()
 }

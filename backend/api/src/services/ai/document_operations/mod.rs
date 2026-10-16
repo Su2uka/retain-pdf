@@ -13,22 +13,23 @@ mod workspace;
 
 pub use contracts::{
     CancelDocumentOperationInput, CommitDocumentOperationInput, CreateDocumentOperationInput,
-    DocumentOperationEventView, DocumentOperationView, RunDocumentOperationInput,
-    DOCUMENT_OPERATION_CANCEL_INPUT_SCHEMA, DOCUMENT_OPERATION_COMMIT_INPUT_SCHEMA,
-    DOCUMENT_OPERATION_CREATE_INPUT_SCHEMA, DOCUMENT_OPERATION_RUN_INPUT_SCHEMA,
-    DOCUMENT_OPERATION_VIEW_SCHEMA,
+    DocumentOperationView, RunDocumentOperationInput, DOCUMENT_OPERATION_CANCEL_INPUT_SCHEMA,
+    DOCUMENT_OPERATION_COMMIT_INPUT_SCHEMA, DOCUMENT_OPERATION_RUN_INPUT_SCHEMA,
 };
-pub use control::{DocumentOperationControl, ReconciledDocumentOperation};
+pub use control::DocumentOperationControl;
 pub use executor::{
-    ControlPlanePreviewExecutor, DocumentOperationExecutor, ExecutorCapabilityReport,
-    ExecutorObservation, RestrictedPageProgramExecutor, CONTROL_PLANE_PREVIEW_PROFILE,
-    RESTRICTED_PAGE_PROGRAM_PROFILE,
+    ControlPlanePreviewExecutor, DocumentOperationExecutor, RestrictedPageProgramExecutor,
+    CONTROL_PLANE_PREVIEW_PROFILE, RESTRICTED_PAGE_PROGRAM_PROFILE,
 };
+#[cfg(test)]
+pub use executor::ExecutorObservation;
 pub use facade::{
     cancel_document_operation, commit_document_operation, create_document_operation,
     get_document_operation_view, run_document_operation,
 };
-pub use program::{canonical_program_sha256, RetainPdfPageProgram, RetainPdfPageProgramStep};
+#[cfg(test)]
+pub use program::canonical_program_sha256;
+pub use program::{RetainPdfPageProgram, RetainPdfPageProgramStep};
 pub use workspace::OperationWorkspacePaths;
 
 #[cfg(test)]

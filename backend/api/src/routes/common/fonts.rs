@@ -1,7 +1,7 @@
 use std::num::NonZeroU64;
 
 use crate::app::AppState;
-use crate::services::platform::fonts::api::FontApiDeps;
+use crate::services::platform::FontApiDeps;
 
 const FONT_UPLOAD_MAX_BYTES: u64 = 64 * 1024 * 1024;
 

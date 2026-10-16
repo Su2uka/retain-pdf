@@ -1,5 +1,5 @@
 use crate::app::AppState;
-use crate::services::jobs::reports::usage::api::UsageApiDeps;
+use crate::services::jobs::UsageApiDeps;
 
 pub fn build_usage_route_deps(state: &AppState) -> UsageApiDeps {
     UsageApiDeps::new(

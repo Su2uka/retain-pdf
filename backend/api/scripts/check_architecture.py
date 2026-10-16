@@ -137,80 +137,80 @@ ROUTE_STATE_RESOURCE_ALLOWLIST = {
 
 ROUTE_SERVICE_IMPORT_ALLOWLIST = {
     Path("src/routes/model_requests.rs"): (
-        "crate::services::providers::model_requests_api::",
+        "crate::services::providers",
     ),
     Path("src/routes/agent_calculations.rs"): (
-        "crate::services::ai::agent_calculations::api::",
+        "crate::services::ai",
     ),
     Path("src/routes/glossaries.rs"): (
-        "crate::services::glossaries::api::",
+        "crate::services::glossaries",
     ),
     Path("src/routes/sync.rs"): (
-        "crate::services::platform::sync::api::",
+        "crate::services::platform",
     ),
     Path("src/routes/backups.rs"): (
-        "crate::services::platform::backup::api::",
+        "crate::services::platform",
     ),
     Path("src/routes/health.rs"): (
-        "crate::services::platform::health_api::",
+        "crate::services::platform",
     ),
     Path("src/routes/credentials.rs"): (
-        "crate::services::providers::credentials::api::",
+        "crate::services::providers",
     ),
     Path("src/routes/document_operations.rs"): (
-        "crate::services::ai::document_operation_api::",
+        "crate::services::ai",
     ),
     Path("src/routes/agent_runtime_sessions.rs"): (
-        "crate::services::ai::agent_runtime_session_api::",
+        "crate::services::ai",
     ),
     Path("src/routes/agent_capabilities.rs"): (
-        "crate::services::ai::agent_capability_api::",
+        "crate::services::ai",
     ),
     Path("src/routes/public_document_operations.rs"): (
-        "crate::services::ai::public_document_operations_api::",
+        "crate::services::ai",
     ),
     Path("src/routes/library.rs"): (
-        "crate::services::library::api::",
+        "crate::services::library",
         # 书架按任务编号取封面、缩略图：和任务文件同一个出口。
         "crate::services::jobs::{Disposition, JobFile}",
     ),
     # Library thick routes migrate to library_api in PR2–PR5; allowlist is
     # ready so partial moves do not require revisiting this file each PR.
     Path("src/routes/library_data.rs"): (
-        "crate::services::library::api::",
+        "crate::services::library",
     ),
     Path("src/routes/library_extras.rs"): (
-        "crate::services::library::api::",
+        "crate::services::library",
     ),
     Path("src/routes/collections.rs"): (
-        "crate::services::library::api::",
+        "crate::services::library",
     ),
     Path("src/routes/uploads.rs"): (
-        "crate::services::ingest::uploads::api::",
+        "crate::services::ingest",
     ),
     Path("src/routes/common/uploads.rs"): (
-        "crate::services::ingest::uploads::api::UploadApiDeps",
+        "crate::services::ingest::UploadApiDeps",
     ),
     Path("src/routes/common/agent_capabilities.rs"): (
-        "crate::services::ai::agent_capabilities::AgentCapabilityAuthority",
+        "crate::services::ai::AgentCapabilityAuthority",
     ),
     Path("src/routes/common/agent_runtime_sessions.rs"): (
-        "crate::services::ai::agent_runtime_session_api::AgentRuntimeSessionApiDeps",
+        "crate::services::ai::AgentRuntimeSessionApiDeps",
     ),
     Path("src/routes/common/agent_calculations.rs"): (
-        "crate::services::ai::agent_calculations::api::AgentCalculationApiDeps",
+        "crate::services::ai::AgentCalculationApiDeps",
     ),
     Path("src/routes/common/glossaries.rs"): (
-        "crate::services::glossaries::api::GlossaryApiDeps",
+        "crate::services::glossaries::GlossaryApiDeps",
     ),
     Path("src/routes/common/sync.rs"): (
-        "crate::services::platform::sync::api::SyncApiDeps",
+        "crate::services::platform::SyncApiDeps",
     ),
     Path("src/routes/common/backups.rs"): (
-        "crate::services::platform::backup::api::BackupApiDeps",
+        "crate::services::platform::BackupApiDeps",
     ),
     Path("src/routes/common/health.rs"): (
-        "crate::services::platform::health_api::HealthApiDeps",
+        "crate::services::platform::HealthApiDeps",
     ),
     Path("src/routes/common/jobs.rs"): (
         "crate::app::{build_jobs_facade_from_state, AppState}",
@@ -239,58 +239,56 @@ ROUTE_SERVICE_IMPORT_ALLOWLIST = {
         "crate::services::jobs::{FileDownload, MarkdownDownload}",
     ),
     Path("src/routes/providers.rs"): (
-        "crate::services::providers::provider_api::",
+        "crate::services::providers",
     ),
     Path("src/routes/ai_proxy.rs"): (
-        "crate::services::ai::api",
+        "crate::services::ai",
     ),
     Path("src/routes/fonts.rs"): (
-        "crate::services::platform::fonts::api::",
+        "crate::services::platform",
     ),
     Path("src/routes/common/providers.rs"): (
-        "crate::services::providers::provider_api::ProviderApiDeps",
+        "crate::services::providers::ProviderApiDeps",
     ),
     Path("src/routes/common/fonts.rs"): (
-        "crate::services::platform::fonts::api::FontApiDeps",
+        "crate::services::platform::FontApiDeps",
     ),
     # 报告：质量报告、单个任务的模型用量各有自己的服务。
     Path("src/routes/jobs/reports.rs"): (
-        "crate::services::jobs::reports::quality::api::",
-        "crate::services::jobs::reports::usage::api::",
+        "crate::services::jobs",
     ),
     Path("src/routes/jobs/data.rs"): (
-        "crate::services::jobs::data::api::",
+        "crate::services::jobs",
     ),
     Path("src/routes/common/job_data.rs"): (
-        "crate::services::jobs::data::api::JobDataApiDeps",
+        "crate::services::jobs::JobDataApiDeps",
     ),
     Path("src/routes/token_usage.rs"): (
-        "crate::services::jobs::reports::usage::api::",
+        "crate::services::jobs",
     ),
     Path("src/routes/common/quality.rs"): (
-        "crate::services::jobs::reports::quality::api::QualityApiDeps",
+        "crate::services::jobs::QualityApiDeps",
     ),
     Path("src/routes/common/usage.rs"): (
-        "crate::services::jobs::reports::usage::api::UsageApiDeps",
+        "crate::services::jobs::UsageApiDeps",
     ),
     Path("src/routes/accounts.rs"): (
-        "crate::services::accounts::api::",
+        "crate::services::accounts",
     ),
     Path("src/routes/admin_users.rs"): (
-        "crate::services::accounts::api::",
+        "crate::services::accounts",
     ),
     Path("src/routes/admin_invites.rs"): (
-        "crate::services::accounts::api::",
+        "crate::services::accounts",
     ),
     Path("src/routes/admin_platform.rs"): (
-        "crate::services::accounts::api::",
-        "crate::services::accounts::platform_settings::api::",
+        "crate::services::accounts",
     ),
     Path("src/routes/common/platform_settings.rs"): (
-        "crate::services::accounts::platform_settings::api::PlatformSettingsApiDeps",
+        "crate::services::accounts::PlatformSettingsApiDeps",
     ),
     Path("src/routes/common/accounts.rs"): (
-        "crate::services::accounts::api::AccountsService",
+        "crate::services::accounts::AccountsService",
     ),
 }
 
@@ -1440,6 +1438,69 @@ def check_job_loading_is_below_services(errors: list[str]) -> None:
                 )
 
 
+# services 按拆包规划分成 9 个领域，一个领域以后拆成一个包（docs/ops/planning/api-reorg/
+# 20261015-模块化单体拆包规划.md 第 3 节）。新模块放进某个领域，不另开顶层目录。
+SERVICE_DOMAINS = {
+    "accounts", "ai", "files", "glossaries", "ingest", "jobs", "library", "platform", "providers",
+}
+
+# 领域之间允许的依赖，(谁, 用谁)。照规划第 3 节的分层图，只能往下用；要加一条先看它会不会把
+# 下层拉到上层去。平台设置归账号、要调服务商测连通性，所以账号在服务商上面（规划图原来画反了）。
+ALLOWED_DOMAIN_DEPENDENCIES = {
+    ("accounts", "providers"),
+    ("ingest", "accounts"),
+    ("jobs", "accounts"),
+    ("jobs", "files"),
+    ("jobs", "glossaries"),
+    ("jobs", "ingest"),
+    ("jobs", "providers"),
+    ("library", "files"),
+    ("library", "jobs"),
+}
+
+
+def check_service_domains(errors: list[str]) -> None:
+    services_root = SRC_ROOT / "services"
+    for entry in sorted(services_root.iterdir()):
+        name = entry.stem
+        if entry.name == "mod.rs" or (entry.is_dir() and name in SERVICE_DOMAINS):
+            continue
+        errors.append(
+            f"{rel(entry)}: services only holds the domains {sorted(SERVICE_DOMAINS)}; "
+            "put new modules inside one of them"
+        )
+
+
+# 每个领域的 mod.rs 就是它的门面：子模块一律私有，领域外要用的东西在 mod.rs 里 `pub(crate) use` 出来。
+# 子模块私有以后，越过门面的路径编译不过；这条规则防止有人把子模块改回 pub。
+def check_domain_facades(errors: list[str]) -> None:
+    for domain in sorted(SERVICE_DOMAINS):
+        path = SRC_ROOT / "services" / domain / "mod.rs"
+        if not path.exists():
+            errors.append(f"{rel(path)}: missing domain facade")
+            continue
+        for match in re.finditer(r"(?m)^pub(?:\([^)]*\))?\s+mod\s+(\w+)\s*;", rust_boundary_source(path)):
+            errors.append(
+                f"{rel(path)}: submodule `{match.group(1)}` must stay private; export what other "
+                "domains need from the facade instead"
+            )
+
+
+def check_domain_dependency_direction(errors: list[str]) -> None:
+    edges = service_dependency_edges()
+    for edge, path in sorted(edges.items()):
+        if edge not in ALLOWED_DOMAIN_DEPENDENCIES:
+            errors.append(
+                f"{path}: services::{edge[0]} -> services::{edge[1]} is not an allowed domain "
+                "dependency (ALLOWED_DOMAIN_DEPENDENCIES); depend downward only"
+            )
+    for edge in sorted(ALLOWED_DOMAIN_DEPENDENCIES - set(edges)):
+        errors.append(
+            f"ALLOWED_DOMAIN_DEPENDENCIES lists services::{edge[0]} -> services::{edge[1]}, which "
+            "nothing uses any more; remove it"
+        )
+
+
 def _rust_use_paths(tree: str) -> list[str]:
     """Expand a use tree such as `a::{b, c::{d, e}}` into flat paths."""
     tree = tree.strip()
@@ -1683,6 +1744,9 @@ def main() -> int:
     check_protocol_docs(errors)
     check_service_dependency_cycles(errors)
     check_job_loading_is_below_services(errors)
+    check_service_domains(errors)
+    check_domain_facades(errors)
+    check_domain_dependency_direction(errors)
     check_artifact_path_ownership(errors)
     check_job_entry_ownership(errors)
 

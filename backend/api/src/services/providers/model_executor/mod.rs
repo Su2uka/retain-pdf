@@ -6,9 +6,9 @@ mod tests;
 mod transport;
 
 use anyhow::Result;
-pub use policy::{
-    Deadlines, Message, ModelConnection, ModelConnectionPolicy, ModelRequest, Provider, Thinking,
-};
+pub use policy::{ModelConnection, ModelConnectionPolicy, ModelRequest};
+#[cfg(test)]
+pub use policy::{Deadlines, Message, Provider, Thinking};
 use retain_data::db::{Db, ModelOperation, ModelReservation, ModelSessionConflict};
 use sha2::{Digest, Sha256};
 use std::{

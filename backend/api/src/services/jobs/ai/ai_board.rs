@@ -399,7 +399,7 @@ mod download_tests {
     use crate::db::Db;
     use crate::models::domain::{JobArtifacts, JobSnapshot};
     use crate::models::request::CreateJobInput;
-    use crate::services::files::download_generation::DownloadGeneration;
+    use crate::services::files::DownloadGeneration;
 
     struct BoardFixture {
         root: PathBuf,

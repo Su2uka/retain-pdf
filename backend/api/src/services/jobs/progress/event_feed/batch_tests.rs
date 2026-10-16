@@ -101,7 +101,7 @@ fn eventless_list_does_not_initialize_empty_feeds() {
 #[test]
 fn summary_lists_skip_cold_history_without_changing_default_live_reads() {
     use crate::models::api::ListJobsQuery;
-    use crate::services::library::book_projection::build_library_book_list_view;
+    use crate::services::library::build_library_book_list_view;
     use crate::services::jobs::presentation::build_job_list_view;
 
     let fs = Fixture::new("summary-list-cold");
@@ -270,9 +270,7 @@ fn batch_stage_invalidates_authority_status_and_retention_without_resurrection()
 #[test]
 fn task_document_and_library_lists_keep_live_progress_and_background_stage_parity() {
     use crate::models::api::{ListDocumentJobsQuery, ListJobsQuery};
-    use crate::services::library::book_projection::{
-        build_library_book_detail_view, build_library_book_list_view,
-    };
+    use crate::services::library::{build_library_book_detail_view, build_library_book_list_view};
     use crate::services::jobs::presentation::{build_document_job_list_view, build_job_list_view};
 
     let fs = Fixture::new("batch-list-view-parity");

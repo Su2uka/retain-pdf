@@ -5,9 +5,9 @@ use axum::response::Response;
 
 use crate::error::AppError;
 use crate::routes::common::{build_auth_route_deps, AuthRouteDeps};
-use crate::services::accounts::api::{json_references, query_references, SESSION_COOKIE};
+use crate::services::accounts::{json_references, query_references, SESSION_COOKIE};
 /// 路由拿「当前用户」从这里引（路由层不直接碰 services）。
-pub use crate::services::accounts::api::Principal;
+pub use crate::services::accounts::Principal;
 use crate::AppState;
 
 /// 会话 Cookie 里的令牌，放进请求扩展里，退出、改密码时要用。
@@ -109,7 +109,7 @@ pub async fn require_api_key(
     )?;
     request.extensions_mut().insert(claims);
     let mut principal = if multi { Principal::service() } else { Principal::local() };
-    principal.via = crate::services::accounts::api::AuthVia::Capability;
+    principal.via = crate::services::accounts::AuthVia::Capability;
     request.extensions_mut().insert(principal);
     Ok(next.run(request).await)
 }

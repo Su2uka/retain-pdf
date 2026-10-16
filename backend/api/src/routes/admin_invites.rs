@@ -10,7 +10,7 @@ use super::accounts::{require_admin, require_multi};
 use crate::error::AppError;
 use crate::models::api::ApiResponse;
 use crate::routes::common::{build_accounts_route_deps, ok_json, ApiJson, ApiPath};
-use crate::services::accounts::api::{InviteDetailView, InviteView, NewInvite, Principal};
+use crate::services::accounts::{InviteDetailView, InviteView, NewInvite, Principal};
 use crate::AppState;
 
 fn admin_only(state: &AppState, principal: &Principal) -> Result<(), AppError> {

@@ -3,7 +3,7 @@ use std::path::Path;
 
 use crate::db::Db;
 use crate::models::domain::JobSnapshot;
-use crate::services::providers::credentials::delete_unreferenced_managed_credential;
+use crate::services::providers::delete_unreferenced_managed_credential;
 
 /// Best-effort cleanup for credentials that were created solely to migrate
 /// legacy inline job secrets. Call this only after every relevant job row has

@@ -13,4 +13,3 @@ mod stage_retry_request;
 mod stage_retry_view;
 pub(crate) mod translation_request_recovery;
 
-pub use cancel::wait_for_terminal_job;

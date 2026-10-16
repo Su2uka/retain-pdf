@@ -6,7 +6,7 @@ use retain_data::credentials::resolve_credential;
 use crate::config::AppConfig;
 use crate::error::AppError;
 use crate::models::{now_iso, CreateJobInput, JobSnapshot, UploadRecord, WorkflowKind};
-use crate::services::providers::credentials::api::{create_credential, CreateCredentialInput};
+use crate::services::providers::{create_credential, CreateCredentialInput};
 use crate::services::jobs::lifecycle::launcher::JobLaunchDeps;
 use crate::services::jobs::runtime_gateway::JobRuntimeLauncher;
 use crate::test_support::config::TestDirs;

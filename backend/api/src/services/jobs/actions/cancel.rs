@@ -1,5 +1,3 @@
-use std::time::{Duration, Instant};
-
 use crate::db::Db;
 use crate::error::AppError;
 use crate::job_events::cas_persist_job_with_resources;
@@ -8,49 +6,6 @@ use crate::services::jobs::runtime_gateway::terminate_runtime_process;
 
 use crate::job_loading::load_job_or_404;
 use crate::services::jobs::deps::ControlDeps;
-
-pub async fn wait_for_terminal_job(
-    db: &Db,
-    job_id: &str,
-    timeout_seconds: i64,
-    wait_interval_ms: u64,
-) -> Result<JobSnapshot, AppError> {
-    let timeout_seconds = if timeout_seconds > 0 {
-        timeout_seconds as u64
-    } else {
-        1800
-    };
-    let started = Instant::now();
-    loop {
-        let job = load_job_or_404(db, job_id)?;
-        match job.status {
-            JobStatusKind::Succeeded => return Ok(job),
-            JobStatusKind::Failed => {
-                let detail = job
-                    .error
-                    .clone()
-                    .or(job.stage_detail.clone())
-                    .unwrap_or_else(|| "job failed".to_string());
-                return Err(AppError::internal(format!("job failed: {detail}")));
-            }
-            JobStatusKind::Canceled => {
-                let detail = job
-                    .stage_detail
-                    .clone()
-                    .unwrap_or_else(|| "job was canceled".to_string());
-                return Err(AppError::conflict(detail));
-            }
-            JobStatusKind::Queued | JobStatusKind::Running => {}
-        }
-        if started.elapsed() >= Duration::from_secs(timeout_seconds) {
-            return Err(AppError::conflict(format!(
-                "job did not finish within timeout: {}s (job_id={job_id})",
-                timeout_seconds
-            )));
-        }
-        tokio::time::sleep(Duration::from_millis(wait_interval_ms)).await;
-    }
-}
 
 pub(crate) async fn cancel_job(
     deps: &ControlDeps<'_>,

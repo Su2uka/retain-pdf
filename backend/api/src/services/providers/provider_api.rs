@@ -8,7 +8,7 @@ use crate::config::{DeepSeekRuntimeConfig, MineruRuntimeConfig, PaddleRuntimeCon
 use crate::error::AppError;
 
 pub use super::provider_probe::{
-    DeepSeekBalanceInfoView, DeepSeekBalanceView, DeepSeekTokenValidationRequest,
+    DeepSeekBalanceView, DeepSeekTokenValidationRequest,
     MineruTokenValidationRequest, MineruTokenValidationView, PaddleTokenValidationRequest,
 };
 

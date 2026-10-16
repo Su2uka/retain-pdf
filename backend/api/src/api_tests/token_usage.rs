@@ -26,7 +26,7 @@ async fn usage_routes_summarize_the_job_ledgers() {
     let state = test_state("token-usage-routes");
     let job = JobSnapshot::new("job-usage".to_string(), CreateJobInput::default(), vec![]);
     state.db.save_job(&job).expect("save job");
-    let ledger = crate::services::jobs::reports::usage::job_usage_ledger_path(&state.config.output_root, "job-usage");
+    let ledger = crate::services::jobs::job_usage_ledger_path(&state.config.output_root, "job-usage");
     std::fs::create_dir_all(ledger.parent().unwrap()).unwrap();
     std::fs::write(
         &ledger,
