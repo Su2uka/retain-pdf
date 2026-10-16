@@ -36,7 +36,8 @@
 jobs 的依赖装配由 `app/jobs.rs` 完成；依赖定义在 `services/jobs/deps/`：
 `command.rs` 管提交、快照与控制，`query.rs` 管查询/下载及 owned 快照，
 `replay.rs` 管重放所需路径和命令。查询模块不依赖 `creation` 的内部上下文。
-稳定 facade 位于 `services/jobs/facade/mod.rs`，其 command/query 实现继续分区。
+稳定 facade 位于 `services/jobs/facade.rs`（只放结构体），各个用例按 9 类写在
+`services/jobs/<类>/` 里，和 `routes/jobs/<类>.rs` 同名。
 
 - 作用：
   应用启动、`AppState` 组装、router 挂载、服务启动。
@@ -140,14 +141,19 @@ jobs 的依赖装配由 `app/jobs.rs` 完成；依赖定义在 `services/jobs/de
 - 迁移状态及后续批次见
   [业务目录与边界统一迁移计划](../../docs/ops/planning/api-boundary-migration.md)。
 
-#### `src/services/jobs/facade`
+#### `src/services/jobs`
 
 - 作用：
-  给 route 提供统一 jobs 入口。
-- `command/*`
-  创建、取消、同步 bundle 这类命令型能力。
-- `query/*`
-  列表、详情、下载、artifacts、translation debug 这类查询型能力。
+  jobs 的业务逻辑，按 9 类分目录，和 `routes/jobs/<类>.rs` 同名：
+  `lifecycle`（建任务、校验、发射、列表和详情）、`actions`（取消、重跑、重试阶段、续跑计划）、
+  `progress`（事件流、当前阶段、边翻边看）、`files`（列出、下载、是否就绪）、
+  `reports`（失败原因、翻译诊断、排版、精修）、`reader`（区块、元信息、Markdown）、
+  `translations`（逐条看、人工改、重翻）、`data`（通用取数）、`ai`（阅读路径、概念图、画板）。
+- 根目录只放各类共用的：`facade.rs`（`JobsFacade` 结构体）、`query.rs`（`JobQueries` 结构体和取任务）、
+  `deps/`、`presentation/`、`runtime_gateway.rs`、`summary_loaders/`。
+- 规则：
+  各类的 `impl JobsFacade` / `impl JobQueries` 写在所属类的目录里（只读的在 `<类>/queries.rs`），
+  不要堆回 `facade.rs` 或 `query.rs`。
 
 #### `src/services/library/api.rs` + `src/services/library/*`
 
@@ -167,19 +173,15 @@ jobs 的依赖装配由 `app/jobs.rs` 完成；依赖定义在 `services/jobs/de
 - 规则：
   route 只 import `library_api::`；`derived_artifacts` 只允许在 service 内部使用。
 
-#### `src/services/jobs/creation`
+#### `src/services/jobs/lifecycle/creation`
 
 - `submit.rs`
-  创建并启动任务。
-- `bundle.rs`
-  同步跑完整链路并产出 bundle。
+  建新任务的唯一入口 `submit_job`，和原地重跑已有任务的 `relaunch_in_place`。
 - `prepare.rs`
   输入解析、存在性检查、前置校验，只产出 `Prepared*` 输入，不生成 `JobSnapshot`。
 - `job_builders.rs`
   workflow 级快照编排；只消费 `Prepared*` 输入并调用 snapshot factory，不再自己做前置校验。
 - 上传持久化委托 `services/uploads`；已有 upload record 的输入查询在 `prepare.rs`。
-- `context.rs`
-  creation 侧显式 deps。
 
 #### `src/services/jobs/presentation`
 
@@ -202,9 +204,9 @@ jobs 的依赖装配由 `app/jobs.rs` 完成；依赖定义在 `services/jobs/de
   Agent 计算记录与产物接口，内部只依赖数据库和目录，不接收完整配置。
 - [`src/services/library/api.rs`](src/services/library/api.rs)
   图书馆接口入口（见上）。
-- [`src/services/jobs/snapshot_factory.rs`](src/services/jobs/snapshot_factory.rs)
+- [`src/services/jobs/lifecycle/snapshot_factory.rs`](src/services/jobs/lifecycle/snapshot_factory.rs)
   job snapshot/command 构造边界。
-- [`src/services/jobs/launcher.rs`](src/services/jobs/launcher.rs)
+- [`src/services/jobs/lifecycle/launcher.rs`](src/services/jobs/lifecycle/launcher.rs)
   job 持久化与启动边界。
 - [`src/services/jobs/runtime_gateway.rs`](src/services/jobs/runtime_gateway.rs)
   services 访问 runtime 能力的收口层。
@@ -301,7 +303,7 @@ jobs 的依赖装配由 `app/jobs.rs` 完成；依赖定义在 `services/jobs/de
 - “这是 HTTP 行为变化吗？”
   先看 `src/routes`
 - “这是 jobs 用例编排变化吗？”
-  先看 `src/services/jobs/facade` 和 `src/services/jobs/creation`
+  先看 `src/services/jobs/<类>/`（建任务看 `src/services/jobs/lifecycle/creation`）
 - “这是 worker / Python 执行变化吗？”
   先看 `../packages/retain-jobs/src/job_runner`
 - “这是 AI 对话、runtime 或 PDF operation 变化吗？”
@@ -315,9 +317,9 @@ jobs 的依赖装配由 `app/jobs.rs` 完成；依赖定义在 `services/jobs/de
 
 1. `src/routes`
    HTTP 适配层，只做参数提取和响应封装。
-2. `src/services/jobs/facade`
-   jobs 用例总入口，route 只和 facade 说话。
-3. `src/services/jobs/creation` / `src/services/jobs/presentation`
+2. `src/services/jobs`
+   jobs 用例入口（`JobsFacade` / `JobQueries`），按 9 类分目录，route 只和它们说话。
+3. `src/services/jobs/lifecycle/creation` / `src/services/jobs/presentation`
    前者负责创建与提交，后者负责 detail/list/events 对外投影。
 4. `../packages/retain-jobs/src/job_runner`
    运行态编排、子进程、OCR flow、translation/render flow。
@@ -344,9 +346,9 @@ jobs 的依赖装配由 `app/jobs.rs` 完成；依赖定义在 `services/jobs/de
    再看 jobs 相关依赖是怎么装起来的。
 3. [`src/routes/jobs`](src/routes/jobs)
    看 route 只是怎么转发。
-4. [`src/services/jobs/facade`](src/services/jobs/facade)
-   看 command/query 用例入口。
-5. [`src/services/jobs/creation`](src/services/jobs/creation)
-   看创建链路的准备、快照、提交、bundle。
+4. [`src/services/jobs`](src/services/jobs)
+   看 9 类用例入口（分类表在 `mod.rs`）。
+5. [`src/services/jobs/lifecycle/creation`](src/services/jobs/lifecycle/creation)
+   看创建链路的准备、快照、提交。
 6. [`../packages/retain-jobs/src/job_runner`](../packages/retain-jobs/src/job_runner)
    最后再进 runtime 执行层。

@@ -39,7 +39,7 @@ fn object_at(value: &Value, key: &str) -> Map<String, Value> {
 }
 
 /// 阅读页（/reader/regions）的块编号：`p001-b2` / `p001-b002` → `p001-b0002`。
-/// 与 `services/jobs/reader_regions/value_extract.rs::canonical_item_id` 同一规则；
+/// 与 `services/jobs/reader/reader_regions/value_extract.rs::canonical_item_id` 同一规则；
 /// 阅读页按它跳转、取框，所以清单里的 item_id 必须是这一套。
 fn reader_item_id(value: &str) -> String {
     let Some((page, block)) = value.split_once("-b") else {

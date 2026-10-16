@@ -152,7 +152,7 @@ legacy/local helper stage：
 Rust 路由：
 
 - [`src/routes/jobs/create.rs`](src/routes/jobs/create.rs)
-- [`src/services/jobs/facade/mod.rs`](src/services/jobs/facade/mod.rs)
+- [`src/services/jobs/facade.rs`](src/services/jobs/facade.rs)
 
 ### 第二步：Rust 创建 job
 
@@ -165,9 +165,9 @@ Rust 路由：
 
 主要代码：
 
-- [`src/services/jobs/creation`](src/services/jobs/creation)
-- [`src/services/jobs/snapshot_factory.rs`](src/services/jobs/snapshot_factory.rs)
-- [`src/services/jobs/launcher.rs`](src/services/jobs/launcher.rs)
+- [`src/services/jobs/lifecycle/creation`](src/services/jobs/lifecycle/creation)
+- [`src/services/jobs/lifecycle/snapshot_factory.rs`](src/services/jobs/lifecycle/snapshot_factory.rs)
+- [`src/services/jobs/lifecycle/launcher.rs`](src/services/jobs/lifecycle/launcher.rs)
 
 注意：
 

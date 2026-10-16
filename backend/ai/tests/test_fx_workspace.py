@@ -401,7 +401,7 @@ def test_the_board_accepted_kinds_match_the_backend(tmp_path: Path) -> None:
     here = _Path(__file__).resolve()
     board_rs = None
     for parent in here.parents:
-        candidate = parent / "backend/api/src/services/jobs/downloads/ai_board.rs"
+        candidate = parent / "backend/api/src/services/jobs/ai/ai_board.rs"
         if candidate.is_file():
             board_rs = candidate.read_text(encoding="utf-8")
             break
