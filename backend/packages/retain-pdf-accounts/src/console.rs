@@ -8,9 +8,9 @@ use serde::Serialize;
 
 use super::admin::user_not_found;
 use super::{admin_view, db_error, AccountsService, AdminUserView, Principal};
-use crate::db::{OwnerJobRow, UserListQuery, UserStats};
-use crate::error::AppError;
-use crate::services::accounts::page_quota::{self, PageQuotaView};
+use retain_pdf_data::db::{OwnerJobRow, UserListQuery, UserStats};
+use retain_pdf_api_base::error::AppError;
+use crate::page_quota::{self, PageQuotaView};
 
 #[derive(Serialize)]
 pub struct AdminUserListItem {

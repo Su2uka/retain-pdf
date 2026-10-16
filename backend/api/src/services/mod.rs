@@ -15,7 +15,8 @@
 //! 每个领域的 `mod.rs` 是它唯一的门面：子模块私有，领域外只能用门面导出的东西。领域之间只能往下
 //! 依赖，允许的方向登记在 `scripts/check_architecture.py` 的 `ALLOWED_DOMAIN_DEPENDENCIES`。
 
-pub(crate) mod accounts;
+// 账号已经拆成独立的包，这里接上。
+pub(crate) use retain_pdf_accounts as accounts;
 pub(crate) mod ai;
 pub(crate) mod files;
 // 术语表已经拆成独立的包，这里接上，`crate::services::glossaries::…` 的写法不变。

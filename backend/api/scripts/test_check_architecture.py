@@ -763,6 +763,35 @@ class ExtractedDomainTests(unittest.TestCase):
         self.assertTrue(any("must stay private" in error for error in errors), errors)
         self.assertTrue(any("do not add code back under services/" in error for error in errors), errors)
 
+    def crate_edges(self, crates):
+        """crates: {领域: {包内相对路径: 源码}}，每个领域都当作已拆成独立包。"""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for domain, files in crates.items():
+                for relative, source in files.items():
+                    path = root / f"retain-pdf-{domain}" / "src" / relative
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_text(source, encoding="utf-8")
+            extracted = {domain: f"retain-pdf-{domain}" for domain in crates}
+            with patch.object(checks, "EXTRACTED_DOMAINS", extracted), \
+                    patch.object(checks, "extracted_domain_root", lambda domain: root / f"retain-pdf-{domain}"):
+                return checks.extracted_domain_dependency_edges()
+
+    def test_crate_name_uses_count_as_domain_edges(self):
+        edges = self.crate_edges({
+            "accounts": {"platform_settings/mod.rs": "use retain_pdf_providers::{create_credential};\n"},
+            "providers": {"lib.rs": "use retain_pdf_core::models;\nuse retain_pdf_api_base::error::AppError;\n"},
+        })
+        self.assertEqual({("accounts", "providers")}, set(edges))
+
+    def test_crate_name_uses_in_tests_and_comments_are_ignored(self):
+        edges = self.crate_edges({
+            "accounts": {"lib.rs": "// 以前用过 retain_pdf_providers\n",
+                         "platform_settings/tests.rs": "use retain_pdf_providers::create_credential;\n"},
+            "providers": {"lib.rs": "mod probe;\n#[cfg(test)]\nmod tests {\n    use retain_pdf_accounts::Principal;\n}\n"},
+        })
+        self.assertEqual({}, edges)
+
 
 class RequestPayloadAccessTests(unittest.TestCase):
     check_sources = UploadBoundaryTests.check_sources

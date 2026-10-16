@@ -11,8 +11,8 @@ use axum::http::StatusCode;
 use serde_json::json;
 
 use super::{db_error, now, AccountsService};
-use crate::db::UserRecord;
-use crate::error::AppError;
+use retain_pdf_data::db::UserRecord;
+use retain_pdf_api_base::error::AppError;
 
 pub(crate) fn user_not_found(user_id: &str) -> AppError {
     AppError::account(StatusCode::NOT_FOUND, "USER_NOT_FOUND", "账号不存在", json!({ "user_id": user_id }))

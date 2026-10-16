@@ -16,12 +16,12 @@ use axum::http::StatusCode;
 use serde::Serialize;
 use serde_json::json;
 
-use crate::config::LOCAL_USER_ID;
-use crate::db::{Db, PageBalanceWouldGoNegative, PageLedgerEntry, PageReservation};
-use crate::error::AppError;
-use crate::models::domain::{JobSnapshot, ResolvedJobSpec, WorkflowKind};
-use crate::models::request::parse_page_ranges;
-use crate::models::now_iso;
+use retain_pdf_core::config::LOCAL_USER_ID;
+use retain_pdf_data::db::{Db, PageBalanceWouldGoNegative, PageLedgerEntry, PageReservation};
+use retain_pdf_api_base::error::AppError;
+use retain_pdf_core::models::domain::{JobSnapshot, ResolvedJobSpec, WorkflowKind};
+use retain_pdf_core::models::request::parse_page_ranges;
+use retain_pdf_core::models::now_iso;
 
 /// 账户页、管理员查看时列出的最近账目条数。
 pub const LEDGER_VIEW_LIMIT: usize = 50;
@@ -86,7 +86,7 @@ fn quota_exceeded(required: i64, balance: i64) -> AppError {
 
 /// 新任务开跑前预扣。返回 true 表示这次扣上了（提交没成要调 [`release_for_job`] 退回）；
 /// false 表示不用扣（不计费的任务、不计费的人，或者这个任务早就扣过）。
-pub(crate) fn reserve_for_job(db: &Db, job: &JobSnapshot) -> Result<bool, AppError> {
+pub fn reserve_for_job(db: &Db, job: &JobSnapshot) -> Result<bool, AppError> {
     let Some(source) = db
         .billing_source(job.source_upload_id(), job.source_job_id().unwrap_or(""))
         .map_err(db_error)?
@@ -127,7 +127,7 @@ pub(crate) fn reserve_for_job(db: &Db, job: &JobSnapshot) -> Result<bool, AppErr
 }
 
 /// 预扣之后提交没成：退回。尽力而为，失败只记日志（不能盖住提交本身的错误）。
-pub(crate) fn release_for_job(db: &Db, job_id: &str) {
+pub fn release_for_job(db: &Db, job_id: &str) {
     if let Err(error) = db.release_job_pages(job_id, "submit_failed", &now_iso()) {
         tracing::warn!("page quota: release reservation for job {job_id} failed: {error:#}");
     }
@@ -205,9 +205,9 @@ pub fn grant_pages(
     let user = db
         .get_user(target_user_id)
         .map_err(db_error)?
-        .ok_or_else(|| crate::services::accounts::admin::user_not_found(target_user_id))?;
+        .ok_or_else(|| crate::admin::user_not_found(target_user_id))?;
     if user.is_deleted() {
-        return Err(crate::services::accounts::admin::account_deleted());
+        return Err(crate::admin::account_deleted());
     }
     if user.role == "admin" {
         return Err(AppError::account(

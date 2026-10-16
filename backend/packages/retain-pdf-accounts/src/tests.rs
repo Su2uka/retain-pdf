@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use super::*;
-use crate::config::DeploymentMode;
+use retain_pdf_core::config::DeploymentMode;
 
 fn service(name: &str) -> AccountsService {
     let root = std::env::temp_dir().join(format!("retain-accounts-svc-{name}-{}", fastrand::u64(..)));

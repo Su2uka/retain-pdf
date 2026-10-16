@@ -1444,6 +1444,7 @@ ALLOWED_DOMAIN_DEPENDENCIES = {
 # 已经拆成独立包的领域 → 包所在的目录（backend/packages/<目录>，目录名就是包名）。
 # 这些领域的代码不在 services/ 下，services/mod.rs 里 `pub(crate) use <包> as <领域>;` 接上。
 EXTRACTED_DOMAINS = {
+    "accounts": "retain-pdf-accounts",
     "glossaries": "retain-pdf-glossaries",
     "platform": "retain-pdf-platform",
     "providers": "retain-pdf-providers",
@@ -1584,6 +1585,25 @@ def service_dependency_edges() -> dict[tuple[str, str], Path]:
                 continue
             if len(absolute) >= 2 and absolute[0] == "services" and absolute[1] != module_path[1]:
                 edges.setdefault((module_path[1], absolute[1]), rel(path))
+    edges.update({edge: path for edge, path in extracted_domain_dependency_edges().items() if edge not in edges})
+    return edges
+
+
+def extracted_domain_dependency_edges() -> dict[tuple[str, str], Path]:
+    """拆成独立包的领域用别的领域时写的是包名（`retain_pdf_providers::…`），不是 `crate::services::…`。"""
+    crate_domains = {crate.replace("-", "_"): domain for domain, crate in EXTRACTED_DOMAINS.items()}
+    edges: dict[tuple[str, str], Path] = {}
+    for domain in sorted(EXTRACTED_DOMAINS):
+        root = extracted_domain_root(domain) / "src"
+        for path in scan_rs_files(root):
+            relative = path.relative_to(root)
+            if "tests" in relative.parts or path.name == "tests.rs" or path.name.endswith("_tests.rs"):
+                continue
+            source = rust_boundary_source(path)
+            for crate_name in re.findall(r"(?<![:\w])(retain_pdf_\w+)", source):
+                target = crate_domains.get(crate_name)
+                if target and target != domain:
+                    edges.setdefault((domain, target), Path(EXTRACTED_DOMAINS[domain]) / "src" / relative)
     return edges
 
 

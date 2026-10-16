@@ -1,5 +1,5 @@
 //! 账号与会话（多用户模式）。密码只存 Argon2id 哈希，会话只存令牌的 sha256；哈希和令牌的生成在
-//! API 层（services/accounts），这里只管存取。
+//! API 层（账号包 retain-pdf-accounts），这里只管存取。
 
 use anyhow::{bail, Result};
 use rusqlite::{params, OptionalExtension, Row};

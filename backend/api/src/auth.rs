@@ -6,7 +6,8 @@ use axum::response::Response;
 use crate::error::AppError;
 use crate::routes::common::{build_auth_route_deps, AuthRouteDeps};
 use crate::services::accounts::{json_references, query_references, SESSION_COOKIE};
-/// 路由拿「当前用户」从这里引（路由层不直接碰 services）。
+/// 路由拿「当前用户」从这里引（路由层不直接碰 services）。处理函数参数里直接写 `Principal`
+/// 的提取器跟着类型放在账号包里（孤儿规则：外部类型实现外部 trait 只能写在类型所在的包）。
 pub use crate::services::accounts::Principal;
 use crate::AppState;
 
@@ -163,17 +164,3 @@ pub async fn enforce_access(
 
 /// 网站账号的 JSON 请求体要先读进来核对编号；比这大的不是正常请求。
 const ACCESS_JSON_BODY_LIMIT: usize = 16 * 1024 * 1024;
-
-/// 在处理函数里直接拿「当前用户」：认证中间件已经放进请求扩展里了；没有就是没登录。
-#[axum::async_trait]
-impl<S: Send + Sync> axum::extract::FromRequestParts<S> for Principal {
-    type Rejection = AppError;
-
-    async fn from_request_parts(parts: &mut axum::http::request::Parts, _state: &S) -> Result<Self, Self::Rejection> {
-        parts
-            .extensions
-            .get::<Principal>()
-            .cloned()
-            .ok_or_else(|| AppError::unauthorized("not signed in"))
-    }
-}

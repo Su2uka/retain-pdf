@@ -1,9 +1,9 @@
 use std::path::{Path, PathBuf};
 
 use super::*;
-use crate::config::PlatformModels;
-use crate::error::AppError;
-use crate::services::providers::{create_credential, CreateCredentialInput};
+use retain_pdf_core::config::PlatformModels;
+use retain_pdf_api_base::error::AppError;
+use retain_pdf_providers::{create_credential, CreateCredentialInput};
 
 struct Env {
     db: Db,
@@ -256,9 +256,9 @@ fn replacing_a_key_creates_a_new_credential_and_retires_only_our_own_unused_ones
         .unwrap()
         .unwrap()
         .translation_credential_ref;
-    let mut job_input = crate::models::CreateJobInput::default();
+    let mut job_input = retain_pdf_core::models::CreateJobInput::default();
     job_input.translation.credential_ref = second_ref.clone();
-    let job = crate::models::domain::JobSnapshot::new(
+    let job = retain_pdf_core::models::domain::JobSnapshot::new(
         "queued-job".into(),
         job_input,
         vec!["noop".into()],
