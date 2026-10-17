@@ -11,6 +11,8 @@
   原来的 `retain-pdf-*` 和 math 包放在一起容易看混。
 - `backend/packages/`、`database/` 下的目录也一起改，目录名就是包名。
 - AI 包也叫 `retainpdf-ai`。代码里写作 `retainpdf_ai`，和 Python AI 服务的模块同名，看报错、搜代码时要看清是哪边的。
+- 另一个容易看混的：翻译拆包（`refactor/translation-pkg-prep`，另一个会话在做）新建的 Python 底座包叫 `retainpdf-base`（`backend/base`），
+  Rust 这边的底座包叫 `retainpdf-api-base`。两个不撞名，读的时候注意。
 
 不改的：
 - 应用目录 `backend/api`、`backend/cli`、`backend/jobs`：它们按用途命名，本来就不带 `retain`；

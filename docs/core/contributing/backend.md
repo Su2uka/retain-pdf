@@ -27,7 +27,8 @@
 | `backend/jobs` | `retainpdf-runnerd` | | `retain-jobsd` |
 | `backend/cli` | `retainpdf-cli` | | `retainpdf` |
 
-Rust 的 AI 包 `retainpdf_ai` 和 Python AI 服务的模块同名（用户 2026-10-17 定的），看报错、搜代码时看清是哪边的。`retainpdf-api-base`（2026-10-16 新建）是 API 各领域包共用的底座：
+Rust 的 AI 包 `retainpdf_ai` 和 Python AI 服务的模块同名（用户 2026-10-17 定的），看报错、搜代码时看清是哪边的。
+Rust 的底座包 `retainpdf-api-base` 和 Python 的底座包 `retainpdf-base`（`backend/base`，翻译拆包时新建）是两个东西。`retainpdf-api-base`（2026-10-16 新建）是 API 各领域包共用的底座：
 错误类型 `AppError` 和按编号读出任务 `job_loading`，在 `services` 下面一层。
 
 ## 分层方向
