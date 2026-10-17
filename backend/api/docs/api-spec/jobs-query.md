@@ -155,7 +155,7 @@ contract, diagnostics, runtime, failure, and log projections described below):
       "source_language": "ch",
       "target_language": null,
       "source_file_name": "paper.pdf",
-      "cover_url": "http://127.0.0.1:41000/api/v1/library/books/20260327190500-ef3456/cover",
+      "cover_url": "http://127.0.0.1:41000/api/v1/documents/<document_id>/files/cover.jpg",
       "file_size_bytes": 3481120
     },
     "artifacts": {
@@ -416,8 +416,8 @@ Response:
         },
         "page_count": 12,
         "source_file_name": "paper.pdf",
-        "cover_url": "http://127.0.0.1:41000/api/v1/library/books/20260327190500-ef3456/cover",
-        "thumbnail_url": "http://127.0.0.1:41000/api/v1/library/books/20260327190500-ef3456/thumbnail",
+        "cover_url": "http://127.0.0.1:41000/api/v1/documents/<document_id>/files/cover.jpg",
+        "thumbnail_url": "http://127.0.0.1:41000/api/v1/documents/<document_id>/files/thumbnail.jpg",
         "output_pdf_ready": false,
         "markdown_ready": true,
         "bundle_ready": true,
