@@ -24,7 +24,7 @@ use crate::models::domain::{
 };
 use crate::services::files::LayoutDocxOptions;
 
-const JOB: &str = "files-contract-job";
+pub(super) const JOB: &str = "files-contract-job";
 const OCR_JOB: &str = "files-contract-job-ocr";
 const RUNNING_JOB: &str = "files-contract-running";
 
@@ -43,12 +43,12 @@ fn write(path: &Path, bytes: &[u8]) {
     fs::write(path, bytes).expect("write fixture");
 }
 
-struct Fixture {
-    state: crate::AppState,
-    document_id: String,
+pub(super) struct Fixture {
+    pub(super) state: crate::AppState,
+    pub(super) document_id: String,
 }
 
-fn seed() -> Fixture {
+pub(super) fn seed() -> Fixture {
     let state = test_state("file-responses");
     let data_root = state.config.data_root.clone();
     let source_bytes = minimal_pdf_bytes(200, 280);

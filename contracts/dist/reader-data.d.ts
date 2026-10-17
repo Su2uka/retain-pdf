@@ -8,15 +8,20 @@
 export type ReaderDataSchema = JobFilesView | LiveTranslationCommitEvent | LiveTranslationLayout | LiveTranslationPageSnapshot | MarkdownDocumentView | ReaderArtifactLinks | ReaderArtifactManifestView | ReaderMetadataView | ReaderRegionsView;
 export interface JobFilesView {
     job_id: string;
-    output: JobFileEntryView[];
+    /**
+     * One-based durable pipeline attempt; increases after a rerun or stage retry. Same as the attempt of each manifest item.
+     */
+    attempt: number;
+    source: JobFileEntryView;
+    output: JobFileEntryView1[];
     pages: JobPagesView;
     /**
      * Intermediate artifacts. Present only for administrators (and in single-user mode); omitted otherwise.
      */
-    internal?: JobFileEntryView[];
+    internal?: JobFileEntryView1[];
 }
 /**
- * One downloadable file of a job. url is an absolute public URL of /api/v1/jobs/:job_id/files/<group>/<name>.
+ * The source PDF. It is a document file: with a document id the url is /api/v1/documents/:id/files/source.pdf, older jobs without one fall back to the per-job legacy address.
  */
 export interface JobFileEntryView {
     name: string;
@@ -34,6 +39,42 @@ export interface JobFileEntryView {
      * Only files already on disk have a size.
      */
     size_bytes: number | null;
+    /**
+     * Update time from the artifact registry; null when the registry has no entry (on-demand files not generated yet).
+     */
+    updated_at: string | null;
+    /**
+     * Stage that produced the file (registry source_stage, e.g. ocr, translation, render); null when unknown.
+     */
+    stage: string | null;
+}
+/**
+ * One downloadable file of a job. url is an absolute public URL of /api/v1/jobs/:job_id/files/<group>/<name>.
+ */
+export interface JobFileEntryView1 {
+    name: string;
+    url: string;
+    content_type: string;
+    /**
+     * Whether the file can be fetched now. For on-demand files it means everything needed to generate it exists.
+     */
+    ready: boolean;
+    /**
+     * Generated on first request, so the first fetch is slower.
+     */
+    on_demand: boolean;
+    /**
+     * Only files already on disk have a size.
+     */
+    size_bytes: number | null;
+    /**
+     * Update time from the artifact registry; null when the registry has no entry (on-demand files not generated yet).
+     */
+    updated_at: string | null;
+    /**
+     * Stage that produced the file (registry source_stage, e.g. ocr, translation, render); null when unknown.
+     */
+    stage: string | null;
 }
 export interface JobPagesView {
     /**

@@ -367,48 +367,33 @@ async fn real_job_and_library_views_match_published_schemas() {
     );
 }
 
+/// `/files` 的返回对着契约核对。用文件出口快照那套夹具：有书、有登记过的产物，
+/// 所以 `source` 指向书的文件，`internal` 和 `output` 都有登记过的项。
 #[tokio::test]
 async fn job_files_view_matches_published_schema() {
-    let state = test_state("job-files-view-contract");
-    let job_id = "job-files-contract-fixture";
-    let mut job = JobSnapshot::new(
-        job_id.to_string(),
-        CreateJobInput::default(),
-        vec!["python".to_string()],
-    );
-    job.status = JobStatusKind::Running;
-    let source_pdf = state
-        .config
-        .data_root
-        .join("jobs")
-        .join(job_id)
-        .join("source/input.pdf");
-    fs::create_dir_all(source_pdf.parent().expect("source parent")).expect("create source dir");
-    fs::write(&source_pdf, b"%PDF-contract-fixture").expect("write source pdf");
-    job.artifacts = Some(JobArtifacts {
-        source_pdf: Some(source_pdf.to_string_lossy().to_string()),
-        ..JobArtifacts::default()
-    });
-    job.sync_runtime_state();
-    state.db.save_job(&job).expect("save contract fixture job");
-
-    let app = build_app(state);
+    let fixture = super::file_responses::seed();
+    let job_id = super::file_responses::JOB;
+    let app = build_app(fixture.state.clone());
     let files = get_data(app.clone(), &format!("/api/v1/jobs/{job_id}/files")).await;
-    let detail = get_data(app, &format!("/api/v1/jobs/{job_id}")).await;
+    let detail = get_data(app.clone(), &format!("/api/v1/jobs/{job_id}")).await;
+    let manifest = get_data(app, &format!("/api/v1/jobs/{job_id}/artifacts-manifest")).await;
 
     let reader_contract = contract("reader-data.v1.schema.json");
     assert_definition(&files, &reader_contract, "JobFilesView", "job_files");
     assert_exact_object_keys(&files, &reader_contract, "JobFilesView", "job_files");
     assert_exact_object_keys(&files["pages"], &reader_contract, "JobPagesView", "job_files.pages");
+    assert_exact_object_keys(&files["source"], &reader_contract, "JobFileEntryView", "job_files.source");
+    assert!(files["source"]["updated_at"].is_string(), "{}", files["source"]);
+    assert!(files["source"]["url"]
+        .as_str()
+        .expect("source url")
+        .ends_with(&format!("/api/v1/documents/{}/files/source.pdf", fixture.document_id)));
+    assert!(files["attempt"].as_u64().is_some_and(|attempt| attempt >= 1));
     for group in ["output", "internal"] {
         let entries = files[group]
             .as_array()
             .unwrap_or_else(|| panic!("job_files.{group} must be an array"));
-        // internal 只列登记过的中间产物，这个夹具没有，可以是空的。
-        assert!(
-            group == "internal" || !entries.is_empty(),
-            "job_files.{group} should list files"
-        );
+        assert!(!entries.is_empty(), "job_files.{group} should list files");
         for (index, entry) in entries.iter().enumerate() {
             assert_exact_object_keys(
                 entry,
@@ -425,4 +410,16 @@ async fn job_files_view_matches_published_schema() {
     assert_eq!(detail["links"]["artifacts_manifest_path"], files_path);
     assert_eq!(detail["actions"]["open_artifacts"]["path"], files_path);
     assert_eq!(detail["artifacts"]["manifest_path"], files_path);
+
+    // 产物清单里的原文也指向书的文件。
+    let source_item = manifest["items"]
+        .as_array()
+        .expect("manifest items")
+        .iter()
+        .find(|item| item["artifact_key"] == "source_pdf")
+        .expect("source_pdf item");
+    assert_eq!(
+        source_item["resource_path"],
+        format!("/api/v1/documents/{}/files/source.pdf?download=1", fixture.document_id)
+    );
 }

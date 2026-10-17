@@ -168,14 +168,16 @@
       "type": "object",
       "description": "One downloadable file of a job. url is an absolute public URL of /api/v1/jobs/:job_id/files/<group>/<name>.",
       "additionalProperties": false,
-      "required": ["name", "url", "content_type", "ready", "on_demand", "size_bytes"],
+      "required": ["name", "url", "content_type", "ready", "on_demand", "size_bytes", "updated_at", "stage"],
       "properties": {
         "name": { "type": "string" },
         "url": { "type": "string" },
         "content_type": { "type": "string" },
         "ready": { "type": "boolean", "description": "Whether the file can be fetched now. For on-demand files it means everything needed to generate it exists." },
         "on_demand": { "type": "boolean", "description": "Generated on first request, so the first fetch is slower." },
-        "size_bytes": { "type": ["integer", "null"], "minimum": 0, "description": "Only files already on disk have a size." }
+        "size_bytes": { "type": ["integer", "null"], "minimum": 0, "description": "Only files already on disk have a size." },
+        "updated_at": { "type": ["string", "null"], "description": "Update time from the artifact registry; null when the registry has no entry (on-demand files not generated yet)." },
+        "stage": { "type": ["string", "null"], "description": "Stage that produced the file (registry source_stage, e.g. ocr, translation, render); null when unknown." }
       }
     },
     "JobPagesView": {
@@ -190,9 +192,11 @@
     "JobFilesView": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["job_id", "output", "pages"],
+      "required": ["job_id", "attempt", "source", "output", "pages"],
       "properties": {
         "job_id": { "type": "string" },
+        "attempt": { "type": "integer", "minimum": 1, "description": "One-based durable pipeline attempt; increases after a rerun or stage retry. Same as the attempt of each manifest item." },
+        "source": { "$ref": "#/definitions/JobFileEntryView", "description": "The source PDF. It is a document file: with a document id the url is /api/v1/documents/:id/files/source.pdf, older jobs without one fall back to the per-job legacy address." },
         "output": { "type": "array", "items": { "$ref": "#/definitions/JobFileEntryView" } },
         "pages": { "$ref": "#/definitions/JobPagesView" },
         "internal": {

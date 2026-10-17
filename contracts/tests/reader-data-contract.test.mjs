@@ -34,16 +34,21 @@ test("reader data schema publishes the complete independent read surfaces", () =
 });
 
 test("job files view matches the /files response and the old artifact endpoints are marked deprecated", () => {
-  assert.deepEqual(propertyNames("JobFilesView"), ["internal", "job_id", "output", "pages"]);
-  assert.deepEqual(definitions.JobFilesView.required, ["job_id", "output", "pages"]);
+  assert.deepEqual(propertyNames("JobFilesView"), ["attempt", "internal", "job_id", "output", "pages", "source"]);
+  assert.deepEqual(definitions.JobFilesView.required, ["job_id", "attempt", "source", "output", "pages"]);
+  assert.equal(definitions.JobFilesView.properties.source.$ref, "#/definitions/JobFileEntryView");
   assert.deepEqual(propertyNames("JobFileEntryView"), [
     "content_type",
     "name",
     "on_demand",
     "ready",
     "size_bytes",
+    "stage",
+    "updated_at",
     "url",
   ]);
+  assert.deepEqual(definitions.JobFileEntryView.properties.updated_at.type, ["string", "null"]);
+  assert.deepEqual(definitions.JobFileEntryView.properties.stage.type, ["string", "null"]);
   assert.deepEqual(propertyNames("JobPagesView"), ["page_count", "url_template"]);
 
   const byPath = Object.fromEntries(contract.endpoints.map((endpoint) => [endpoint.path, endpoint]));
