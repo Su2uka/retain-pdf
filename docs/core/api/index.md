@@ -104,8 +104,8 @@ Reader 宿主接入 job/artifact、Markdown、区域、页面元数据和实时�
     "total": 533,
     "percent": 100.0
   },
-  "cover_url": "/api/v1/library/books/job-id/cover",
-  "thumbnail_url": "/api/v1/library/books/job-id/thumbnail",
+  "cover_url": "/api/v1/documents/<document_id>/files/cover.jpg",
+  "thumbnail_url": "/api/v1/documents/<document_id>/files/thumbnail.jpg",
   "output_pdf_ready": true,
   "markdown_ready": true,
   "bundle_ready": true,
