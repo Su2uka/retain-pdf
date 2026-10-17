@@ -41,25 +41,98 @@ export type JobArtifactLinks = {
   [key: string]: unknown;
 };
 
-/**
- * Read the stable, public artifact projection used by the Reader.
- * The detailed manifest is intentionally a separate endpoint and can be empty
- * for older completed jobs even when published downloads are available.
- */
-export async function fetchJobArtifacts(jobId: string, apiPrefix = API_PREFIX): Promise<JobArtifactLinks | null> {
-  const resp = await apiFetch(`${buildJobDetailEndpoint(jobId, apiPrefix)}/artifacts`, { headers: buildApiHeaders() });
-  if (resp.ok) return unwrapEnvelope(await resp.json());
-  if (resp.status === 404) return null;
-  throw new Error(`读取任务产物失败，请稍后重试。(${resp.status})`);
+/** /jobs/:id/files 的一个文件。on_demand=true 的（对照 PDF、Word、打包）第一次下载时才生成。 */
+export type JobFileEntry = {
+  name: string;
+  url: string;
+  ready: boolean;
+  on_demand?: boolean;
+  content_type?: string | null;
+  size_bytes?: number | null;
+  /** 产物登记表里的时间；按需生成、还没生成的为 null。 */
+  updated_at?: string | null;
+  /** 产出它的阶段（登记表的 source_stage）。 */
+  stage?: string | null;
+};
+
+/** GET /jobs/:id/files：按成品（output）、页图（pages）、中间产物（internal）列出任务的文件。 */
+export type JobFilesView = {
+  job_id?: string;
+  /** 原文 PDF（属于书，地址在 /documents/:doc/files 下；查不到书的旧任务退回任务自己的地址）。 */
+  source?: JobFileEntry | null;
+  output?: JobFileEntry[];
+  internal?: JobFileEntry[];
+  pages?: { page_count?: number; url_template?: string } | null;
+  attempt?: number | null;
+};
+
+type LegacyArtifactSlot = { key: string; group: string };
+
+// /files 的文件名 → 前端各处认的产物键（以前 artifacts-manifest 的 artifact_key）和分组。
+// 详情页、书籍文件页、阅读器都按这个键找文件、起标签、定下载名，所以在这里一次换好，
+// 下游不用知道接口换了。表外的新文件照样列出来，键用文件名。
+const LEGACY_ARTIFACT_SLOTS: Record<string, LegacyArtifactSlot> = {
+  "source.pdf": { key: "source_pdf", group: "source" },
+  "translated.pdf": { key: "translated_pdf", group: "rendered" },
+  "side-by-side.pdf": { key: "side_by_side_pdf", group: "rendered" },
+  "translated.docx": { key: "layout_docx", group: "rendered" },
+  "all.zip": { key: "artifact_bundle_zip", group: "bundle" },
+  "ocr.md": { key: "markdown_raw", group: "markdown" },
+  "ocr.zip": { key: "markdown_bundle_zip", group: "markdown" },
+  "normalized-document.json": { key: "normalized_document_json", group: "json" },
+  "normalization-report.json": { key: "normalization_report_json", group: "json" },
+  "translation-manifest.json": { key: "translation_manifest_json", group: "json" },
+  "translation-checkpoint.json": { key: "translation_checkpoint_json", group: "json" },
+  "translation-requests.jsonl": { key: "translation_request_journal_jsonl", group: "debug" },
+  "render-config.json": { key: "render_config_json", group: "debug" },
+  "pipeline-summary.json": { key: "pipeline_summary", group: "debug" },
+  "events.jsonl": { key: "events_jsonl", group: "debug" },
+  "typst/source.typ": { key: "typst_source", group: "typst" },
+  "typst/render.pdf": { key: "typst_render_pdf", group: "typst" },
+  "ocr-provider/result.json": { key: "provider_result_json", group: "provider" },
+  "ocr-provider/raw.zip": { key: "provider_bundle_zip", group: "provider" },
+};
+
+/** 把 /files 摊平成产物清单的形状（{ job_id, items: [{ artifact_key, resource_url, … }] }）。 */
+export function jobFilesToArtifactManifest(files: JobFilesView | null | undefined): { job_id?: string; items: any[] } {
+  const attempt = typeof files?.attempt === "number" ? files.attempt : null;
+  const entries: JobFileEntry[] = [
+    ...(files?.source ? [files.source] : []),
+    ...(Array.isArray(files?.output) ? files.output : []),
+    ...(Array.isArray(files?.internal) ? files.internal : []),
+  ];
+  const items = entries
+    .filter((entry) => entry && typeof entry.name === "string" && entry.name && typeof entry.url === "string")
+    .map((entry) => {
+      const slot = LEGACY_ARTIFACT_SLOTS[entry.name];
+      return {
+        artifact_key: slot?.key || entry.name,
+        artifact_group: slot?.group || "",
+        artifact_kind: "file",
+        ready: Boolean(entry.ready),
+        on_demand: Boolean(entry.on_demand),
+        file_name: entry.name,
+        content_type: entry.content_type ?? null,
+        size_bytes: entry.size_bytes ?? null,
+        updated_at: entry.updated_at ?? null,
+        source_stage: entry.stage ?? null,
+        attempt,
+        resource_url: entry.url,
+      };
+    });
+  return { job_id: files?.job_id, items };
 }
 
+export async function fetchJobFiles(jobId: string, apiPrefix = API_PREFIX): Promise<JobFilesView | null> {
+  const resp = await apiFetch(`${buildJobDetailEndpoint(jobId, apiPrefix)}/files`, { headers: buildApiHeaders() });
+  if (resp.ok) return unwrapEnvelope(await resp.json());
+  if (resp.status === 404) return null;
+  throw new Error(`读取任务文件失败，请稍后重试。(${resp.status})`);
+}
+
+/** 任务的产物清单：读 /jobs/:id/files，换成以前 artifacts-manifest 的形状交给下游。 */
 export async function fetchJobArtifactsManifest(jobId: string, apiPrefix = API_PREFIX): Promise<any> {
-  const resp = await apiFetch(`${buildJobDetailEndpoint(jobId, apiPrefix)}/artifacts-manifest`, { headers: buildApiHeaders() });
-  if (!resp.ok) {
-    if (resp.status === 404) return { items: [] };
-    throw new Error(`读取产物清单失败，请稍后重试。(${resp.status})`);
-  }
-  return unwrapEnvelope(await resp.json());
+  return jobFilesToArtifactManifest(await fetchJobFiles(jobId, apiPrefix));
 }
 
 export async function fetchJobMarkdown(jobId: string, apiPrefix = API_PREFIX): Promise<any> {

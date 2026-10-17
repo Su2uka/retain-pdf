@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   buildJobDetailEndpoint,
-  fetchJobArtifacts,
   fetchJobArtifactsManifest,
   fetchProtected,
 } from "@/platform/api/index.js";
@@ -169,20 +168,11 @@ export function useBookDetailArtifactCenter({
     void (async () => {
       for (const { job, jobId, token } of missing) {
         try {
-          const [manifestResult, linksResult] = await Promise.allSettled([
-            fetchJobArtifactsManifest(jobId),
-            fetchJobArtifacts(jobId),
-          ]);
-          if (manifestResult.status === "rejected" && linksResult.status === "rejected") {
-            throw linksResult.reason || manifestResult.reason;
-          }
-          const manifest = manifestResult.status === "fulfilled"
-            ? manifestResult.value
-            : { items: [] };
-          const links = readerCompatibleArtifactLinks(
-            job,
-            linksResult.status === "fulfilled" ? linksResult.value : null,
-          );
+          // /files 列出的文件（含对照 PDF、Word、打包）和就绪状态就是准的，直接用；
+          // 只有它一个都没列（老任务、接口 404）时，才按任务状态补出译文 PDF、Markdown 这几个固定地址。
+          const manifest = await fetchJobArtifactsManifest(jobId);
+          const listed = Array.isArray(manifest?.items) && manifest.items.length > 0;
+          const links = listed ? null : readerCompatibleArtifactLinks(job, null);
           if (cancelled || generation !== generationRef.current) return;
           const merged = mergeArtifactLinksIntoManifest(job, manifest, links);
           manifestCache.set(token, merged);
