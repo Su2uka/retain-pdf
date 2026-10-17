@@ -64,7 +64,7 @@ fn build_stage_action(
         method: "POST".to_string(),
         url: absolute_url(
             base_url,
-            &format!("/api/v1/jobs/{}/retry-stage", job.job_id),
+            &format!("/api/v1/jobs/{}/actions/retry-stage", job.job_id),
         ),
         body: if matches!(plan.stage, RetryStageKind::Refine) {
             // 精修只支持原地执行；body 直接给出能用的默认请求（全书、挑错并修改）。

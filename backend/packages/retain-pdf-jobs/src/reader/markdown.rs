@@ -1,5 +1,8 @@
 use retain_pdf_api_base::error::AppError;
-use retain_pdf_core::models::api::{to_absolute_url, MarkdownDocumentView, MarkdownImageView};
+use retain_pdf_core::models::api::{
+    job_markdown_view_path, job_ocr_images_base_path, job_ocr_markdown_path, to_absolute_url,
+    MarkdownDocumentView, MarkdownImageView,
+};
 use retain_pdf_core::models::domain::JobSnapshot;
 use retain_pdf_core::storage_paths::{resolve_markdown_images_dir, resolve_markdown_path};
 
@@ -57,9 +60,9 @@ async fn markdown_document_view(
     let markdown_path = resolve_markdown_path(&job, deps.data_root)
         .ok_or_else(|| AppError::not_found(format!("markdown not found: {job_id}")))?;
     let content = tokio::fs::read_to_string(&markdown_path).await?;
-    let raw_path = format!("/api/v1/jobs/{}/markdown?raw=true", job.job_id);
-    let markdown_path_url = format!("/api/v1/jobs/{}/markdown/document", job.job_id);
-    let images_base_path = format!("/api/v1/jobs/{}/markdown/images/", job.job_id);
+    let raw_path = job_ocr_markdown_path(&job.job_id);
+    let markdown_path_url = job_markdown_view_path(&job.job_id);
+    let images_base_path = job_ocr_images_base_path(&job.job_id);
     let images = markdown_images_view(deps, &job, base_url)?;
     let content_with_absolute_image_urls =
         rewrite_markdown_image_links_to_absolute_urls(&content, &job.job_id, base_url);
@@ -98,8 +101,8 @@ fn markdown_images_view(
         };
         let relative_path = relative.to_string_lossy().replace('\\', "/");
         let resource_path = format!(
-            "/api/v1/jobs/{}/markdown/images/{}",
-            job.job_id,
+            "{}{}",
+            job_ocr_images_base_path(&job.job_id),
             url_path_escape(&relative_path)
         );
         let metadata = path.metadata().ok();
@@ -161,10 +164,7 @@ fn absolute_markdown_image_url(raw_path: &str, job_id: &str, base_url: &str) -> 
     if relative.is_empty() {
         return raw_path.to_string();
     }
-    let resource_path = format!(
-        "/api/v1/jobs/{job_id}/markdown/images/{}",
-        url_path_escape(&relative)
-    );
+    let resource_path = format!("{}{}", job_ocr_images_base_path(job_id), url_path_escape(&relative));
     to_absolute_url(base_url, &resource_path)
 }
 

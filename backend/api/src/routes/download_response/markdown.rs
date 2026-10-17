@@ -2,7 +2,9 @@ use axum::http::{header, HeaderMap};
 use axum::response::{IntoResponse, Response};
 
 use crate::error::AppError;
-use crate::models::api::{to_absolute_url, MarkdownQuery, MarkdownView};
+use crate::models::api::{
+    job_ocr_images_base_path, job_ocr_markdown_path, to_absolute_url, MarkdownQuery, MarkdownView,
+};
 use crate::routes::common::ok_json;
 use crate::services::jobs::{Disposition, JobFile, JobScope, MarkdownDownload};
 
@@ -69,8 +71,9 @@ fn markdown_download_response(
             .into_response());
     }
     let base_url = request_base_url(headers, default_port, bind_host);
-    let raw_path = format!("/api/v1/jobs/{}/markdown?raw=true", markdown.job_id);
-    let images_base_path = format!("/api/v1/jobs/{}/markdown/images/", markdown.job_id);
+    // 旧地址 `/markdown` 照旧返回这个结构，里面的链接换成新地址。
+    let raw_path = job_ocr_markdown_path(&markdown.job_id);
+    let images_base_path = job_ocr_images_base_path(&markdown.job_id);
     Ok(ok_json(MarkdownView {
         job_id: markdown.job_id,
         content: markdown.content,

@@ -4,7 +4,7 @@ use retain_pdf_core::config::limits::MAX_JOB_LIMIT;
 use retain_pdf_data::db::{Db, JobListSelection};
 use retain_pdf_api_base::error::AppError;
 use retain_pdf_core::models::api::{
-    build_artifact_links, to_absolute_url, LibraryBookDetailView, LibraryBookListItemView,
+    build_artifact_links, document_file_path, to_absolute_url, LibraryBookDetailView, LibraryBookListItemView,
     LibraryBookListView, ListJobsQuery,
 };
 use retain_pdf_core::models::domain::{JobSnapshot, UploadRecord};
@@ -162,7 +162,8 @@ fn library_image_url(
     let document_id = document_id.map(str::trim).filter(|id| !id.is_empty());
     resolve_source_pdf(job, data_root).map(|_| {
         let path = match document_id {
-            Some(document_id) => format!("/api/v1/documents/{document_id}/{kind}"),
+            Some(document_id) => document_file_path(document_id, &format!("{kind}.jpg")),
+            // 没有书编号的旧书只有按任务的旧地址。
             None => format!("/api/v1/library/books/{}/{kind}", job.job_id),
         };
         to_absolute_url(base_url, &path)

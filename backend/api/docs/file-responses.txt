@@ -106,11 +106,11 @@ GET /api/v1/jobs/files-contract-job/markdown
   |   "code": 0,
   |   "data": {
   |     "content": "# Title\n\n![fig](images/page-1/fig.png)\n",
-  |     "images_base_path": "/api/v1/jobs/files-contract-job/markdown/images/",
-  |     "images_base_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/markdown/images/",
+  |     "images_base_path": "/api/v1/jobs/files-contract-job/files/output/ocr/images/",
+  |     "images_base_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/files/output/ocr/images/",
   |     "job_id": "files-contract-job",
-  |     "raw_path": "/api/v1/jobs/files-contract-job/markdown?raw=true",
-  |     "raw_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/markdown?raw=true"
+  |     "raw_path": "/api/v1/jobs/files-contract-job/files/output/ocr.md",
+  |     "raw_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/files/output/ocr.md"
   |   },
   |   "message": "ok"
   | }
@@ -150,20 +150,20 @@ GET /api/v1/jobs/files-contract-job/artifacts
   |       "cancel": {
   |         "enabled": false,
   |         "method": "POST",
-  |         "path": "/api/v1/jobs/files-contract-job/cancel",
-  |         "url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/cancel"
+  |         "path": "/api/v1/jobs/files-contract-job/actions/cancel",
+  |         "url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/actions/cancel"
   |       },
   |       "download_bundle": {
   |         "enabled": true,
   |         "method": "GET",
-  |         "path": "/api/v1/jobs/files-contract-job/download",
-  |         "url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/download"
+  |         "path": "/api/v1/jobs/files-contract-job/files/output/all.zip?download=1",
+  |         "url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/files/output/all.zip?download=1"
   |       },
   |       "download_pdf": {
   |         "enabled": true,
   |         "method": "GET",
-  |         "path": "/api/v1/jobs/files-contract-job/pdf",
-  |         "url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/pdf"
+  |         "path": "/api/v1/jobs/files-contract-job/files/output/translated.pdf",
+  |         "url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/files/output/translated.pdf"
   |       },
   |       "open_artifacts": {
   |         "enabled": true,
@@ -180,80 +180,80 @@ GET /api/v1/jobs/files-contract-job/artifacts
   |       "open_markdown": {
   |         "enabled": true,
   |         "method": "GET",
-  |         "path": "/api/v1/jobs/files-contract-job/markdown",
-  |         "url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/markdown"
+  |         "path": "/api/v1/jobs/files-contract-job/reader/markdown",
+  |         "url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/reader/markdown"
   |       },
   |       "open_markdown_raw": {
   |         "enabled": true,
   |         "method": "GET",
-  |         "path": "/api/v1/jobs/files-contract-job/markdown?raw=true",
-  |         "url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/markdown?raw=true"
+  |         "path": "/api/v1/jobs/files-contract-job/files/output/ocr.md",
+  |         "url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/files/output/ocr.md"
   |       },
   |       "rerun": {
   |         "enabled": true,
   |         "method": "POST",
-  |         "path": "/api/v1/jobs/files-contract-job/rerun",
-  |         "url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/rerun"
+  |         "path": "/api/v1/jobs/files-contract-job/actions/rerun",
+  |         "url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/actions/rerun"
   |       }
   |     },
   |     "bundle": {
   |       "content_type": "application/zip",
   |       "file_name": "files-contract-job.zip",
   |       "method": "GET",
-  |       "path": "/api/v1/jobs/files-contract-job/download",
+  |       "path": "/api/v1/jobs/files-contract-job/files/output/all.zip?download=1",
   |       "ready": true,
   |       "size_bytes": null,
-  |       "url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/download"
+  |       "url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/files/output/all.zip?download=1"
   |     },
   |     "bundle_ready": true,
-  |     "bundle_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/download",
+  |     "bundle_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/files/output/all.zip?download=1",
   |     "manifest_path": "/api/v1/jobs/files-contract-job/artifacts-manifest",
   |     "manifest_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/artifacts-manifest",
   |     "markdown": {
   |       "file_name": "full.md",
-  |       "images_base_path": "/api/v1/jobs/files-contract-job/markdown/images/",
-  |       "images_base_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/markdown/images/",
-  |       "json_path": "/api/v1/jobs/files-contract-job/markdown",
-  |       "json_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/markdown",
-  |       "raw_path": "/api/v1/jobs/files-contract-job/markdown?raw=true",
-  |       "raw_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/markdown?raw=true",
+  |       "images_base_path": "/api/v1/jobs/files-contract-job/files/output/ocr/images/",
+  |       "images_base_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/files/output/ocr/images/",
+  |       "json_path": "/api/v1/jobs/files-contract-job/reader/markdown",
+  |       "json_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/reader/markdown",
+  |       "raw_path": "/api/v1/jobs/files-contract-job/files/output/ocr.md",
+  |       "raw_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/files/output/ocr.md",
   |       "ready": true,
   |       "size_bytes": 39
   |     },
-  |     "markdown_images_base_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/markdown/images/",
+  |     "markdown_images_base_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/files/output/ocr/images/",
   |     "markdown_ready": true,
-  |     "markdown_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/markdown",
+  |     "markdown_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/reader/markdown",
   |     "normalization_report": {
   |       "content_type": "application/json",
   |       "file_name": "document.v1.report.json",
   |       "method": "GET",
-  |       "path": "/api/v1/jobs/files-contract-job/normalization-report",
+  |       "path": "/api/v1/jobs/files-contract-job/files/internal/normalization-report.json",
   |       "ready": true,
   |       "size_bytes": 47,
-  |       "url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/normalization-report"
+  |       "url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/files/internal/normalization-report.json"
   |     },
-  |     "normalization_report_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/normalization-report",
+  |     "normalization_report_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/files/internal/normalization-report.json",
   |     "normalized_document": {
   |       "content_type": "application/json",
   |       "file_name": "document.v1.json",
   |       "method": "GET",
-  |       "path": "/api/v1/jobs/files-contract-job/normalized-document",
+  |       "path": "/api/v1/jobs/files-contract-job/files/internal/normalized-document.json",
   |       "ready": true,
   |       "size_bytes": 35,
-  |       "url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/normalized-document"
+  |       "url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/files/internal/normalized-document.json"
   |     },
-  |     "normalized_document_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/normalized-document",
+  |     "normalized_document_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/files/internal/normalized-document.json",
   |     "pdf": {
   |       "content_type": "application/pdf",
   |       "file_name": "translated.pdf",
   |       "method": "GET",
-  |       "path": "/api/v1/jobs/files-contract-job/pdf",
+  |       "path": "/api/v1/jobs/files-contract-job/files/output/translated.pdf",
   |       "ready": true,
   |       "size_bytes": 329,
-  |       "url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/pdf"
+  |       "url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/files/output/translated.pdf"
   |     },
   |     "pdf_ready": true,
-  |     "pdf_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/pdf",
+  |     "pdf_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/files/output/translated.pdf",
   |     "provider_raw_dir": null,
   |     "provider_summary_json": "jobs/files-contract-job/ocr/paddle_result.json",
   |     "provider_zip": null,
@@ -295,8 +295,8 @@ GET /api/v1/jobs/files-contract-job/artifacts-manifest
   |         "file_name": "pipeline_summary.json",
   |         "ready": true,
   |         "relative_path": "jobs/files-contract-job/pipeline_summary.json",
-  |         "resource_path": "/api/v1/jobs/files-contract-job/artifacts/pipeline_summary",
-  |         "resource_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/artifacts/pipeline_summary",
+  |         "resource_path": "/api/v1/jobs/files-contract-job/files/internal/pipeline-summary.json?download=1",
+  |         "resource_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/files/internal/pipeline-summary.json?download=1",
   |         "size_bytes": 15,
   |         "source_stage": "rendering"
   |       },
@@ -325,8 +325,8 @@ GET /api/v1/jobs/files-contract-job/artifacts-manifest
   |         "file_name": "normalization_report.json",
   |         "ready": true,
   |         "relative_path": "jobs/files-contract-job/ocr/normalization_report.json",
-  |         "resource_path": "/api/v1/jobs/files-contract-job/normalization-report",
-  |         "resource_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/normalization-report",
+  |         "resource_path": "/api/v1/jobs/files-contract-job/files/internal/normalization-report.json",
+  |         "resource_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/files/internal/normalization-report.json",
   |         "size_bytes": 47,
   |         "source_stage": "normalizing"
   |       },
@@ -340,8 +340,8 @@ GET /api/v1/jobs/files-contract-job/artifacts-manifest
   |         "file_name": "document.v1.json",
   |         "ready": true,
   |         "relative_path": "jobs/files-contract-job/ocr/normalized/document.v1.json",
-  |         "resource_path": "/api/v1/jobs/files-contract-job/normalized-document",
-  |         "resource_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/normalized-document",
+  |         "resource_path": "/api/v1/jobs/files-contract-job/files/internal/normalized-document.json",
+  |         "resource_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/files/internal/normalized-document.json",
   |         "size_bytes": 35,
   |         "source_stage": "normalizing"
   |       },
@@ -355,8 +355,8 @@ GET /api/v1/jobs/files-contract-job/artifacts-manifest
   |         "file_name": "files-contract-job-markdown.zip",
   |         "ready": true,
   |         "relative_path": "jobs/files-contract-job/artifacts/files-contract-job-markdown.zip",
-  |         "resource_path": "/api/v1/jobs/files-contract-job/artifacts/markdown_bundle_zip",
-  |         "resource_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/artifacts/markdown_bundle_zip",
+  |         "resource_path": "/api/v1/jobs/files-contract-job/files/output/ocr.zip?download=1",
+  |         "resource_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/files/output/ocr.zip?download=1",
   |         "size_bytes": null,
   |         "source_stage": "ocr"
   |       },
@@ -370,8 +370,8 @@ GET /api/v1/jobs/files-contract-job/artifacts-manifest
   |         "file_name": "images",
   |         "ready": true,
   |         "relative_path": "jobs/files-contract-job/md/images",
-  |         "resource_path": "/api/v1/jobs/files-contract-job/markdown/images/",
-  |         "resource_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/markdown/images/",
+  |         "resource_path": "/api/v1/jobs/files-contract-job/files/output/ocr/images/",
+  |         "resource_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/files/output/ocr/images/",
   |         "size_bytes": null,
   |         "source_stage": "ocr"
   |       },
@@ -385,8 +385,8 @@ GET /api/v1/jobs/files-contract-job/artifacts-manifest
   |         "file_name": "full.md",
   |         "ready": true,
   |         "relative_path": "jobs/files-contract-job/md/full.md",
-  |         "resource_path": "/api/v1/jobs/files-contract-job/markdown?raw=true",
-  |         "resource_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/markdown?raw=true",
+  |         "resource_path": "/api/v1/jobs/files-contract-job/files/output/ocr.md",
+  |         "resource_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/files/output/ocr.md",
   |         "size_bytes": 39,
   |         "source_stage": "ocr"
   |       },
@@ -400,8 +400,8 @@ GET /api/v1/jobs/files-contract-job/artifacts-manifest
   |         "file_name": "paddle_result.json",
   |         "ready": true,
   |         "relative_path": "jobs/files-contract-job/ocr/paddle_result.json",
-  |         "resource_path": "/api/v1/jobs/files-contract-job/artifacts/provider_result_json",
-  |         "resource_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/artifacts/provider_result_json",
+  |         "resource_path": "/api/v1/jobs/files-contract-job/files/internal/ocr-provider/result.json?download=1",
+  |         "resource_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/files/internal/ocr-provider/result.json?download=1",
   |         "size_bytes": 27,
   |         "source_stage": "ocr"
   |       },
@@ -415,8 +415,8 @@ GET /api/v1/jobs/files-contract-job/artifacts-manifest
   |         "file_name": "translated.pdf",
   |         "ready": true,
   |         "relative_path": "jobs/files-contract-job/rendered/translated.pdf",
-  |         "resource_path": "/api/v1/jobs/files-contract-job/pdf",
-  |         "resource_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/pdf",
+  |         "resource_path": "/api/v1/jobs/files-contract-job/files/output/translated.pdf",
+  |         "resource_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/files/output/translated.pdf",
   |         "size_bytes": 329,
   |         "source_stage": "rendering"
   |       },
@@ -445,8 +445,8 @@ GET /api/v1/jobs/files-contract-job/artifacts-manifest
   |         "file_name": "book-overlay.pdf",
   |         "ready": false,
   |         "relative_path": "jobs/files-contract-job/rendered/typst/book-overlays/book-overlay.pdf",
-  |         "resource_path": "/api/v1/jobs/files-contract-job/artifacts/typst_render_pdf",
-  |         "resource_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/artifacts/typst_render_pdf",
+  |         "resource_path": "/api/v1/jobs/files-contract-job/files/internal/typst/render.pdf?download=1",
+  |         "resource_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/files/internal/typst/render.pdf?download=1",
   |         "size_bytes": null,
   |         "source_stage": "rendering"
   |       },
@@ -460,8 +460,8 @@ GET /api/v1/jobs/files-contract-job/artifacts-manifest
   |         "file_name": "book-overlay.typ",
   |         "ready": false,
   |         "relative_path": "jobs/files-contract-job/rendered/typst/book-overlays/book-overlay.typ",
-  |         "resource_path": "/api/v1/jobs/files-contract-job/artifacts/typst_source",
-  |         "resource_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/artifacts/typst_source",
+  |         "resource_path": "/api/v1/jobs/files-contract-job/files/internal/typst/source.typ?download=1",
+  |         "resource_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/files/internal/typst/source.typ?download=1",
   |         "size_bytes": null,
   |         "source_stage": "rendering"
   |       }
@@ -522,20 +522,20 @@ GET /api/v1/ocr/jobs/files-contract-job-ocr/artifacts
   |       "cancel": {
   |         "enabled": false,
   |         "method": "POST",
-  |         "path": "/api/v1/jobs/files-contract-job-ocr/cancel",
-  |         "url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job-ocr/cancel"
+  |         "path": "/api/v1/jobs/files-contract-job-ocr/actions/cancel",
+  |         "url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job-ocr/actions/cancel"
   |       },
   |       "download_bundle": {
   |         "enabled": true,
   |         "method": "GET",
-  |         "path": "/api/v1/jobs/files-contract-job-ocr/download",
-  |         "url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job-ocr/download"
+  |         "path": "/api/v1/jobs/files-contract-job-ocr/files/output/all.zip?download=1",
+  |         "url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job-ocr/files/output/all.zip?download=1"
   |       },
   |       "download_pdf": {
   |         "enabled": false,
   |         "method": "GET",
-  |         "path": "/api/v1/jobs/files-contract-job-ocr/pdf",
-  |         "url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job-ocr/pdf"
+  |         "path": "/api/v1/jobs/files-contract-job-ocr/files/output/translated.pdf",
+  |         "url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job-ocr/files/output/translated.pdf"
   |       },
   |       "open_artifacts": {
   |         "enabled": true,
@@ -552,80 +552,80 @@ GET /api/v1/ocr/jobs/files-contract-job-ocr/artifacts
   |       "open_markdown": {
   |         "enabled": false,
   |         "method": "GET",
-  |         "path": "/api/v1/jobs/files-contract-job-ocr/markdown",
-  |         "url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job-ocr/markdown"
+  |         "path": "/api/v1/jobs/files-contract-job-ocr/reader/markdown",
+  |         "url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job-ocr/reader/markdown"
   |       },
   |       "open_markdown_raw": {
   |         "enabled": false,
   |         "method": "GET",
-  |         "path": "/api/v1/jobs/files-contract-job-ocr/markdown?raw=true",
-  |         "url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job-ocr/markdown?raw=true"
+  |         "path": "/api/v1/jobs/files-contract-job-ocr/files/output/ocr.md",
+  |         "url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job-ocr/files/output/ocr.md"
   |       },
   |       "rerun": {
   |         "enabled": false,
   |         "method": "POST",
-  |         "path": "/api/v1/jobs/files-contract-job-ocr/rerun",
-  |         "url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job-ocr/rerun"
+  |         "path": "/api/v1/jobs/files-contract-job-ocr/actions/rerun",
+  |         "url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job-ocr/actions/rerun"
   |       }
   |     },
   |     "bundle": {
   |       "content_type": "application/zip",
   |       "file_name": "files-contract-job-ocr.zip",
   |       "method": "GET",
-  |       "path": "/api/v1/jobs/files-contract-job-ocr/download",
+  |       "path": "/api/v1/jobs/files-contract-job-ocr/files/output/all.zip?download=1",
   |       "ready": true,
   |       "size_bytes": null,
-  |       "url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job-ocr/download"
+  |       "url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job-ocr/files/output/all.zip?download=1"
   |     },
   |     "bundle_ready": true,
-  |     "bundle_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job-ocr/download",
+  |     "bundle_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job-ocr/files/output/all.zip?download=1",
   |     "manifest_path": "/api/v1/jobs/files-contract-job-ocr/artifacts-manifest",
   |     "manifest_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job-ocr/artifacts-manifest",
   |     "markdown": {
   |       "file_name": null,
-  |       "images_base_path": "/api/v1/jobs/files-contract-job-ocr/markdown/images/",
-  |       "images_base_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job-ocr/markdown/images/",
-  |       "json_path": "/api/v1/jobs/files-contract-job-ocr/markdown",
-  |       "json_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job-ocr/markdown",
-  |       "raw_path": "/api/v1/jobs/files-contract-job-ocr/markdown?raw=true",
-  |       "raw_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job-ocr/markdown?raw=true",
+  |       "images_base_path": "/api/v1/jobs/files-contract-job-ocr/files/output/ocr/images/",
+  |       "images_base_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job-ocr/files/output/ocr/images/",
+  |       "json_path": "/api/v1/jobs/files-contract-job-ocr/reader/markdown",
+  |       "json_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job-ocr/reader/markdown",
+  |       "raw_path": "/api/v1/jobs/files-contract-job-ocr/files/output/ocr.md",
+  |       "raw_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job-ocr/files/output/ocr.md",
   |       "ready": false,
   |       "size_bytes": null
   |     },
-  |     "markdown_images_base_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job-ocr/markdown/images/",
+  |     "markdown_images_base_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job-ocr/files/output/ocr/images/",
   |     "markdown_ready": false,
-  |     "markdown_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job-ocr/markdown",
+  |     "markdown_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job-ocr/reader/markdown",
   |     "normalization_report": {
   |       "content_type": "application/json",
   |       "file_name": "document.v1.report.json",
   |       "method": "GET",
-  |       "path": "/api/v1/jobs/files-contract-job-ocr/normalization-report",
+  |       "path": "/api/v1/jobs/files-contract-job-ocr/files/internal/normalization-report.json",
   |       "ready": true,
   |       "size_bytes": 47,
-  |       "url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job-ocr/normalization-report"
+  |       "url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job-ocr/files/internal/normalization-report.json"
   |     },
-  |     "normalization_report_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job-ocr/normalization-report",
+  |     "normalization_report_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job-ocr/files/internal/normalization-report.json",
   |     "normalized_document": {
   |       "content_type": "application/json",
   |       "file_name": "document.v1.json",
   |       "method": "GET",
-  |       "path": "/api/v1/jobs/files-contract-job-ocr/normalized-document",
+  |       "path": "/api/v1/jobs/files-contract-job-ocr/files/internal/normalized-document.json",
   |       "ready": true,
   |       "size_bytes": 35,
-  |       "url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job-ocr/normalized-document"
+  |       "url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job-ocr/files/internal/normalized-document.json"
   |     },
-  |     "normalized_document_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job-ocr/normalized-document",
+  |     "normalized_document_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job-ocr/files/internal/normalized-document.json",
   |     "pdf": {
   |       "content_type": "application/pdf",
   |       "file_name": null,
   |       "method": "GET",
-  |       "path": "/api/v1/jobs/files-contract-job-ocr/pdf",
+  |       "path": "/api/v1/jobs/files-contract-job-ocr/files/output/translated.pdf",
   |       "ready": false,
   |       "size_bytes": null,
-  |       "url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job-ocr/pdf"
+  |       "url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job-ocr/files/output/translated.pdf"
   |     },
   |     "pdf_ready": false,
-  |     "pdf_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job-ocr/pdf",
+  |     "pdf_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job-ocr/files/output/translated.pdf",
   |     "provider_raw_dir": null,
   |     "provider_summary_json": "jobs/files-contract-job-ocr/ocr/paddle_result.json",
   |     "provider_zip": null,
@@ -667,8 +667,8 @@ GET /api/v1/ocr/jobs/files-contract-job-ocr/artifacts-manifest
   |         "file_name": "pipeline_summary.json",
   |         "ready": true,
   |         "relative_path": "jobs/files-contract-job-ocr/pipeline_summary.json",
-  |         "resource_path": "/api/v1/jobs/files-contract-job-ocr/artifacts/pipeline_summary",
-  |         "resource_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job-ocr/artifacts/pipeline_summary",
+  |         "resource_path": "/api/v1/jobs/files-contract-job-ocr/files/internal/pipeline-summary.json?download=1",
+  |         "resource_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job-ocr/files/internal/pipeline-summary.json?download=1",
   |         "size_bytes": 15,
   |         "source_stage": "rendering"
   |       },
@@ -697,8 +697,8 @@ GET /api/v1/ocr/jobs/files-contract-job-ocr/artifacts-manifest
   |         "file_name": "normalization_report.json",
   |         "ready": true,
   |         "relative_path": "jobs/files-contract-job-ocr/ocr/normalization_report.json",
-  |         "resource_path": "/api/v1/jobs/files-contract-job-ocr/normalization-report",
-  |         "resource_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job-ocr/normalization-report",
+  |         "resource_path": "/api/v1/jobs/files-contract-job-ocr/files/internal/normalization-report.json",
+  |         "resource_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job-ocr/files/internal/normalization-report.json",
   |         "size_bytes": 47,
   |         "source_stage": "normalizing"
   |       },
@@ -712,8 +712,8 @@ GET /api/v1/ocr/jobs/files-contract-job-ocr/artifacts-manifest
   |         "file_name": "document.v1.json",
   |         "ready": true,
   |         "relative_path": "jobs/files-contract-job-ocr/ocr/normalized/document.v1.json",
-  |         "resource_path": "/api/v1/jobs/files-contract-job-ocr/normalized-document",
-  |         "resource_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job-ocr/normalized-document",
+  |         "resource_path": "/api/v1/jobs/files-contract-job-ocr/files/internal/normalized-document.json",
+  |         "resource_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job-ocr/files/internal/normalized-document.json",
   |         "size_bytes": 35,
   |         "source_stage": "normalizing"
   |       },
@@ -727,8 +727,8 @@ GET /api/v1/ocr/jobs/files-contract-job-ocr/artifacts-manifest
   |         "file_name": "files-contract-job-ocr-markdown.zip",
   |         "ready": false,
   |         "relative_path": "jobs/files-contract-job-ocr/artifacts/files-contract-job-ocr-markdown.zip",
-  |         "resource_path": "/api/v1/jobs/files-contract-job-ocr/artifacts/markdown_bundle_zip",
-  |         "resource_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job-ocr/artifacts/markdown_bundle_zip",
+  |         "resource_path": "/api/v1/jobs/files-contract-job-ocr/files/output/ocr.zip?download=1",
+  |         "resource_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job-ocr/files/output/ocr.zip?download=1",
   |         "size_bytes": null,
   |         "source_stage": "ocr"
   |       },
@@ -742,8 +742,8 @@ GET /api/v1/ocr/jobs/files-contract-job-ocr/artifacts-manifest
   |         "file_name": "paddle_result.json",
   |         "ready": true,
   |         "relative_path": "jobs/files-contract-job-ocr/ocr/paddle_result.json",
-  |         "resource_path": "/api/v1/jobs/files-contract-job-ocr/artifacts/provider_result_json",
-  |         "resource_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job-ocr/artifacts/provider_result_json",
+  |         "resource_path": "/api/v1/jobs/files-contract-job-ocr/files/internal/ocr-provider/result.json?download=1",
+  |         "resource_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job-ocr/files/internal/ocr-provider/result.json?download=1",
   |         "size_bytes": 27,
   |         "source_stage": "ocr"
   |       },
@@ -772,8 +772,8 @@ GET /api/v1/ocr/jobs/files-contract-job-ocr/artifacts-manifest
   |         "file_name": "book-overlay.pdf",
   |         "ready": false,
   |         "relative_path": "jobs/files-contract-job-ocr/rendered/typst/book-overlays/book-overlay.pdf",
-  |         "resource_path": "/api/v1/jobs/files-contract-job-ocr/artifacts/typst_render_pdf",
-  |         "resource_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job-ocr/artifacts/typst_render_pdf",
+  |         "resource_path": "/api/v1/jobs/files-contract-job-ocr/files/internal/typst/render.pdf?download=1",
+  |         "resource_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job-ocr/files/internal/typst/render.pdf?download=1",
   |         "size_bytes": null,
   |         "source_stage": "rendering"
   |       },
@@ -787,8 +787,8 @@ GET /api/v1/ocr/jobs/files-contract-job-ocr/artifacts-manifest
   |         "file_name": "book-overlay.typ",
   |         "ready": false,
   |         "relative_path": "jobs/files-contract-job-ocr/rendered/typst/book-overlays/book-overlay.typ",
-  |         "resource_path": "/api/v1/jobs/files-contract-job-ocr/artifacts/typst_source",
-  |         "resource_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job-ocr/artifacts/typst_source",
+  |         "resource_path": "/api/v1/jobs/files-contract-job-ocr/files/internal/typst/source.typ?download=1",
+  |         "resource_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job-ocr/files/internal/typst/source.typ?download=1",
   |         "size_bytes": null,
   |         "source_stage": "rendering"
   |       }

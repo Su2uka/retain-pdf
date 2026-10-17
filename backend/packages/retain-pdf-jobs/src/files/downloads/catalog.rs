@@ -21,26 +21,8 @@ use retain_pdf_core::storage_paths::{resolve_job_root, resolve_markdown_path, re
 use crate::files::downloads::files::JobFile;
 use crate::summary_loaders::SummaryCache;
 
-/// `internal/` 组：新文件名 ↔ 产物清单里的名字。
-///
-/// `layout_json` 不在这里：它和 `provider_result_json` 指向同一个文件
-/// （OCR 的 `paddle_result.json`），只列 `ocr-provider/result.json` 一个。
-const INTERNAL_FILES: &[(&str, &str)] = &[
-    ("normalized-document.json", "normalized_document_json"),
-    ("normalization-report.json", "normalization_report_json"),
-    ("render-config.json", "render_config_json"),
-    ("translation-manifest.json", "translation_manifest_json"),
-    ("translation-checkpoint.json", "translation_checkpoint_json"),
-    ("translation-requests.jsonl", "translation_request_journal_jsonl"),
-    ("translation-diagnostics.json", "translation_diagnostics_json"),
-    ("translation-debug-index.json", "translation_debug_index_json"),
-    ("pipeline-summary.json", "pipeline_summary"),
-    ("events.jsonl", "events_jsonl"),
-    ("typst/source.typ", "typst_source"),
-    ("typst/render.pdf", "typst_render_pdf"),
-    ("ocr-provider/result.json", "provider_result_json"),
-    ("ocr-provider/raw.zip", "provider_bundle_zip"),
-];
+/// `internal/` 组：新文件名 ↔ 产物清单里的名字。表在 retain-core，产物清单返回的链接也用它。
+use retain_pdf_core::models::api::JOB_INTERNAL_FILES as INTERNAL_FILES;
 
 const OCR_IMAGES_PREFIX: &str = "ocr/images/";
 

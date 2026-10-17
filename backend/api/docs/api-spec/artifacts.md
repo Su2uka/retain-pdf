@@ -56,23 +56,23 @@ Response:
     "pdf_ready": true,
     "markdown_ready": true,
     "bundle_ready": true,
-    "pdf_url": "/api/v1/jobs/20260327190500-ef3456/pdf",
-    "markdown_url": "/api/v1/jobs/20260327190500-ef3456/markdown",
-    "markdown_images_base_url": "/api/v1/jobs/20260327190500-ef3456/markdown/images/",
-    "bundle_url": "/api/v1/jobs/20260327190500-ef3456/download",
+    "pdf_url": "/api/v1/jobs/20260327190500-ef3456/files/output/translated.pdf",
+    "markdown_url": "/api/v1/jobs/20260327190500-ef3456/reader/markdown",
+    "markdown_images_base_url": "/api/v1/jobs/20260327190500-ef3456/files/output/ocr/images/",
+    "bundle_url": "/api/v1/jobs/20260327190500-ef3456/files/output/all.zip?download=1",
     "actions": {
       "open_job": {"enabled": true, "method": "GET", "path": "/api/v1/jobs/20260327190500-ef3456", "url": "http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456"},
       "open_artifacts": {"enabled": true, "method": "GET", "path": "/api/v1/jobs/20260327190500-ef3456/artifacts", "url": "http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456/artifacts"},
-      "cancel": {"enabled": false, "method": "POST", "path": "/api/v1/jobs/20260327190500-ef3456/cancel", "url": "http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456/cancel"},
-      "download_pdf": {"enabled": true, "method": "GET", "path": "/api/v1/jobs/20260327190500-ef3456/pdf", "url": "http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456/pdf"},
-      "open_markdown": {"enabled": true, "method": "GET", "path": "/api/v1/jobs/20260327190500-ef3456/markdown", "url": "http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456/markdown"},
-      "open_markdown_raw": {"enabled": true, "method": "GET", "path": "/api/v1/jobs/20260327190500-ef3456/markdown?raw=true", "url": "http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456/markdown?raw=true"},
-      "download_bundle": {"enabled": true, "method": "GET", "path": "/api/v1/jobs/20260327190500-ef3456/download", "url": "http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456/download"}
+      "cancel": {"enabled": false, "method": "POST", "path": "/api/v1/jobs/20260327190500-ef3456/actions/cancel", "url": "http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456/actions/cancel"},
+      "download_pdf": {"enabled": true, "method": "GET", "path": "/api/v1/jobs/20260327190500-ef3456/files/output/translated.pdf", "url": "http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456/files/output/translated.pdf"},
+      "open_markdown": {"enabled": true, "method": "GET", "path": "/api/v1/jobs/20260327190500-ef3456/reader/markdown", "url": "http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456/reader/markdown"},
+      "open_markdown_raw": {"enabled": true, "method": "GET", "path": "/api/v1/jobs/20260327190500-ef3456/files/output/ocr.md", "url": "http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456/files/output/ocr.md"},
+      "download_bundle": {"enabled": true, "method": "GET", "path": "/api/v1/jobs/20260327190500-ef3456/files/output/all.zip?download=1", "url": "http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456/files/output/all.zip?download=1"}
     },
     "pdf": {
       "ready": true,
-      "path": "/api/v1/jobs/20260327190500-ef3456/pdf",
-      "url": "http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456/pdf",
+      "path": "/api/v1/jobs/20260327190500-ef3456/files/output/translated.pdf",
+      "url": "http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456/files/output/translated.pdf",
       "method": "GET",
       "content_type": "application/pdf",
       "file_name": "paper-translated.pdf",
@@ -80,19 +80,19 @@ Response:
     },
     "markdown": {
       "ready": true,
-      "json_path": "/api/v1/jobs/20260327190500-ef3456/markdown",
-      "json_url": "http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456/markdown",
-      "raw_path": "/api/v1/jobs/20260327190500-ef3456/markdown?raw=true",
-      "raw_url": "http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456/markdown?raw=true",
-      "images_base_path": "/api/v1/jobs/20260327190500-ef3456/markdown/images/",
-      "images_base_url": "http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456/markdown/images/",
+      "json_path": "/api/v1/jobs/20260327190500-ef3456/reader/markdown",
+      "json_url": "http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456/reader/markdown",
+      "raw_path": "/api/v1/jobs/20260327190500-ef3456/files/output/ocr.md",
+      "raw_url": "http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456/files/output/ocr.md",
+      "images_base_path": "/api/v1/jobs/20260327190500-ef3456/files/output/ocr/images/",
+      "images_base_url": "http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456/files/output/ocr/images/",
       "file_name": "full.md",
       "size_bytes": 18234
     },
     "bundle": {
       "ready": true,
-      "path": "/api/v1/jobs/20260327190500-ef3456/download",
-      "url": "http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456/download",
+      "path": "/api/v1/jobs/20260327190500-ef3456/files/output/all.zip?download=1",
+      "url": "http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456/files/output/all.zip?download=1",
       "method": "GET",
       "content_type": "application/zip",
       "file_name": "20260327190500-ef3456.zip",
@@ -154,10 +154,10 @@ Default response:
   "data": {
     "job_id": "20260327190500-ef3456",
     "content": "# title",
-    "raw_path": "/api/v1/jobs/20260327190500-ef3456/markdown?raw=true",
-    "raw_url": "http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456/markdown?raw=true",
-    "images_base_path": "/api/v1/jobs/20260327190500-ef3456/markdown/images/",
-    "images_base_url": "http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456/markdown/images/"
+    "raw_path": "/api/v1/jobs/20260327190500-ef3456/files/output/ocr.md",
+    "raw_url": "http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456/files/output/ocr.md",
+    "images_base_path": "/api/v1/jobs/20260327190500-ef3456/files/output/ocr/images/",
+    "images_base_url": "http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456/files/output/ocr/images/"
   }
 }
 ```
@@ -211,12 +211,12 @@ rewritten to absolute API URLs, and a direct image manifest.
     "ready": true,
     "content": "# title\n\n![Image](images/page-1/imgs/chart.png)\n",
     "content_with_absolute_image_urls": "# title\n\n![Image](http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456/markdown/images/page-1/imgs/chart.png)\n",
-    "markdown_path": "/api/v1/jobs/20260327190500-ef3456/markdown/document",
-    "markdown_url": "http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456/markdown/document",
-    "raw_path": "/api/v1/jobs/20260327190500-ef3456/markdown?raw=true",
-    "raw_url": "http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456/markdown?raw=true",
-    "images_base_path": "/api/v1/jobs/20260327190500-ef3456/markdown/images/",
-    "images_base_url": "http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456/markdown/images/",
+    "markdown_path": "/api/v1/jobs/20260327190500-ef3456/reader/markdown",
+    "markdown_url": "http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456/reader/markdown",
+    "raw_path": "/api/v1/jobs/20260327190500-ef3456/files/output/ocr.md",
+    "raw_url": "http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456/files/output/ocr.md",
+    "images_base_path": "/api/v1/jobs/20260327190500-ef3456/files/output/ocr/images/",
+    "images_base_url": "http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456/files/output/ocr/images/",
     "images": [
       {
         "path": "images/page-1/imgs/chart.png",

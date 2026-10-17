@@ -26,7 +26,7 @@ Response:
         "disabled_reason": "",
         "action": {
           "method": "POST",
-          "url": "http://127.0.0.1:41000/api/v1/jobs/20260519010101-abcd12/retry-stage",
+          "url": "http://127.0.0.1:41000/api/v1/jobs/20260519010101-abcd12/actions/retry-stage",
           "body": {"stage": "ocr", "ambiguous_request_policy": "block"}
         },
         "will_reuse": ["source_pdf"],
@@ -41,7 +41,7 @@ Response:
         "disabled_reason": "",
         "action": {
           "method": "POST",
-          "url": "http://127.0.0.1:41000/api/v1/jobs/20260519010101-abcd12/retry-stage",
+          "url": "http://127.0.0.1:41000/api/v1/jobs/20260519010101-abcd12/actions/retry-stage",
           "body": {"stage": "translation", "ambiguous_request_policy": "block"}
         },
         "will_reuse": ["source_pdf", "ocr_result"],
@@ -56,7 +56,7 @@ Response:
         "disabled_reason": "",
         "action": {
           "method": "POST",
-          "url": "http://127.0.0.1:41000/api/v1/jobs/20260519010101-abcd12/retry-stage",
+          "url": "http://127.0.0.1:41000/api/v1/jobs/20260519010101-abcd12/actions/retry-stage",
           "body": {"stage": "render", "ambiguous_request_policy": "block"}
         },
         "will_reuse": ["source_pdf", "ocr_result", "translation_result"],
@@ -71,7 +71,7 @@ Response:
         "disabled_reason": "",
         "action": {
           "method": "POST",
-          "url": "http://127.0.0.1:41000/api/v1/jobs/20260519010101-abcd12/retry-stage",
+          "url": "http://127.0.0.1:41000/api/v1/jobs/20260519010101-abcd12/actions/retry-stage",
           "body": {"stage": "refine", "create_new_job": false, "ambiguous_request_policy": "block", "refine": {"mode": "review_and_fix"}}
         },
         "will_reuse": ["source_pdf", "ocr_result", "translation_result"],
@@ -302,17 +302,17 @@ Response:
       "self_url": "http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456",
       "artifacts_path": "/api/v1/jobs/20260327190500-ef3456/artifacts",
       "artifacts_url": "http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456/artifacts",
-      "cancel_path": "/api/v1/jobs/20260327190500-ef3456/cancel",
-      "cancel_url": "http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456/cancel"
+      "cancel_path": "/api/v1/jobs/20260327190500-ef3456/actions/cancel",
+      "cancel_url": "http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456/actions/cancel"
     },
     "actions": {
       "open_job": {"enabled": true, "method": "GET", "path": "/api/v1/jobs/20260327190500-ef3456", "url": "http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456"},
       "open_artifacts": {"enabled": true, "method": "GET", "path": "/api/v1/jobs/20260327190500-ef3456/artifacts", "url": "http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456/artifacts"},
-      "cancel": {"enabled": false, "method": "POST", "path": "/api/v1/jobs/20260327190500-ef3456/cancel", "url": "http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456/cancel"},
-      "download_pdf": {"enabled": false, "method": "GET", "path": "/api/v1/jobs/20260327190500-ef3456/pdf", "url": "http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456/pdf"},
-      "open_markdown": {"enabled": false, "method": "GET", "path": "/api/v1/jobs/20260327190500-ef3456/markdown", "url": "http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456/markdown"},
-      "open_markdown_raw": {"enabled": false, "method": "GET", "path": "/api/v1/jobs/20260327190500-ef3456/markdown?raw=true", "url": "http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456/markdown?raw=true"},
-      "download_bundle": {"enabled": false, "method": "GET", "path": "/api/v1/jobs/20260327190500-ef3456/download", "url": "http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456/download"}
+      "cancel": {"enabled": false, "method": "POST", "path": "/api/v1/jobs/20260327190500-ef3456/actions/cancel", "url": "http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456/actions/cancel"},
+      "download_pdf": {"enabled": false, "method": "GET", "path": "/api/v1/jobs/20260327190500-ef3456/files/output/translated.pdf", "url": "http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456/files/output/translated.pdf"},
+      "open_markdown": {"enabled": false, "method": "GET", "path": "/api/v1/jobs/20260327190500-ef3456/reader/markdown", "url": "http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456/reader/markdown"},
+      "open_markdown_raw": {"enabled": false, "method": "GET", "path": "/api/v1/jobs/20260327190500-ef3456/files/output/ocr.md", "url": "http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456/files/output/ocr.md"},
+      "download_bundle": {"enabled": false, "method": "GET", "path": "/api/v1/jobs/20260327190500-ef3456/files/output/all.zip?download=1", "url": "http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456/files/output/all.zip?download=1"}
     }
   }
 }

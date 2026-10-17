@@ -1,5 +1,7 @@
 #[path = "view/common.rs"]
 mod common;
+#[path = "view/file_paths.rs"]
+mod file_paths;
 #[path = "view/job.rs"]
 mod job;
 #[path = "view/live_translation.rs"]
@@ -16,6 +18,7 @@ mod tests;
 mod translation;
 
 pub use common::*;
+pub use file_paths::*;
 pub use job::*;
 pub use live_translation::*;
 pub use reader_ai::*;

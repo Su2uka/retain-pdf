@@ -50,7 +50,7 @@ async fn stage_actions_route_reports_retryable_stages() {
     assert_eq!(translation["will_rerun"], json!(["translation", "render"]));
     assert_eq!(
         translation["action"]["url"],
-        "http://127.0.0.1:41000/api/v1/jobs/job-stage-actions/retry-stage"
+        "http://127.0.0.1:41000/api/v1/jobs/job-stage-actions/actions/retry-stage"
     );
     let render = stages
         .iter()
