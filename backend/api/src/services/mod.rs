@@ -1,4 +1,4 @@
-//! 业务逻辑按领域分成 9 个包（拆包规划第 3 节），都在 `backend/packages/retain-pdf-<领域>`，这里只把它们接上，
+//! 业务逻辑按领域分成 9 个包（拆包规划第 3 节），都在 `backend/packages/retainpdf-<领域>`，这里只把它们接上，
 //! rust_api 里照旧写 `crate::services::<领域>::…`。
 //!
 //! | 领域 | 管什么 |

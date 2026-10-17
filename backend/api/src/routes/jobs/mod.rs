@@ -13,7 +13,7 @@
 //! | `data` | `/jobs/:id/data/…` | 通用查询 |
 //! | `ai` | `/jobs/:id/ai/…` | AI 助手写在这本书里的东西 |
 //!
-//! 旧地址指向同一批处理函数，登记在 app/router/jobs/ 各类的 `LEGACY` 旁边。
+//! 旧地址指向同一批处理函数，在 app/router/jobs/ 各类的登记表里紧跟在新地址下面，行尾写 `old "<新地址>"`。
 
 pub mod actions;
 pub mod ai;
