@@ -1,21 +1,20 @@
-use axum::routing::{delete, get, post};
-use axum::Router;
+//! 备份，以及模型用量（和备份一样是「设置」页的数据；一个任务的用量在 jobs 的 reports 里）。
 
 use crate::app::AppState;
 use crate::routes::{backups, token_usage};
 
-pub(super) fn routes() -> Router<AppState> {
-    Router::new()
-        // 模型用量和备份一样是「设置」页的数据；一本书的用量挂在书下，一个任务的在 jobs 的 reports 里。
-        .route("/api/v1/usage", get(token_usage::all_usage_route))
-        .route("/api/v1/documents/:document_id/usage", get(token_usage::document_usage_route))
-        .route(
-            "/api/v1/backups",
-            get(backups::list_backups_route).post(backups::create_backup_route),
-        )
-        .route("/api/v1/backups/:backup_id", delete(backups::delete_backup_route))
-        .route(
-            "/api/v1/backups/:backup_id/restore",
-            post(backups::restore_backup_route),
-        )
+crate::endpoints! {
+    state: AppState;
+    /// 全部模型用量
+    GET "/api/v1/usage" => token_usage::all_usage_route, signed;
+    /// 一本书的模型用量
+    GET "/api/v1/documents/:document_id/usage" => token_usage::document_usage_route, signed;
+    /// 备份列表
+    GET "/api/v1/backups" => backups::list_backups_route, admin;
+    /// 马上备份一次
+    POST "/api/v1/backups" => backups::create_backup_route, admin;
+    /// 删除一个备份
+    DELETE "/api/v1/backups/:backup_id" => backups::delete_backup_route, admin;
+    /// 从备份恢复
+    POST "/api/v1/backups/:backup_id/restore" => backups::restore_backup_route, admin;
 }

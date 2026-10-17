@@ -66,6 +66,9 @@ cargo test -p retainpdf-api -p retainpdf-api-base -p retainpdf-accounts -p retai
   `UPDATE_ROUTES=1 cargo test -p retainpdf-api --lib route_manifest`、
   `UPDATE_FILE_RESPONSES=1 cargo test -p retainpdf-api --lib file_responses`、
   `UPDATE_SUBMISSIONS=1 cargo test -p retainpdf-api --lib submissions`。重新生成后看 diff，只该有预期的改动。
+- 路由只在接口登记表里注册：每个路由文件是一张 `crate::endpoints!` 表（`backend/api/src/app/endpoints.rs`），一个接口一条，
+  写明方法、地址、处理函数、多用户下谁能用（`public`/`signed`/`admin`/`closed`），`///` 写一句话说明，旧地址行尾写 `old "<新地址>"`。
+  路由文件里直接写 `.route(` 会让测试红。接口目录 `docs/api/00-接口目录.md` 和 `docs/routes.txt` 都从表生成（`UPDATE_ROUTES=1`）。
 - 加路由、加 service 前先读 `check_architecture.py` 的规则：新的路由文件要进白名单（按完整 import 字符串匹配）；
   新的路径参数要在账号包的 `backend/packages/retainpdf-accounts/src/access.rs` 的 `classify_param` 里归类，否则多用户模式下 403 "not cleared"。
 - 改 `check_architecture.py`：任务、书库的规则写逻辑路径 `src/services/<领域>/...`，取文件用 `abs_src`，扫目录用 `scan_logical`，
@@ -73,7 +76,7 @@ cargo test -p retainpdf-api -p retainpdf-api-base -p retainpdf-accounts -p retai
   规则要求"不许存在"的路径登记在 `RULE_PATHS_MUST_NOT_EXIST`。
 - `/jobs` 按 9 类分：路由 `app/router/jobs/<类>.rs`、处理函数 `routes/jobs/<类>.rs`、业务逻辑
   `services/jobs/<类>/`，三处同名。新接口放进对应的类，不要再加 `/jobs/:job_id/<名字>` 这种顶层地址；
-  旧地址紧跟在新地址下面、行尾标 `// 旧地址`。`services/jobs/` 根目录只放各类共用的（门面、依赖、返回视图）。
+  旧地址紧跟在新地址下面、行尾写 `old "<新地址>"`。`services/jobs/` 根目录只放各类共用的（门面、依赖、返回视图）。
   任务、书库已经拆成包，`services/jobs/...`、`services/library/...` 是逻辑路径（架构检查报错也这么写），实际在
   `backend/packages/retainpdf-jobs/src/...`、`backend/packages/retainpdf-library/src/...`。
 - 建新任务只走 `services/jobs/lifecycle/creation/submit.rs` 的 `submit_job`，原地重跑已有任务走 `relaunch_in_place`；

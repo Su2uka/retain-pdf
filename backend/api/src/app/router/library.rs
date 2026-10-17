@@ -1,22 +1,18 @@
-use axum::routing::get;
-use axum::Router;
+//! 书库：书架上的书（按任务列，旧的一套，书的新接口在 documents）。
 
 use crate::app::AppState;
 use crate::routes::library;
 
-pub(super) fn routes() -> Router<AppState> {
-    Router::new()
-        .route("/api/v1/library/books", get(library::list_books))
-        .route(
-            "/api/v1/library/books/:job_id",
-            get(library::get_book).delete(library::delete_book),
-        )
-        .route(
-            "/api/v1/library/books/:job_id/cover",
-            get(library::download_book_cover),
-        )
-        .route(
-            "/api/v1/library/books/:job_id/thumbnail",
-            get(library::download_book_thumbnail),
-        )
+crate::endpoints! {
+    state: AppState;
+    /// 书架列表
+    GET "/api/v1/library/books" => library::list_books, signed;
+    /// 书架上的一本书
+    GET "/api/v1/library/books/:job_id" => library::get_book, signed;
+    /// 从书架删除一本书
+    DELETE "/api/v1/library/books/:job_id" => library::delete_book, signed;
+    /// 封面（没有书编号的旧书还在用）
+    GET "/api/v1/library/books/:job_id/cover" => library::download_book_cover, signed old "/api/v1/documents/:document_id/files/:name";
+    /// 缩略图（没有书编号的旧书还在用）
+    GET "/api/v1/library/books/:job_id/thumbnail" => library::download_book_thumbnail, signed old "/api/v1/documents/:document_id/files/:name";
 }
