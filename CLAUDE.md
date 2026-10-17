@@ -69,7 +69,8 @@ cargo test -p retainpdf-api -p retainpdf-api-base -p retainpdf-accounts -p retai
 - 路由只在接口登记表里注册：每个路由文件是一张 `crate::endpoints!` 表（`backend/api/src/app/endpoints.rs`），一个接口一条，
   写明方法、地址、处理函数、多用户下谁能用（`public`/`signed`/`admin`/`closed`），`///` 写一句话说明，旧地址行尾写 `old "<新地址>"`。
   路由文件里直接写 `.route(` 会让测试红。接口目录 `docs/api/00-接口目录.md` 和 `docs/routes.txt` 都从表生成（`UPDATE_ROUTES=1`）。
-- 加路由、加 service 前先读 `check_architecture.py` 的规则：新的路由文件要进白名单（按完整 import 字符串匹配）；
+- 加路由、加 service 前先读 `check_architecture.py` 的规则：处理函数文件（`src/routes/` 下）要 `use crate::services::…`，
+  得在 `ROUTE_SERVICE_IMPORT_ALLOWLIST` 里登记这个文件和允许的路径前缀；
   新的路径参数要在账号包的 `backend/packages/retainpdf-accounts/src/access.rs` 的 `classify_param` 里归类，否则多用户模式下 403 "not cleared"。
 - 改 `check_architecture.py`：任务、书库的规则写逻辑路径 `src/services/<领域>/...`，取文件用 `abs_src`，扫目录用 `scan_logical`，
   不要直接写 `SRC_ROOT / ...`；实际目录只登记在 `DOMAIN_MOUNTS`。规则里写的路径必须存在（`check_rule_paths` 会查），
