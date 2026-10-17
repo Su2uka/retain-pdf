@@ -4,7 +4,7 @@
 // 同一个运行中的任务，任务中心写「运行中」、别处写「处理中」；书籍详情把排队也写成
 // 「处理中」；任务详情遇到取消的任务写成「准备中」；状态卡只认美式拼写 canceled。
 //
-// 后端只有五种状态（retain-core JobStatusKind：queued / running / succeeded / failed /
+// 后端只有五种状态（retainpdf-core JobStatusKind：queued / running / succeeded / failed /
 // canceled）。其余写法是旧数据、乐观提交或防御性兼容，这里统一折回这五种。
 //
 // 「成功」要不要再等完成信号（isJobTerminal），不在这里决定：实时推送里状态会先翻成
