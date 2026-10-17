@@ -7,6 +7,7 @@
 
 use axum::Router;
 
+use crate::app::endpoints::Endpoint;
 use crate::app::AppState;
 
 mod actions;
@@ -30,4 +31,9 @@ pub(super) fn routes() -> Router<AppState> {
         .merge(translations::routes())
         .merge(data::routes())
         .merge(ai::routes())
+}
+
+/// `/jobs` 下已经写成登记表的接口（还没改成登记表的路由文件不在这里）。
+pub(super) fn endpoints() -> Vec<&'static [Endpoint]> {
+    vec![actions::ENDPOINTS]
 }

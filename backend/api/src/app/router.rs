@@ -26,6 +26,11 @@ mod providers;
 mod public;
 mod simple;
 
+/// 登记表里的全部接口（`app/endpoints.rs`），接口目录和接口清单快照从这里汇总。
+pub(crate) fn registered_endpoints() -> Vec<crate::app::endpoints::Endpoint> {
+    jobs::endpoints().into_iter().flatten().copied().collect()
+}
+
 pub fn build_app(state: AppState) -> Router {
     // 多用户模式下没有终端：助手终端能在服务器上执行命令，只给单机版。
     let websocket_routes = if state.config.accounts.mode.is_multi() {
