@@ -1,6 +1,6 @@
 import { r as C, l as J, h as $ } from "../markdown-payload-kK3ewW_I.js";
 import { d as T } from "../pdf-document-config-DOSsufI-.js";
-import { e as Re, f as we, a as me, b as he, i as _e, n as ke, c as Ue, p as ve, r as ge, d as Me, g as Ee, h as Ae, j as De, k as Le } from "../reader-regions-CXmxla3K.js";
+import { e as Re, f as we, a as me, b as he, i as _e, n as ke, c as Ue, p as ve, r as ge, d as Me, g as Ee, h as Ae, j as De, k as Le } from "../reader-regions-CP3ZMHPc.js";
 const G = "/api/v1", y = 250;
 function q(e, t) {
   return typeof globalThis.fetch == "function" ? globalThis.fetch(e, t) : Promise.reject(new Error(`fetchProtected not injected for ${e}`));
@@ -272,7 +272,7 @@ function ie(e, t, {
       return w;
   }
   const p = `${(e == null ? void 0 : e.workflow) || (e == null ? void 0 : e.job_type) || ""}`.trim().toLowerCase();
-  return ((l == null ? void 0 : l.pdfEnabled) || `${(e == null ? void 0 : e.status) || ""}`.trim().toLowerCase() === "succeeded" && p !== "ocr") && (e != null && e.job_id) ? o(`/api/v1/jobs/${encodeURIComponent(e.job_id)}/pdf`) : "";
+  return ((l == null ? void 0 : l.pdfEnabled) || `${(e == null ? void 0 : e.status) || ""}`.trim().toLowerCase() === "succeeded" && p !== "ocr") && (e != null && e.job_id) ? o(`/api/v1/jobs/${encodeURIComponent(e.job_id)}/files/output/translated.pdf`) : "";
 }
 export {
   le as __resetPdfjsForTests,

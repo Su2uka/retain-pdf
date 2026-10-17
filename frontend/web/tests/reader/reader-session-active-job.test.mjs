@@ -45,7 +45,7 @@ test("document active_job becomes the effective reader job and keeps the documen
             json: async () => ({ data: { active_job_id: "job-ocr" } }),
           };
         }
-        assert.equal(url, "/api/v1/documents/doc-ocr/source.pdf");
+        assert.equal(url, "/api/v1/documents/doc-ocr/files/source.pdf");
         return {
           ok: true,
           arrayBuffer: async () => pdfBytes.buffer.slice(0),
@@ -84,14 +84,14 @@ test("document active_job becomes the effective reader job and keeps the documen
   assert.equal(session.jobId, "job-ocr");
   assert.equal(session.documentId, "doc-ocr");
   assert.equal(session.sourceOnly, false, "真实 active job 不应继续被标记为纯源文档");
-  assert.equal(session.sourceUrl, "/api/v1/documents/doc-ocr/source.pdf");
+  assert.equal(session.sourceUrl, "/api/v1/documents/doc-ocr/files/source.pdf");
   assert.equal(session.download.jobId, "job-ocr");
   assert.equal(session.download.sourceOnly, false);
   assert.ok(session.sourceFile, "OCR-only 没有 PDF artifact 时仍应加载馆藏源 PDF");
   assert.deepEqual(calls, [
     "/api/v1/documents/doc-ocr",
     "payload:job-ocr",
-    "/api/v1/documents/doc-ocr/source.pdf",
+    "/api/v1/documents/doc-ocr/files/source.pdf",
   ]);
 
   root.unmount();
@@ -119,7 +119,7 @@ test("explicit in-progress translation job falls back to its document source bef
     defaultReaderDataPort: {
       fetchProtected: async (url) => {
         calls.push(url);
-        assert.equal(url, "/api/v1/documents/doc-live-ocr/source.pdf");
+        assert.equal(url, "/api/v1/documents/doc-live-ocr/files/source.pdf");
         return {
           ok: true,
           arrayBuffer: async () => pdfBytes.buffer.slice(0),
@@ -159,10 +159,10 @@ test("explicit in-progress translation job falls back to its document source bef
   );
   const session = sessions.at(-1);
   assert.equal(session.boot.failed, false);
-  assert.equal(session.sourceUrl, "/api/v1/documents/doc-live-ocr/source.pdf");
+  assert.equal(session.sourceUrl, "/api/v1/documents/doc-live-ocr/files/source.pdf");
   assert.equal(session.translatedUrl, "");
   assert.ok(session.sourceFile);
-  assert.deepEqual(calls, ["/api/v1/documents/doc-live-ocr/source.pdf"]);
+  assert.deepEqual(calls, ["/api/v1/documents/doc-live-ocr/files/source.pdf"]);
 
   root.unmount();
   host.remove();
@@ -190,7 +190,7 @@ test("stale document active_job falls back to the source PDF instead of a fatal 
             json: async () => ({ data: { active_job_id: "job-deleted" } }),
           };
         }
-        assert.equal(url, "/api/v1/documents/doc-ocr/source.pdf");
+        assert.equal(url, "/api/v1/documents/doc-ocr/files/source.pdf");
         return {
           ok: true,
           arrayBuffer: async () => pdfBytes.buffer.slice(0),
@@ -224,7 +224,7 @@ test("stale document active_job falls back to the source PDF instead of a fatal 
   assert.equal(session.jobId, "");
   assert.equal(session.sourceOnly, true);
   assert.equal(session.mode, "source");
-  assert.equal(session.sourceUrl, "/api/v1/documents/doc-ocr/source.pdf");
+  assert.equal(session.sourceUrl, "/api/v1/documents/doc-ocr/files/source.pdf");
   assert.equal(session.boot.failed, false);
   assert.ok(calls.filter((url) => url === "/api/v1/documents/doc-ocr").length >= 2);
 
@@ -289,7 +289,7 @@ test("committed Agent operation reloads the authoritative document source instea
   before.refreshCommittedDocument({ documentId: "doc-agent", revision: "version-2" });
   await waitFor(
     () => sessions.some((session) => session.assetsReady
-      && session.sourceUrl === "/api/v1/documents/doc-agent/source.pdf?version=version-2"),
+      && session.sourceUrl === "/api/v1/documents/doc-agent/files/source.pdf?version=version-2"),
     "committed document source ready",
   );
 
@@ -301,7 +301,7 @@ test("committed Agent operation reloads the authoritative document source instea
   assert.equal(after.translatedUrl, "", "旧 job 的译文不能继续与新源版本并排显示");
   assert.deepEqual(after.regions, [], "旧页序的区域坐标应失效");
   assert.equal(after.readerMetadata.source, null, "旧页序的 reader metadata 应失效");
-  assert.ok(calls.includes("/api/v1/documents/doc-agent/source.pdf?version=version-2"));
+  assert.ok(calls.includes("/api/v1/documents/doc-agent/files/source.pdf?version=version-2"));
 
   root.unmount();
   host.remove();
@@ -439,7 +439,7 @@ test("reopening the current active job restores its committed Agent document sou
   await waitFor(
     () => sessions.some((session) => session.assetsReady
       && session.documentId === "doc-current"
-      && session.sourceUrl === "/api/v1/documents/doc-current/source.pdf?version=agent-version-9"),
+      && session.sourceUrl === "/api/v1/documents/doc-current/files/source.pdf?version=agent-version-9"),
     "committed source restored after reopening current job",
   );
   const session = sessions.at(-1);
@@ -669,7 +669,7 @@ test("same mounted Reader fences stale job loads, backfills document identity, a
   current.refreshCommittedDocument({ documentId: "doc-job-b", revision: "commit-b" });
   await waitFor(
     () => sessions.some((session) => session.assetsReady
-      && session.sourceUrl === "/api/v1/documents/doc-job-b/source.pdf?version=commit-b"),
+      && session.sourceUrl === "/api/v1/documents/doc-job-b/files/source.pdf?version=commit-b"),
     "job B committed source loaded",
   );
 

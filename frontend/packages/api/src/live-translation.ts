@@ -83,7 +83,7 @@ export function fetchLiveTranslationLayout(
   jobId: string,
   options: LiveTranslationRequestOptions = {},
 ): Promise<LiveTranslationLayout> {
-  return requestJson(jobPath(jobId, "live-translation/layout"), options);
+  return requestJson(jobPath(jobId, "progress/layout"), options);
 }
 
 export function fetchLiveTranslationPage(
@@ -94,7 +94,7 @@ export function fetchLiveTranslationPage(
   if (!Number.isInteger(pageIdx) || pageIdx < 0) {
     throw new LiveTranslationApiError("page_idx must be a non-negative integer", 400);
   }
-  return requestJson(jobPath(jobId, `live-translation/pages/${pageIdx}`), options);
+  return requestJson(jobPath(jobId, `progress/pages/${pageIdx}`), options);
 }
 
 type SseFrame = {
@@ -172,7 +172,7 @@ export async function streamLiveTranslationEvents(
 ): Promise<void> {
   const fetchImpl = options.fetchImpl || apiFetch;
   const afterSeq = Math.max(0, Math.floor(Number(options.afterSeq) || 0));
-  const path = `${jobPath(jobId, "live-events")}?after_seq=${afterSeq}`;
+  const path = `${jobPath(jobId, "progress/stream")}?after_seq=${afterSeq}`;
   const response = await fetchImpl(buildApiUrl(options.apiPrefix || API_PREFIX, path), {
     headers: buildApiHeaders({ Accept: "text/event-stream" }),
     signal: options.signal,

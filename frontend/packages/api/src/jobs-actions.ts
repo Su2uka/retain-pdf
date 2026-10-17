@@ -101,7 +101,7 @@ export interface JobStageActionsView {
 }
 
 export async function fetchJobDiagnostics(jobId: string, apiPrefix?: string): Promise<JobDiagnosticsView | null> {
-  const resp = await apiFetch(`${buildJobDetailEndpoint(jobId, apiPrefix)}/diagnostics`, { headers: buildApiHeaders() });
+  const resp = await apiFetch(`${buildJobDetailEndpoint(jobId, apiPrefix)}/reports/failure`, { headers: buildApiHeaders() });
   if (!resp.ok) {
     if (resp.status === 404) return null;
     throw new Error(`读取失败诊断失败，请稍后重试。(${resp.status})`);
@@ -110,7 +110,7 @@ export async function fetchJobDiagnostics(jobId: string, apiPrefix?: string): Pr
 }
 
 export async function fetchResumePlan(jobId: string, apiPrefix?: string): Promise<any> {
-  const resp = await apiFetch(`${buildJobDetailEndpoint(jobId, apiPrefix)}/resume-plan`, { headers: buildApiHeaders() });
+  const resp = await apiFetch(`${buildJobDetailEndpoint(jobId, apiPrefix)}/actions/resume`, { headers: buildApiHeaders() });
   if (!resp.ok) {
     if (resp.status === 404) return null;
     throw new Error(`读取恢复计划失败，请稍后重试。(${resp.status})`);
@@ -120,11 +120,11 @@ export async function fetchResumePlan(jobId: string, apiPrefix?: string): Promis
 
 /** body 可带 `{ overrides: { translation: { api_key | credential_ref } } }`：续跑出来的新任务用这把 key。 */
 export async function resumeJob(jobId: string, apiPrefix?: string, body: Record<string, unknown> = {}): Promise<any> {
-  return submitJson(`${buildJobDetailEndpoint(jobId, apiPrefix)}/resume`, body);
+  return submitJson(`${buildJobDetailEndpoint(jobId, apiPrefix)}/actions/resume`, body);
 }
 
 export async function cancelJob(jobId: string, apiPrefix?: string): Promise<any> {
-  return submitJson(`${buildJobDetailEndpoint(jobId, apiPrefix)}/cancel`, {});
+  return submitJson(`${buildJobDetailEndpoint(jobId, apiPrefix)}/actions/cancel`, {});
 }
 
 /** OCR 任务的取消和其它任务同一个地址（后端按任务类型分支）；保留这个名字给老调用方。 */
@@ -138,13 +138,13 @@ export async function resolveOcrAmbiguity(
   request: OcrAmbiguityResolutionRequest,
 ): Promise<OcrAmbiguityResolutionView> {
   return submitJson(
-    `${buildJobDetailEndpoint(jobId, apiPrefix)}/ocr/resolve-ambiguity`,
+    `${buildJobDetailEndpoint(jobId, apiPrefix)}/actions/resolve-ocr-ambiguity`,
     request,
   );
 }
 
 export async function fetchJobStageActions(jobId: string, apiPrefix?: string): Promise<JobStageActionsView | null> {
-  const resp = await apiFetch(`${buildJobDetailEndpoint(jobId, apiPrefix)}/stage-actions`, { headers: buildApiHeaders() });
+  const resp = await apiFetch(`${buildJobDetailEndpoint(jobId, apiPrefix)}/actions`, { headers: buildApiHeaders() });
   if (!resp.ok) {
     if (resp.status === 404) return null;
     throw new Error(`读取阶段操作失败，请稍后重试。(${resp.status})`);
@@ -155,7 +155,7 @@ export async function fetchJobStageActions(jobId: string, apiPrefix?: string): P
 export async function retryJobStage(jobId: string, apiPrefix: string | undefined, stage: string, payload: Record<string, unknown> = {}): Promise<any> {
   const normalizedStage = `${stage || ""}`.trim();
   if (!normalizedStage) throw new Error("阶段重试失败: 缺少 stage");
-  const result: any = await submitJson(`${buildJobDetailEndpoint(jobId, apiPrefix)}/retry-stage`, { stage: normalizedStage, ...payload });
+  const result: any = await submitJson(`${buildJobDetailEndpoint(jobId, apiPrefix)}/actions/retry-stage`, { stage: normalizedStage, ...payload });
   const bookMeta: any = payload && typeof payload === "object" ? payload : {};
   const nextJobId = `${result?.job_id || result?.id || jobId}`.trim();
   return {

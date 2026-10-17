@@ -35,7 +35,7 @@ export function buildCommittedDocumentSourceUrl(
   documentId: string,
   revision: string,
 ): string {
-  const path = `/api/v1/documents/${encodeURIComponent(documentId)}/source.pdf`;
+  const path = `/api/v1/documents/${encodeURIComponent(documentId)}/files/source.pdf`;
   const normalizedRevision = `${revision || ""}`.trim();
   return resolveResourceUrl(normalizedRevision
     ? `${path}?version=${encodeURIComponent(normalizedRevision)}`

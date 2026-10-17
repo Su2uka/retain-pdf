@@ -217,8 +217,8 @@ export const sessionDataPort: ReaderSessionDataPort = {
     const sourceArtifact = typeof sourceItem === "string" ? sourceItem : resolveReaderArtifactUrl(sourceItem);
     const translated = resolveReaderTranslatedPdfUrl(payload.jobPayload, payload.manifestPayload);
     const sourceUrl = committed?.documentId
-      ? resolveResourceUrl(`/api/v1/documents/${encodeURIComponent(committed.documentId)}/source.pdf?version=${encodeURIComponent(committed.revision)}`)
-      : sourceArtifact || (documentId ? resolveResourceUrl(`/api/v1/documents/${encodeURIComponent(documentId)}/source.pdf`) : "");
+      ? resolveResourceUrl(`/api/v1/documents/${encodeURIComponent(committed.documentId)}/files/source.pdf?version=${encodeURIComponent(committed.revision)}`)
+      : sourceArtifact || (documentId ? resolveResourceUrl(`/api/v1/documents/${encodeURIComponent(documentId)}/files/source.pdf`) : "");
     const translatedUrl = committed || restoreCommitted ? "" : translated || "";
     return {
       loadPlan: restoreCommitted

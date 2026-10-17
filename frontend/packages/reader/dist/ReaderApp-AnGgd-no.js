@@ -10,7 +10,7 @@ import { resolveReaderDownloadName as So, resolveReaderDownloadUrls as wo, READE
 import "@retainpdf/api/conversations";
 import { r as Io, b as Eo } from "./page-config-Ct7qR5rm.js";
 import { isFinishedJobStatus as cn } from "@retainpdf/domain/job";
-import { c as To, n as Mo, f as Ct, j as Dn, a as ko, b as Ao, h as vr, p as ln, d as _o, k as zn, i as Lo } from "./reader-regions-CXmxla3K.js";
+import { c as To, n as Mo, f as Ct, j as Dn, a as ko, b as Ao, h as vr, p as ln, d as _o, k as zn, i as Lo } from "./reader-regions-CP3ZMHPc.js";
 import { isReaderTransportError as No, createReaderTransportError as Co } from "./contracts.js";
 import { toast as Ut, Toaster as Do } from "sonner";
 import { X as Sr, Radio as zo, FileText as wr, Columns2 as Pr, Languages as Rr, FileCode2 as xo, Sparkles as Oo, Keyboard as Fo, Download as $o, ChevronDown as jo } from "lucide-react";
@@ -234,7 +234,7 @@ function ca(e) {
   return "";
 }
 function Fn(e, t) {
-  const n = `/api/v1/documents/${encodeURIComponent(e)}/source.pdf`, r = `${t || ""}`.trim();
+  const n = `/api/v1/documents/${encodeURIComponent(e)}/files/source.pdf`, r = `${t || ""}`.trim();
   return Zo(r ? `${n}?version=${encodeURIComponent(r)}` : n);
 }
 function la(e, t = "") {
@@ -576,7 +576,7 @@ function Ia(e) {
       return l != null && l.documentId ? Fn(
         l.documentId,
         l.revision
-      ) : Ko() ? qo : Q.resolveResourceUrl(`/api/v1/documents/${encodeURIComponent(r)}/source.pdf`);
+      ) : Ko() ? qo : Q.resolveResourceUrl(`/api/v1/documents/${encodeURIComponent(r)}/files/source.pdf`);
     }
     async function Me() {
       let re = { activeJobId: "", activeVersionId: "" };
@@ -693,7 +693,7 @@ function Ia(e) {
       const Xe = Q.resolveReaderSourcePdf(de.manifestPayload), Nt = Q.resolveReaderTranslatedPdfUrl(de.jobPayload, de.manifestPayload), ke = typeof Xe == "string" ? Xe : Q.resolveReaderArtifactUrl(Xe), Ae = r || Fe, _e = l != null && l.documentId ? Fn(
         l.documentId,
         l.revision
-      ) : ke || (Ae ? Q.resolveResourceUrl(`/api/v1/documents/${encodeURIComponent(Ae)}/source.pdf`) : ""), Qe = l ? "" : Nt || "";
+      ) : ke || (Ae ? Q.resolveResourceUrl(`/api/v1/documents/${encodeURIComponent(Ae)}/files/source.pdf`) : ""), Qe = l ? "" : Nt || "";
       P(_e || ""), y(Qe), I(ua(de.jobPayload, t)), d({
         jobPayload: de.jobPayload || null,
         manifestPayload: de.manifestPayload || null,
@@ -6259,7 +6259,7 @@ function ol() {
     }
   };
 }
-const al = yo(() => import("./ReaderMarkdownPanel-DMslEBgz.js").then((e) => ({ default: e.ReaderMarkdownPanel })));
+const al = yo(() => import("./ReaderMarkdownPanel-HFUmKFe9.js").then((e) => ({ default: e.ReaderMarkdownPanel })));
 function sl(e) {
   const t = e.sourceOnly || !e.translatedUrl, n = !!(e.overlayContentAvailable && e.liveTranslationVisible && !e.assistantOpen), o = e.assistantPdfPane || (e.assistantOpen && e.mode === "compare" ? "source" : e.mode), a = !t && (o === "translated" || o === "compare");
   return {
@@ -6475,4 +6475,4 @@ export {
   El as r,
   Ye as u
 };
-//# sourceMappingURL=ReaderApp-D4mhZpXW.js.map
+//# sourceMappingURL=ReaderApp-AnGgd-no.js.map

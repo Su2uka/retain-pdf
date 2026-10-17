@@ -330,5 +330,5 @@ test("job cancellation and OCR ambiguity recovery use canonical endpoint clients
   assert.match(apiActions, /export async function cancelJob/);
   assert.match(apiActions, /export async function cancelOcrJob/);
   assert.match(apiActions, /export async function resolveOcrAmbiguity/);
-  assert.match(apiActions, /\/ocr\/resolve-ambiguity/);
+  assert.match(apiActions, /\/actions\/resolve-ocr-ambiguity/);
 });

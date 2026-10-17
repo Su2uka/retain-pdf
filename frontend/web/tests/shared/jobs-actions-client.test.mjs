@@ -45,9 +45,9 @@ test("jobs actions:普通取消、OCR 取消同一个端点（后端按类型分
   }
 
   assert.deepEqual(calls.map(({ url }) => url), [
-    "http://127.0.0.1:41000/api/v1/jobs/job%20id/cancel",
-    "http://127.0.0.1:41000/api/v1/jobs/job%20id/cancel",
-    "http://127.0.0.1:41000/api/v1/jobs/job%20id/ocr/resolve-ambiguity",
+    "http://127.0.0.1:41000/api/v1/jobs/job%20id/actions/cancel",
+    "http://127.0.0.1:41000/api/v1/jobs/job%20id/actions/cancel",
+    "http://127.0.0.1:41000/api/v1/jobs/job%20id/actions/resolve-ocr-ambiguity",
   ]);
   for (const { options } of calls) {
     assert.equal(options.method, "POST");

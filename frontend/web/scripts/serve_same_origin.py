@@ -214,8 +214,8 @@ def build_handler(serve_static, api_base: str, api_key: str):
                     return
                 self._send_headers(status, headers + [("Transfer-Encoding", "chunked")])
                 # 长度未知：边到边发，**不能**先读完再发。后端有两处是长连接、边生成
-                # 边推送的 SSE —— 实时翻译事件流（routes/jobs/query/live_translation.rs）
-                # 和阅读助手的流式回答（services/ai/api.rs）。整段缓冲会让浏览器在
+                # 边推送的 SSE —— 实时翻译事件流（routes/jobs/progress.rs）
+                # 和阅读助手的流式回答（retain-pdf-ai 的 api.rs）。整段缓冲会让浏览器在
                 # 这两处一直收不到东西，直到 3600 秒超时，阅读助手也不再逐字显示。
                 # 自己按 chunked 重新分帧（上游的 transfer-encoding 已在逐跳头里剥掉），
                 # 这样仍是 HTTP/1.1 keep-alive，不必靠关连接来标记结束。

@@ -86,6 +86,9 @@ test("调用方已指定密钥时不覆盖；换了接口时按它要换去的�
 test("rerun / resume 的动作链接里取任务号", () => {
   assert.equal(jobIdFromActionUrl("http://127.0.0.1:41000/api/v1/jobs/20261010-ab12/rerun"), "20261010-ab12");
   assert.equal(jobIdFromActionUrl("http://127.0.0.1:41000/api/v1/jobs/20261010-ab12/resume"), "20261010-ab12", "后端会把 rerun 链接换成 resume");
+  // 任务接口按类分前缀后的新地址：/actions/rerun、/actions/resume。取不到任务号重跑就会悄悄不带 Key。
+  assert.equal(jobIdFromActionUrl("http://127.0.0.1:41000/api/v1/jobs/20261010-ab12/actions/rerun"), "20261010-ab12");
+  assert.equal(jobIdFromActionUrl("http://127.0.0.1:41000/api/v1/jobs/20261010-ab12/actions/resume?x=1"), "20261010-ab12");
   assert.equal(jobIdFromActionUrl("/api/v1/jobs/job%2F1/rerun?x=1"), "job/1");
   assert.equal(jobIdFromActionUrl("/api/v1/jobs"), "");
   assert.equal(jobIdFromActionUrl(""), "");

@@ -43,13 +43,13 @@ async function requestJson(path, options = {}) {
     return unwrapEnvelope(await response.json());
 }
 export function fetchLiveTranslationLayout(jobId, options = {}) {
-    return requestJson(jobPath(jobId, "live-translation/layout"), options);
+    return requestJson(jobPath(jobId, "progress/layout"), options);
 }
 export function fetchLiveTranslationPage(jobId, pageIdx, options = {}) {
     if (!Number.isInteger(pageIdx) || pageIdx < 0) {
         throw new LiveTranslationApiError("page_idx must be a non-negative integer", 400);
     }
-    return requestJson(jobPath(jobId, `live-translation/pages/${pageIdx}`), options);
+    return requestJson(jobPath(jobId, `progress/pages/${pageIdx}`), options);
 }
 function parseSseFrame(rawFrame) {
     let id = "";
@@ -116,7 +116,7 @@ function normalizeCommitEvent(frame) {
 export async function streamLiveTranslationEvents(jobId, options) {
     const fetchImpl = options.fetchImpl || apiFetch;
     const afterSeq = Math.max(0, Math.floor(Number(options.afterSeq) || 0));
-    const path = `${jobPath(jobId, "live-events")}?after_seq=${afterSeq}`;
+    const path = `${jobPath(jobId, "progress/stream")}?after_seq=${afterSeq}`;
     const response = await fetchImpl(buildApiUrl(options.apiPrefix || API_PREFIX, path), {
         headers: buildApiHeaders({ Accept: "text/event-stream" }),
         signal: options.signal,

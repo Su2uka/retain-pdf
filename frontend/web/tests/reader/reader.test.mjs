@@ -108,14 +108,14 @@ test("reader resource resolver owns job id source and translated PDF selection",
       job_id: "job-reader",
       output_pdf_ready: true,
     }, { items: [] }),
-    "http://retainpdf.local:41000/api/v1/jobs/job-reader/pdf",
+    "http://retainpdf.local:41000/api/v1/jobs/job-reader/files/output/translated.pdf",
   );
   assert.equal(
     readerResourceResolver.resolveReaderTranslatedPdfUrl({
       job_id: "job-reader",
       status: "succeeded",
     }, { items: [] }),
-    "http://retainpdf.local:41000/api/v1/jobs/job-reader/pdf",
+    "http://retainpdf.local:41000/api/v1/jobs/job-reader/files/output/translated.pdf",
   );
   assert.equal(
     readerResourceResolver.resolveReaderTranslatedPdfUrl({
@@ -209,7 +209,7 @@ test("reader download actions resolve artifact urls and disabled reasons", () =>
 
   assert.equal(urls.source, "http://retainpdf.local:41000/api/v1/jobs/job-reader/artifacts/source_pdf");
   assert.equal(urls.translated, "http://retainpdf.local:41000/api/v1/jobs/job-reader/artifacts/pdf");
-  assert.equal(urls.sideBySide, "http://retainpdf.local:41000/api/v1/jobs/job-reader/pdf/side-by-side");
+  assert.equal(urls.sideBySide, "http://retainpdf.local:41000/api/v1/jobs/job-reader/files/output/side-by-side.pdf?download=1");
 
   // 产物缺失时的禁用原因(React 下载菜单以此作为按钮 title)
   const emptyUrls = readerDownloadResolve.resolveReaderDownloadUrls({
@@ -441,7 +441,7 @@ test("reader dialog runtime port reuses artifact pdf download names", () => {
   assert.deepEqual(port.currentArtifactUrls(state), {
     sourcePdf: "http://retainpdf.local:41000/api/v1/jobs/job-reader/artifacts/source_pdf",
     translatedPdf: "http://retainpdf.local:41000/api/v1/jobs/job-reader/pdf",
-    sideBySidePdf: "http://retainpdf.local:41000/api/v1/jobs/job-reader/pdf/side-by-side",
+    sideBySidePdf: "http://retainpdf.local:41000/api/v1/jobs/job-reader/files/output/side-by-side.pdf?download=1",
   });
   assert.equal(
     port.sourcePdfDownloadName(state, "job-reader-source.pdf"),
@@ -473,8 +473,8 @@ test("reader dialog runtime port falls back to the backend translated PDF route"
 
   assert.deepEqual(port.currentArtifactUrls({}), {
     sourcePdf: "http://retainpdf.local:41000/api/v1/jobs/job-reader/artifacts/source_pdf",
-    translatedPdf: "http://retainpdf.local:41000/api/v1/jobs/job-reader/pdf",
-    sideBySidePdf: "http://retainpdf.local:41000/api/v1/jobs/job-reader/pdf/side-by-side",
+    translatedPdf: "http://retainpdf.local:41000/api/v1/jobs/job-reader/files/output/translated.pdf",
+    sideBySidePdf: "http://retainpdf.local:41000/api/v1/jobs/job-reader/files/output/side-by-side.pdf?download=1",
   });
 });
 
@@ -498,8 +498,8 @@ test("reader dialog runtime port enables completed list snapshots without ready 
 
   assert.deepEqual(port.currentArtifactUrls({}), {
     sourcePdf: "http://retainpdf.local:41000/api/v1/jobs/job-reader/artifacts/source_pdf",
-    translatedPdf: "http://retainpdf.local:41000/api/v1/jobs/job-reader/pdf",
-    sideBySidePdf: "http://retainpdf.local:41000/api/v1/jobs/job-reader/pdf/side-by-side",
+    translatedPdf: "http://retainpdf.local:41000/api/v1/jobs/job-reader/files/output/translated.pdf",
+    sideBySidePdf: "http://retainpdf.local:41000/api/v1/jobs/job-reader/files/output/side-by-side.pdf?download=1",
   });
 });
 
@@ -523,7 +523,7 @@ test("reader dialog runtime port uses the active reader job id for fallback rout
 
   assert.deepEqual(port.currentArtifactUrls({ readerJobId: "job-reader" }), {
     sourcePdf: "http://retainpdf.local:41000/api/v1/jobs/job-reader/artifacts/source_pdf",
-    translatedPdf: "http://retainpdf.local:41000/api/v1/jobs/job-reader/pdf",
-    sideBySidePdf: "http://retainpdf.local:41000/api/v1/jobs/job-reader/pdf/side-by-side",
+    translatedPdf: "http://retainpdf.local:41000/api/v1/jobs/job-reader/files/output/translated.pdf",
+    sideBySidePdf: "http://retainpdf.local:41000/api/v1/jobs/job-reader/files/output/side-by-side.pdf?download=1",
   });
 });

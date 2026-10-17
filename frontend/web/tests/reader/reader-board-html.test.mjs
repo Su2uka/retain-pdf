@@ -129,7 +129,7 @@ test("解析的是**真实响应信封**，不是裸对象", () => {
 
 test("信封的形状和后端保持一致 —— 漂了就是「我明明写进去了却不显示」", () => {
   // 对着 Rust 那边真正的返回语句核，不在这里凭记忆写。
-  const rs = read("../../../../backend/api/src/routes/jobs/download.rs");
+  const rs = read("../../../../backend/api/src/routes/jobs/ai.rs");
   // 两个锚点，不是「往后数 400 个字符」—— 定长窗口会越过函数边界，把邻居的代码
   // 当成被守对象（reader-anchor-and-locks 那条就是这么假的）。
   const fn = region(rs, "pub async fn list_ai_board", /\n(?:\/\/\/|pub |#\[)/, "list_ai_board");

@@ -194,7 +194,7 @@ export function useSessionAssets(options: {
         )
         : isMockMode()
           ? MOCK_DOCUMENT_SOURCE_PDF_URL
-          : dataPort.resolveResourceUrl(`/api/v1/documents/${encodeURIComponent(routeDocumentId)}/source.pdf`);
+          : dataPort.resolveResourceUrl(`/api/v1/documents/${encodeURIComponent(routeDocumentId)}/files/source.pdf`);
     }
 
     async function loadSourceOnlyDocument(): Promise<void> {
@@ -368,7 +368,7 @@ export function useSessionAssets(options: {
           committedSource.revision,
         )
         : resolvedSourceFinal || (sourceDocumentId
-          ? dataPort.resolveResourceUrl(`/api/v1/documents/${encodeURIComponent(sourceDocumentId)}/source.pdf`)
+          ? dataPort.resolveResourceUrl(`/api/v1/documents/${encodeURIComponent(sourceDocumentId)}/files/source.pdf`)
           : "");
       // 文档操作产生的是新的源版本；旧 job 的译文、region 与 metadata
       // 仍对应旧页序，不能继续和新源文件并排显示。

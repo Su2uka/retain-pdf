@@ -63,7 +63,8 @@ export async function fetchJobArtifactsManifest(jobId: string, apiPrefix = API_P
 }
 
 export async function fetchJobMarkdown(jobId: string, apiPrefix = API_PREFIX): Promise<any> {
-  const resp = await apiFetch(`${buildJobDetailEndpoint(jobId, apiPrefix)}/markdown`, { headers: buildApiHeaders() });
+  // /reader/markdown 是旧 /markdown（JSON）的新地址：字段是旧的超集（job_id、content、raw_url、images_base_url…）。
+  const resp = await apiFetch(`${buildJobDetailEndpoint(jobId, apiPrefix)}/reader/markdown`, { headers: buildApiHeaders() });
   if (!resp.ok) {
     if (resp.status === 404) return null;
     throw new Error(`读取 Markdown 失败，请稍后重试。(${resp.status})`);
@@ -72,7 +73,7 @@ export async function fetchJobMarkdown(jobId: string, apiPrefix = API_PREFIX): P
 }
 
 export async function fetchJobMarkdownDocument(jobId: string, apiPrefix = API_PREFIX): Promise<any> {
-  const resp = await apiFetch(`${buildJobDetailEndpoint(jobId, apiPrefix)}/markdown/document`, { headers: buildApiHeaders() });
+  const resp = await apiFetch(`${buildJobDetailEndpoint(jobId, apiPrefix)}/reader/markdown`, { headers: buildApiHeaders() });
   if (!resp.ok) {
     if (resp.status === 404) return null;
     throw new Error(`读取结构化 Markdown 失败，请稍后重试。(${resp.status})`);

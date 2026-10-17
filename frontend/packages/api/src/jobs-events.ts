@@ -53,8 +53,8 @@ export async function fetchJobEvents(
   const params = new URLSearchParams({ limit: `${query.limit ?? 500}` });
   if (query.cursor !== undefined) params.set("cursor", query.cursor);
   else params.set("start", query.start ?? "tail");
-  const endpoint = `${buildJobDetailEndpoint(jobId, apiPrefix)}/events?${params}`;
-  // OCR 任务也走 /jobs/:id/events（后端已统一），不再 404 后退到 /ocr/jobs/ 别名。
+  const endpoint = `${buildJobDetailEndpoint(jobId, apiPrefix)}/progress/events?${params}`;
+  // OCR 任务也走 /jobs/:id/progress/events（后端已统一），不再 404 后退到 /ocr/jobs/ 别名。
   const response = await apiFetch(endpoint, { headers: buildApiHeaders(), signal: query.signal });
   if (!response.ok) {
     const error = await response.json().catch(() => null);
