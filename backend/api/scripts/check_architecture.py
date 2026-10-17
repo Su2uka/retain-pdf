@@ -59,7 +59,8 @@ ALL_SRC_ROOTS = (
 #     "jobs": lambda: extracted_domain_root("jobs") / "src",
 # 挪进包以后门面从 mod.rs 变成 lib.rs，abs_src() 和 rel() 会对上。按目录扫文件用 scan_logical()，
 # 不要直接 scan_rs_files(SRC_ROOT / ...)，否则挪走的领域扫不到，规则会静悄悄地什么都不查。
-DOMAIN_MOUNTS: dict = {"jobs": None, "library": None}
+# 任务 2026-10-17 挪进了 retain-pdf-jobs。
+DOMAIN_MOUNTS: dict = {"jobs": lambda: extracted_domain_root("jobs") / "src", "library": None}
 
 
 def mounted_domain_root(domain: str) -> Path:
@@ -128,9 +129,7 @@ ALLOWED_APPSTATE_FILES = {
     Path("src/routes/sync.rs"),
     Path("src/routes/backups.rs"),
     Path("src/routes/uploads.rs"),
-    Path("src/services/jobs/lifecycle/creation/tests.rs"),
-    # 同一组建任务测试（按页额度），复用 creation/tests.rs 的 AppState 夹具。
-    Path("src/services/jobs/lifecycle/creation/page_quota_tests.rs"),
+    # 建任务的测试要搭整个 AppState，任务拆成包以后挪到了 api_tests/jobs_creation（不在 APPSTATE_GUARDED_DIRS 里）。
     Path("src/services/jobs/support.rs"),
 }
 
@@ -773,13 +772,14 @@ def check_service_model_facade_boundaries(errors: list[str]) -> None:
             if path.name == "tests.rs":
                 continue
             text = route_source_without_tests(path)
-            for line in re.findall(r"^use crate::models(?:::|::\{)[^\n;]+", text, re.MULTILINE):
+            # 任务拆成包以后写的是 `retain_pdf_core::models`，两种写法都查（2026-10-17）。
+            for line in re.findall(r"^use (?:crate|retain_pdf_core)::models(?:::|::\{)[^\n;]+", text, re.MULTILINE):
                 if not any(
                     allowed in line
                     for allowed in (
-                        "crate::models::api",
-                        "crate::models::domain",
-                        "crate::models::request",
+                        "::models::api",
+                        "::models::domain",
+                        "::models::request",
                     )
                 ):
                     errors.append(
@@ -907,7 +907,6 @@ def check_process_runtime_deps_usage(errors: list[str]) -> None:
     allowed_new_callers = {
         Path("src/app/jobs.rs"),
         Path("src/job_runner/process_runner.rs"),
-        Path("src/services/jobs/lifecycle/creation/tests.rs"),
     }
     for path in scan_all_rs_files():
         rel_path = rel(path)
@@ -1092,7 +1091,8 @@ def check_downloads_do_not_generate_artifacts(errors: list[str]) -> None:
     downloads_facade = abs_src(Path("src/services/jobs/files/downloads.rs"))
     text = route_source_without_tests(downloads_facade)
     for token in (
-        "crate::storage_paths::",
+        # `crate::storage_paths::`，任务包里写 `retain_pdf_core::storage_paths::`。
+        "storage_paths::",
         "load_supported_job",
         "resolve_source_pdf",
         "resolve_output_pdf",
@@ -1420,7 +1420,8 @@ def check_worker_command_boundary(errors: list[str]) -> None:
 
     snapshot_factory_path = abs_src(Path("src/services/jobs/lifecycle/snapshot_factory.rs"))
     snapshot_factory_text = route_source_without_tests(snapshot_factory_path)
-    if "crate::worker_command" in snapshot_factory_text or "build_ocr_command" in snapshot_factory_text:
+    # `crate::worker_command`，任务包里写 `retain_pdf_data::worker_command`。
+    if re.search(r"\bworker_command::", snapshot_factory_text) or "build_ocr_command" in snapshot_factory_text:
         errors.append(
             "src/services/jobs/lifecycle/snapshot_factory.rs: snapshot creation must not build worker commands"
         )
@@ -1483,6 +1484,7 @@ EXTRACTED_DOMAINS = {
     "files": "retain-pdf-files",
     "glossaries": "retain-pdf-glossaries",
     "ingest": "retain-pdf-ingest",
+    "jobs": "retain-pdf-jobs",
     "platform": "retain-pdf-platform",
     "providers": "retain-pdf-providers",
 }

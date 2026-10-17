@@ -13,6 +13,7 @@
 | `backend/packages/retain-pdf-files` | `retain-pdf-files` | `retain_pdf_files` | |
 | `backend/packages/retain-pdf-glossaries` | `retain-pdf-glossaries` | `retain_pdf_glossaries` | |
 | `backend/packages/retain-pdf-ingest` | `retain-pdf-ingest` | `retain_pdf_ingest` | |
+| `backend/packages/retain-pdf-jobs` | `retain-pdf-jobs` | `retain_pdf_jobs` | |
 | `backend/packages/retain-pdf-platform` | `retain-pdf-platform` | `retain_pdf_platform` | |
 | `backend/packages/retain-pdf-providers` | `retain-pdf-providers` | `retain_pdf_providers` | |
 | `backend/packages/retain-core` | `retain-pdf-core` | `retain_pdf_core` | |

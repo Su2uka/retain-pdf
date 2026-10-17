@@ -374,7 +374,7 @@ Rust 侧关键落点：
 
 当前路由已经统一收口到 application facade：
 
-- jobs → [src/services/jobs/facade.rs](src/services/jobs/facade.rs)
+- jobs → [packages/retain-pdf-jobs/src/facade.rs](../packages/retain-pdf-jobs/src/facade.rs)
 - library → [src/services/library_api.rs](src/services/library_api.rs)
 - glossaries → [../packages/retain-pdf-glossaries/src/api.rs](../packages/retain-pdf-glossaries/src/api.rs)
   → `retain-pdf-glossaries` 包里的 `{records,entries,csv}.rs`
@@ -445,7 +445,7 @@ Rust 侧关键落点：
 
 当前已经成型的 application 入口：
 
-- [src/services/jobs/facade.rs](src/services/jobs/facade.rs)
+- [packages/retain-pdf-jobs/src/facade.rs](../packages/retain-pdf-jobs/src/facade.rs)
 - [src/services/library_api.rs](src/services/library_api.rs)
 - [../packages/retain-pdf-glossaries/src/api.rs](../packages/retain-pdf-glossaries/src/api.rs)
 - [../packages/retain-pdf-ingest/src/uploads/api.rs](../packages/retain-pdf-ingest/src/uploads/api.rs)
@@ -508,13 +508,13 @@ routes/library*.rs, collections.rs
 
 当前关键分工：
 
-- [src/services/jobs/lifecycle/snapshot_factory.rs](src/services/jobs/lifecycle/snapshot_factory.rs)
+- [packages/retain-pdf-jobs/src/lifecycle/snapshot_factory.rs](../packages/retain-pdf-jobs/src/lifecycle/snapshot_factory.rs)
   负责 job snapshot / command 组装
-- [src/services/jobs/lifecycle/launcher.rs](src/services/jobs/lifecycle/launcher.rs)
+- [packages/retain-pdf-jobs/src/lifecycle/launcher.rs](../packages/retain-pdf-jobs/src/lifecycle/launcher.rs)
   负责 job 持久化与执行启动
-- [src/services/jobs/runtime_gateway.rs](src/services/jobs/runtime_gateway.rs)
+- [packages/retain-pdf-jobs/src/runtime_gateway.rs](../packages/retain-pdf-jobs/src/runtime_gateway.rs)
   负责 services 侧 runtime 能力收口
-- [src/services/jobs](src/services/jobs)
+- [packages/retain-pdf-jobs/src](../packages/retain-pdf-jobs/src)
   负责 jobs 相关业务
 - [src/services/library](src/services/library)
   负责图书馆域业务（见 2.3）
@@ -549,7 +549,7 @@ routes/library*.rs, collections.rs
 
 文件：
 
-- [src/services/jobs/facade.rs](src/services/jobs/facade.rs)
+- [packages/retain-pdf-jobs/src/facade.rs](../packages/retain-pdf-jobs/src/facade.rs)
 
 职责：
 
@@ -570,7 +570,7 @@ routes/library*.rs, collections.rs
 
 目录：
 
-- [src/services/jobs/lifecycle/creation](src/services/jobs/lifecycle/creation)
+- [packages/retain-pdf-jobs/src/lifecycle/creation](../packages/retain-pdf-jobs/src/lifecycle/creation)
 
 职责：
 
@@ -594,7 +594,7 @@ routes/library*.rs, collections.rs
 
 目录：
 
-- [src/services/jobs/presentation](src/services/jobs/presentation)
+- [packages/retain-pdf-jobs/src/presentation](../packages/retain-pdf-jobs/src/presentation)
 
 职责：
 

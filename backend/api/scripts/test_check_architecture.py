@@ -835,11 +835,13 @@ class JobsAndLibraryRuleTests(unittest.TestCase):
         errors = self.check_sources(sources, check)
         self.assertTrue(any(fragment in error for error in errors), errors)
 
-    def test_process_runtime_deps_are_assembled_only_in_app_or_creation_tests(self):
+    def test_process_runtime_deps_are_assembled_only_in_app(self):
         self.assertReports({"services/jobs/actions/x.rs": "ProcessRuntimeDeps::new(a)"},
                            checks.check_process_runtime_deps_usage, "src/services/jobs/actions/x.rs: ProcessRuntimeDeps::new")
+        self.assertReports({"services/jobs/lifecycle/creation/x.rs": "ProcessRuntimeDeps::new(a)"},
+                           checks.check_process_runtime_deps_usage, "ProcessRuntimeDeps::new")
         self.assertEqual([], self.check_sources(
-            {"services/jobs/lifecycle/creation/tests.rs": "ProcessRuntimeDeps::new(a)"},
+            {"app/jobs.rs": "ProcessRuntimeDeps::new(a)"},
             checks.check_process_runtime_deps_usage,
         ))
 
@@ -850,6 +852,9 @@ class JobsAndLibraryRuleTests(unittest.TestCase):
                            checks.check_downloads_do_not_generate_artifacts, "must not spawn artifact generators")
         self.assertReports({"services/jobs/files/downloads.rs": "resolve_output_pdf(job)"},
                            checks.check_downloads_do_not_generate_artifacts, "downloads facade must stay thin")
+        # 任务包里写包名。
+        self.assertReports({"services/jobs/files/downloads.rs": "use retain_pdf_core::storage_paths::JobPaths;"},
+                           checks.check_downloads_do_not_generate_artifacts, "(storage_paths::)")
 
     def test_stage_view_consumers_use_the_shared_builder(self):
         self.assertEqual([], self.check_sources(
@@ -903,6 +908,9 @@ class JobsAndLibraryRuleTests(unittest.TestCase):
         # job_runner、worker_command 照旧映射到真实的包；这里让它们也落在临时目录里。
         with patch.object(checks, "_CRATE_OF_MODULE", {}):
             self.assertReports(tree, checks.check_worker_command_boundary, "snapshot creation must not build worker commands")
+            # 任务包里写包名。
+            tree["services/jobs/lifecycle/snapshot_factory.rs"] = "use retain_pdf_data::worker_command::WorkerStageCommand;"
+            self.assertReports(tree, checks.check_worker_command_boundary, "snapshot creation must not build worker commands")
 
     def test_shell_code_reaches_job_runner_only_through_runtime_gateway(self):
         self.assertReports({"services/jobs/actions/x.rs": "use crate::job_runner::request_cancel;"},
@@ -919,6 +927,12 @@ class JobsAndLibraryRuleTests(unittest.TestCase):
                                    checks.check_service_model_facade_boundaries, "must import models through")
                 self.assertEqual([], self.check_sources(
                     {path: "use crate::models::domain::JobSnapshot;"}, checks.check_service_model_facade_boundaries,
+                ))
+                # 任务包里写包名。
+                self.assertReports({path: "use retain_pdf_core::models::job::Internal;"},
+                                   checks.check_service_model_facade_boundaries, "must import models through")
+                self.assertEqual([], self.check_sources(
+                    {path: "use retain_pdf_core::models::domain::JobSnapshot;"}, checks.check_service_model_facade_boundaries,
                 ))
 
 

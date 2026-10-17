@@ -9,7 +9,7 @@
 - 改 HTTP 接口：
   [`src/routes`](src/routes)
 - 改 jobs 用例编排：
-  [`src/services/jobs`](src/services/jobs)
+  [`packages/retain-pdf-jobs/src`](../packages/retain-pdf-jobs/src)
 - 改图书馆域（文档/收藏/检索/资产/会话/合集）：
   [`src/services/library/api.rs`](src/services/library/api.rs) +
   [`src/services/library`](src/services/library)
@@ -146,6 +146,10 @@ jobs 的依赖装配由 `app/jobs.rs` 完成；依赖定义在 `services/jobs/de
 
 #### `src/services/jobs`
 
+> 任务已拆成独立的包 `retain-pdf-jobs`，代码在 [`../packages/retain-pdf-jobs/src`](../packages/retain-pdf-jobs/src)，
+> `lib.rs` 是门面；rust_api 里照旧写 `crate::services::jobs::…`。本节的 `services/jobs/...` 都是逻辑路径。
+> 要搭整个 `AppState` 的建任务、查询测试在 `src/api_tests/jobs_creation`、`src/api_tests/jobs_query_service`。
+
 - 作用：
   jobs 的业务逻辑，按 9 类分目录，和 `routes/jobs/<类>.rs` 同名：
   `lifecycle`（建任务、校验、发射、列表和详情）、`actions`（取消、重跑、重试阶段、续跑计划）、
@@ -207,11 +211,11 @@ jobs 的依赖装配由 `app/jobs.rs` 完成；依赖定义在 `services/jobs/de
   Agent 计算记录与产物接口，内部只依赖数据库和目录，不接收完整配置。
 - [`src/services/library/api.rs`](src/services/library/api.rs)
   图书馆接口入口（见上）。
-- [`src/services/jobs/lifecycle/snapshot_factory.rs`](src/services/jobs/lifecycle/snapshot_factory.rs)
+- [`packages/retain-pdf-jobs/src/lifecycle/snapshot_factory.rs`](../packages/retain-pdf-jobs/src/lifecycle/snapshot_factory.rs)
   job snapshot/command 构造边界。
-- [`src/services/jobs/lifecycle/launcher.rs`](src/services/jobs/lifecycle/launcher.rs)
+- [`packages/retain-pdf-jobs/src/lifecycle/launcher.rs`](../packages/retain-pdf-jobs/src/lifecycle/launcher.rs)
   job 持久化与启动边界。
-- [`src/services/jobs/runtime_gateway.rs`](src/services/jobs/runtime_gateway.rs)
+- [`packages/retain-pdf-jobs/src/runtime_gateway.rs`](../packages/retain-pdf-jobs/src/runtime_gateway.rs)
   services 访问 runtime 能力的收口层。
 - [`../packages/retain-pdf-ai/src/api.rs`](../packages/retain-pdf-ai/src/api.rs)
   Rust 到受监督 AI sidecar 的 HTTP 代理入口。
@@ -349,9 +353,9 @@ jobs 的依赖装配由 `app/jobs.rs` 完成；依赖定义在 `services/jobs/de
    再看 jobs 相关依赖是怎么装起来的。
 3. [`src/routes/jobs`](src/routes/jobs)
    看 route 只是怎么转发。
-4. [`src/services/jobs`](src/services/jobs)
+4. [`packages/retain-pdf-jobs/src`](../packages/retain-pdf-jobs/src)
    看 9 类用例入口（分类表在 `mod.rs`）。
-5. [`src/services/jobs/lifecycle/creation`](src/services/jobs/lifecycle/creation)
+5. [`packages/retain-pdf-jobs/src/lifecycle/creation`](../packages/retain-pdf-jobs/src/lifecycle/creation)
    看创建链路的准备、快照、提交。
 6. [`../packages/retain-jobs/src/job_runner`](../packages/retain-jobs/src/job_runner)
    最后再进 runtime 执行层。
