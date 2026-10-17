@@ -39,11 +39,11 @@ Rust 的原始配置默认使用进程内 jobs runtime，并关闭两个子服�
 | 目录 | 职责 |
 | --- | --- |
 | `backend/api/` | Rust HTTP 壳、持久化、任务编排、恢复、下载与安全边界 |
-| `backend/packages/retain-core/` | 配置、公共模型、路径和失败契约 |
-| `backend/packages/retain-data/` | SQLite、OCR provider、worker command 与持久化适配 |
-| `backend/packages/retain-jobs/` | worker 生命周期和 pipeline 执行状态机 |
+| `backend/packages/retainpdf-core/` | 配置、公共模型、路径和失败契约 |
+| `backend/packages/retainpdf-data/` | SQLite、OCR provider、worker command 与持久化适配 |
+| `backend/packages/retainpdf-runner/` | worker 生命周期和 pipeline 执行状态机 |
 | `backend/jobs/` | 可选的独立 jobs runtime 进程 |
-| `backend/packages/retain-proc/` | 进程组与 OS 进程工具 |
+| `backend/packages/retainpdf-proc/` | 进程组与 OS 进程工具 |
 | `backend/ai/` | AI turn 编排、检索与 Agent runtime；不拥有业务持久状态 |
 | `backend/pipeline/` | OCR 归一化、翻译、修复、渲染与 PDF 处理 |
 | `backend/config/` | Rust/Python 共享 provider 配置 |
@@ -66,7 +66,7 @@ delivery seq 不等于原始事件 seq，也不等于翻译 SSE seq。协议、�
 
 - Rust 后端是 document、conversation、credential、job、pipeline attempt/unit、
   document operation、candidate 与 commit 状态的权威来源。
-- remote 模式下 API 壳与 jobsd 通过同一 `retain-data` 数据层访问 SQLite；
+- remote 模式下 API 壳与 jobsd 通过同一 `retainpdf-data` 数据层访问 SQLite；
   AI 服务和浏览器不能直接写数据库。
 - `ConversationState` 负责 turn 内的会话协调、摘要和消息提交，但持久化读写经
   Rust API 完成；`app.py` 只做 FastAPI 装配、鉴权和兼容导出。
@@ -84,17 +84,17 @@ Docker 使用 `/data`，桌面端传入应用数据目录；`services/data/` 不
 
 | 路径 | 所有者与语义 |
 | --- | --- |
-| `db/jobs.db` | Rust/retain-data 的 SQLite 权威状态；remote jobsd 通过 WAL 访问同一库 |
+| `db/jobs.db` | Rust/retainpdf-data 的 SQLite 权威状态；remote jobsd 通过 WAL 访问同一库 |
 | `jobs/<job_id>/` | stage spec、provider 快照、checkpoint 与发布产物 |
 | `uploads/`、`downloads/` | 受管理的输入和派生下载 |
-| `secrets/credentials.json` | Rust 管理的凭据 vault；位于 SQLite 外，要求受限权限且不回显明文。文件格式（版本号、大小上限、编号规则、读前安全检查）只在 `retain-data::credentials` 定义，任务运行时读密钥和 API 凭据服务写入都用它 |
+| `secrets/credentials.json` | Rust 管理的凭据 vault；位于 SQLite 外，要求受限权限且不回显明文。文件格式（版本号、大小上限、编号规则、读前安全检查）只在 `retainpdf-data::credentials` 定义，任务运行时读密钥和 API 凭据服务写入都用它 |
 | `secrets/ai-runtime.json` | AI runtime/模型配置及 provider 凭据；监督模式与 Rust 共用 data root，文件权限受限 |
 | `agent-runtime/fx/` | 仅在 `RETAIN_AI_FX_STATE_ROOT` 指向此处时保存 FX 子进程状态；开发启动器会显式设置，不替代 Rust conversation/operation 真值 |
 
 恢复需要数据库状态和匹配的 job/checkpoint 文件，因此备份或迁移必须覆盖整个数据根，
 不能只复制 `jobs.db`。
 
-多设备同步（`retain-data::sync`；应用服务在平台包 `retain-pdf-platform` 的 `sync`，由 rust_api 定时同步，设置在
+多设备同步（`retainpdf-data::sync`；应用服务在平台包 `retainpdf-platform` 的 `sync`，由 rust_api 定时同步，设置在
 「设置 → 同步」，接口见 `docs/api/09-同步`）通过一个
 「同步文件夹」（网盘客户端同步的目录，或 WebDAV）交换书库，不需要任何一端跑服务。同步的单位是实体：
 上传、书（含标题状态与标题建议）、合集、合集成员、收藏、结束了的任务（行 + 产物登记 + 流水线记录 +
@@ -105,10 +105,10 @@ AI 对话（含消息；本机会话进度列不带）、AI 计算、AI 改文�
 每台设备每天最多一次整理自己的目录——改动记录合并成每个实体最后一条并登记 `base`、没人用的包停用 7 天
 后删、大半没用的包重新打包；各设备的整理状态在 `devices/<设备号>/state.json`，十分钟重读一次。合并按字段：每个字段
 各带一个混合逻辑时钟，新的胜出；删除也带时钟，不会被旧改动复活。格式和规则见
-`backend/packages/retain-data/src/sync.rs`；调试用 `cargo run -p retain-pdf-data --example
+`backend/packages/retainpdf-data/src/sync.rs`；调试用 `cargo run -p retainpdf-data --example
 sync_cycle -- <数据目录> <同步文件夹>`。
 
-数据库备份（`retain_pdf_db::db::backup`；调度在平台包 `retain-pdf-platform` 的 `backup`，接口见 `docs/api/10-备份`）：
+数据库备份（`retainpdf_db::db::backup`；调度在平台包 `retainpdf-platform` 的 `backup`，接口见 `docs/api/10-备份`）：
 每天一份 `VACUUM INTO` 快照，gzip 后放在 `<数据目录>/backups/db/`，按种类保留；结构升级前
 （`ensure_schema` 第一次连上、版本落后时）自动存一份。恢复用 SQLite 在线备份接口整体写进
 正在用的库，不用重启；恢复前先存一份、有任务在跑时拒绝、期间停住同步；同步记账按「带着旧数据
@@ -127,7 +127,7 @@ sync_cycle -- <数据目录> <同步文件夹>`。
 | monorepo wire DTO | `contracts/*.schema.json` | `npm --prefix contracts test` |
 | 独立后端 schema 镜像 | `backend/contracts/*.schema.json` | `python3 backend/contracts/check_parity.py --require-upstream` |
 | Rust ↔ jobsd | `jobs-control.v1.schema.json` | shell/jobsd 双端 contract lock |
-| Rust ↔ pipeline stdout | `pipeline-stdout.v1.schema.json` | retain-jobs 与 pipeline 双端 contract tests |
+| Rust ↔ pipeline stdout | `pipeline-stdout.v1.schema.json` | retainpdf-runner 与 pipeline 双端 contract tests |
 | Rust ↔ pipeline stage input | versioned stage spec 与对应 Rust/Python模型 | stage-spec checks 与 worker tests |
 | Paddle raw ↔ `document.v1` | [PaddleOCR 官方布局标签与归一化基线](../paddle_ocr_api/layout-labels.md) | adapter 映射、归一化报告与全量标签契约测试 |
 | MinerU raw ↔ `document.v1` | [MinerU 官方输出类型与归一化基线](../../reference/mineru_api/output-types.md) | block/span 目录、层级去重、bbox 与 adapter 契约测试 |

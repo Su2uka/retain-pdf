@@ -1,6 +1,6 @@
 # `retainpdf` 命令行
 
-代码：`backend/cli`（命令）、`backend/packages/retain-config`（配置）。
+代码：`backend/cli`（命令）、`backend/packages/retainpdf-config`（配置）。
 
 ## 配置：`~/.retainpdf/`
 
@@ -55,7 +55,7 @@ paddle_token = "..."
 `RETAINPDF_TRANSLATION_THINKING`、`RETAINPDF_DATA_DIR`）。Anthropic 默认用 anthropic 协议，其余服务商默认 openai。
 `retainpdf config show` 列出每一项的生效值和来源，密钥只显示末四位。
 
-能配哪些项、怎么校验、存哪个文件，由 `retain-config` 的配置项表（`keys.rs`）统一决定。
+能配哪些项、怎么校验、存哪个文件，由 `retainpdf-config` 的配置项表（`keys.rs`）统一决定。
 
 ## 命令
 
@@ -76,7 +76,7 @@ retainpdf sync set --folder <文件夹> | --webdav <地址> --user <账号> [--p
 
 同一个数据目录同一时间只能有一个程序写。命令行先看 `run/backend.json`：记录的进程在、数据目录相同、
 `/health` 应答，就把会改东西的命令（备份、恢复、同步）转给后端；没有在用这个数据目录的后端时，直接
-操作数据目录（规则和后端一样：恢复前先备份、有任务在跑时不恢复；同步用 `retain_pdf_data::sync::control`，
+操作数据目录（规则和后端一样：恢复前先备份、有任务在跑时不恢复；同步用 `retainpdf_data::sync::control`，
 与后端同一套）；记录说后端在却连不上时，会改东西的命令拒绝执行。`status`、`doctor` 只读，任何时候都能用。
 
 后端只在 `RUST_API_WRITE_RUNTIME_FILE=1` 时写运行记录（桌面版、开发脚本打开），测试和别的部署起的后端

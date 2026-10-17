@@ -112,5 +112,5 @@ Paddle adapter 后续应满足以下门禁：
 6. 对真实任务执行 raw block 与 normalized block 数量守恒检查。
 
 旧的样本统计文档
-`backend/packages/retain-data/src/ocr_provider/paddle/JSON_README/block_label_mapping_README.md`
+`backend/packages/retainpdf-data/src/ocr_provider/paddle/JSON_README/block_label_mapping_README.md`
 仍用于说明仓库样本，但不再作为官方标签全集。

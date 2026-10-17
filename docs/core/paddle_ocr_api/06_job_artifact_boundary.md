@@ -105,7 +105,7 @@ Paddle raw 进入统一契约后的正式输出是：
 
 Rust 侧解析 Markdown 的位置：
 
-- `backend/packages/retain-core/src/storage_paths.rs`
+- `backend/packages/retainpdf-core/src/storage_paths.rs`
   - `resolve_markdown_path()`
   - `resolve_markdown_images_dir()`
 
@@ -174,8 +174,8 @@ job artifact 的职责是把作业目录里的文件和虚拟产物，统一映�
 
 关键代码：
 
-- `backend/packages/retain-core/src/storage_paths.rs`
-- `backend/packages/retain-pdf-files/src/artifacts/mod.rs`
+- `backend/packages/retainpdf-core/src/storage_paths.rs`
+- `backend/packages/retainpdf-files/src/artifacts/mod.rs`
 
 这里最关键的不是“文件放哪”，而是“对外暴露成什么 artifact key”。
 
@@ -194,7 +194,7 @@ job artifact 的职责是把作业目录里的文件和虚拟产物，统一映�
 
 ### 这里的边界规则
 
-`backend/packages/retain-pdf-files/src/artifacts/` 只负责：
+`backend/packages/retainpdf-files/src/artifacts/` 只负责：
 
 - 从 registry 或 fallback 中找到 artifact
 - 为 artifact 生成稳定资源路径
@@ -222,7 +222,7 @@ artifact 层不应该反向变成 provider 语义层。
 关键代码：
 
 - `backend/api/src/services/jobs/files/downloads.rs`
-- `backend/packages/retain-pdf-files/src/artifacts/mod.rs`
+- `backend/packages/retainpdf-files/src/artifacts/mod.rs`
 
 ### 稳定资源接口
 

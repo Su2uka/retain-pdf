@@ -14,7 +14,7 @@
 ## 代码边界
 
 数据库访问统一收敛在
-`backend/packages/retain-data/src/db.rs` 及其子模块：
+`backend/packages/retainpdf-data/src/db.rs` 及其子模块：
 
 - `db.rs`：`Db` facade，对外提供 job、artifact、event、document、conversation、operation 等持久化能力。
 - `db/schema/mod.rs`：编号迁移的执行器，以及老表的幂等加列（`ensure_*_column`）。
@@ -55,7 +55,7 @@ cargo test --locked --workspace --manifest-path "$BACKEND_ROOT/api/Cargo.toml"
 python3 "$BACKEND_ROOT/api/scripts/check_architecture.py"
 ```
 
-新增数据库行为时，优先补对应 `retain-data/src/db/**` 领域子模块的最小单元测试；
+新增数据库行为时，优先补对应 `retainpdf-data/src/db/**` 领域子模块的最小单元测试；
 只有确实属于公共 façade 的能力才扩展 `db.rs`。
 
 ## PR 说明

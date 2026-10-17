@@ -2,31 +2,32 @@
 
 ## 包名
 
-2026-10-16 起 Rust 包统一叫 `retain-pdf-*`，目录名和可执行文件名没改：
+2026-10-17 起 Rust 包统一叫 `retainpdf-*`，和 Python 的 `retainpdf-math`、`retainpdf-pipeline` 一个写法；
+`backend/packages/`、`database/` 下的目录名就是包名。应用目录（`backend/api`、`backend/jobs`、`backend/cli`）和可执行文件名没改：
 
 | 目录 | 包名（`cargo -p`） | crate 名（`use`） | 可执行文件 |
 |---|---|---|---|
-| `backend/api` | `retain-pdf-api` | `retain_pdf_api` | `rust_api`、`retainpdf-agent` |
-| `backend/packages/retain-pdf-api-base` | `retain-pdf-api-base` | `retain_pdf_api_base` | |
-| `backend/packages/retain-pdf-accounts` | `retain-pdf-accounts` | `retain_pdf_accounts` | |
-| `backend/packages/retain-pdf-ai` | `retain-pdf-ai` | `retain_pdf_ai` | |
-| `backend/packages/retain-pdf-files` | `retain-pdf-files` | `retain_pdf_files` | |
-| `backend/packages/retain-pdf-glossaries` | `retain-pdf-glossaries` | `retain_pdf_glossaries` | |
-| `backend/packages/retain-pdf-ingest` | `retain-pdf-ingest` | `retain_pdf_ingest` | |
-| `backend/packages/retain-pdf-jobs` | `retain-pdf-jobs` | `retain_pdf_jobs` | |
-| `backend/packages/retain-pdf-library` | `retain-pdf-library` | `retain_pdf_library` | |
-| `backend/packages/retain-pdf-platform` | `retain-pdf-platform` | `retain_pdf_platform` | |
-| `backend/packages/retain-pdf-providers` | `retain-pdf-providers` | `retain_pdf_providers` | |
-| `backend/packages/retain-core` | `retain-pdf-core` | `retain_pdf_core` | |
-| `backend/packages/retain-data` | `retain-pdf-data` | `retain_pdf_data` | |
-| `database/retain-db` | `retain-pdf-db` | `retain_pdf_db` | |
-| `backend/packages/retain-config` | `retain-pdf-config` | `retain_pdf_config` | |
-| `backend/packages/retain-proc` | `retain-pdf-proc` | `retain_pdf_proc` | |
-| `backend/packages/retain-jobs` | `retain-pdf-runner` | `retain_pdf_runner` | |
-| `backend/jobs` | `retain-pdf-runnerd` | | `retain-jobsd` |
-| `backend/cli` | `retain-pdf-cli` | | `retainpdf` |
+| `backend/api` | `retainpdf-api` | `retainpdf_api` | `rust_api`、`retainpdf-agent` |
+| `backend/packages/retainpdf-api-base` | `retainpdf-api-base` | `retainpdf_api_base` | |
+| `backend/packages/retainpdf-accounts` | `retainpdf-accounts` | `retainpdf_accounts` | |
+| `backend/packages/retainpdf-ai` | `retainpdf-ai` | `retainpdf_ai` | |
+| `backend/packages/retainpdf-files` | `retainpdf-files` | `retainpdf_files` | |
+| `backend/packages/retainpdf-glossaries` | `retainpdf-glossaries` | `retainpdf_glossaries` | |
+| `backend/packages/retainpdf-ingest` | `retainpdf-ingest` | `retainpdf_ingest` | |
+| `backend/packages/retainpdf-jobs` | `retainpdf-jobs` | `retainpdf_jobs` | |
+| `backend/packages/retainpdf-library` | `retainpdf-library` | `retainpdf_library` | |
+| `backend/packages/retainpdf-platform` | `retainpdf-platform` | `retainpdf_platform` | |
+| `backend/packages/retainpdf-providers` | `retainpdf-providers` | `retainpdf_providers` | |
+| `backend/packages/retainpdf-core` | `retainpdf-core` | `retainpdf_core` | |
+| `backend/packages/retainpdf-data` | `retainpdf-data` | `retainpdf_data` | |
+| `database/retainpdf-db` | `retainpdf-db` | `retainpdf_db` | |
+| `backend/packages/retainpdf-config` | `retainpdf-config` | `retainpdf_config` | |
+| `backend/packages/retainpdf-proc` | `retainpdf-proc` | `retainpdf_proc` | |
+| `backend/packages/retainpdf-runner` | `retainpdf-runner` | `retainpdf_runner` | |
+| `backend/jobs` | `retainpdf-runnerd` | | `retain-jobsd` |
+| `backend/cli` | `retainpdf-cli` | | `retainpdf` |
 
-下面和别的文档里写的 `retain-core`、`retain-jobs` 等指的是目录。`retain-pdf-api-base`（2026-10-16 新建）是 API 各领域包共用的底座：
+Rust 的 AI 包 `retainpdf_ai` 和 Python AI 服务的模块同名（用户 2026-10-17 定的），看报错、搜代码时看清是哪边的。`retainpdf-api-base`（2026-10-16 新建）是 API 各领域包共用的底座：
 错误类型 `AppError` 和按编号读出任务 `job_loading`，在 `services` 下面一层。
 
 ## 分层方向
@@ -35,19 +36,19 @@
 
 ```text
 rust_api app/router -> routes -> services/facades
-services/facades -> retain-core + retain-data
-retain-jobs -> retain-core + retain-data + retain-proc
-retain-jobsd -> retain-jobs + retain-data
+services/facades -> retainpdf-core + retainpdf-data
+retainpdf-runner -> retainpdf-core + retainpdf-data + retainpdf-proc
+retain-jobsd -> retainpdf-runner + retainpdf-data
 ```
 
 基本规则：
 
 - `src/app/router/*` 只装配路由；`src/routes/*` 只做 HTTP adapter、提取器和响应包装。
 - `src/services/*` 放应用用例、facade 和安全 projection，不直接拥有 worker 生命周期。
-- `crates/retain-core` 只放跨 crate 的领域类型、配置和稳定 DTO，不反向依赖 HTTP、SQLite 或 runner。
-- `crates/retain-data` 拥有 SQLite、artifact/credential 读取以及 provider 数据边界。
-- `crates/retain-jobs` 拥有队列、stage 编排、进程拉起、取消、OCR dispatch 和恢复。
-- `crates/retain-proc` 只提供通用子进程安全原语；`retain-jobsd` 是独立任务监督入口。
+- `crates/retainpdf-core` 只放跨 crate 的领域类型、配置和稳定 DTO，不反向依赖 HTTP、SQLite 或 runner。
+- `crates/retainpdf-data` 拥有 SQLite、artifact/credential 读取以及 provider 数据边界。
+- `crates/retainpdf-runner` 拥有队列、stage 编排、进程拉起、取消、OCR dispatch 和恢复。
+- `crates/retainpdf-proc` 只提供通用子进程安全原语；`retain-jobsd` 是独立任务监督入口。
 - 不要为了省事把 `AppState` 传进只需要 `Db`、`AppConfig`、`Path` 或 semaphore 的 helper。
 
 更细规则见 [Rust API 协同开发约定](../rust_api/09-协同开发约定.md)。
