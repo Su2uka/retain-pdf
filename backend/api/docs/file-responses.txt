@@ -839,6 +839,7 @@ GET /api/v1/jobs/files-contract-job/files
   | {
   |   "code": 0,
   |   "data": {
+  |     "attempt": 1,
   |     "internal": [
   |       {
   |         "content_type": "application/json",
@@ -846,6 +847,7 @@ GET /api/v1/jobs/files-contract-job/files
   |         "on_demand": false,
   |         "ready": true,
   |         "size_bytes": 35,
+  |         "stage": "normalizing",
   |         "url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/files/internal/normalized-document.json"
   |       },
   |       {
@@ -854,6 +856,7 @@ GET /api/v1/jobs/files-contract-job/files
   |         "on_demand": false,
   |         "ready": true,
   |         "size_bytes": 47,
+  |         "stage": "normalizing",
   |         "url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/files/internal/normalization-report.json"
   |       },
   |       {
@@ -862,6 +865,7 @@ GET /api/v1/jobs/files-contract-job/files
   |         "on_demand": false,
   |         "ready": true,
   |         "size_bytes": 15,
+  |         "stage": "rendering",
   |         "url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/files/internal/pipeline-summary.json"
   |       },
   |       {
@@ -870,6 +874,7 @@ GET /api/v1/jobs/files-contract-job/files
   |         "on_demand": false,
   |         "ready": false,
   |         "size_bytes": null,
+  |         "stage": "rendering",
   |         "url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/files/internal/typst/source.typ"
   |       },
   |       {
@@ -878,6 +883,7 @@ GET /api/v1/jobs/files-contract-job/files
   |         "on_demand": false,
   |         "ready": false,
   |         "size_bytes": null,
+  |         "stage": "rendering",
   |         "url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/files/internal/typst/render.pdf"
   |       },
   |       {
@@ -886,6 +892,7 @@ GET /api/v1/jobs/files-contract-job/files
   |         "on_demand": false,
   |         "ready": true,
   |         "size_bytes": 27,
+  |         "stage": "ocr",
   |         "url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/files/internal/ocr-provider/result.json"
   |       }
   |     ],
@@ -897,6 +904,7 @@ GET /api/v1/jobs/files-contract-job/files
   |         "on_demand": false,
   |         "ready": true,
   |         "size_bytes": 329,
+  |         "stage": "rendering",
   |         "url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/files/output/translated.pdf"
   |       },
   |       {
@@ -905,6 +913,7 @@ GET /api/v1/jobs/files-contract-job/files
   |         "on_demand": true,
   |         "ready": true,
   |         "size_bytes": null,
+  |         "stage": null,
   |         "url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/files/output/side-by-side.pdf"
   |       },
   |       {
@@ -913,6 +922,7 @@ GET /api/v1/jobs/files-contract-job/files
   |         "on_demand": true,
   |         "ready": true,
   |         "size_bytes": null,
+  |         "stage": null,
   |         "url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/files/output/translated.docx"
   |       },
   |       {
@@ -921,6 +931,7 @@ GET /api/v1/jobs/files-contract-job/files
   |         "on_demand": false,
   |         "ready": true,
   |         "size_bytes": 39,
+  |         "stage": "ocr",
   |         "url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/files/output/ocr.md"
   |       },
   |       {
@@ -929,6 +940,7 @@ GET /api/v1/jobs/files-contract-job/files
   |         "on_demand": true,
   |         "ready": true,
   |         "size_bytes": null,
+  |         "stage": "ocr",
   |         "url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/files/output/ocr.zip"
   |       },
   |       {
@@ -937,12 +949,22 @@ GET /api/v1/jobs/files-contract-job/files
   |         "on_demand": true,
   |         "ready": true,
   |         "size_bytes": null,
+  |         "stage": null,
   |         "url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/files/output/all.zip"
   |       }
   |     ],
   |     "pages": {
   |       "page_count": 1,
   |       "url_template": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/files/pages/{page}.jpg"
+  |     },
+  |     "source": {
+  |       "content_type": "application/pdf",
+  |       "name": "source.pdf",
+  |       "on_demand": false,
+  |       "ready": true,
+  |       "size_bytes": 329,
+  |       "stage": "upload",
+  |       "url": "http://127.0.0.1:41000/api/v1/documents/<doc>/files/source.pdf"
   |     }
   |   },
   |   "message": "ok"

@@ -364,3 +364,41 @@ async fn file_responses_match_snapshot() {
         );
     }
 }
+
+/// 文件清单里每一项带登记表的更新时间（快照把 `*_at` 去掉了，这里单独核）：落了盘、登记过的有，
+/// 按需生成的没有；原文条目指向书的文件。
+#[tokio::test]
+async fn file_list_entries_carry_registry_times_and_the_book_source() {
+    let fixture = seed();
+    let app = build_app(fixture.state.clone());
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/jobs/files-contract-job/files")
+                .header("X-API-Key", "test-key")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    let bytes = to_bytes(response.into_body(), usize::MAX).await.expect("body");
+    let data = serde_json::from_slice::<serde_json::Value>(&bytes).expect("json")["data"].clone();
+    let output = |name: &str| {
+        data["output"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|entry| entry["name"] == name)
+            .cloned()
+            .unwrap_or_else(|| panic!("output/{name} missing"))
+    };
+    assert!(data["source"]["updated_at"].is_string(), "{}", data["source"]);
+    assert!(data["source"]["url"]
+        .as_str()
+        .unwrap()
+        .ends_with(&format!("/api/v1/documents/{}/files/source.pdf", fixture.document_id)));
+    assert!(output("translated.pdf")["updated_at"].is_string());
+    assert!(output("side-by-side.pdf")["updated_at"].is_null(), "按需生成的没有登记时间");
+    assert!(output("side-by-side.pdf")["stage"].is_null());
+    assert!(data["internal"][0]["updated_at"].is_string());
+}

@@ -13,13 +13,17 @@ use serde::Serialize;
 
 use retainpdf_data::db::Db;
 use retainpdf_api_base::error::AppError;
-use retainpdf_core::models::api::{to_absolute_url, JobFilesQuery};
+use retainpdf_core::models::api::{document_file_path, to_absolute_url, JobFilesQuery};
 use retainpdf_core::models::domain::{JobSnapshot, JobStatusKind};
 use retainpdf_files::{job_upload_id, list_registry_for_job};
 use retainpdf_core::storage_paths::{resolve_job_root, resolve_markdown_path, resolve_output_pdf, resolve_source_pdf};
 
 use crate::files::downloads::files::JobFile;
+use crate::presentation::book_document_id;
 use crate::summary_loaders::SummaryCache;
+use retainpdf_core::storage_paths::{
+    ARTIFACT_KEY_MARKDOWN_BUNDLE_ZIP, ARTIFACT_KEY_MARKDOWN_RAW, ARTIFACT_KEY_SOURCE_PDF, ARTIFACT_KEY_TRANSLATED_PDF,
+};
 
 /// `internal/` 组：新文件名 ↔ 产物清单里的名字。表在 retainpdf-core，产物清单返回的链接也用它。
 use retainpdf_core::models::api::JOB_INTERNAL_FILES as INTERNAL_FILES;
@@ -92,6 +96,11 @@ fn internal_file(name: &str) -> Result<JobFile, AppError> {
 #[derive(Debug, Serialize)]
 pub struct JobFilesView {
     pub job_id: String,
+    /// 这是第几次跑（重跑、重试阶段以后加一），和产物清单每一项的 `attempt` 一样。
+    pub attempt: u32,
+    /// 原文 PDF。它是书的文件：有书编号时 `url` 指向 `/documents/:id/files/source.pdf`，
+    /// 查不到书编号的旧任务退回按任务的旧地址。
+    pub source: JobFileEntryView,
     pub output: Vec<JobFileEntryView>,
     pub pages: JobPagesView,
     /// 只有管理员（以及单机模式）能看到。
@@ -110,6 +119,10 @@ pub struct JobFileEntryView {
     pub on_demand: bool,
     /// 已经在磁盘上的文件才有大小。
     pub size_bytes: Option<u64>,
+    /// 产物登记表里的更新时间；登记表里没有（按需生成、还没生成）就是 null。
+    pub updated_at: Option<String>,
+    /// 哪个阶段产出的（登记表的 source_stage，例如 `ocr`、`translation`、`render`）；不知道就是 null。
+    pub stage: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -135,7 +148,16 @@ pub fn job_files_view(
     base_url: &str,
 ) -> Result<JobFilesView, AppError> {
     let files_path = format!("/api/v1/jobs/{}/files", job.job_id);
-    let entry = |group: &str, name: &str, content_type: &str, ready: bool, on_demand: bool, size: Option<u64>| {
+    let registry = list_registry_for_job(db, data_root, job)?;
+    let registered = |key: &str| registry.iter().find(|item| item.artifact_key == key);
+    // 登记表里这一项的更新时间和产出阶段。
+    let provenance = |key: Option<&str>| {
+        key.and_then(|key| registered(key))
+            .map(|item| (Some(item.updated_at.clone()), item.source_stage.clone()))
+            .unwrap_or((None, None))
+    };
+    let entry = |group: &str, name: &str, key: Option<&str>, content_type: &str, ready: bool, on_demand: bool, size: Option<u64>| {
+        let (updated_at, stage) = provenance(key);
         JobFileEntryView {
             name: name.to_string(),
             url: to_absolute_url(base_url, &format!("{files_path}/{group}/{name}")),
@@ -143,6 +165,8 @@ pub fn job_files_view(
             ready,
             on_demand,
             size_bytes: size,
+            updated_at,
+            stage,
         }
     };
     let source = exists(resolve_source_pdf(job, data_root));
@@ -151,34 +175,51 @@ pub fn job_files_view(
     let job_root = resolve_job_root(job, data_root);
 
     let output = vec![
-        entry("output", "translated.pdf", "application/pdf", translated.is_some(), false,
+        entry("output", "translated.pdf", Some(ARTIFACT_KEY_TRANSLATED_PDF), "application/pdf", translated.is_some(), false,
             translated.as_deref().and_then(file_size)),
-        entry("output", "side-by-side.pdf", "application/pdf",
+        entry("output", "side-by-side.pdf", None, "application/pdf",
             source.is_some() && translated.is_some(), true, None),
-        entry("output", "translated.docx",
+        entry("output", "translated.docx", None,
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             source.is_some() && job_root.is_some(), true, None),
-        entry("output", "ocr.md", "text/markdown; charset=utf-8", markdown.is_some(), false,
+        entry("output", "ocr.md", Some(ARTIFACT_KEY_MARKDOWN_RAW), "text/markdown; charset=utf-8", markdown.is_some(), false,
             markdown.as_deref().and_then(file_size)),
-        entry("output", "ocr.zip", "application/zip", markdown.is_some(), true, None),
-        entry("output", "all.zip", "application/zip",
+        entry("output", "ocr.zip", Some(ARTIFACT_KEY_MARKDOWN_BUNDLE_ZIP), "application/zip", markdown.is_some(), true, None),
+        entry("output", "all.zip", None, "application/zip",
             matches!(job.status, JobStatusKind::Succeeded), true, None),
     ];
 
     let upload = job_upload_id(job).and_then(|id| db.get_upload(id).ok());
+    let source_entry = {
+        let (updated_at, stage) = provenance(Some(ARTIFACT_KEY_SOURCE_PDF));
+        let path = match book_document_id(db, job, upload.as_ref()) {
+            Some(document_id) => document_file_path(&document_id, "source.pdf"),
+            // 没有书编号的旧任务只能按任务取原文。
+            None => format!("/api/v1/jobs/{}/artifacts/{ARTIFACT_KEY_SOURCE_PDF}", job.job_id),
+        };
+        JobFileEntryView {
+            name: "source.pdf".to_string(),
+            url: to_absolute_url(base_url, &path),
+            content_type: "application/pdf".to_string(),
+            ready: source.is_some(),
+            on_demand: false,
+            size_bytes: source.as_deref().and_then(file_size),
+            updated_at,
+            stage,
+        }
+    };
     let pages = JobPagesView {
         url_template: to_absolute_url(base_url, &format!("{files_path}/pages/{{page}}.jpg")),
         page_count: SummaryCache::default().book_page_count(upload.as_ref(), job, data_root),
     };
 
     let internal = if include_internal {
-        let registry = list_registry_for_job(db, data_root, job)?;
         Some(
             INTERNAL_FILES
                 .iter()
                 .filter_map(|(name, key)| {
-                    let item = registry.iter().find(|item| item.artifact_key == *key)?;
-                    Some(entry("internal", name, &item.content_type, item.ready, false, item.size_bytes))
+                    let item = registered(key)?;
+                    Some(entry("internal", name, Some(key), &item.content_type, item.ready, false, item.size_bytes))
                 })
                 .collect(),
         )
@@ -186,8 +227,15 @@ pub fn job_files_view(
         None
     };
 
+    let attempt = job
+        .runtime
+        .as_ref()
+        .map(|runtime| runtime.retry_count.saturating_add(1))
+        .unwrap_or(1);
     Ok(JobFilesView {
         job_id: job.job_id.clone(),
+        attempt,
+        source: source_entry,
         output,
         pages,
         internal,
