@@ -151,7 +151,7 @@ async fn reader_regions_route_maps_translated_items_to_source_blocks() {
     );
     assert_eq!(
         payload["data"]["items"][1]["asset_urls"],
-        json!(["/api/v1/jobs/reader-region-job/markdown/images/page-8/imgs/chart%20a.png"])
+        json!(["/api/v1/jobs/reader-region-job/files/output/ocr/images/page-8/imgs/chart%20a.png"])
     );
 
     let image_response = app
@@ -262,6 +262,6 @@ async fn reader_regions_route_returns_normalized_source_blocks_without_translati
     );
     assert_eq!(
         payload["data"]["items"][1]["asset_urls"],
-        json!(["/api/v1/jobs/reader-region-source-only-job/markdown/images/page-1/imgs/source-only.png"])
+        json!(["/api/v1/jobs/reader-region-source-only-job/files/output/ocr/images/page-1/imgs/source-only.png"])
     );
 }

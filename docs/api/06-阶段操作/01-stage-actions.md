@@ -26,7 +26,7 @@ GET /api/v1/jobs/{job_id}/stage-actions
       "danger": false,
       "action": {
         "method": "POST",
-        "url": "/api/v1/jobs/xxx/retry-stage",
+        "url": "/api/v1/jobs/xxx/actions/retry-stage",
         "body": {
           "stage": "translation"
         }

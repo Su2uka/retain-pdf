@@ -226,12 +226,12 @@ curl -X POST "http://127.0.0.1:41000/api/v1/ocr/jobs" \
     "status": "queued",
     "workflow": "ocr",
     "links": {
-      "self_path": "/api/v1/ocr/jobs/20260331033736-c2bcda",
-      "self_url": "http://127.0.0.1:41000/api/v1/ocr/jobs/20260331033736-c2bcda",
+      "self_path": "/api/v1/jobs/20260331033736-c2bcda",
+      "self_url": "http://127.0.0.1:41000/api/v1/jobs/20260331033736-c2bcda",
       "artifacts_path": "/api/v1/ocr/jobs/20260331033736-c2bcda/artifacts",
       "artifacts_url": "http://127.0.0.1:41000/api/v1/ocr/jobs/20260331033736-c2bcda/artifacts",
-      "cancel_path": "/api/v1/ocr/jobs/20260331033736-c2bcda/cancel",
-      "cancel_url": "http://127.0.0.1:41000/api/v1/ocr/jobs/20260331033736-c2bcda/cancel"
+      "cancel_path": "/api/v1/jobs/20260331033736-c2bcda/actions/cancel",
+      "cancel_url": "http://127.0.0.1:41000/api/v1/jobs/20260331033736-c2bcda/actions/cancel"
     }
   }
 }
@@ -279,8 +279,8 @@ curl -H "X-API-Key: your-rust-api-key" \
         "stage": "finished",
         "created_at": "2026-03-31T03:37:36Z",
         "updated_at": "2026-03-31T03:37:41Z",
-        "detail_path": "/api/v1/ocr/jobs/20260331033736-c2bcda",
-        "detail_url": "http://127.0.0.1:41000/api/v1/ocr/jobs/20260331033736-c2bcda"
+        "detail_path": "/api/v1/jobs/20260331033736-c2bcda",
+        "detail_url": "http://127.0.0.1:41000/api/v1/jobs/20260331033736-c2bcda"
       }
     ]
   }
@@ -348,11 +348,11 @@ curl -H "X-API-Key: your-rust-api-key" \
   "provider_summary_json": "output/20260331033736-c2bcda/ocr/mineru_result.json",
   "normalized_document": {
     "ready": true,
-    "path": "/api/v1/ocr/jobs/20260331033736-c2bcda/normalized-document"
+    "path": "/api/v1/jobs/20260331033736-c2bcda/files/internal/normalized-document.json"
   },
   "normalization_report": {
     "ready": true,
-    "path": "/api/v1/ocr/jobs/20260331033736-c2bcda/normalization-report"
+    "path": "/api/v1/jobs/20260331033736-c2bcda/files/internal/normalization-report.json"
   }
 }
 ```

@@ -76,7 +76,7 @@ fn library_projection_uses_library_media_urls() {
     );
     assert_eq!(
         library_image_url(&job, Some("doc-sha"), &data_root, "https://api.example", "thumbnail").as_deref(),
-        Some("https://api.example/api/v1/documents/doc-sha/thumbnail"),
+        Some("https://api.example/api/v1/documents/doc-sha/files/thumbnail.jpg"),
         "有书的编号：和文档列表同一个地址"
     );
 }

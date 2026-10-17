@@ -5,8 +5,8 @@ use std::path::PathBuf;
 use retain_pdf_core::config::limits::MAX_DOCUMENT_LIMIT;
 use retain_pdf_api_base::error::AppError;
 use retain_pdf_core::models::api::{
-    DocumentDeleteResultView, DocumentListView, DocumentRecord, ListDocumentsQuery,
-    PatchDocumentInput,
+    document_file_path, to_absolute_url, DocumentDeleteResultView, DocumentListView, DocumentRecord,
+    ListDocumentsQuery, PatchDocumentInput,
 };
 use retain_pdf_core::models::domain::UploadRecord;
 use retain_pdf_jobs::cleanup_deleted_job_credentials;
@@ -15,15 +15,12 @@ use super::books::{ensure_deletable, remove_job_files, remove_path_if_exists};
 use super::LibraryDeps;
 
 pub(crate) fn document_media_urls(base_url: &str, document_id: &str) -> (String, String, String) {
-    let base = format!(
-        "{}/api/v1/documents/{}",
-        base_url.trim_end_matches('/'),
-        document_id
-    );
+    let url = |name: &str| to_absolute_url(base_url, &document_file_path(document_id, name));
     (
-        format!("{base}/source.pdf"),
-        format!("{base}/cover"),
-        format!("{base}/thumbnail"),
+        // 旧地址 `/source.pdf` 默认下载，新链接带 `?download=1` 保持原样。
+        url("source.pdf?download=1"),
+        url("cover.jpg"),
+        url("thumbnail.jpg"),
     )
 }
 

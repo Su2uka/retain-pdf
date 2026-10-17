@@ -4,6 +4,7 @@ use std::path::{Component, Path, PathBuf};
 use serde_json::Value;
 
 use retain_pdf_api_base::error::AppError;
+use retain_pdf_core::models::api::job_ocr_images_base_path;
 use retain_pdf_core::models::domain::JobSnapshot;
 use retain_pdf_core::storage_paths::{
     resolve_markdown_images_dir, resolve_normalized_document, resolve_translation_manifest,
@@ -221,8 +222,8 @@ fn markdown_asset_url(
         return None;
     }
     Some(format!(
-        "/api/v1/jobs/{}/markdown/images/{}",
-        job.job_id,
+        "{}{}",
+        job_ocr_images_base_path(&job.job_id),
         url_path_escape(&relative.to_string_lossy().replace('\\', "/"))
     ))
 }

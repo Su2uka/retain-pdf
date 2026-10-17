@@ -27,7 +27,9 @@ pub use super::redaction::{
     redact_json_value, redact_optional_text, redact_text, sensitive_values,
 };
 pub use super::view::{
-    build_artifact_links, build_artifact_manifest, build_job_actions,
+    build_artifact_links, build_artifact_manifest, build_job_actions, document_file_path,
+    job_file_path, job_internal_file_name, job_markdown_view_path, job_ocr_images_base_path,
+    job_ocr_markdown_path, job_translated_pdf_path, JOB_INTERNAL_FILES,
     build_job_links_with_workflow, summarize_list_invocation, to_absolute_url, upload_to_response,
     AmbiguousRequestPolicy, ArtifactDisplayItemView, ArtifactDownloadQuery, JobFilesQuery, ArtifactLinksView,
     BookSummaryView, DocumentDeleteResultView, DocumentJobListView, GlossaryUsageSummaryView,

@@ -150,15 +150,15 @@ async fn documents_list_get_and_patch_roundtrip() {
     assert_eq!(payload["data"]["documents"][0]["document_id"], document_id);
     assert_eq!(
         payload["data"]["documents"][0]["source_pdf_url"],
-        format!("http://127.0.0.1:41000/api/v1/documents/{document_id}/source.pdf")
+        format!("http://127.0.0.1:41000/api/v1/documents/{document_id}/files/source.pdf?download=1")
     );
     assert_eq!(
         payload["data"]["documents"][0]["cover_url"],
-        format!("http://127.0.0.1:41000/api/v1/documents/{document_id}/cover")
+        format!("http://127.0.0.1:41000/api/v1/documents/{document_id}/files/cover.jpg")
     );
     assert_eq!(
         payload["data"]["documents"][0]["thumbnail_url"],
-        format!("http://127.0.0.1:41000/api/v1/documents/{document_id}/thumbnail")
+        format!("http://127.0.0.1:41000/api/v1/documents/{document_id}/files/thumbnail.jpg")
     );
 
     let response = app
@@ -186,7 +186,7 @@ async fn documents_list_get_and_patch_roundtrip() {
     assert!(payload["data"]["source_pdf_url"]
         .as_str()
         .unwrap_or("")
-        .contains("/source.pdf"));
+        .contains("/files/source.pdf"));
 
     let patched_document = payload["data"].clone();
     let response = app

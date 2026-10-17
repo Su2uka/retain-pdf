@@ -237,9 +237,9 @@ fn workflow_contract_uses_expected_route_prefixes() {
         );
 
         assert_eq!(links.self_path, format!("{prefix}/job-contract"));
-        assert_eq!(links.events_path, format!("{prefix}/job-contract/events"));
+        assert_eq!(links.events_path, format!("{prefix}/job-contract/progress/events"));
         assert_eq!(actions.open_job.path, format!("{prefix}/job-contract"));
-        assert_eq!(actions.rerun.path, format!("{prefix}/job-contract/rerun"));
+        assert_eq!(actions.rerun.path, format!("{prefix}/job-contract/actions/rerun"));
         assert!(!actions.rerun.enabled);
         assert_eq!(
             actions.open_artifacts.path,
@@ -247,7 +247,7 @@ fn workflow_contract_uses_expected_route_prefixes() {
         );
         assert_eq!(
             actions.download_pdf.path,
-            format!("{prefix}/job-contract/pdf")
+            format!("{prefix}/job-contract/files/output/translated.pdf")
         );
         assert_eq!(actions.download_pdf.enabled, pdf_ready);
         assert!(!actions.open_markdown.enabled);
@@ -266,7 +266,7 @@ fn job_actions_enable_rerun_for_reusable_checkpoints_only() {
     let actions = build_job_actions(&translate_job, "https://api.example", false, false, false);
     assert!(actions.rerun.enabled);
     assert_eq!(actions.rerun.method, "POST");
-    assert_eq!(actions.rerun.path, "/api/v1/jobs/job-rerun-ready/rerun");
+    assert_eq!(actions.rerun.path, "/api/v1/jobs/job-rerun-ready/actions/rerun");
 
     let mut ocr_job = build_job("ocr-rerun-disabled", WorkflowKind::Ocr);
     ocr_job.artifacts = translate_job.artifacts.clone();
@@ -369,11 +369,11 @@ fn artifact_manifest_maps_canonical_resource_paths() {
         .expect("translated pdf item");
     assert_eq!(
         translated_pdf.resource_path.as_deref(),
-        Some("/api/v1/jobs/job-artifacts/pdf")
+        Some("/api/v1/jobs/job-artifacts/files/output/translated.pdf")
     );
     assert_eq!(
         translated_pdf.resource_url.as_deref(),
-        Some("https://api.example/api/v1/jobs/job-artifacts/pdf")
+        Some("https://api.example/api/v1/jobs/job-artifacts/files/output/translated.pdf")
     );
 
     let markdown_raw = manifest
@@ -383,7 +383,7 @@ fn artifact_manifest_maps_canonical_resource_paths() {
         .expect("markdown raw item");
     assert_eq!(
         markdown_raw.resource_path.as_deref(),
-        Some("/api/v1/jobs/job-artifacts/markdown?raw=true")
+        Some("/api/v1/jobs/job-artifacts/files/output/ocr.md")
     );
 
     let translation_manifest = manifest
@@ -393,7 +393,7 @@ fn artifact_manifest_maps_canonical_resource_paths() {
         .expect("translation manifest item");
     assert_eq!(
         translation_manifest.resource_path.as_deref(),
-        Some("/api/v1/jobs/job-artifacts/artifacts/translation_manifest_json")
+        Some("/api/v1/jobs/job-artifacts/files/internal/translation-manifest.json?download=1")
     );
 }
 
@@ -412,7 +412,7 @@ fn ocr_artifact_manifest_uses_the_generic_job_routes() {
     let document = manifest.items.first().expect("normalized document item");
     assert_eq!(
         document.resource_path.as_deref(),
-        Some("/api/v1/jobs/ocr-artifacts/normalized-document")
+        Some("/api/v1/jobs/ocr-artifacts/files/internal/normalized-document.json")
     );
 }
 
