@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "retainpdf/contracts/job-status/v1",
   "title": "任务状态与阶段进度契约（Job Status / Stage Progress Bundle）",
-  "description": "Rust ↔ TS 任务状态单一真值（含 stage_snapshot / progress / cover_url 等重复高发区）。生产者：services/api crates/retain-core models/view/job_types.rs（JobDetailView / JobListView / JobStageSnapshotView / JobProgressView）与 models/view/common.rs（JobStagesView 等）；消费者：@retainpdf/contracts/job-status 生成 DTO、packages/domain 的 job/job-status 归一化模型，以及 apps/web-react 的 library/status 类型层。所有响应为 {code, message, data} 信封，本契约描述 data。改契约先改本文件，再重新生成 DTO 并让两端测试变绿。",
+  "description": "Rust ↔ TS 任务状态单一真值（含 stage_snapshot / progress / cover_url 等重复高发区）。生产者：services/api crates/retainpdf-core models/view/job_types.rs（JobDetailView / JobListView / JobStageSnapshotView / JobProgressView）与 models/view/common.rs（JobStagesView 等）；消费者：@retainpdf/contracts/job-status 生成 DTO、packages/domain 的 job/job-status 归一化模型，以及 apps/web-react 的 library/status 类型层。所有响应为 {code, message, data} 信封，本契约描述 data。改契约先改本文件，再重新生成 DTO 并让两端测试变绿。",
   "base_path": "/api/v1/jobs",
   "endpoints": [
     {

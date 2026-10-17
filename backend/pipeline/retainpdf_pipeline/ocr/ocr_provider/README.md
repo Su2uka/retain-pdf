@@ -288,8 +288,8 @@ CLI 原始 JSON、stdout/stderr 与 `--save_resources` 下载内容保存在
 - `provider_pipeline.py` 负责 stage/provider 分发和稳定兼容面
 - `drivers.py` 负责 Python provider registry；新增 provider 先挂这里，不要把分发逻辑写回主流程
 - `types.py` 定义 provider driver 的稳定输入/输出契约，`OcrProviderResult.artifact_manifest` 是 provider 产物边界
-- Rust API 侧 provider 产物路径由 `backend/packages/retain-data/src/ocr_provider/catalog.rs` 的 artifact layout 声明，任务编排不要在 workspace 里写 provider 文件名
-- Rust API 侧 provider transport 由 `backend/packages/retain-jobs/src/job_runner/ocr_flow/provider_transport.rs` 分发，新增内置 provider 时先注册 transport handler
+- Rust API 侧 provider 产物路径由 `backend/packages/retainpdf-data/src/ocr_provider/catalog.rs` 的 artifact layout 声明，任务编排不要在 workspace 里写 provider 文件名
+- Rust API 侧 provider transport 由 `backend/packages/retainpdf-runner/src/job_runner/ocr_flow/provider_transport.rs` 分发，新增内置 provider 时先注册 transport handler
 - 新增的纯实现优先下沉到独立模块，不直接堆回 `provider_pipeline.py`
 - 如果测试需要 monkeypatch，patch 点应保留在 `provider_pipeline.py`
 - `ocr/ocr_provider/__init__.py` 必须显式导出 `provider_pipeline`

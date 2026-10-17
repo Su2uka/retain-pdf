@@ -8,10 +8,10 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use anyhow::{bail, Context, Result};
-use retain_pdf_config::{BackendRuntime, ConfigHome, Settings};
+use retainpdf_config::{BackendRuntime, ConfigHome, Settings};
 use serde_json::Value;
 
-use retain_pdf_data::db::Db;
+use retainpdf_data::db::Db;
 
 pub struct Ctx {
     pub json: bool,

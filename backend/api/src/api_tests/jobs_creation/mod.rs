@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 use std::sync::Arc;
 
-use retain_pdf_data::credentials::resolve_credential;
+use retainpdf_data::credentials::resolve_credential;
 
 use crate::config::AppConfig;
 use crate::error::AppError;

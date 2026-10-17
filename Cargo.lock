@@ -1544,7 +1544,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "retain-pdf-accounts"
+name = "retainpdf-accounts"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -1555,10 +1555,10 @@ dependencies = [
  "fastrand",
  "getrandom 0.2.17",
  "rand_core 0.6.4",
- "retain-pdf-api-base",
- "retain-pdf-core",
- "retain-pdf-data",
- "retain-pdf-providers",
+ "retainpdf-api-base",
+ "retainpdf-core",
+ "retainpdf-data",
+ "retainpdf-providers",
  "serde",
  "serde_json",
  "serde_urlencoded",
@@ -1568,7 +1568,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "retain-pdf-ai"
+name = "retainpdf-ai"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -1581,10 +1581,10 @@ dependencies = [
  "hmac",
  "lopdf",
  "reqwest",
- "retain-pdf-api-base",
- "retain-pdf-core",
- "retain-pdf-data",
- "retain-pdf-proc",
+ "retainpdf-api-base",
+ "retainpdf-core",
+ "retainpdf-data",
+ "retainpdf-proc",
  "serde",
  "serde_json",
  "sha2",
@@ -1594,7 +1594,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "retain-pdf-api"
+name = "retainpdf-api"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -1614,21 +1614,21 @@ dependencies = [
  "once_cell",
  "regex",
  "reqwest",
- "retain-pdf-accounts",
- "retain-pdf-ai",
- "retain-pdf-api-base",
- "retain-pdf-config",
- "retain-pdf-core",
- "retain-pdf-data",
- "retain-pdf-files",
- "retain-pdf-glossaries",
- "retain-pdf-ingest",
- "retain-pdf-jobs",
- "retain-pdf-library",
- "retain-pdf-platform",
- "retain-pdf-proc",
- "retain-pdf-providers",
- "retain-pdf-runner",
+ "retainpdf-accounts",
+ "retainpdf-ai",
+ "retainpdf-api-base",
+ "retainpdf-config",
+ "retainpdf-core",
+ "retainpdf-data",
+ "retainpdf-files",
+ "retainpdf-glossaries",
+ "retainpdf-ingest",
+ "retainpdf-jobs",
+ "retainpdf-library",
+ "retainpdf-platform",
+ "retainpdf-proc",
+ "retainpdf-providers",
+ "retainpdf-runner",
  "rusqlite",
  "serde",
  "serde_json",
@@ -1648,13 +1648,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "retain-pdf-api-base"
+name = "retainpdf-api-base"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "axum",
- "retain-pdf-core",
- "retain-pdf-data",
+ "retainpdf-core",
+ "retainpdf-data",
  "rusqlite",
  "serde",
  "serde_json",
@@ -1665,16 +1665,16 @@ dependencies = [
 ]
 
 [[package]]
-name = "retain-pdf-cli"
+name = "retainpdf-cli"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "chrono",
  "clap",
  "reqwest",
- "retain-pdf-config",
- "retain-pdf-core",
- "retain-pdf-data",
+ "retainpdf-config",
+ "retainpdf-core",
+ "retainpdf-data",
  "rpassword",
  "rusqlite",
  "serde",
@@ -1683,7 +1683,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "retain-pdf-config"
+name = "retainpdf-config"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -1694,7 +1694,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "retain-pdf-core"
+name = "retainpdf-core"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -1705,7 +1705,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "retain-pdf-data"
+name = "retainpdf-data"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -1714,8 +1714,8 @@ dependencies = [
  "once_cell",
  "regex",
  "reqwest",
- "retain-pdf-core",
- "retain-pdf-db",
+ "retainpdf-core",
+ "retainpdf-db",
  "rusqlite",
  "serde",
  "serde_json",
@@ -1726,14 +1726,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "retain-pdf-db"
+name = "retainpdf-db"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "chrono",
  "fastrand",
  "flate2",
- "retain-pdf-core",
+ "retainpdf-core",
  "rusqlite",
  "serde",
  "serde_json",
@@ -1741,14 +1741,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "retain-pdf-files"
+name = "retainpdf-files"
 version = "0.1.0"
 dependencies = [
  "fastrand",
  "libc",
- "retain-pdf-api-base",
- "retain-pdf-core",
- "retain-pdf-data",
+ "retainpdf-api-base",
+ "retainpdf-core",
+ "retainpdf-data",
  "serde_json",
  "tokio",
  "walkdir",
@@ -1756,26 +1756,26 @@ dependencies = [
 ]
 
 [[package]]
-name = "retain-pdf-glossaries"
+name = "retainpdf-glossaries"
 version = "0.1.0"
 dependencies = [
  "csv",
  "fastrand",
- "retain-pdf-api-base",
- "retain-pdf-core",
- "retain-pdf-data",
+ "retainpdf-api-base",
+ "retainpdf-core",
+ "retainpdf-data",
 ]
 
 [[package]]
-name = "retain-pdf-ingest"
+name = "retainpdf-ingest"
 version = "0.1.0"
 dependencies = [
  "fastrand",
  "lopdf",
- "retain-pdf-accounts",
- "retain-pdf-api-base",
- "retain-pdf-core",
- "retain-pdf-data",
+ "retainpdf-accounts",
+ "retainpdf-api-base",
+ "retainpdf-core",
+ "retainpdf-data",
  "serde_json",
  "thiserror 1.0.69",
  "tokio",
@@ -1783,7 +1783,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "retain-pdf-jobs"
+name = "retainpdf-jobs"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -1795,16 +1795,16 @@ dependencies = [
  "mime_guess",
  "regex",
  "reqwest",
- "retain-pdf-accounts",
- "retain-pdf-api-base",
- "retain-pdf-core",
- "retain-pdf-data",
- "retain-pdf-files",
- "retain-pdf-glossaries",
- "retain-pdf-ingest",
- "retain-pdf-proc",
- "retain-pdf-providers",
- "retain-pdf-runner",
+ "retainpdf-accounts",
+ "retainpdf-api-base",
+ "retainpdf-core",
+ "retainpdf-data",
+ "retainpdf-files",
+ "retainpdf-glossaries",
+ "retainpdf-ingest",
+ "retainpdf-proc",
+ "retainpdf-providers",
+ "retainpdf-runner",
  "rusqlite",
  "serde",
  "serde_json",
@@ -1816,18 +1816,18 @@ dependencies = [
 ]
 
 [[package]]
-name = "retain-pdf-library"
+name = "retainpdf-library"
 version = "0.1.0"
 dependencies = [
  "axum",
  "chrono",
  "fastrand",
  "lopdf",
- "retain-pdf-api-base",
- "retain-pdf-core",
- "retain-pdf-data",
- "retain-pdf-files",
- "retain-pdf-jobs",
+ "retainpdf-api-base",
+ "retainpdf-core",
+ "retainpdf-data",
+ "retainpdf-files",
+ "retainpdf-jobs",
  "rusqlite",
  "serde",
  "serde_json",
@@ -1836,15 +1836,15 @@ dependencies = [
 ]
 
 [[package]]
-name = "retain-pdf-platform"
+name = "retainpdf-platform"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "chrono",
- "retain-pdf-api-base",
- "retain-pdf-core",
- "retain-pdf-data",
- "retain-pdf-db",
+ "retainpdf-api-base",
+ "retainpdf-core",
+ "retainpdf-data",
+ "retainpdf-db",
  "serde",
  "tokio",
  "tracing",
@@ -1852,7 +1852,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "retain-pdf-proc"
+name = "retainpdf-proc"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -1861,7 +1861,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "retain-pdf-providers"
+name = "retainpdf-providers"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -1873,9 +1873,9 @@ dependencies = [
  "libc",
  "once_cell",
  "reqwest",
- "retain-pdf-api-base",
- "retain-pdf-core",
- "retain-pdf-data",
+ "retainpdf-api-base",
+ "retainpdf-core",
+ "retainpdf-data",
  "rusqlite",
  "serde",
  "serde_json",
@@ -1887,7 +1887,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "retain-pdf-runner"
+name = "retainpdf-runner"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -1900,9 +1900,9 @@ dependencies = [
  "once_cell",
  "regex",
  "reqwest",
- "retain-pdf-core",
- "retain-pdf-data",
- "retain-pdf-proc",
+ "retainpdf-core",
+ "retainpdf-data",
+ "retainpdf-proc",
  "serde",
  "serde_json",
  "sha2",
@@ -1911,15 +1911,15 @@ dependencies = [
 ]
 
 [[package]]
-name = "retain-pdf-runnerd"
+name = "retainpdf-runnerd"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "axum",
- "retain-pdf-core",
- "retain-pdf-data",
- "retain-pdf-proc",
- "retain-pdf-runner",
+ "retainpdf-core",
+ "retainpdf-data",
+ "retainpdf-proc",
+ "retainpdf-runner",
  "serde",
  "serde_json",
  "sha2",

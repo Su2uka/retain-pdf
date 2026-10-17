@@ -25,7 +25,7 @@
 
 `specs/translate.spec.json` 的 `params` key 集合被两边同时钉死：
 
-- Rust：`retain-data` 的 `stage_specs_keep_python_loader_contract_keys` 断言今天写出的
+- Rust：`retainpdf-data` 的 `stage_specs_keep_python_loader_contract_keys` 断言今天写出的
   translate spec params 和这份 fixture **完全一致**（不是子集）。
 - Python：`backend/pipeline/devtools/tests/test_stage_spec_contract.py` 断言这份
   fixture 的 params key 集合和 `TranslateStageParams` 的字段集合完全一致，并用

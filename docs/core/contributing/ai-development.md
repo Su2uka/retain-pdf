@@ -25,7 +25,7 @@ AI 可以提高效率，但不能替代边界判断、测试验证和最终责�
 - 后端源码：先运行 `.github/scripts/resolve_backend_source.py --json`，解析当前产品 commit 内的自包含 package。
 - 主要后端模块：`api/`、`ai/`、`pipeline/`、`contracts/`、`docker/`；产品集成位于 `.github/`、`ops/deployment/docker/` 和 `backend-package.json`。
 - Rust workspace：`api` 是 HTTP composition root，稳定边界位于
-  `api/crates/retain-core`、`retain-data`、`retain-jobs`、`retain-proc` 和
+  `api/crates/retainpdf-core`、`retainpdf-data`、`retainpdf-runner`、`retainpdf-proc` 和
   `retain-jobsd`，不要把这些职责重新合并进 `rust_api/src`。
 - 核心规则：不要回滚无关脏改；手动编辑用 patch；改前先读相邻代码；按模块跑测试。
 - 文档入口：根目录 `CONTRIBUTING.md` 和 `docs/core/contributing/README.md`
@@ -38,8 +38,8 @@ AI 可以提高效率，但不能替代边界判断、测试验证和最终责�
 
 - `src/app/router/*` 只装配路由，`src/routes/*` 只做 HTTP adapter。
 - `src/services/*` 做应用用例、facade 和安全 view/projection。
-- `crates/retain-jobs/src/job_runner/*` 做运行态执行；通用进程控制留在 `retain-proc`。
-- 数据库访问通过 `retain-data::Db` facade 和领域子模块，不在 route/service 里直接写 SQL。
+- `crates/retainpdf-runner/src/job_runner/*` 做运行态执行；通用进程控制留在 `retainpdf-proc`。
+- 数据库访问通过 `retainpdf-data::Db` facade 和领域子模块，不在 route/service 里直接写 SQL。
 - 新 API 字段要同步分领域 API 文档、双镜像 JSON Schema 和 producer/consumer 契约测试。
 
 常用检查：

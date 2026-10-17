@@ -106,4 +106,6 @@ research/
 
 # rpr 排版引擎的复制品（backend/rendering-engine/sync.sh）：上面的 data/、output/ 规则会误伤引擎源码。
 !backend/rendering-engine/engine/data/
+# Rust 包里的源码目录也叫 data（任务包的 src/data/），上面的 data/ 规则会把它挡掉：改名、挪目录后 git add 不会自动加回来。
+!backend/packages/*/src/**/data/
 !backend/rendering-engine/engine/src/output/

@@ -1,5 +1,5 @@
 //! `retainpdf backup`:书库数据库的备份与恢复。后端开着时经后端(恢复时它会停住同步、
-//! 拒绝在任务运行时恢复),没开时直接操作数据目录(规则相同,见 retain-db 的 backup.rs)。
+//! 拒绝在任务运行时恢复),没开时直接操作数据目录(规则相同,见 retainpdf-db 的 backup.rs)。
 
 use std::process::ExitCode;
 
@@ -7,7 +7,7 @@ use anyhow::{bail, Result};
 use clap::Subcommand;
 use serde_json::{json, Value};
 
-use retain_pdf_data::db::backup::{KIND_BEFORE_RESTORE, KIND_MANUAL};
+use retainpdf_data::db::backup::{KIND_BEFORE_RESTORE, KIND_MANUAL};
 
 use crate::context::Ctx;
 use crate::ui;

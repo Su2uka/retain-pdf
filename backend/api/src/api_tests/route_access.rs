@@ -1,4 +1,4 @@
-//! 路由的访问策略和路径参数分类要覆盖到每一条路由。分类规则在账号包 `retain-pdf-accounts` 的 `access.rs`，
+//! 路由的访问策略和路径参数分类要覆盖到每一条路由。分类规则在账号包 `retainpdf-accounts` 的 `access.rs`，
 //! 这两个测试要扫 rust_api 的路由源码，所以放在这里。
 use crate::services::accounts::{classify_param, route_policy, ParamClass, RoutePolicy};
 use crate::test_support::routes::router_source_files;

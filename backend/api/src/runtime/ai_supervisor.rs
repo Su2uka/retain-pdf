@@ -23,7 +23,7 @@ use crate::process::{
     configure_child_process, mark_supervised_child, terminate_child_process_tree,
 };
 use crate::runtime::probe_client::build_probe_client;
-use retain_pdf_api_base::supervisor;
+use retainpdf_api_base::supervisor;
 
 pub const AI_STATUS_DISABLED: u8 = supervisor::SUPERVISOR_DISABLED;
 pub const AI_STATUS_STARTING: u8 = supervisor::SUPERVISOR_STARTING;

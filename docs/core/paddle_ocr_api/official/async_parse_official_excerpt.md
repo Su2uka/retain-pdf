@@ -5,7 +5,7 @@
 - GitHub 官方文档：
   <https://github.com/PaddlePaddle/PaddleOCR/blob/main/docs/version3.x/pipeline_usage/PaddleOCR-VL.md>
 - 当前仓库保存的早期摘录（历史来源，当前文件已迁移）：
-  `backend/packages/retain-data/src/ocr_provider/paddle/AsyncParse.md`
+  `backend/packages/retainpdf-data/src/ocr_provider/paddle/AsyncParse.md`
 
 这份摘录只保留和本仓库 provider 对接直接相关的内容，不复制整份官方教程。
 

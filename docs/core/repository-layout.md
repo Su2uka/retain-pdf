@@ -10,7 +10,7 @@
 | `backend/api`、`backend/jobs` | HTTP 边界与任务进程调度 |
 | `backend/ai`、`backend/pipeline` | AI 服务与独立可执行的文档流水线 |
 | `backend/packages` | 后端内部共享 Rust 库 |
-| `database/retain-db` | 数据访问实现、迁移及其测试，不包含真实数据库文件 |
+| `database/retainpdf-db` | 数据访问实现、迁移及其测试，不包含真实数据库文件 |
 | `contracts` | 跨端 JSON Schema 与生成 DTO 的唯一上游 |
 | `backend/contracts` | 支持后端源码包的字节级协议镜像，不独立演化 |
 | `tests` | 项目级集成、端到端、性能测试与固定样本 |

@@ -56,7 +56,7 @@ mod tests { fn fixture() { let runtime: ProcessRuntimeDeps; } }
         self.assertEqual([], self.check_sources({
             "services/jobs/presentation/detail_projection.rs": "use crate::services::files::artifacts::build_artifacts_display;",
             "services/library/book_projection.rs": "use crate::services::files::artifacts::build_artifacts_display; use crate::services::jobs::job_readiness;",
-            "packages/retain-pdf-files/src/artifacts/presentation.rs": "use retain_pdf_core::models::api::{ArtifactLinksView, ArtifactDisplayItemView};",
+            "packages/retainpdf-files/src/artifacts/presentation.rs": "use retainpdf_core::models::api::{ArtifactLinksView, ArtifactDisplayItemView};",
             "services/jobs/event_feed/batch_tests.rs": "use crate::services::library::book_projection;",
         }, checks.check_shared_artifact_presentation))
         for path in ("services/jobs/presentation/detail_projection.rs", "services/jobs/query/nested.rs"):
@@ -66,12 +66,12 @@ mod tests { fn fixture() { let runtime: ProcessRuntimeDeps; } }
             ))
         for source in (
             "use crate::services::jobs;", "use crate::services::{library};", "fn build(db: &Db) {}",
-            "std::fs::read(path);", "use retain_pdf_data::ocr_provider;", "use retain_pdf_core::storage_paths;",
+            "std::fs::read(path);", "use retainpdf_data::ocr_provider;", "use retainpdf_core::storage_paths;",
             "use std::{fs as files};", "tokio::process::Command::new(program);",
             'let raw = payload["layoutParsingResults"];',
         ):
             self.assertTrue(self.check_sources(
-                {"packages/retain-pdf-files/src/artifacts/presentation/nested.rs": source},
+                {"packages/retainpdf-files/src/artifacts/presentation/nested.rs": source},
                 checks.check_shared_artifact_presentation,
             ))
         self.assertTrue(self.check_sources(
@@ -81,7 +81,7 @@ mod tests { fn fixture() { let runtime: ProcessRuntimeDeps; } }
 
     def test_shared_artifact_guard_ignores_comments_and_literals(self):
         self.assertEqual([], self.check_sources({
-            "packages/retain-pdf-files/src/artifacts/presentation.rs": '// no jobs or Db access\nconst LABEL: &str = "library";',
+            "packages/retainpdf-files/src/artifacts/presentation.rs": '// no jobs or Db access\nconst LABEL: &str = "library";',
             "services/jobs/query.rs": 'const NOTE: &str = r#"book_projection"#;',
         }, checks.check_shared_artifact_presentation))
 
@@ -246,10 +246,10 @@ mod tests { fn fixture() { let runtime: ProcessRuntimeDeps; } }
         for source in ("AiProxyConfig::from_env()", "std::env::var(\"BASE\")", "ai_service_status()", "Lazy<Client>"):
             with self.subTest(source=source):
                 self.assertTrue(self.check_sources(
-                    {"packages/retain-pdf-ai/src/gateway.rs": source}, checks.check_ai_gateway_dependencies,
+                    {"packages/retainpdf-ai/src/gateway.rs": source}, checks.check_ai_gateway_dependencies,
                 ))
         self.assertEqual([], self.check_sources(
-            {"packages/retain-pdf-ai/src/gateway.rs": "fn new(config: &AiProxyConfig, status: fn() -> u8) {}"},
+            {"packages/retainpdf-ai/src/gateway.rs": "fn new(config: &AiProxyConfig, status: fn() -> u8) {}"},
             checks.check_ai_gateway_dependencies,
         ))
 
@@ -258,12 +258,12 @@ mod tests { fn fixture() { let runtime: ProcessRuntimeDeps; } }
             for dependency in ("AppConfig", "AppState", "api_tests"):
                 with self.subTest(name=name, dependency=dependency):
                     errors = self.check_sources(
-                        {f"packages/retain-pdf-ai/src/{name}": f"use retain_pdf_core::config::{dependency};"},
+                        {f"packages/retainpdf-ai/src/{name}": f"use retainpdf_core::config::{dependency};"},
                         checks.check_agent_calculation_dependencies,
                     )
                     self.assertTrue(any("narrow Db/data_root" in error for error in errors))
         self.assertEqual([], self.check_sources(
-            {"packages/retain-pdf-ai/src/agent_calculations/service.rs": "use retain_pdf_data::db::Db; fn f(data_root: &Path) {}"},
+            {"packages/retainpdf-ai/src/agent_calculations/service.rs": "use retainpdf_data::db::Db; fn f(data_root: &Path) {}"},
             checks.check_agent_calculation_dependencies,
         ))
 
@@ -280,7 +280,7 @@ mod tests { fn fixture() { let runtime: ProcessRuntimeDeps; } }
             ), patch.object(checks, "ALL_SRC_ROOTS", (root / "src",)), patch.object(
                 checks, "extracted_domain_root",
                 # 没登记的领域（DomainFacadeTests 清空了 EXTRACTED_DOMAINS）照包名的规矩找。
-                lambda domain: root / "packages" / checks.EXTRACTED_DOMAINS.get(domain, f"retain-pdf-{domain}"),
+                lambda domain: root / "packages" / checks.EXTRACTED_DOMAINS.get(domain, f"retainpdf-{domain}"),
             ), patch.dict(checks.DOMAIN_MOUNTS, mounts(root) if mounts else {}):
                 for relative, source in sources.items():
                     logical = Path("src") / relative
@@ -302,7 +302,7 @@ mod tests { fn fixture() { let runtime: ProcessRuntimeDeps; } }
     def check_upload_sources(self, sources):
         """sources: {入口包里 uploads/ 下的相对路径: 源码}。"""
         with tempfile.TemporaryDirectory() as directory:
-            crate_root = Path(directory) / "retain-pdf-ingest"
+            crate_root = Path(directory) / "retainpdf-ingest"
             for relative, source in sources.items():
                 path = crate_root / "src" / "uploads" / relative
                 path.parent.mkdir(parents=True, exist_ok=True)
@@ -314,7 +314,7 @@ mod tests { fn fixture() { let runtime: ProcessRuntimeDeps; } }
 
     def test_narrow_dependencies_are_allowed(self):
         self.assertEqual([], self.check_upload_sources({
-            "service.rs": "use retain_pdf_data::db::Db; use super::capacity::UploadCapacity;",
+            "service.rs": "use retainpdf_data::db::Db; use super::capacity::UploadCapacity;",
             "tests/mod.rs": "let root = std::env::temp_dir();",
         }))
 
@@ -330,11 +330,11 @@ mod tests { fn fixture() { let runtime: ProcessRuntimeDeps; } }
 
     def test_http_error_mapping_stays_outside_uploads(self):
         errors = self.check_upload_sources({
-            "error.rs": "use retain_pdf_api_base::error::AppError;",
+            "error.rs": "use retainpdf_api_base::error::AppError;",
         })
         self.assertTrue(any("HTTP error mapping" in error for error in errors))
         self.assertEqual([], self.check_upload_sources({
-            "api.rs": "use retain_pdf_api_base::error::AppError;",
+            "api.rs": "use retainpdf_api_base::error::AppError;",
         }))
 
     def test_comments_do_not_trigger_the_upload_rules(self):
@@ -564,19 +564,19 @@ class ArtifactPathOwnershipTests(unittest.TestCase):
         self.assertEqual([], self.run_check({
             "services/jobs/files/downloads/files.rs": "fn f() { resolve_output_pdf(job, root); }",
             "services/jobs/reader/markdown.rs": "fn f() { resolve_markdown_path(job, root); }",
-            "packages/retain-pdf-files/src/derived_artifacts/word.rs": "use retain_pdf_core::storage_paths::resolve_source_pdf;",
-            "packages/retain-pdf-files/src/derived_artifacts.rs": "fn f() { resolve_output_pdf(job, root); }",
-            "packages/retain-pdf-files/src/artifacts/bundle.rs": "fn f() { resolve_markdown_path(job, root); }",
+            "packages/retainpdf-files/src/derived_artifacts/word.rs": "use retainpdf_core::storage_paths::resolve_source_pdf;",
+            "packages/retainpdf-files/src/derived_artifacts.rs": "fn f() { resolve_output_pdf(job, root); }",
+            "packages/retainpdf-files/src/artifacts/bundle.rs": "fn f() { resolve_markdown_path(job, root); }",
         }))
 
     def test_files_crate_outside_artifacts_and_derived_artifacts_is_rejected(self):
         for path in ("download_names.rs", "download_generation.rs", "lib.rs"):
             with self.subTest(path=path):
                 errors = self.run_check(
-                    {f"packages/retain-pdf-files/src/{path}": "fn f() { resolve_output_pdf(job, root); }"}
+                    {f"packages/retainpdf-files/src/{path}": "fn f() { resolve_output_pdf(job, root); }"}
                 )
                 self.assertEqual(1, len(errors), errors)
-                self.assertIn(f"retain-pdf-files/src/{path}: builds artifact paths itself", errors[0])
+                self.assertIn(f"retainpdf-files/src/{path}: builds artifact paths itself", errors[0])
 
     def test_new_readers_are_rejected(self):
         for path in ("services/library/new.rs", "routes/jobs/files.rs"):
@@ -690,7 +690,7 @@ class ExtractedDomainTests(unittest.TestCase):
             sources = {f"src/services/{domain}/mod.rs": "mod inner;\n"
                        for domain in checks.SERVICE_DOMAINS if domain != "glossaries"}
             sources["src/services/mod.rs"] = services_mod
-            sources["packages/retain-pdf-glossaries/src/lib.rs"] = lib
+            sources["packages/retainpdf-glossaries/src/lib.rs"] = lib
             sources.update(extra or {})
             for relative, source in sources.items():
                 path = root / relative
@@ -698,22 +698,22 @@ class ExtractedDomainTests(unittest.TestCase):
                 path.write_text(source, encoding="utf-8")
             with patch.object(checks, "REPO_ROOT", root), patch.object(checks, "SRC_ROOT", root / "src"), \
                     patch.object(checks, "ALL_SRC_ROOTS", (root / "src",)), \
-                    patch.object(checks, "EXTRACTED_DOMAINS", {"glossaries": "retain-pdf-glossaries"}), \
+                    patch.object(checks, "EXTRACTED_DOMAINS", {"glossaries": "retainpdf-glossaries"}), \
                     patch.object(checks, "extracted_domain_root",
-                                 lambda domain: root / "packages" / "retain-pdf-glossaries"):
+                                 lambda domain: root / "packages" / "retainpdf-glossaries"):
                 errors = []
                 checks.check_domain_facades(errors)
                 return errors
 
     def test_crate_facade_and_reexport_pass(self):
         self.assertEqual([], self.run_check(
-            "pub(crate) use retain_pdf_glossaries as glossaries;\n", "mod api;\npub use api::Thing;\n",
+            "pub(crate) use retainpdf_glossaries as glossaries;\n", "mod api;\npub use api::Thing;\n",
         ))
 
     def test_missing_reexport_public_submodule_and_leftover_directory_are_rejected(self):
         errors = self.run_check("", "pub mod api;\n", {"src/services/glossaries/extra.rs": ""})
         self.assertEqual(3, len(errors), errors)
-        self.assertTrue(any("re-export the retain-pdf-glossaries crate" in error for error in errors), errors)
+        self.assertTrue(any("re-export the retainpdf-glossaries crate" in error for error in errors), errors)
         self.assertTrue(any("must stay private" in error for error in errors), errors)
         self.assertTrue(any("do not add code back under services/" in error for error in errors), errors)
 
@@ -723,26 +723,26 @@ class ExtractedDomainTests(unittest.TestCase):
             root = Path(directory)
             for domain, files in crates.items():
                 for relative, source in files.items():
-                    path = root / f"retain-pdf-{domain}" / "src" / relative
+                    path = root / f"retainpdf-{domain}" / "src" / relative
                     path.parent.mkdir(parents=True, exist_ok=True)
                     path.write_text(source, encoding="utf-8")
-            extracted = {domain: f"retain-pdf-{domain}" for domain in crates}
+            extracted = {domain: f"retainpdf-{domain}" for domain in crates}
             with patch.object(checks, "EXTRACTED_DOMAINS", extracted), \
-                    patch.object(checks, "extracted_domain_root", lambda domain: root / f"retain-pdf-{domain}"):
+                    patch.object(checks, "extracted_domain_root", lambda domain: root / f"retainpdf-{domain}"):
                 return checks.extracted_domain_dependency_edges()
 
     def test_crate_name_uses_count_as_domain_edges(self):
         edges = self.crate_edges({
-            "accounts": {"platform_settings/mod.rs": "use retain_pdf_providers::{create_credential};\n"},
-            "providers": {"lib.rs": "use retain_pdf_core::models;\nuse retain_pdf_api_base::error::AppError;\n"},
+            "accounts": {"platform_settings/mod.rs": "use retainpdf_providers::{create_credential};\n"},
+            "providers": {"lib.rs": "use retainpdf_core::models;\nuse retainpdf_api_base::error::AppError;\n"},
         })
         self.assertEqual({("accounts", "providers")}, set(edges))
 
     def test_crate_name_uses_in_tests_and_comments_are_ignored(self):
         edges = self.crate_edges({
-            "accounts": {"lib.rs": "// 以前用过 retain_pdf_providers\n",
-                         "platform_settings/tests.rs": "use retain_pdf_providers::create_credential;\n"},
-            "providers": {"lib.rs": "mod probe;\n#[cfg(test)]\nmod tests {\n    use retain_pdf_accounts::Principal;\n}\n"},
+            "accounts": {"lib.rs": "// 以前用过 retainpdf_providers\n",
+                         "platform_settings/tests.rs": "use retainpdf_providers::create_credential;\n"},
+            "providers": {"lib.rs": "mod probe;\n#[cfg(test)]\nmod tests {\n    use retainpdf_accounts::Principal;\n}\n"},
         })
         self.assertEqual({}, edges)
 
@@ -853,7 +853,7 @@ class JobsAndLibraryRuleTests(unittest.TestCase):
         self.assertReports({"services/jobs/files/downloads.rs": "resolve_output_pdf(job)"},
                            checks.check_downloads_do_not_generate_artifacts, "downloads facade must stay thin")
         # 任务包里写包名。
-        self.assertReports({"services/jobs/files/downloads.rs": "use retain_pdf_core::storage_paths::JobPaths;"},
+        self.assertReports({"services/jobs/files/downloads.rs": "use retainpdf_core::storage_paths::JobPaths;"},
                            checks.check_downloads_do_not_generate_artifacts, "(storage_paths::)")
 
     def test_stage_view_consumers_use_the_shared_builder(self):
@@ -909,7 +909,7 @@ class JobsAndLibraryRuleTests(unittest.TestCase):
         with patch.object(checks, "_CRATE_OF_MODULE", {}):
             self.assertReports(tree, checks.check_worker_command_boundary, "snapshot creation must not build worker commands")
             # 任务包里写包名。
-            tree["services/jobs/lifecycle/snapshot_factory.rs"] = "use retain_pdf_data::worker_command::WorkerStageCommand;"
+            tree["services/jobs/lifecycle/snapshot_factory.rs"] = "use retainpdf_data::worker_command::WorkerStageCommand;"
             self.assertReports(tree, checks.check_worker_command_boundary, "snapshot creation must not build worker commands")
 
     def test_shell_code_reaches_job_runner_only_through_runtime_gateway(self):
@@ -929,10 +929,10 @@ class JobsAndLibraryRuleTests(unittest.TestCase):
                     {path: "use crate::models::domain::JobSnapshot;"}, checks.check_service_model_facade_boundaries,
                 ))
                 # 任务包里写包名。
-                self.assertReports({path: "use retain_pdf_core::models::job::Internal;"},
+                self.assertReports({path: "use retainpdf_core::models::job::Internal;"},
                                    checks.check_service_model_facade_boundaries, "must import models through")
                 self.assertEqual([], self.check_sources(
-                    {path: "use retain_pdf_core::models::domain::JobSnapshot;"}, checks.check_service_model_facade_boundaries,
+                    {path: "use retainpdf_core::models::domain::JobSnapshot;"}, checks.check_service_model_facade_boundaries,
                 ))
 
 
@@ -983,7 +983,7 @@ class RulePathTests(unittest.TestCase):
 def _moved_domain_mounts(root):
     """模拟任务、书库已经挪进独立的包：文件在 rust_api 的 src/ 外面，门面叫 lib.rs。"""
     return {
-        domain: (lambda domain=domain: root / "packages" / f"retain-pdf-{domain}" / "src")
+        domain: (lambda domain=domain: root / "packages" / f"retainpdf-{domain}" / "src")
         for domain in checks.DOMAIN_MOUNTS
     }
 

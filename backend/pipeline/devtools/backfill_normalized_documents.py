@@ -818,7 +818,7 @@ def _table_exists(connection: sqlite3.Connection, table: str) -> bool:
 
 
 def _build_fts_rows(job_dir: Path, document: dict) -> Iterable[tuple[int, str, str, str]]:
-    """Mirror retain-data::build_fts_rows_from_job_dir without provider/LLM calls."""
+    """Mirror retainpdf-data::build_fts_rows_from_job_dir without provider/LLM calls."""
     translated: dict[tuple[int, int], str] = {}
     translated_dir = job_dir / "translated"
     if translated_dir.exists():

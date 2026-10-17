@@ -15,7 +15,7 @@
 在仓库根目录、终端 A 执行：
 
 ```sh
-cargo build --locked --release -p retain-pdf-api --example query_acceptance
+cargo build --locked --release -p retainpdf-api --example query_acceptance
 ACCEPTANCE_ROOT=$(mktemp -d /tmp/retain-api-acceptance.XXXXXX)
 mkdir "$ACCEPTANCE_ROOT/runtime"
 printf '%s\n' "$ACCEPTANCE_ROOT"

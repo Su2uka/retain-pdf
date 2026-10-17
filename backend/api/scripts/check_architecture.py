@@ -13,20 +13,20 @@ SRC_ROOT = REPO_ROOT / "src"
 # 本脚本沿用旧 "src/<module>/..." 字面量作为逻辑路径：abs_src() 负责映射到
 # 新家，rel() 负责逆映射回逻辑路径——检查逻辑与 allowlist 全部不用改。
 _CRATE_OF_MODULE = {
-    "job_runner": "../packages/retain-jobs",
-    "db": "../../database/retain-db",
-    "job_events": "../packages/retain-data",
-    "worker_command": "../packages/retain-data",
-    "ocr_provider": "../packages/retain-data",
-    "models": "../packages/retain-core",
-    "storage_paths": "../packages/retain-core",
-    "config": "../packages/retain-core",
-    "job_failure": "../packages/retain-core",
-    "job_failure_structured": "../packages/retain-core",
-    "job_failure_support": "../packages/retain-core",
+    "job_runner": "../packages/retainpdf-runner",
+    "db": "../../database/retainpdf-db",
+    "job_events": "../packages/retainpdf-data",
+    "worker_command": "../packages/retainpdf-data",
+    "ocr_provider": "../packages/retainpdf-data",
+    "models": "../packages/retainpdf-core",
+    "storage_paths": "../packages/retainpdf-core",
+    "config": "../packages/retainpdf-core",
+    "job_failure": "../packages/retainpdf-core",
+    "job_failure_structured": "../packages/retainpdf-core",
+    "job_failure_support": "../packages/retainpdf-core",
     # 2026-10-16 挪进 API 各领域包共用的底座。
-    "error": "../packages/retain-pdf-api-base",
-    "job_loading": "../packages/retain-pdf-api-base",
+    "error": "../packages/retainpdf-api-base",
+    "job_loading": "../packages/retainpdf-api-base",
 }
 
 # 失败分类由两个地方产生：Python 流水线的 structured_errors.py（worker 打出
@@ -36,7 +36,7 @@ _CRATE_OF_MODULE = {
 # 一句假话：恢复按钮根本不看分类，照样只重跑渲染。这条门禁把两份清单钉在一起。
 FAILURE_CATALOGUE_LABEL = "src/job_failure_catalogue.rs"
 FAILURE_CATALOGUE_PATH = (
-    REPO_ROOT.parent / "packages" / "retain-core" / "src" / "job_failure_catalogue.rs"
+    REPO_ROOT.parent / "packages" / "retainpdf-core" / "src" / "job_failure_catalogue.rs"
 )
 PYTHON_STRUCTURED_ERRORS = (
     REPO_ROOT.parent / "pipeline" / "retainpdf_pipeline" / "foundation" / "shared" / "structured_errors.py"
@@ -46,11 +46,11 @@ CATALOGUE_KEY_PATTERN = re.compile(r'^\s*\("([a-z0-9_]+)", FailureRecovery \{', 
 
 ALL_SRC_ROOTS = (
     SRC_ROOT,
-    REPO_ROOT.parent.parent / "database" / "retain-db" / "src",
-    REPO_ROOT.parent / "packages" / "retain-core" / "src",
-    REPO_ROOT.parent / "packages" / "retain-data" / "src",
-    REPO_ROOT.parent / "packages" / "retain-jobs" / "src",
-    REPO_ROOT.parent / "packages" / "retain-pdf-api-base" / "src",
+    REPO_ROOT.parent.parent / "database" / "retainpdf-db" / "src",
+    REPO_ROOT.parent / "packages" / "retainpdf-core" / "src",
+    REPO_ROOT.parent / "packages" / "retainpdf-data" / "src",
+    REPO_ROOT.parent / "packages" / "retainpdf-runner" / "src",
+    REPO_ROOT.parent / "packages" / "retainpdf-api-base" / "src",
 )
 
 
@@ -59,7 +59,7 @@ ALL_SRC_ROOTS = (
 #     "jobs": lambda: extracted_domain_root("jobs") / "src",
 # 挪进包以后门面从 mod.rs 变成 lib.rs，abs_src() 和 rel() 会对上。按目录扫文件用 scan_logical()，
 # 不要直接 scan_rs_files(SRC_ROOT / ...)，否则挪走的领域扫不到，规则会静悄悄地什么都不查。
-# 任务、书库 2026-10-17 分别挪进了 retain-pdf-jobs、retain-pdf-library。
+# 任务、书库 2026-10-17 分别挪进了 retainpdf-jobs、retainpdf-library。
 DOMAIN_MOUNTS: dict = {
     "jobs": lambda: extracted_domain_root("jobs") / "src",
     "library": lambda: extracted_domain_root("library") / "src",
@@ -139,7 +139,7 @@ ALLOWED_APPSTATE_FILES = {
 # ADR-002 Phase 2：壳只能经接缝碰任务运行时。job_runner 是 jobsd 的地盘，
 # 壳里唯二可以引用它的地方是 InProcess 落点的装配处与接缝本身——多一个
 # 文件引用，就意味着"换落点不影响上层"这条保证被悄悄打破了。
-# （纯 OS 进程工具已迁往 retain-proc，用 crate::process::，不算越界。）
+# （纯 OS 进程工具已迁往 retainpdf-proc，用 crate::process::，不算越界。）
 JOB_RUNNER_IMPORT_ALLOWLIST = {
     Path("src/app/jobs.rs"),
     Path("src/services/jobs/runtime_gateway.rs"),
@@ -349,7 +349,7 @@ ARTIFACT_BOUNDARY_FILES = {
     Path("src/storage_paths.rs"),
     Path("src/routes/jobs/files.rs"),
 }
-# 文件包 retain-pdf-files 里的产物清单和打包，路径相对包的 src/。
+# 文件包 retainpdf-files 里的产物清单和打包，路径相对包的 src/。
 FILES_ARTIFACT_BOUNDARY_FILES = (
     Path("artifacts/mod.rs"),
     Path("artifacts/bundle.rs"),
@@ -775,8 +775,8 @@ def check_service_model_facade_boundaries(errors: list[str]) -> None:
             if path.name == "tests.rs":
                 continue
             text = route_source_without_tests(path)
-            # 任务拆成包以后写的是 `retain_pdf_core::models`，两种写法都查（2026-10-17）。
-            for line in re.findall(r"^use (?:crate|retain_pdf_core)::models(?:::|::\{)[^\n;]+", text, re.MULTILINE):
+            # 任务拆成包以后写的是 `retainpdf_core::models`，两种写法都查（2026-10-17）。
+            for line in re.findall(r"^use (?:crate|retainpdf_core)::models(?:::|::\{)[^\n;]+", text, re.MULTILINE):
                 if not any(
                     allowed in line
                     for allowed in (
@@ -850,7 +850,7 @@ def check_runtime_ownership(errors: list[str]) -> None:
 def check_ai_gateway_dependencies(errors: list[str]) -> None:
     """AI 网关的配置和健康状态由装配传进来，不自己读环境变量、不自己读监督器。
 
-    网关在 AI 包 retain-pdf-ai 里：碰 `crate::runtime` 的监督器、越过门面用 `gateway` 子模块，编译器已经挡住了。
+    网关在 AI 包 retainpdf-ai 里：碰 `crate::runtime` 的监督器、越过门面用 `gateway` 子模块，编译器已经挡住了。
     只管网关本身（`lib.rs`、`api.rs`、`gateway.rs`）；同一个包里的 agent_*、document_operations 是别的模块。
     """
     crate_root = extracted_domain_root("ai")
@@ -869,8 +869,8 @@ def check_ai_gateway_dependencies(errors: list[str]) -> None:
 def check_agent_calculation_dependencies(errors: list[str]) -> None:
     """Calculation storage needs Db and data_root, not application configuration.
 
-    在 AI 包 retain-pdf-ai 的 `agent_calculations/` 里。`AppState`、rust_api 的 `api_tests` 包里本来就引用不到，
-    `AppConfig` 在 retain-pdf-core 里、引用得到，所以这条还要查。
+    在 AI 包 retainpdf-ai 的 `agent_calculations/` 里。`AppState`、rust_api 的 `api_tests` 包里本来就引用不到，
+    `AppConfig` 在 retainpdf-core 里、引用得到，所以这条还要查。
     """
     crate_root = extracted_domain_root("ai")
     for path in scan_rs_files(crate_root / "src" / "agent_calculations"):
@@ -885,7 +885,7 @@ def check_agent_calculation_dependencies(errors: list[str]) -> None:
 def check_upload_boundaries(errors: list[str]) -> None:
     """上传模块只返回自己的 UploadError、不读环境变量。
 
-    它在入口包 retain-pdf-ingest 里：越过门面、依赖任务和路由、碰 AppState，编译器已经挡住了；
+    它在入口包 retainpdf-ingest 里：越过门面、依赖任务和路由、碰 AppState，编译器已经挡住了；
     HTTP 错误的转换写在入口包的 lib.rs，`uploads/api.rs` 是上传对外的入口，也可以用 AppError。
     """
     crate_root = extracted_domain_root("ingest")
@@ -966,7 +966,7 @@ def check_shared_artifact_presentation(errors: list[str]) -> None:
                 errors.append(
                     f"{relative}: jobs must not depend on book_projection; shared display belongs in services::files::artifacts"
                 )
-    # 产物的展示（列表里每一项叫什么、链接）在文件包 retain-pdf-files 的 artifacts/presentation。
+    # 产物的展示（列表里每一项叫什么、链接）在文件包 retainpdf-files 的 artifacts/presentation。
     files_root = extracted_domain_root("files")
     for path in scan_rs_files(files_root / "src"):
         if path.stem == "tests" or path.stem.endswith("_tests"):
@@ -986,7 +986,7 @@ def check_shared_artifact_presentation(errors: list[str]) -> None:
                 if token in route_source_without_tests(path):
                     errors.append(f"{relative}: shared artifact presentation must not interpret provider raw token '{token}'")
     if (abs_src(Path("src/services/library/book_projection/artifacts.rs"))).exists():
-        errors.append("services/library/book_projection/artifacts.rs: shared artifact display belongs in retain-pdf-files src/artifacts/presentation.rs")
+        errors.append("services/library/book_projection/artifacts.rs: shared artifact display belongs in retainpdf-files src/artifacts/presentation.rs")
 
 
 def check_runtime_deps_module_boundary(errors: list[str]) -> None:
@@ -1066,8 +1066,8 @@ def check_artifact_boundary_layer(errors: list[str]) -> None:
     ]
     for rel_path, path in targets:
         text = path.read_text(encoding="utf-8")
-        # 文件包里写包名：retain_pdf_data::ocr_provider。
-        if re.search(r"\b(?:crate|retain_pdf_data)::ocr_provider::", text):
+        # 文件包里写包名：retainpdf_data::ocr_provider。
+        if re.search(r"\b(?:crate|retainpdf_data)::ocr_provider::", text):
             errors.append(
                 f"{rel_path}: artifact/download boundary must not depend directly on ocr_provider"
             )
@@ -1094,7 +1094,7 @@ def check_downloads_do_not_generate_artifacts(errors: list[str]) -> None:
     downloads_facade = abs_src(Path("src/services/jobs/files/downloads.rs"))
     text = route_source_without_tests(downloads_facade)
     for token in (
-        # `crate::storage_paths::`，任务包里写 `retain_pdf_core::storage_paths::`。
+        # `crate::storage_paths::`，任务包里写 `retainpdf_core::storage_paths::`。
         "storage_paths::",
         "load_supported_job",
         "resolve_source_pdf",
@@ -1423,7 +1423,7 @@ def check_worker_command_boundary(errors: list[str]) -> None:
 
     snapshot_factory_path = abs_src(Path("src/services/jobs/lifecycle/snapshot_factory.rs"))
     snapshot_factory_text = route_source_without_tests(snapshot_factory_path)
-    # `crate::worker_command`，任务包里写 `retain_pdf_data::worker_command`。
+    # `crate::worker_command`，任务包里写 `retainpdf_data::worker_command`。
     if re.search(r"\bworker_command::", snapshot_factory_text) or "build_ocr_command" in snapshot_factory_text:
         errors.append(
             "src/services/jobs/lifecycle/snapshot_factory.rs: snapshot creation must not build worker commands"
@@ -1482,15 +1482,15 @@ ALLOWED_DOMAIN_DEPENDENCIES = {
 # 已经拆成独立包的领域 → 包所在的目录（backend/packages/<目录>，目录名就是包名）。
 # 这些领域的代码不在 services/ 下，services/mod.rs 里 `pub(crate) use <包> as <领域>;` 接上。
 EXTRACTED_DOMAINS = {
-    "accounts": "retain-pdf-accounts",
-    "ai": "retain-pdf-ai",
-    "files": "retain-pdf-files",
-    "glossaries": "retain-pdf-glossaries",
-    "ingest": "retain-pdf-ingest",
-    "jobs": "retain-pdf-jobs",
-    "library": "retain-pdf-library",
-    "platform": "retain-pdf-platform",
-    "providers": "retain-pdf-providers",
+    "accounts": "retainpdf-accounts",
+    "ai": "retainpdf-ai",
+    "files": "retainpdf-files",
+    "glossaries": "retainpdf-glossaries",
+    "ingest": "retainpdf-ingest",
+    "jobs": "retainpdf-jobs",
+    "library": "retainpdf-library",
+    "platform": "retainpdf-platform",
+    "providers": "retainpdf-providers",
 }
 
 
@@ -1632,7 +1632,7 @@ def service_dependency_edges() -> dict[tuple[str, str], Path]:
 
 
 def extracted_domain_dependency_edges() -> dict[tuple[str, str], Path]:
-    """拆成独立包的领域用别的领域时写的是包名（`retain_pdf_providers::…`），不是 `crate::services::…`。"""
+    """拆成独立包的领域用别的领域时写的是包名（`retainpdf_providers::…`），不是 `crate::services::…`。"""
     crate_domains = {crate.replace("-", "_"): domain for domain, crate in EXTRACTED_DOMAINS.items()}
     edges: dict[tuple[str, str], Path] = {}
     for domain in sorted(EXTRACTED_DOMAINS):
@@ -1642,7 +1642,7 @@ def extracted_domain_dependency_edges() -> dict[tuple[str, str], Path]:
             if "tests" in relative.parts or path.name == "tests.rs" or path.name.endswith("_tests.rs"):
                 continue
             source = rust_boundary_source(path)
-            for crate_name in re.findall(r"(?<![:\w])(retain_pdf_\w+)", source):
+            for crate_name in re.findall(r"(?<![:\w])(retainpdf_\w+)", source):
                 target = crate_domains.get(crate_name)
                 if target and target != domain:
                     edges.setdefault((domain, target), Path(EXTRACTED_DOMAINS[domain]) / "src" / relative)
@@ -1707,7 +1707,7 @@ def check_service_dependency_cycles(errors: list[str]) -> None:
 
 
 # 任务产物的路径只有出口模块能拼：任务的文件走 services/jobs/files/downloads 的 `open`，书的文件走
-# library/media.rs，派生产物的生成在 derived_artifacts，产物清单和打包在 artifacts（这两个在文件包 retain-pdf-files 里）。其它地方直接拼路径，流水线一改输出布局就跟着坏，
+# library/media.rs，派生产物的生成在 derived_artifacts，产物清单和打包在 artifacts（这两个在文件包 retainpdf-files 里）。其它地方直接拼路径，流水线一改输出布局就跟着坏，
 # 而且每个读的人都要知道文件放在哪（"牵一发动全身"的来源之一）。
 ARTIFACT_PATH_RESOLVER = re.compile(
     r"\bresolve_(?:output_pdf|source_pdf|markdown_path|markdown_images_dir|normalized_document"
@@ -1721,7 +1721,7 @@ ARTIFACT_PATH_OWNERS = (
     # 书的文件（原文、封面、原文页）的出口。
     Path("src/services/library/media.rs"),
 )
-# 文件包 retain-pdf-files 里只有这两块能拼，路径相对包的 src/；下载文件名、生成去重、门面都不许。
+# 文件包 retainpdf-files 里只有这两块能拼，路径相对包的 src/；下载文件名、生成去重、门面都不许。
 FILES_ARTIFACT_PATH_OWNERS = (
     Path("artifacts"),
     Path("derived_artifacts"),
@@ -1801,7 +1801,7 @@ def check_job_entry_ownership(errors: list[str]) -> None:
 
 
 # 任务提交时的完整请求（`request_payload`）只许生成和改写它的模块直接动字段；别处问任务的问题，
-# 用 retain-core `models/job/questions.rs` 里的方法（`job.source_job_id()`、`job.uses_model_executor()`……）。
+# 用 retainpdf-core `models/job/questions.rs` 里的方法（`job.source_job_id()`、`job.uses_model_executor()`……）。
 # 整份请求原样传给别的函数（脱敏、对外投影、快照）不算。这样拆包以后，别的包不依赖请求的内部结构。
 REQUEST_PAYLOAD_FIELD_ACCESS = re.compile(r"\brequest_payload\s*\.\s*[a-z_]")
 # 2026-10-16 冻结：建任务（凭据）、重跑、重试阶段、合并阅读的虚拟任务，都在生成或改写请求。只许删不许加；
@@ -1829,7 +1829,7 @@ def check_request_payload_access(errors: list[str]) -> None:
     for relative in sorted(accessors - KNOWN_REQUEST_PAYLOAD_WRITERS):
         errors.append(
             f"{relative}: reaches into job.request_payload fields; ask the job instead "
-            "(retain-core models/job/questions.rs, e.g. job.source_job_id())"
+            "(retainpdf-core models/job/questions.rs, e.g. job.source_job_id())"
         )
     for relative in sorted(KNOWN_REQUEST_PAYLOAD_WRITERS - accessors):
         errors.append(

@@ -70,7 +70,7 @@ export interface JobStageSnapshotView {
     progress: JobProgressView;
 }
 /**
- * services/api/crates/retain-core/src/models/view/common.rs :: JobProgressView。current/total 为页/批计数（i64），percent 0-100，unit 标识页/批/步/percent。
+ * services/api/crates/retainpdf-core/src/models/view/common.rs :: JobProgressView。current/total 为页/批计数（i64），percent 0-100，unit 标识页/批/步/percent。
  */
 export interface JobProgressView {
     /**

@@ -9,18 +9,18 @@
 - 改 HTTP 接口：
   [`src/routes`](src/routes)
 - 改 jobs 用例编排：
-  [`packages/retain-pdf-jobs/src`](../packages/retain-pdf-jobs/src)
+  [`packages/retainpdf-jobs/src`](../packages/retainpdf-jobs/src)
 - 改图书馆域（文档/收藏/检索/资产/会话/合集）：
-  [`packages/retain-pdf-library/src/api.rs`](../packages/retain-pdf-library/src/api.rs) +
-  [`packages/retain-pdf-library/src`](../packages/retain-pdf-library/src)
+  [`packages/retainpdf-library/src/api.rs`](../packages/retainpdf-library/src/api.rs) +
+  [`packages/retainpdf-library/src`](../packages/retainpdf-library/src)
 - 改 worker 运行链路：
-  [`../packages/retain-jobs/src/job_runner`](../packages/retain-jobs/src/job_runner)
+  [`../packages/retainpdf-runner/src/job_runner`](../packages/retainpdf-runner/src/job_runner)
 - 改 OCR provider 分发和适配：
-  [`../packages/retain-data/src/ocr_provider`](../packages/retain-data/src/ocr_provider)
+  [`../packages/retainpdf-data/src/ocr_provider`](../packages/retainpdf-data/src/ocr_provider)
 - 改后端运行参数、provider 超时/重试、路径和认证配置：
-  [`../packages/retain-core/src/config`](../packages/retain-core/src/config)
+  [`../packages/retainpdf-core/src/config`](../packages/retainpdf-core/src/config)
 - 改 Python worker 入口命令或 stage spec：
-  [`../packages/retain-data/src/worker_command`](../packages/retain-data/src/worker_command)
+  [`../packages/retainpdf-data/src/worker_command`](../packages/retainpdf-data/src/worker_command)
 
 ## 目录地图
 
@@ -28,7 +28,7 @@
 
 - `ai_supervisor.rs`、`jobsd_supervisor.rs`：子进程启动、探活、退避重启和退出回收。
 - `app/server.rs` 持有 shutdown 通道并等待监督任务结束；`app/state.rs` 给 AI 网关注入状态读取函数。
-- 平台包 `retain-pdf-platform` 的 `health_api.rs` 保留 HTTP 健康状态投影（监督器状态由 `routes/common/health.rs` 读好传进去）；任务控制接口 `services/jobs/runtime_gateway.rs` 不属于进程监督器，不随目录名搬迁。
+- 平台包 `retainpdf-platform` 的 `health_api.rs` 保留 HTTP 健康状态投影（监督器状态由 `routes/common/health.rs` 读好传进去）；任务控制接口 `services/jobs/runtime_gateway.rs` 不属于进程监督器，不随目录名搬迁。
 - 当前状态仍由进程级原子量持有；本批不改变默认启动方式和 in-process/remote 语义。
 
 ### `src/app`
@@ -51,11 +51,11 @@ jobs 的依赖装配由 `app/jobs.rs` 完成；依赖定义在 `services/jobs/de
   - [`src/app/jobs.rs`](src/app/jobs.rs)
     jobs facade 组合根。这里负责把 `AppState` 装成 `JobsFacade`，`routes` 不再直接碰 `job_runner`。
 
-### `../packages/retain-core/src/config.rs` + `config/*`
+### `../packages/retainpdf-core/src/config.rs` + `config/*`
 
 - 作用：
   运行时配置入口。API crate 通过 `crate::config` re-export 保持调用兼容，
-  实际配置分组位于 `retain-core`。
+  实际配置分组位于 `retainpdf-core`。
 - 进入条件：
   改 env、部署参数、provider timeout/retry、路径、auth、上传限制、worker 运行参数时进这里。
 - 当前子边界：
@@ -133,7 +133,7 @@ jobs 的依赖装配由 `app/jobs.rs` 完成；依赖定义在 `services/jobs/de
 - 每个领域的 `mod.rs` 是它唯一的门面：子模块私有，路由、装配和别的领域只用门面导出的东西
   （见 `BOUNDARIES.md` 的 "Domain Facades"）。
 
-#### 入口包的 `uploads` 与 AI 包（`retain-pdf-ai`）
+#### 入口包的 `uploads` 与 AI 包（`retainpdf-ai`）
 
 - 路由通过 `services::ingest`、`services::ai` 的门面调用（实现分别在 `uploads/api.rs`、`ai/api.rs`）；
   装配和跨业务调用也只用门面导出的能力，不访问私有实现文件。
@@ -146,7 +146,7 @@ jobs 的依赖装配由 `app/jobs.rs` 完成；依赖定义在 `services/jobs/de
 
 #### `src/services/jobs`
 
-> 任务已拆成独立的包 `retain-pdf-jobs`，代码在 [`../packages/retain-pdf-jobs/src`](../packages/retain-pdf-jobs/src)，
+> 任务已拆成独立的包 `retainpdf-jobs`，代码在 [`../packages/retainpdf-jobs/src`](../packages/retainpdf-jobs/src)，
 > `lib.rs` 是门面；rust_api 里照旧写 `crate::services::jobs::…`。本节的 `services/jobs/...` 都是逻辑路径。
 > 要搭整个 `AppState` 的建任务、查询测试在 `src/api_tests/jobs_creation`、`src/api_tests/jobs_query_service`。
 
@@ -164,7 +164,7 @@ jobs 的依赖装配由 `app/jobs.rs` 完成；依赖定义在 `services/jobs/de
 
 #### `src/services/library/api.rs` + `src/services/library/*`
 
-> 书库已拆成独立的包 `retain-pdf-library`，代码在 [`../packages/retain-pdf-library/src`](../packages/retain-pdf-library/src)，
+> 书库已拆成独立的包 `retainpdf-library`，代码在 [`../packages/retainpdf-library/src`](../packages/retainpdf-library/src)，
 > `lib.rs` 是门面；rust_api 里照旧写 `crate::services::library::…`。本节的 `services/library/...` 都是逻辑路径。
 
 - 作用：
@@ -174,7 +174,7 @@ jobs 的依赖装配由 `app/jobs.rs` 完成；依赖定义在 `services/jobs/de
   **不要** 把逻辑写回 `routes/library_*`。
 - 子模块：
   - `books.rs` — library books 列表/详情/删除（投影委托 `book_projection/`）
-  - `book_projection.rs` + `book_projection/` — 书架列表 / 书籍详情投影；书名、页数规则调 `services::files`（文件包 `retain-pdf-files`）和 `SummaryCache`，不另抄
+  - `book_projection.rs` + `book_projection/` — 书架列表 / 书籍详情投影；书名、页数规则调 `services::files`（文件包 `retainpdf-files`）和 `SummaryCache`，不另抄
   - `collection_workspace.rs` — 文件夹级 agent 工作区（把一个合集的书物化成目录，给 AI 服务读）
   - `documents.rs` / `media.rs` — 文档 CRUD 与 source.pdf/cover/thumbnail
   - `translate.rs` — 绑定文档 upload 后调 `JobsFacade::create_submission`
@@ -191,7 +191,7 @@ jobs 的依赖装配由 `app/jobs.rs` 完成；依赖定义在 `services/jobs/de
   输入解析、存在性检查、前置校验，只产出 `Prepared*` 输入，不生成 `JobSnapshot`。
 - `job_builders.rs`
   workflow 级快照编排；只消费 `Prepared*` 输入并调用 snapshot factory，不再自己做前置校验。
-- 上传持久化委托入口包（`retain-pdf-ingest`）的 `uploads`；已有 upload record 的输入查询在 `prepare.rs`。
+- 上传持久化委托入口包（`retainpdf-ingest`）的 `uploads`；已有 upload record 的输入查询在 `prepare.rs`。
 
 #### `src/services/jobs/presentation`
 
@@ -202,34 +202,34 @@ jobs 的依赖装配由 `app/jobs.rs` 完成；依赖定义在 `services/jobs/de
 
 #### 其他 service 入口
 
-- [`../packages/retain-pdf-ingest/src/uploads/api.rs`](../packages/retain-pdf-ingest/src/uploads/api.rs)（入口已拆成独立的包）
+- [`../packages/retainpdf-ingest/src/uploads/api.rs`](../packages/retainpdf-ingest/src/uploads/api.rs)（入口已拆成独立的包）
   上传接口入口。
-- [`../packages/retain-pdf-glossaries/src/api.rs`](../packages/retain-pdf-glossaries/src/api.rs)（术语表已拆成独立的包）
+- [`../packages/retainpdf-glossaries/src/api.rs`](../packages/retainpdf-glossaries/src/api.rs)（术语表已拆成独立的包）
   术语表接口入口。
-- [`../packages/retain-pdf-platform/src/fonts/api.rs`](../packages/retain-pdf-platform/src/fonts/api.rs)（平台已拆成独立的包）
+- [`../packages/retainpdf-platform/src/fonts/api.rs`](../packages/retainpdf-platform/src/fonts/api.rs)（平台已拆成独立的包）
   字体查询入口，具体发现逻辑位于私有 `service.rs`。
-- [`../packages/retain-pdf-providers/src/credentials/api.rs`](../packages/retain-pdf-providers/src/credentials/api.rs)（服务商已拆成独立的包）
+- [`../packages/retainpdf-providers/src/credentials/api.rs`](../packages/retainpdf-providers/src/credentials/api.rs)（服务商已拆成独立的包）
   HTTP 凭据入口；jobs 所需凭据使用锁等能力由模块根部明确导出，不经 HTTP 入口。
-- [`../packages/retain-pdf-ai/src/agent_calculations/api.rs`](../packages/retain-pdf-ai/src/agent_calculations/api.rs)
+- [`../packages/retainpdf-ai/src/agent_calculations/api.rs`](../packages/retainpdf-ai/src/agent_calculations/api.rs)
   Agent 计算记录与产物接口，内部只依赖数据库和目录，不接收完整配置。
-- [`packages/retain-pdf-library/src/api.rs`](../packages/retain-pdf-library/src/api.rs)
+- [`packages/retainpdf-library/src/api.rs`](../packages/retainpdf-library/src/api.rs)
   图书馆接口入口（见上）。
-- [`packages/retain-pdf-jobs/src/lifecycle/snapshot_factory.rs`](../packages/retain-pdf-jobs/src/lifecycle/snapshot_factory.rs)
+- [`packages/retainpdf-jobs/src/lifecycle/snapshot_factory.rs`](../packages/retainpdf-jobs/src/lifecycle/snapshot_factory.rs)
   job snapshot/command 构造边界。
-- [`packages/retain-pdf-jobs/src/lifecycle/launcher.rs`](../packages/retain-pdf-jobs/src/lifecycle/launcher.rs)
+- [`packages/retainpdf-jobs/src/lifecycle/launcher.rs`](../packages/retainpdf-jobs/src/lifecycle/launcher.rs)
   job 持久化与启动边界。
-- [`packages/retain-pdf-jobs/src/runtime_gateway.rs`](../packages/retain-pdf-jobs/src/runtime_gateway.rs)
+- [`packages/retainpdf-jobs/src/runtime_gateway.rs`](../packages/retainpdf-jobs/src/runtime_gateway.rs)
   services 访问 runtime 能力的收口层。
-- [`../packages/retain-pdf-ai/src/api.rs`](../packages/retain-pdf-ai/src/api.rs)
+- [`../packages/retainpdf-ai/src/api.rs`](../packages/retainpdf-ai/src/api.rs)
   Rust 到受监督 AI sidecar 的 HTTP 代理入口。
-- [`../packages/retain-pdf-ai/src/public_document_operations_api.rs`](../packages/retain-pdf-ai/src/public_document_operations_api.rs)
+- [`../packages/retainpdf-ai/src/public_document_operations_api.rs`](../packages/retainpdf-ai/src/public_document_operations_api.rs)
   浏览器安全 operation 投影、显式动作 CAS 与 candidate 读取入口。
-- [`../packages/retain-pdf-ai/src/document_operation_api.rs`](../packages/retain-pdf-ai/src/document_operation_api.rs)
+- [`../packages/retainpdf-ai/src/document_operation_api.rs`](../packages/retainpdf-ai/src/document_operation_api.rs)
   internal CLI operation lifecycle 入口。
-- [`../packages/retain-pdf-ai/src/agent_runtime_session_api.rs`](../packages/retain-pdf-ai/src/agent_runtime_session_api.rs)
+- [`../packages/retainpdf-ai/src/agent_runtime_session_api.rs`](../packages/retainpdf-ai/src/agent_runtime_session_api.rs)
   opaque runtime cursor revision CAS 入口。
 
-### `../packages/retain-data/src/worker_command.rs` + `worker_command/*`
+### `../packages/retainpdf-data/src/worker_command.rs` + `worker_command/*`
 
 - 作用：
   Python worker 命令、worker 入口脚本和 stage spec 文件构造。
@@ -247,7 +247,7 @@ jobs 的依赖装配由 `app/jobs.rs` 完成；依赖定义在 `services/jobs/de
   - `worker_command/command_builder.rs`
     命令行拼装细节。
 
-### `../packages/retain-jobs/src/job_runner`
+### `../packages/retainpdf-runner/src/job_runner`
 
 - 作用：
   任务排队、worker 启动、stdout/stderr 消费、失败归因、取消、超时。
@@ -273,14 +273,14 @@ jobs 的依赖装配由 `app/jobs.rs` 完成；依赖定义在 `services/jobs/de
   - `worker_process.rs`
     子进程启动、env 注入、进程树终止；现在只拿 `WorkerProcessRuntimeConfig + job`，不再依赖整包 runtime deps。
 
-### `../packages/retain-data/src/ocr_provider`
+### `../packages/retainpdf-data/src/ocr_provider`
 
 - 作用：
   OCR provider 分发、provider 特定协议转换、provider 输出收口。
 - 快速判断：
   改 MinerU / Paddle 接入细节时进这里。
 
-### `../packages/retain-core/src/storage_paths.rs` + `storage_paths/*`
+### `../packages/retainpdf-core/src/storage_paths.rs` + `storage_paths/*`
 
 - 作用：
   artifact key、路径归一化、路径解析、artifact registry 收集。
@@ -296,7 +296,7 @@ jobs 的依赖装配由 `app/jobs.rs` 完成；依赖定义在 `services/jobs/de
   - `registry.rs`
     把任务文件投影成 artifact entry 列表。
 
-### `../../database/retain-db/src/db.rs` + `db/*`
+### `../../database/retainpdf-db/src/db.rs` + `db/*`
 
 - 作用：
   SQLite 持久化入口。
@@ -315,9 +315,9 @@ jobs 的依赖装配由 `app/jobs.rs` 完成；依赖定义在 `services/jobs/de
 - “这是 jobs 用例编排变化吗？”
   先看 `src/services/jobs/<类>/`（建任务看 `src/services/jobs/lifecycle/creation`）
 - “这是 worker / Python 执行变化吗？”
-  先看 `../packages/retain-jobs/src/job_runner`
+  先看 `../packages/retainpdf-runner/src/job_runner`
 - “这是 AI 对话、runtime 或 PDF operation 变化吗？”
-  先分清 `../packages/retain-pdf-ai/src/api.rs`、
+  先分清 `../packages/retainpdf-ai/src/api.rs`、
   `public_document_operations_api.rs` 和 backend-only
   `document_operation_api.rs` 三个边界
 
@@ -331,9 +331,9 @@ jobs 的依赖装配由 `app/jobs.rs` 完成；依赖定义在 `services/jobs/de
    jobs 用例入口（`JobsFacade` / `JobQueries`），按 9 类分目录，route 只和它们说话。
 3. `src/services/jobs/lifecycle/creation` / `src/services/jobs/presentation`
    前者负责创建与提交，后者负责 detail/list/events 对外投影。
-4. `../packages/retain-jobs/src/job_runner`
+4. `../packages/retainpdf-runner/src/job_runner`
    运行态编排、子进程、OCR flow、translation/render flow。
-5. `../packages/retain-data/src/ocr_provider`
+5. `../packages/retainpdf-data/src/ocr_provider`
    provider 协议和 provider 输出归一化。
 
 新人如果只想快速定位修改入口，可以先问自己是在改：
@@ -356,9 +356,9 @@ jobs 的依赖装配由 `app/jobs.rs` 完成；依赖定义在 `services/jobs/de
    再看 jobs 相关依赖是怎么装起来的。
 3. [`src/routes/jobs`](src/routes/jobs)
    看 route 只是怎么转发。
-4. [`packages/retain-pdf-jobs/src`](../packages/retain-pdf-jobs/src)
+4. [`packages/retainpdf-jobs/src`](../packages/retainpdf-jobs/src)
    看 9 类用例入口（分类表在 `mod.rs`）。
-5. [`packages/retain-pdf-jobs/src/lifecycle/creation`](../packages/retain-pdf-jobs/src/lifecycle/creation)
+5. [`packages/retainpdf-jobs/src/lifecycle/creation`](../packages/retainpdf-jobs/src/lifecycle/creation)
    看创建链路的准备、快照、提交。
-6. [`../packages/retain-jobs/src/job_runner`](../packages/retain-jobs/src/job_runner)
+6. [`../packages/retainpdf-runner/src/job_runner`](../packages/retainpdf-runner/src/job_runner)
    最后再进 runtime 执行层。

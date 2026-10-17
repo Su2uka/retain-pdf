@@ -1,6 +1,6 @@
 use std::num::NonZeroU64;
 
-use retain_pdf_core::config::effective_upload_max_bytes;
+use retainpdf_core::config::effective_upload_max_bytes;
 
 use crate::app::{build_jobs_facade_from_state, AppState};
 use crate::services::jobs::{JobDownloads, JobQueries, JobsFacade};

@@ -22,7 +22,7 @@ fn contract() -> Value {
 /// 壳侧用 `format!("/internal/v1/jobs/{job_id}/cancel")` 这种内联插值写法，
 /// 字面量里的 `{job_id}` 与契约的 `{job_id}` 恰好同形，可直接比对。
 fn shell_request_paths() -> BTreeSet<String> {
-    let source = include_str!("../../../packages/retain-pdf-jobs/src/runtime_gateway.rs");
+    let source = include_str!("../../../packages/retainpdf-jobs/src/runtime_gateway.rs");
     source
         .split('"')
         .skip(1)

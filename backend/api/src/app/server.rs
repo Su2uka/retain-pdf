@@ -105,7 +105,7 @@ async fn serve_with_shutdown(
     // Phase 3（ADR-002）：RUST_API_JOBS_SUPERVISE=1 且 RUST_API_JOBS_MODE=remote 时壳监督 jobsd
     // 多设备同步:关着时每轮直接跳过,开着时定时与对端交换书库。
     let _sync_handle = sync_service.spawn_loop(shutdown_rx_watch.clone());
-    // 数据库每天自动备份一份(间隔见平台包 retain-pdf-platform 的 backup)。
+    // 数据库每天自动备份一份(间隔见平台包 retainpdf-platform 的 backup)。
     let _backup_handle = backup_service.spawn_loop(shutdown_rx_watch.clone());
 
     let jobsd_supervisor_handle =
@@ -138,11 +138,11 @@ async fn serve_with_shutdown(
 /// 记下正在运行的后端(`~/.retainpdf/run/backend.json`),命令行 `retainpdf` 靠它找到后端。
 /// 只在 `RUST_API_WRITE_RUNTIME_FILE=1` 时写(桌面版、开发脚本打开):测试和别的部署起的后端
 /// 不该改用户目录里的东西。
-fn write_runtime_record(config: &AppConfig, bound: SocketAddr) -> Option<retain_pdf_config::ConfigHome> {
+fn write_runtime_record(config: &AppConfig, bound: SocketAddr) -> Option<retainpdf_config::ConfigHome> {
     if std::env::var("RUST_API_WRITE_RUNTIME_FILE").as_deref() != Ok("1") {
         return None;
     }
-    let home = match retain_pdf_config::ConfigHome::locate() {
+    let home = match retainpdf_config::ConfigHome::locate() {
         Ok(home) => home,
         Err(error) => {
             tracing::warn!("runtime record skipped: {error:#}");
@@ -150,7 +150,7 @@ fn write_runtime_record(config: &AppConfig, bound: SocketAddr) -> Option<retain_
         }
     };
     let host = if bound.ip().is_unspecified() { "127.0.0.1".to_string() } else { bound.ip().to_string() };
-    let record = retain_pdf_config::BackendRuntime {
+    let record = retainpdf_config::BackendRuntime {
         api_base: format!("http://{host}:{}", bound.port()),
         api_key: config.api_keys.iter().min().cloned().unwrap_or_default(),
         data_dir: config.data_root.to_string_lossy().to_string(),

@@ -14,25 +14,25 @@ WORKDIR /build
 # backend/api/build.rs 只对 i686-pc-windows-gnu 生效）。
 FROM chef AS planner
 COPY Cargo.toml Cargo.lock ./
-COPY database/retain-db ./database/retain-db
+COPY database/retainpdf-db ./database/retainpdf-db
 COPY backend/api ./backend/api
 COPY backend/cli ./backend/cli
 COPY backend/jobs ./backend/jobs
-COPY backend/packages/retain-config ./backend/packages/retain-config
-COPY backend/packages/retain-core ./backend/packages/retain-core
-COPY backend/packages/retain-data ./backend/packages/retain-data
-COPY backend/packages/retain-jobs ./backend/packages/retain-jobs
-COPY backend/packages/retain-pdf-accounts ./backend/packages/retain-pdf-accounts
-COPY backend/packages/retain-pdf-ai ./backend/packages/retain-pdf-ai
-COPY backend/packages/retain-pdf-api-base ./backend/packages/retain-pdf-api-base
-COPY backend/packages/retain-pdf-glossaries ./backend/packages/retain-pdf-glossaries
-COPY backend/packages/retain-pdf-ingest ./backend/packages/retain-pdf-ingest
-COPY backend/packages/retain-pdf-jobs ./backend/packages/retain-pdf-jobs
-COPY backend/packages/retain-pdf-library ./backend/packages/retain-pdf-library
-COPY backend/packages/retain-pdf-files ./backend/packages/retain-pdf-files
-COPY backend/packages/retain-pdf-platform ./backend/packages/retain-pdf-platform
-COPY backend/packages/retain-pdf-providers ./backend/packages/retain-pdf-providers
-COPY backend/packages/retain-proc ./backend/packages/retain-proc
+COPY backend/packages/retainpdf-config ./backend/packages/retainpdf-config
+COPY backend/packages/retainpdf-core ./backend/packages/retainpdf-core
+COPY backend/packages/retainpdf-data ./backend/packages/retainpdf-data
+COPY backend/packages/retainpdf-runner ./backend/packages/retainpdf-runner
+COPY backend/packages/retainpdf-accounts ./backend/packages/retainpdf-accounts
+COPY backend/packages/retainpdf-ai ./backend/packages/retainpdf-ai
+COPY backend/packages/retainpdf-api-base ./backend/packages/retainpdf-api-base
+COPY backend/packages/retainpdf-glossaries ./backend/packages/retainpdf-glossaries
+COPY backend/packages/retainpdf-ingest ./backend/packages/retainpdf-ingest
+COPY backend/packages/retainpdf-jobs ./backend/packages/retainpdf-jobs
+COPY backend/packages/retainpdf-library ./backend/packages/retainpdf-library
+COPY backend/packages/retainpdf-files ./backend/packages/retainpdf-files
+COPY backend/packages/retainpdf-platform ./backend/packages/retainpdf-platform
+COPY backend/packages/retainpdf-providers ./backend/packages/retainpdf-providers
+COPY backend/packages/retainpdf-proc ./backend/packages/retainpdf-proc
 RUN cargo chef prepare --recipe-path recipe.json
 
 # 不装 libssl-dev / pkg-config：依赖树走 rustls + ring，没有 openssl / native-tls
@@ -46,25 +46,25 @@ RUN cargo chef cook --release --locked --workspace --bins --recipe-path recipe.j
 
 # 源码层
 COPY Cargo.toml Cargo.lock ./
-COPY database/retain-db ./database/retain-db
+COPY database/retainpdf-db ./database/retainpdf-db
 COPY backend/api ./backend/api
 COPY backend/cli ./backend/cli
 COPY backend/jobs ./backend/jobs
-COPY backend/packages/retain-config ./backend/packages/retain-config
-COPY backend/packages/retain-core ./backend/packages/retain-core
-COPY backend/packages/retain-data ./backend/packages/retain-data
-COPY backend/packages/retain-jobs ./backend/packages/retain-jobs
-COPY backend/packages/retain-pdf-accounts ./backend/packages/retain-pdf-accounts
-COPY backend/packages/retain-pdf-ai ./backend/packages/retain-pdf-ai
-COPY backend/packages/retain-pdf-api-base ./backend/packages/retain-pdf-api-base
-COPY backend/packages/retain-pdf-glossaries ./backend/packages/retain-pdf-glossaries
-COPY backend/packages/retain-pdf-ingest ./backend/packages/retain-pdf-ingest
-COPY backend/packages/retain-pdf-jobs ./backend/packages/retain-pdf-jobs
-COPY backend/packages/retain-pdf-library ./backend/packages/retain-pdf-library
-COPY backend/packages/retain-pdf-files ./backend/packages/retain-pdf-files
-COPY backend/packages/retain-pdf-platform ./backend/packages/retain-pdf-platform
-COPY backend/packages/retain-pdf-providers ./backend/packages/retain-pdf-providers
-COPY backend/packages/retain-proc ./backend/packages/retain-proc
+COPY backend/packages/retainpdf-config ./backend/packages/retainpdf-config
+COPY backend/packages/retainpdf-core ./backend/packages/retainpdf-core
+COPY backend/packages/retainpdf-data ./backend/packages/retainpdf-data
+COPY backend/packages/retainpdf-runner ./backend/packages/retainpdf-runner
+COPY backend/packages/retainpdf-accounts ./backend/packages/retainpdf-accounts
+COPY backend/packages/retainpdf-ai ./backend/packages/retainpdf-ai
+COPY backend/packages/retainpdf-api-base ./backend/packages/retainpdf-api-base
+COPY backend/packages/retainpdf-glossaries ./backend/packages/retainpdf-glossaries
+COPY backend/packages/retainpdf-ingest ./backend/packages/retainpdf-ingest
+COPY backend/packages/retainpdf-jobs ./backend/packages/retainpdf-jobs
+COPY backend/packages/retainpdf-library ./backend/packages/retainpdf-library
+COPY backend/packages/retainpdf-files ./backend/packages/retainpdf-files
+COPY backend/packages/retainpdf-platform ./backend/packages/retainpdf-platform
+COPY backend/packages/retainpdf-providers ./backend/packages/retainpdf-providers
+COPY backend/packages/retainpdf-proc ./backend/packages/retainpdf-proc
 # 编译期 include_str! 读入的契约文件（job_data 的数据集登记表），不在任何工作区成员目录里。
 COPY backend/contracts/job-data.v1.schema.json ./backend/contracts/job-data.v1.schema.json
 # COPY 保留构建上下文里的 mtime，可能比 cook 产物还旧；touch 一遍保证工作区

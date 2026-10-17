@@ -2,7 +2,7 @@
 
 这份文档只回答一个问题：
 
-**改 `backend/packages/retain-jobs/src/job_runner` 时，逻辑应该放在哪里。**
+**改 `backend/packages/retainpdf-runner/src/job_runner` 时，逻辑应该放在哪里。**
 
 `job_runner` 是运行态执行层，不是 HTTP API 层，也不是 view/presentation 层。它负责把已经创建好的 job 真正跑起来：排队、分派 workflow、启动 Python worker、消费 stdout/stderr、同步运行态、处理 OCR provider transport、处理失败/取消/超时。
 

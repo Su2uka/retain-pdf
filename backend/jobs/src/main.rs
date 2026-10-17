@@ -21,9 +21,9 @@ use axum::{Json, Router};
 use serde_json::json;
 use tokio::sync::{RwLock, Semaphore};
 
-use retain_pdf_core::config::{AppConfig, JOB_WORKER_THREAD_STACK_BYTES};
-use retain_pdf_data::db::Db;
-use retain_pdf_runner::job_runner::{
+use retainpdf_core::config::{AppConfig, JOB_WORKER_THREAD_STACK_BYTES};
+use retainpdf_data::db::Db;
+use retainpdf_runner::job_runner::{
     clear_cancel_request_with_registry, reconcile_stale_running_jobs, request_cancel_with_registry,
     requeue_stuck_queued_jobs, spawn_job, terminate_job_process_tree, ProcessRuntimeDeps,
 };
@@ -37,7 +37,7 @@ struct JobsdState {
     db: Arc<Db>,
     canceled_jobs: Arc<RwLock<HashSet<String>>>,
     job_slots: Arc<Semaphore>,
-    job_drivers: Arc<retain_pdf_runner::job_runner::JobDriverRegistry>,
+    job_drivers: Arc<retainpdf_runner::job_runner::JobDriverRegistry>,
     api_keys: Arc<HashSet<String>>,
 }
 
@@ -218,7 +218,7 @@ async fn run() -> Result<()> {
     tracing::info!("retain-jobsd listening on {bind_host}:{port}");
     tokio::select! {
         served = axum::serve(listener, build_router(state)) => served.context("serve")?,
-        _ = retain_pdf_proc::wait_for_supervisor_exit() => {
+        _ = retainpdf_proc::wait_for_supervisor_exit() => {
             // 监督者（rust_api）被强杀：没人再给我们派活，继续活着只会占住端口，
             // 让下一次启动绑定失败。与被组杀时的 SIGTERM 同语义——立即退出，
             // 不等运行时收尾（spawn_blocking 中的任务会让 runtime drop 卡住）。

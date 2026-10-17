@@ -10,13 +10,13 @@
 |------|------|--------|--------|
 | `ai-ask.v1.schema.json` | `/v1/ask` SSE 协议 | `frontend/web/tests/contracts/ai-ask-contract.test.mjs` | `backend/ai/tests/test_contract_schema.py` |
 | `ai-conversations.v1.schema.json` | 会话 CRUD | `frontend/web` 与 `backend/ai` | `backend/api/src/api_tests/conversations_contract.rs` |
-| `create-job.v1.schema.json` | POST /api/v1/jobs 的**请求**体（CreateJobInput 六个顶层字段 + 五个段），每段 additionalProperties:false 对应后端 deny_unknown_fields | `frontend/web` 的 payload 构造器（`features/ingest/domain/workflow/payload.ts`，用生成的 TS 类型）与 mock 层（`platform/api/mocks/job-payload-contract.ts`，用生成的运行期字段名清单） | `backend/packages/retain-core/src/models/input/request.rs` 的 `contract_tests` |
-| `library-books.v1.schema.json` | 图书馆书架 `/api/v1/library/books` + `/api/v1/jobs` 列表 | `@retainpdf/api`、`frontend/web`、`frontend/web-react` | `backend/packages/retain-core/src/models/view/job_types.rs` |
+| `create-job.v1.schema.json` | POST /api/v1/jobs 的**请求**体（CreateJobInput 六个顶层字段 + 五个段），每段 additionalProperties:false 对应后端 deny_unknown_fields | `frontend/web` 的 payload 构造器（`features/ingest/domain/workflow/payload.ts`，用生成的 TS 类型）与 mock 层（`platform/api/mocks/job-payload-contract.ts`，用生成的运行期字段名清单） | `backend/packages/retainpdf-core/src/models/input/request.rs` 的 `contract_tests` |
+| `library-books.v1.schema.json` | 图书馆书架 `/api/v1/library/books` + `/api/v1/jobs` 列表 | `@retainpdf/api`、`frontend/web`、`frontend/web-react` | `backend/packages/retainpdf-core/src/models/view/job_types.rs` |
 | `job-status.v1.schema.json` | 任务详情、脱敏请求参数与阶段进度 | `@retainpdf/api`、`frontend/packages/domain`、`frontend/web`、`frontend/web-react` | `backend/api` public view models |
 | `job-events.v2.schema.json` | 普通/OCR 事件游标分页、稳定事件身份 | `@retainpdf/api`、`frontend/web` | `backend/api` event feed |
 | `jobs-control.v1.schema.json` | shell↔jobsd 控制面 | `backend/api/src/api_tests/jobs_control_contract.rs` | `backend/jobs/src/contract_lock.rs` |
-| `pipeline-stdout.v1.schema.json` | Python stdout 协议 | `backend/packages/retain-jobs/src/job_runner/stdout_parser/contract_lock.rs` | `backend/pipeline` worker 与对应 contract test |
-| `public-document-operation.v1.schema.json` | 浏览器安全的 PDF operation 查询、分页与 CAS action | `frontend/packages/api`、Reader/网页宿主 | `backend/packages/retain-pdf-ai/src/public_document_operations.rs` |
+| `pipeline-stdout.v1.schema.json` | Python stdout 协议 | `backend/packages/retainpdf-runner/src/job_runner/stdout_parser/contract_lock.rs` | `backend/pipeline` worker 与对应 contract test |
+| `public-document-operation.v1.schema.json` | 浏览器安全的 PDF operation 查询、分页与 CAS action | `frontend/packages/api`、Reader/网页宿主 | `backend/packages/retainpdf-ai/src/public_document_operations.rs` |
 | `runtime-config.v1.schema.json` | AI runtime 配置更新与受鉴权的本机可见 Key 视图 | `backend/api` 透明代理、设置客户端 | `backend/ai/retainpdf_ai/runtime_config_api.py` |
 | `translation-revisions.v1.schema.json` | 单块译文修订写回 `PATCH /api/v1/jobs/:job_id/translation/items/:item_id`、修订历史 `GET .../revisions`、`translated/revisions.v1.jsonl` 行格式与 409/422 结构化错误 | 前端阅读页编辑、终端 agent | `backend/api/src/api_tests/translation_debug/revisions.rs`、`backend/pipeline/retainpdf_pipeline/translate/workflow/revision.py` |
 | `refine-report.v1.schema.json` | 译后精修报告 `artifacts/refine_report.v1.json` 与 `GET /api/v1/jobs/:job_id/translation/refine-report`（挑错发现、定点修改的采纳/拒绝及原因、token 用量、精修前后 QA 对比） | 终端 agent（`retainpdf-agent translation issues`） | `backend/pipeline/retainpdf_pipeline/translate/workflow/refine.py` |

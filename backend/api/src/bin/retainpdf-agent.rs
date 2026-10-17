@@ -439,7 +439,7 @@ fn require_identifier(flags: &BTreeMap<String, String>, name: &str) -> Result<St
     let value = flags
         .get(name)
         .ok_or_else(|| CliFailure::usage(format!("{name} is required")))?;
-    retain_pdf_api::models::validate_operation_id(value).map_err(CliFailure::usage)?;
+    retainpdf_api::models::validate_operation_id(value).map_err(CliFailure::usage)?;
     Ok(value.clone())
 }
 

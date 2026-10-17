@@ -143,7 +143,7 @@ def test_rejects_unsupported_manifest_schema(tmp_path: Path) -> None:
         resolve_backend_source(repo_root)
 
 
-@pytest.mark.parametrize("relative", ["Cargo.toml", "resources/fonts/new-font.txt", "database/retain-db/src/lib.rs", "contracts/new.schema.json"])
+@pytest.mark.parametrize("relative", ["Cargo.toml", "resources/fonts/new-font.txt", "database/retainpdf-db/src/lib.rs", "contracts/new.schema.json"])
 def test_aggregate_dependencies_participate_in_dirty_check(tmp_path: Path, relative: str) -> None:
     repo_root, _revision, source_tree = _product_repo(tmp_path)
     path = repo_root / relative

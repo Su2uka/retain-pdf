@@ -16,7 +16,7 @@ DEFAULT_FIXTURE = (
     PRODUCT_ROOT
     / "backend"
     / "packages"
-    / "retain-data"
+    / "retainpdf-data"
     / "src"
     / "ocr_provider"
     / "paddle"

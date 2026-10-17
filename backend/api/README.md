@@ -29,7 +29,7 @@
 11. Backend-only Agent capability / broker / executor：
    [`docs/api-spec/agent-document-operations.md`](docs/api-spec/agent-document-operations.md)
 12. Paddle OCR 异步 API 摘要：
-   [`../packages/retain-data/src/ocr_provider/paddle/API_SUMMARY.md`](../packages/retain-data/src/ocr_provider/paddle/API_SUMMARY.md)
+   [`../packages/retainpdf-data/src/ocr_provider/paddle/API_SUMMARY.md`](../packages/retainpdf-data/src/ocr_provider/paddle/API_SUMMARY.md)
 13. Paddle Markdown / artifact 边界：
    [`../docs/core/paddle_ocr_api/06_job_artifact_boundary.md`](../../docs/core/paddle_ocr_api/06_job_artifact_boundary.md)
 
@@ -55,7 +55,7 @@
   只看运行态执行层边界，重点回答“改 job_runner 时逻辑应该放在哪个模块”。
 - [`OCR_PROVIDER_CONTRACT.md`](OCR_PROVIDER_CONTRACT.md)
   只看 provider adapter 边界，重点回答“MinerU / Paddle 在哪一层分发和收口”。
-- [`../packages/retain-data/src/ocr_provider/paddle/API_SUMMARY.md`](../packages/retain-data/src/ocr_provider/paddle/API_SUMMARY.md)
+- [`../packages/retainpdf-data/src/ocr_provider/paddle/API_SUMMARY.md`](../packages/retainpdf-data/src/ocr_provider/paddle/API_SUMMARY.md)
   只看 Paddle OCR 异步接口协议，重点回答“submit / poll / result download 到底怎么走”。
 - [`../docs/core/paddle_ocr_api/06_job_artifact_boundary.md`](../../docs/core/paddle_ocr_api/06_job_artifact_boundary.md)
   只看 Markdown 发布边界，重点回答“provider raw 为什么不能直接当 job markdown artifact”。
@@ -85,14 +85,14 @@
 - `python3 backend/api/scripts/check_architecture.py`
 - `python3 -B -m unittest discover -s backend/api/scripts -p 'test_check_*.py'`
 - `uv run --project backend --locked --all-extras python backend/api/scripts/check_test_filters.py`
-- `uv run --project backend --locked --all-extras cargo build --locked -p retain-pdf-api`
-- `uv run --project backend --locked --all-extras cargo test --locked -p retain-pdf-runner --lib job_runner::process_runner::tests::execute_process_job_injects_provider_and_translation_envs -- --exact`
-- `uv run --project backend --locked --all-extras cargo test --locked -p retain-pdf-api --lib api_tests::jobs_security::job_detail_and_events_routes_redact_secrets -- --exact`
+- `uv run --project backend --locked --all-extras cargo build --locked -p retainpdf-api`
+- `uv run --project backend --locked --all-extras cargo test --locked -p retainpdf-runner --lib job_runner::process_runner::tests::execute_process_job_injects_provider_and_translation_envs -- --exact`
+- `uv run --project backend --locked --all-extras cargo test --locked -p retainpdf-api --lib api_tests::jobs_security::job_detail_and_events_routes_redact_secrets -- --exact`
 
 以上命令从仓库根目录执行。`check_test_filters.py` 只通过 `cargo test -- --list`
 确认两个精确过滤器匹配实际测试（必要时会编译测试二进制，不执行测试），匹配 0 项即失败；
-它不能替代后面的实际测试。运行时测试现在属于 `retain-jobs`，HTTP 脱敏测试属于
-`retain_pdf_api::api_tests`，不要继续使用迁移前的 crate/模块路径。
+它不能替代后面的实际测试。运行时测试现在属于 `retainpdf-runner`，HTTP 脱敏测试属于
+`retainpdf_api::api_tests`，不要继续使用迁移前的 crate/模块路径。
 
 第一条负责卡住最容易回退的架构问题：
 
