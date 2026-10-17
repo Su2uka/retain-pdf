@@ -208,7 +208,7 @@ async function startBundledBackend() {
   const typstPackageCachePath = path.join(dataRoot, "typst-package-cache");
   const DEFAULT_API_PORT = 41000;
   const DEFAULT_SIMPLE_PORT = 42000;
-  // Must match RUST_API_JOBS_PORT default in retain-core config/jobs_service.rs
+  // Must match RUST_API_JOBS_PORT default in retainpdf-core config/jobs_service.rs
   // (buildBackendEnv falls back to the same default when jobsPort is unset).
   const DEFAULT_JOBS_PORT = 41002;
   let apiPort = DEFAULT_API_PORT;
@@ -686,7 +686,7 @@ ipcMain.handle("desktop:invoke", async (_event, command, args = {}) => {
       return { ok: true, outputDir };
     }
     case "open_backup_directory": {
-      // 设置 → 备份：数据库备份放在数据目录的 backups/db（见 retain-db 的 backup.rs）。
+      // 设置 → 备份：数据库备份放在数据目录的 backups/db（见 retainpdf-db 的 backup.rs）。
       const backupDir = path.join(resolveDataRoot(), "backups", "db");
       fs.mkdirSync(backupDir, { recursive: true });
       const result = await shell.openPath(backupDir);

@@ -5,7 +5,7 @@ import { join } from "node:path";
 
 // 消费者契约测试: library / jobs 视图的 Rust 真值 ↔ TS 消费必须一致。
 // 真值: contracts/library-books.v1.schema.json 与 job-status.v1.schema.json
-// 生产侧: backend/packages/retain-core/src/models/view/job_types.rs
+// 生产侧: backend/packages/retainpdf-core/src/models/view/job_types.rs
 // 消费侧: contracts 生成 DTO + frontend/web src/js/api/library-books.ts
 // 改契约先改 schema，再让两端测试变绿——与 ai-ask / ai-conversations 同门禁。
 

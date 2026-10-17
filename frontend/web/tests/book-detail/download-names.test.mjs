@@ -1,4 +1,4 @@
-// 前端镜像必须和后端 backend/packages/retain-pdf-files/src/download_names.rs 给出一模一样的名字：
+// 前端镜像必须和后端 backend/packages/retainpdf-files/src/download_names.rs 给出一模一样的名字：
 // 下面的例子和 Rust 那边的测试逐条相同，改规则要两边一起改。
 import test from "node:test";
 import assert from "node:assert/strict";

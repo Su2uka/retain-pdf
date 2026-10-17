@@ -307,7 +307,7 @@ export async function downloadProtectedResponse({
     throw error;
   }
   const disposition = resp.headers.get("content-disposition") || "";
-  // 后端给的文件名优先：所有下载的命名规则都在后端（retain-pdf-files 的 download_names.rs，
+  // 后端给的文件名优先：所有下载的命名规则都在后端（retainpdf-files 的 download_names.rs，
   // 「类型前缀_书名_后缀」）。以前前端的 preferredName 排在前面，于是同一个译文 PDF
   // 从左栏下载叫 `…-translated.pdf`、从阅读器下载叫 `zh_….pdf`。前端自己的名字只在
   // 响应没带文件名时兜底（旧后端）。

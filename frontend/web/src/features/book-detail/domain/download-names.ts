@@ -1,5 +1,5 @@
 // 下载文件名「类型前缀_书名_后缀」的前端镜像 —— 真值在后端
-// backend/packages/retain-pdf-files/src/download_names.rs（下载时以响应头为准）。这里只用来在文件页
+// backend/packages/retainpdf-files/src/download_names.rs（下载时以响应头为准）。这里只用来在文件页
 // 列表里预先写出「下载下来会叫什么」，免得列表写 `…-side-by-side.pdf`、下载下来却是
 // `dual_…_side-by-side.pdf`。两边的测试用同一组例子，改规则要两边一起改。
 
