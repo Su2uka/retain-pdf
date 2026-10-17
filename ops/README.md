@@ -1,6 +1,7 @@
 # 运维与交付
 
 - `development/`：本地环境准备与进程启动。`python3 ops/development/dev_stack.py --help` 查看入口；运行数据路径和环境变量保持兼容。
+  - `development/route_usage_report.py`：旧地址用量报表，删旧地址之前先量有没有人调；清零前要先停应用。用法见 [旧地址用量报表](../docs/ops/planning/api-reorg/20261017-旧地址用量报表.md)。
 
 ## 本地开发的两条命令
 
