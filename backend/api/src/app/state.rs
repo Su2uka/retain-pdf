@@ -5,7 +5,7 @@ use anyhow::Result;
 use tokio::sync::{RwLock, Semaphore};
 use tracing::{info, warn};
 
-use super::jobs::reconcile_owned_runtime;
+use super::jobs::{adopt_unlinked_job_documents, reconcile_owned_runtime};
 use crate::config::AppConfig;
 use crate::db::Db;
 use crate::services::ai::AgentCapabilityAuthority;
@@ -49,6 +49,10 @@ pub fn build_state(config: Arc<AppConfig>) -> Result<AppState> {
         );
     }
     reconcile_owned_runtime(config.as_ref(), db.as_ref())?;
+    let adopted = adopt_unlinked_job_documents(config.as_ref(), db.as_ref())?;
+    if adopted > 0 {
+        info!("library: registered {adopted} job source pdf(s) as documents");
+    }
 
     let canceled_jobs = Arc::new(RwLock::new(HashSet::new()));
     let job_runtime = Arc::new(if config.jobs_service.is_remote() {

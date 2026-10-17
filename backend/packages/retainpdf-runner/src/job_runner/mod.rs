@@ -17,6 +17,7 @@ mod revision_publication;
 mod runtime_credentials;
 mod runtime_deps;
 mod runtime_state;
+mod source_document;
 mod stage_contract;
 mod startup_recovery;
 mod stdout_parser;
@@ -26,6 +27,7 @@ mod worker_process;
 #[cfg(test)]
 mod test_support;
 
+pub use source_document::{adopt_job_source_document, adopt_unlinked_job_sources};
 pub use cancel_registry::{clear_cancel_request_with_registry, request_cancel_with_registry};
 pub use driver_registry::JobDriverRegistry;
 pub use lifecycle::spawn_job;

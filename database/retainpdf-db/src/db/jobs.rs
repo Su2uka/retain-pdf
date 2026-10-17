@@ -251,6 +251,16 @@ impl Db {
     ///
     /// 归属是 `link_job_to_document` 在建 job 之后补写的，也可能被回填补上，
     /// 所以**空字符串和 NULL 都当作没归属**，返回 None。
+    /// 还没归属到书的任务（`document_id` 是 NULL 或空串），按建任务时间排。
+    pub fn jobs_without_document(&self) -> Result<Vec<String>> {
+        let conn = self.connect()?;
+        let mut stmt = conn.prepare(
+            "SELECT job_id FROM jobs WHERE document_id IS NULL OR document_id = '' ORDER BY created_at",
+        )?;
+        let rows = stmt.query_map([], |row| row.get::<_, String>(0))?;
+        Ok(rows.collect::<std::result::Result<Vec<_>, _>>()?)
+    }
+
     pub fn document_id_for_job(&self, job_id: &str) -> Result<Option<String>> {
         let conn = self.connect()?;
         let document_id: Option<String> = conn
