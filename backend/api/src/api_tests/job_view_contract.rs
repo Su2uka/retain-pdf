@@ -366,3 +366,60 @@ async fn real_job_and_library_views_match_published_schemas() {
         format!("http://127.0.0.1:41000/api/v1/library/books/{job_id}/thumbnail")
     );
 }
+
+/// `/files` 的返回对着契约核对。用文件出口快照那套夹具：有书、有登记过的产物，
+/// 所以 `source` 指向书的文件，`internal` 和 `output` 都有登记过的项。
+#[tokio::test]
+async fn job_files_view_matches_published_schema() {
+    let fixture = super::file_responses::seed();
+    let job_id = super::file_responses::JOB;
+    let app = build_app(fixture.state.clone());
+    let files = get_data(app.clone(), &format!("/api/v1/jobs/{job_id}/files")).await;
+    let detail = get_data(app.clone(), &format!("/api/v1/jobs/{job_id}")).await;
+    let manifest = get_data(app, &format!("/api/v1/jobs/{job_id}/artifacts-manifest")).await;
+
+    let reader_contract = contract("reader-data.v1.schema.json");
+    assert_definition(&files, &reader_contract, "JobFilesView", "job_files");
+    assert_exact_object_keys(&files, &reader_contract, "JobFilesView", "job_files");
+    assert_exact_object_keys(&files["pages"], &reader_contract, "JobPagesView", "job_files.pages");
+    assert_exact_object_keys(&files["source"], &reader_contract, "JobFileEntryView", "job_files.source");
+    assert!(files["source"]["updated_at"].is_string(), "{}", files["source"]);
+    assert!(files["source"]["url"]
+        .as_str()
+        .expect("source url")
+        .ends_with(&format!("/api/v1/documents/{}/files/source.pdf", fixture.document_id)));
+    assert!(files["attempt"].as_u64().is_some_and(|attempt| attempt >= 1));
+    for group in ["output", "internal"] {
+        let entries = files[group]
+            .as_array()
+            .unwrap_or_else(|| panic!("job_files.{group} must be an array"));
+        assert!(!entries.is_empty(), "job_files.{group} should list files");
+        for (index, entry) in entries.iter().enumerate() {
+            assert_exact_object_keys(
+                entry,
+                &reader_contract,
+                "JobFileEntryView",
+                &format!("job_files.{group}[{index}]"),
+            );
+        }
+    }
+
+    // 任务详情里的产物列表、产物清单链接都指向这个接口。
+    let files_path = format!("/api/v1/jobs/{job_id}/files");
+    assert_eq!(detail["links"]["artifacts_path"], files_path);
+    assert_eq!(detail["links"]["artifacts_manifest_path"], files_path);
+    assert_eq!(detail["actions"]["open_artifacts"]["path"], files_path);
+    assert_eq!(detail["artifacts"]["manifest_path"], files_path);
+
+    // 产物清单里的原文也指向书的文件。
+    let source_item = manifest["items"]
+        .as_array()
+        .expect("manifest items")
+        .iter()
+        .find(|item| item["artifact_key"] == "source_pdf")
+        .expect("source_pdf item");
+    assert_eq!(
+        source_item["resource_path"],
+        format!("/api/v1/documents/{}/files/source.pdf?download=1", fixture.document_id)
+    );
+}

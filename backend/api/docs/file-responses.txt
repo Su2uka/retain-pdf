@@ -168,8 +168,8 @@ GET /api/v1/jobs/files-contract-job/artifacts
   |       "open_artifacts": {
   |         "enabled": true,
   |         "method": "GET",
-  |         "path": "/api/v1/jobs/files-contract-job/artifacts",
-  |         "url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/artifacts"
+  |         "path": "/api/v1/jobs/files-contract-job/files",
+  |         "url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/files"
   |       },
   |       "open_job": {
   |         "enabled": true,
@@ -207,8 +207,8 @@ GET /api/v1/jobs/files-contract-job/artifacts
   |     },
   |     "bundle_ready": true,
   |     "bundle_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/files/output/all.zip?download=1",
-  |     "manifest_path": "/api/v1/jobs/files-contract-job/artifacts-manifest",
-  |     "manifest_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/artifacts-manifest",
+  |     "manifest_path": "/api/v1/jobs/files-contract-job/files",
+  |     "manifest_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/files",
   |     "markdown": {
   |       "file_name": "full.md",
   |       "images_base_path": "/api/v1/jobs/files-contract-job/files/output/ocr/images/",
@@ -430,8 +430,8 @@ GET /api/v1/jobs/files-contract-job/artifacts-manifest
   |         "file_name": "input.pdf",
   |         "ready": true,
   |         "relative_path": "jobs/files-contract-job/source/input.pdf",
-  |         "resource_path": "/api/v1/jobs/files-contract-job/artifacts/source_pdf",
-  |         "resource_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job/artifacts/source_pdf",
+  |         "resource_path": "/api/v1/documents/<doc>/files/source.pdf?download=1",
+  |         "resource_url": "http://127.0.0.1:41000/api/v1/documents/<doc>/files/source.pdf?download=1",
   |         "size_bytes": 329,
   |         "source_stage": "upload"
   |       },
@@ -540,8 +540,8 @@ GET /api/v1/ocr/jobs/files-contract-job-ocr/artifacts
   |       "open_artifacts": {
   |         "enabled": true,
   |         "method": "GET",
-  |         "path": "/api/v1/jobs/files-contract-job-ocr/artifacts",
-  |         "url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job-ocr/artifacts"
+  |         "path": "/api/v1/jobs/files-contract-job-ocr/files",
+  |         "url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job-ocr/files"
   |       },
   |       "open_job": {
   |         "enabled": true,
@@ -579,8 +579,8 @@ GET /api/v1/ocr/jobs/files-contract-job-ocr/artifacts
   |     },
   |     "bundle_ready": true,
   |     "bundle_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job-ocr/files/output/all.zip?download=1",
-  |     "manifest_path": "/api/v1/jobs/files-contract-job-ocr/artifacts-manifest",
-  |     "manifest_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job-ocr/artifacts-manifest",
+  |     "manifest_path": "/api/v1/jobs/files-contract-job-ocr/files",
+  |     "manifest_url": "http://127.0.0.1:41000/api/v1/jobs/files-contract-job-ocr/files",
   |     "markdown": {
   |       "file_name": null,
   |       "images_base_path": "/api/v1/jobs/files-contract-job-ocr/files/output/ocr/images/",

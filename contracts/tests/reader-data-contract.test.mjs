@@ -18,6 +18,7 @@ test("reader data schema publishes the complete independent read surfaces", () =
     [
       "ReaderArtifactLinks",
       "ReaderArtifactManifestView",
+      "JobFilesView",
       "MarkdownDocumentView",
       "ReaderRegionsView",
       "ReaderMetadataView",
@@ -29,6 +30,31 @@ test("reader data schema publishes the complete independent read surfaces", () =
 
   for (const definitionName of contract.endpoints.map((endpoint) => endpoint.output)) {
     assert.ok(Object.hasOwn(definitions, definitionName), `missing ${definitionName}`);
+  }
+});
+
+test("job files view matches the /files response and the old artifact endpoints are marked deprecated", () => {
+  assert.deepEqual(propertyNames("JobFilesView"), ["attempt", "internal", "job_id", "output", "pages", "source"]);
+  assert.deepEqual(definitions.JobFilesView.required, ["job_id", "attempt", "source", "output", "pages"]);
+  assert.equal(definitions.JobFilesView.properties.source.$ref, "#/definitions/JobFileEntryView");
+  assert.deepEqual(propertyNames("JobFileEntryView"), [
+    "content_type",
+    "name",
+    "on_demand",
+    "ready",
+    "size_bytes",
+    "stage",
+    "updated_at",
+    "url",
+  ]);
+  assert.deepEqual(definitions.JobFileEntryView.properties.updated_at.type, ["string", "null"]);
+  assert.deepEqual(definitions.JobFileEntryView.properties.stage.type, ["string", "null"]);
+  assert.deepEqual(propertyNames("JobPagesView"), ["page_count", "url_template"]);
+
+  const byPath = Object.fromEntries(contract.endpoints.map((endpoint) => [endpoint.path, endpoint]));
+  assert.equal(byPath["/api/v1/jobs/:job_id/files"].output, "JobFilesView");
+  for (const path of ["/api/v1/jobs/:job_id/artifacts", "/api/v1/jobs/:job_id/artifacts-manifest"]) {
+    assert.match(byPath[path].note, /已弃用/, `${path} should be marked deprecated`);
   }
 });
 

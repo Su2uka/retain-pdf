@@ -7,8 +7,9 @@ use retainpdf_core::models::api::{
     JobDetailView,
 };
 use retainpdf_core::models::domain::JobSnapshot;
-use retainpdf_files::list_registry_for_job;
+use retainpdf_files::{job_upload_id, list_registry_for_job};
 
+use super::helpers::book_document_id;
 use crate::job_readiness;
 use crate::actions::translation_request_recovery::load_translation_request_recovery_with_db;
 use super::detail_projection::{
@@ -93,5 +94,8 @@ pub fn build_job_artifact_manifest_view(
     base_url: &str,
 ) -> Result<JobArtifactManifestView, AppError> {
     let items = list_registry_for_job(db, data_root, job)?;
-    Ok(build_artifact_manifest(job, base_url, &items))
+    // 原文 PDF 的链接要书编号，取法和任务视图、书库视图、`/files` 的 `source` 一样。
+    let upload = job_upload_id(job).and_then(|id| db.get_upload(id).ok());
+    let document_id = book_document_id(db, job, upload.as_ref());
+    Ok(build_artifact_manifest(job, base_url, &items, document_id.as_deref()))
 }

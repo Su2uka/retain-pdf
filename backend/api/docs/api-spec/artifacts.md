@@ -36,7 +36,12 @@ File names, groups, query parameters and the old-to-new address table are in
 legacy, resolves through `JobDownloads::open` (job files) or
 `library::open_document_file` (book files); the response contract is pinned in
 `backend/api/docs/file-responses.txt`. The `/artifacts*` endpoints below remain
-for existing callers.
+for existing callers. Since 2026-10-17 the links the API returns for them
+(`manifest_path` / `manifest_url`, `links.artifacts_*`, `links.artifacts_manifest_*`,
+`actions.open_artifacts`) point at `GET /api/v1/jobs/{job_id}/files` instead, whose
+response (`JobFilesView`, see `contracts/reader-data.v1.schema.json`) has a different shape;
+in the manifest, `source_pdf` is `/api/v1/documents/{document_id}/files/source.pdf?download=1`
+when the document id is known.
 
 ## Artifact JSON
 
@@ -64,7 +69,7 @@ Response:
     "bundle_url": "/api/v1/jobs/20260327190500-ef3456/files/output/all.zip?download=1",
     "actions": {
       "open_job": {"enabled": true, "method": "GET", "path": "/api/v1/jobs/20260327190500-ef3456", "url": "http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456"},
-      "open_artifacts": {"enabled": true, "method": "GET", "path": "/api/v1/jobs/20260327190500-ef3456/artifacts", "url": "http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456/artifacts"},
+      "open_artifacts": {"enabled": true, "method": "GET", "path": "/api/v1/jobs/20260327190500-ef3456/files", "url": "http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456/files"},
       "cancel": {"enabled": false, "method": "POST", "path": "/api/v1/jobs/20260327190500-ef3456/actions/cancel", "url": "http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456/actions/cancel"},
       "download_pdf": {"enabled": true, "method": "GET", "path": "/api/v1/jobs/20260327190500-ef3456/files/output/translated.pdf", "url": "http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456/files/output/translated.pdf"},
       "open_markdown": {"enabled": true, "method": "GET", "path": "/api/v1/jobs/20260327190500-ef3456/reader/markdown", "url": "http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456/reader/markdown"},
