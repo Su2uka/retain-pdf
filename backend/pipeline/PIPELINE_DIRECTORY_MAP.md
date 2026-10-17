@@ -220,7 +220,8 @@ console 别名：`retainpdf-pipeline render-only --spec <job_root>/specs/render.
 ### `retainpdf_pipeline/services/pipeline_shared/`
 
 - 作用：
-  provider / translate / render 共享的 stdout contract、summary、events、JSON IO。
+  只剩依赖 OCR 规范化报告的 pipeline summary（`summary.py`）。stdout contract、events、JSON IO
+  已经下放到底座包 [`backend/base`](../base/README.md)（`retainpdf_base`），流水线和翻译都从那里拿。
 - 不该做的事：
   不放 provider 私有逻辑，也不放翻译/渲染算法细节。
 - 注意：
@@ -277,6 +278,6 @@ console 别名：`retainpdf-pipeline render-only --spec <job_root>/specs/render.
 3. [`retainpdf_pipeline/runtime/pipeline/README.md`](./retainpdf_pipeline/runtime/pipeline/README.md)
    看阶段边界（注意 book 生产编排在 Rust，包内仅本地串联）。
 4. [`retainpdf_pipeline/services/README.md`](./retainpdf_pipeline/services/README.md)
-   看 services 总分工（实体只剩 `pipeline_shared`）。
+   看 services 总分工（实体只剩 `pipeline_shared` 的 summary；共享协议在底座包 `backend/base`）。
 5. 再按模块进入 `translate/`、`render/`、`ocr/ocr_provider/`、`ocr/document_schema/`、
    `ocr/mineru_provider/` 的 README。

@@ -7,7 +7,7 @@ import time
 from retainpdf_pipeline.foundation.config import fonts
 from retainpdf_pipeline.foundation.config import layout
 from retainpdf_pipeline.foundation.config import runtime
-from retainpdf_pipeline.foundation.config.output_layout import ARTIFACTS_DIR_NAME
+from retainpdf_base.output_layout import ARTIFACTS_DIR_NAME
 from retainpdf_pipeline.render.prepare.hooks import prepare_hooks
 from retainpdf_pipeline.render.prepare.routes import route_prepare_needs
 from retainpdf_pipeline.render.visual_profile.io import visual_profile_path_from_prewarm_manifest
@@ -36,7 +36,7 @@ from retainpdf_pipeline.render.source.prewarm import try_load_prewarmed_render_s
 from retainpdf_pipeline.render.source.prewarm import try_load_render_payload_prewarm
 from retainpdf_pipeline.render.source.prewarm_manifest_io import render_payload_prewarm_from_manifest_payload
 from retainpdf_pipeline.render.source.prewarm_payload import ensure_pdf_structure_profile
-from retainpdf_pipeline.services.pipeline_shared.events import emit_render_prepare_progress
+from retainpdf_base.events import emit_render_prepare_progress
 
 
 RENDER_PREPARE_STEPS: tuple[tuple[str, str], ...] = (

@@ -6,11 +6,11 @@ from pathlib import Path
 import pytest
 
 
-from retainpdf_pipeline.services.pipeline_shared.events import emit_artifact_published
-from retainpdf_pipeline.services.pipeline_shared.events import emit_stage_progress
-from retainpdf_pipeline.services.pipeline_shared.events import emit_stage_transition
-from retainpdf_pipeline.services.pipeline_shared.events import PipelineEventWriter
-from retainpdf_pipeline.services.pipeline_shared.events import pipeline_event_writer_scope
+from retainpdf_base.events import emit_artifact_published
+from retainpdf_base.events import emit_stage_progress
+from retainpdf_base.events import emit_stage_transition
+from retainpdf_base.events import PipelineEventWriter
+from retainpdf_base.events import pipeline_event_writer_scope
 
 
 def test_pipeline_event_writer_emits_structured_jsonl(tmp_path: Path, capsys) -> None:
@@ -231,7 +231,7 @@ def test_pipeline_events_classify_translation_and_render_substages(tmp_path: Pat
 def _isolated_progress_state():
     # Monotonic progress state lives in ContextVars shared by the whole test
     # process; reset it so per-substage counters from one test do not leak.
-    from retainpdf_pipeline.services.pipeline_shared import events as events_module
+    from retainpdf_base import events as events_module
 
     snapshot_token = events_module._ACTIVE_PROGRESS_SNAPSHOT.set(None)
     page_token = events_module._ACTIVE_RENDER_PAGE_PROGRESS.set(None)
@@ -249,9 +249,9 @@ def _read_event_rows(logs_dir: Path) -> list[dict]:
 
 
 def test_render_prepare_progress_is_main_lane_render_step(tmp_path: Path) -> None:
-    from retainpdf_pipeline.services.pipeline_shared.events import emit_render_page_progress
-    from retainpdf_pipeline.services.pipeline_shared.events import emit_render_prepare_progress
-    from retainpdf_pipeline.services.pipeline_shared.events import reset_render_page_progress
+    from retainpdf_base.events import emit_render_page_progress
+    from retainpdf_base.events import emit_render_prepare_progress
+    from retainpdf_base.events import reset_render_page_progress
 
     logs_dir = tmp_path / "logs"
     writer = PipelineEventWriter(job_id="job-render-prepare", job_root=tmp_path, logs_dir=logs_dir)

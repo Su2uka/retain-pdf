@@ -12,8 +12,8 @@ from retainpdf_pipeline.ocr.document_schema import adapt_path_to_document_v1_wit
 from retainpdf_pipeline.ocr.document_schema import validate_saved_document_path
 from retainpdf_pipeline.ocr.document_schema.providers import PROVIDER_GENERIC_FLAT_OCR
 from retainpdf_pipeline.ocr.ocr_provider.types import OcrProviderResult
-from retainpdf_pipeline.services.pipeline_shared.events import emit_stage_progress
-from retainpdf_pipeline.services.pipeline_shared.io import save_json
+from retainpdf_base.events import emit_stage_progress
+from retainpdf_base.io import save_json
 
 LOCAL_OCR_COMMAND_ENV = "RETAIN_LOCAL_OCR_COMMAND"
 LOCAL_OCR_RAW_PROVIDER_ENV = "RETAIN_OCR_RAW_PROVIDER"

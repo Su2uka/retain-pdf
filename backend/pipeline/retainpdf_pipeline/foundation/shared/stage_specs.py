@@ -176,20 +176,6 @@ def _optional_path(value: Any) -> Path | None:
     return Path(value.strip()).resolve()
 
 
-def resolve_credential_ref(credential_ref: str) -> str:
-    ref = (credential_ref or "").strip()
-    if not ref:
-        return ""
-    if ref.startswith("env:"):
-        import os
-
-        env_name = ref[4:].strip()
-        if not env_name:
-            raise RuntimeError("invalid credential_ref: missing env var name")
-        return os.environ.get(env_name, "").strip()
-    raise RuntimeError(f"unsupported credential_ref: {credential_ref}")
-
-
 def _preparation_and_reviewer_fields(payload: dict[str, Any]) -> dict[str, str]:
     """三种 spec（translate / provider / book）共用的译前准备、reviewer、接口协议与思考深度字段。
 

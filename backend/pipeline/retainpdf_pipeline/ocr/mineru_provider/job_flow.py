@@ -5,7 +5,7 @@ from pathlib import Path
 
 from retainpdf_pipeline.foundation.shared.job_dirs import JobDirs
 from retainpdf_pipeline.foundation.shared.job_dirs import job_dirs_from_explicit_args
-from retainpdf_pipeline.foundation.shared.local_env import get_secret
+from retainpdf_base.local_env import get_secret
 from retainpdf_pipeline.ocr.document_schema.adapters import adapt_path_to_document_v1_with_report
 from retainpdf_pipeline.ocr.document_schema.providers import PROVIDER_MINERU
 from retainpdf_pipeline.ocr.document_schema.reporting import build_normalization_summary

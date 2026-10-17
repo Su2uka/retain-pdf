@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from retainpdf_pipeline.services.pipeline_shared.io import save_json
+from retainpdf_base.io import save_json
 from retainpdf_pipeline.translate.artifacts.item_summary import preview_text
 from retainpdf_pipeline.translate.artifacts.item_summary import raw_excerpt_from_diagnostics
 from retainpdf_pipeline.translate.core.item_reader import item_block_kind

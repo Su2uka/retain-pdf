@@ -7,9 +7,9 @@ import time
 from retainpdf_pipeline.foundation.config import layout
 from retainpdf_pipeline.render.render_mode import resolve_effective_render_mode
 from retainpdf_pipeline.render.semantics.page_range import resolve_page_range
-from retainpdf_pipeline.services.pipeline_shared.events import emit_stage_progress
-from retainpdf_pipeline.services.pipeline_shared.events import get_active_pipeline_event_writer
-from retainpdf_pipeline.services.pipeline_shared.events import pipeline_event_writer_scope
+from retainpdf_base.events import emit_stage_progress
+from retainpdf_base.events import get_active_pipeline_event_writer
+from retainpdf_base.events import pipeline_event_writer_scope
 from retainpdf_pipeline.render.source.render_source import build_render_source_pdf
 from retainpdf_pipeline.render.source.prewarm_manifest import write_json_atomic
 from retainpdf_pipeline.render.source.prewarm_contracts import PAYLOAD_RENDER_ALGORITHM_VERSION

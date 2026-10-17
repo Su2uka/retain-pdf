@@ -28,8 +28,8 @@ from retainpdf_pipeline.render.output.typst.overlay_runtime import overlay_pdf_s
 from retainpdf_pipeline.render.output.typst.overlay_source_cache import resolve_prebuilt_overlay_source
 from retainpdf_pipeline.render.output.typst.source_page_overlay import apply_source_page_overlay
 from retainpdf_pipeline.render.output.typst.source_page_overlay import overlay_pages_from_single_pdf
-from retainpdf_pipeline.services.pipeline_shared.events import emit_render_compile_progress
-from retainpdf_pipeline.services.pipeline_shared.events import emit_render_page_progress
+from retainpdf_base.events import emit_render_compile_progress
+from retainpdf_base.events import emit_render_page_progress
 
 
 _can_use_pikepdf_book_overlay = can_use_pikepdf_book_overlay

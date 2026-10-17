@@ -15,7 +15,7 @@ if str(REPO_SCRIPTS_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_SCRIPTS_ROOT))
 
 from retainpdf_pipeline.foundation.shared.stage_specs import TranslateStageSpec
-from retainpdf_pipeline.foundation.shared.stage_specs import resolve_credential_ref
+from retainpdf_base.credentials import resolve_credential_ref
 from retainpdf_pipeline.translate.llm import translate_batch
 from retainpdf_pipeline.translate.core.payload import load_translation_manifest_file
 from retainpdf_pipeline.translate.core.payload import load_translations

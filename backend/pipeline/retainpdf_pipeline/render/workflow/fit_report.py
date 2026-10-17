@@ -19,7 +19,7 @@ from retainpdf_pipeline.render.output.typst.fit_report import FIT_REPORT_FILE_NA
 from retainpdf_pipeline.render.output.typst.fit_report import FitReportTarget
 from retainpdf_pipeline.render.output.typst.fit_report import finalize_fit_report_target
 from retainpdf_pipeline.render.output.typst.fit_report import fit_report_scope
-from retainpdf_pipeline.services.pipeline_shared.events import emit_artifact_published
+from retainpdf_base.events import emit_artifact_published
 
 
 def fit_report_path_for_artifacts_dir(artifacts_dir: Path | None) -> Path | None:

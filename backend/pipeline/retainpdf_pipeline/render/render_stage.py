@@ -7,9 +7,9 @@ from retainpdf_pipeline.foundation.config import fonts
 from retainpdf_pipeline.foundation.config import runtime
 from retainpdf_pipeline.render.render_plan import build_render_plan
 from retainpdf_pipeline.render.render_execution import execute_render_plan
-from retainpdf_pipeline.services.pipeline_shared.events import emit_stage_progress
-from retainpdf_pipeline.services.pipeline_shared.events import emit_stage_transition
-from retainpdf_pipeline.services.pipeline_shared.events import reset_render_page_progress
+from retainpdf_base.events import emit_stage_progress
+from retainpdf_base.events import emit_stage_transition
+from retainpdf_base.events import reset_render_page_progress
 from retainpdf_pipeline.render.source.prewarm import prewarm_manifest_path_from_translations_dir
 from retainpdf_pipeline.render.workflow.fit_report import fit_report_result
 from retainpdf_pipeline.render.workflow.fit_report import render_fit_report_scope

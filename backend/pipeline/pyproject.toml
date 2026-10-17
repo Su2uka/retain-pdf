@@ -20,6 +20,7 @@ dependencies = [
   # Object、Page、Rectangle 和内容流解析，7→10 之间都没动过。
   "pikepdf==10.13.0.post1",
   "requests==2.32.5",
+  "retainpdf-base",
   "retainpdf-math",
   "urllib3==2.5.0",
 ]
@@ -35,6 +36,7 @@ test = [
 retainpdf-pipeline = "retainpdf_pipeline.entrypoints.console:main"
 
 [tool.uv.sources]
+retainpdf-base = { workspace = true }
 retainpdf-math = { workspace = true }
 
 [tool.setuptools.packages.find]

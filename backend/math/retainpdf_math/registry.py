@@ -2,7 +2,7 @@
 
 为什么要有这个文件：这些规则原本散在八个地方——渲染期改写（inline_math）、
 它在 markdown 层的第二份拷贝（block_renderer）、display 路径的归一化器
-（latex_normalizer）、注入提示词的替换表（direct_typst_math）、什么算丢失
+（latex_normalizer）、注入提示词的替换表（direct_typst）、什么算丢失
 （math_safety）、真编译验证过的清单（覆盖测试）、两份提示词里的白名单、以及
 前端完全独立的 MathJax 支持集。
 

@@ -14,8 +14,8 @@ import pytest
 
 from retainpdf_pipeline.foundation.shared.stage_specs import RenderStageRefineParams
 from retainpdf_pipeline.foundation.shared.stage_specs import RenderStageSpec
-from retainpdf_pipeline.services.pipeline_shared.events import PipelineEventWriter
-from retainpdf_pipeline.services.pipeline_shared.events import pipeline_event_writer_scope
+from retainpdf_base.events import PipelineEventWriter
+from retainpdf_base.events import pipeline_event_writer_scope
 from retainpdf_pipeline.translate.public import run_refine_for_render
 from retainpdf_pipeline.translate.services.refine.config import refine_config_from_mapping
 from retainpdf_pipeline.translate.services.refine.edits import EditRejected

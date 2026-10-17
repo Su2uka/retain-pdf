@@ -17,7 +17,7 @@ def probe(transport, route, outcome, cache_dir):
     import socket
     import time
     import requests
-    from retainpdf_pipeline.foundation.config import paths
+    from retainpdf_base import paths
     from retainpdf_pipeline.translate.llm.shared.rust_executor import ExecutorError
     from retainpdf_pipeline.translate.llm.shared import executor_context as executor
     from retainpdf_pipeline.translate.llm.shared.orchestration import translate_batch

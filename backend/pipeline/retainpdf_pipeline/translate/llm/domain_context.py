@@ -13,8 +13,8 @@ import fitz
 
 from retainpdf_pipeline.translate.prompt_loader import load_prompt
 
-from retainpdf_pipeline.services.pipeline_shared.events import emit_stage_progress
-from retainpdf_pipeline.services.pipeline_shared.events import emit_stage_transition
+from retainpdf_base.events import emit_stage_progress
+from retainpdf_base.events import emit_stage_transition
 from retainpdf_pipeline.translate.llm.shared.provider_runtime import request_chat_content
 from retainpdf_pipeline.translate.llm.shared.structured_models import DOMAIN_CONTEXT_RESPONSE_SCHEMA
 from retainpdf_pipeline.translate.llm.shared.structured_parsers import parse_domain_context_response
@@ -140,7 +140,7 @@ def load_cached_domain_context(output_dir: Path | None) -> dict[str, str] | None
 def _shared_domain_context_path(preview_text: str, *, model: str) -> Path:
     import hashlib
 
-    from retainpdf_pipeline.foundation.config.paths import DOMAIN_CONTEXT_CACHE_DIR
+    from retainpdf_base.paths import DOMAIN_CONTEXT_CACHE_DIR
 
     key = hashlib.sha256(f"{model}\n{preview_text.strip()}".encode("utf-8")).hexdigest()
     return DOMAIN_CONTEXT_CACHE_DIR / f"{key}.json"

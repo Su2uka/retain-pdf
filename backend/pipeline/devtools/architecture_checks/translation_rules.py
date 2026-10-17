@@ -14,6 +14,16 @@ TRANSLATION_STAGE_PIPELINE = TRANSLATION_ROOT / "translation_stage.py"
 
 TRANSLATE_ONLY_ENTRYPOINT = PACKAGE_ROOT / "translate" / "entrypoints" / "translate_only_pipeline.py"
 FROM_OCR_ENTRYPOINT = PACKAGE_ROOT / "translate" / "entrypoints" / "from_ocr_pipeline.py"
+# 翻译要拆成独立包 retainpdf-translation（见 docs/ops/planning/translation-package/）。
+# 拆包之后 retainpdf_pipeline/translate/ 只剩这几样：Rust 用 `python -m retainpdf_pipeline.translate`
+# 启动的 worker 外壳。其余部分是翻译库本体，只许依赖自己、底座包 retainpdf_base 和公式包
+# retainpdf_math，不许 import 流水线的其他部分，也不许反过来 import 外壳。
+TRANSLATION_WORKER_SHELL = {"__main__.py", "entrypoints", "translation_stage.py"}
+TRANSLATION_SHELL_MODULES = (
+    "retainpdf_pipeline.translate.__main__",
+    "retainpdf_pipeline.translate.entrypoints",
+    "retainpdf_pipeline.translate.translation_stage",
+)
 TRANSLATION_ALLOWED_ROOT_DIRS = {
     "artifacts",
     "core",
@@ -88,7 +98,7 @@ TRANSLATION_WORKFLOW_SUBPACKAGE_RULES: dict[str, tuple[str, ...]] = {
         "retainpdf_pipeline.translate.services.finalization",
         "retainpdf_pipeline.translate.services.policy",
         "retainpdf_pipeline.translate.services.postprocess",
-        "retainpdf_pipeline.services.pipeline_shared.events",
+        "retainpdf_base.events",
     ),
     "scheduling": (
         "retainpdf_pipeline.translate.workflow.scheduling",

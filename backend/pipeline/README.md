@@ -16,7 +16,7 @@
 其中 `services/` 内部现在又明确分成两类：
 
 - provider / translation / rendering 这类能力模块
-- `services/pipeline_shared/` 这类跨阶段共享协议模块
+- `services/pipeline_shared/`：跨阶段的 pipeline summary（事件、stdout 标签、JSON IO 在底座包 `backend/base` 的 `retainpdf_base`）
 
 ## 主链路
 
@@ -143,7 +143,8 @@ RETAINPDF_PIPELINE_ONLY_PYTHON=/path/to/isolated/venv/bin/python \
 - `retainpdf_pipeline/ocr/mineru_provider`
   MinerU 接入、下载、解包、job 组织。
 - `retainpdf_pipeline/services/pipeline_shared`
-  provider / translate / render 共用的阶段协议、summary 和 JSON IO。
+  provider / translate / render 共用的 pipeline summary；阶段事件、stdout 标签、JSON IO 在底座包
+  `retainpdf_base`（`backend/base`）。
   `retainpdf_pipeline/services/` 下只有它仍有实体文件，其余子目录是搬家空壳。
 - `retainpdf_pipeline/translate`
   OCR payload 到翻译 JSON（含 `translation_stage.py` 阶段门面）。
@@ -224,7 +225,7 @@ RETAINPDF_PIPELINE_ONLY_PYTHON=/path/to/isolated/venv/bin/python \
 - 密钥不明文写入 spec
   - 翻译 key 通过 `credential_ref=env:RETAIN_TRANSLATION_API_KEY`
   - 如果 provider 是 `mineru`，对应 token 通过 `credential_ref=env:RETAIN_MINERU_API_TOKEN`
-  - 运行时由 Rust 注入环境变量，Python 通过 `stage_specs.resolve_credential_ref(...)` 读取
+  - 运行时由 Rust 注入环境变量，Python 通过 `retainpdf_base.credentials.resolve_credential_ref(...)` 读取
 - Rust 主工作流和本地 book/translate 入口都已切到 spec-only
   - `retainpdf-pipeline normalize-ocr --spec <job_root>/specs/normalize.spec.json`
   - `retainpdf-pipeline provider-ocr --spec <job_root>/specs/provider.spec.json`

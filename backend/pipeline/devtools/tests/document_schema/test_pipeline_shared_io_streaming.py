@@ -8,9 +8,9 @@ from pathlib import Path
 import pytest
 
 
-from retainpdf_pipeline.services.pipeline_shared.io import load_json
-from retainpdf_pipeline.services.pipeline_shared.io import save_json
-from retainpdf_pipeline.services.pipeline_shared.io import save_json_atomic
+from retainpdf_base.io import load_json
+from retainpdf_base.io import save_json
+from retainpdf_base.io import save_json_atomic
 
 
 def test_save_json_pretty_roundtrip(tmp_path: Path) -> None:

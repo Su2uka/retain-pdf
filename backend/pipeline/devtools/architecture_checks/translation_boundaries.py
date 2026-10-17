@@ -16,12 +16,31 @@ from devtools.architecture_checks.translation_rules import TRANSLATION_LAYER_FRO
 from devtools.architecture_checks.translation_rules import TRANSLATION_LAYER_IMPORT_RULES
 from devtools.architecture_checks.translation_rules import TRANSLATION_REMOVED_COMPAT_IMPORTS
 from devtools.architecture_checks.translation_rules import TRANSLATION_ROOT
+from devtools.architecture_checks.translation_rules import TRANSLATION_SHELL_MODULES
 from devtools.architecture_checks.translation_rules import TRANSLATION_SHARED_COMPAT_IMPORTS
 from devtools.architecture_checks.translation_rules import TRANSLATION_WORKFLOW_ALLOWED_DIRS
 from devtools.architecture_checks.translation_rules import TRANSLATION_WORKFLOW_ALLOWED_FILES
 from devtools.architecture_checks.translation_rules import TRANSLATION_WORKFLOW_PRIVATE_IMPORT_EXCEPTIONS
+from devtools.architecture_checks.translation_rules import TRANSLATION_WORKER_SHELL
 from devtools.architecture_checks.translation_rules import TRANSLATION_WORKFLOW_SUBPACKAGE_RULES
 from devtools.architecture_checks.translation_rules import translation_layer_for
+
+
+def check_translation_library_self_contained(errors: list[str]) -> None:
+    """翻译库本体（worker 外壳以外）不依赖流水线，拆成 retainpdf-translation 时才能整体搬走。"""
+    for path in scan_py_files(TRANSLATION_ROOT):
+        if path.relative_to(TRANSLATION_ROOT).parts[0] in TRANSLATION_WORKER_SHELL:
+            continue
+        for module in imported_modules(path):
+            if module_allowed(module, TRANSLATION_SHELL_MODULES):
+                errors.append(
+                    f"{rel(path)}: translation library must not import the worker shell '{module}'"
+                )
+            elif module.startswith("retainpdf_pipeline.") and not module.startswith("retainpdf_pipeline.translate."):
+                errors.append(
+                    f"{rel(path)}: translation library must not import '{module}'; "
+                    "shared helpers belong in retainpdf_base / retainpdf_math"
+                )
 
 
 def check_translation_internal_boundaries(errors: list[str]) -> None:
@@ -60,7 +79,7 @@ def check_translation_internal_boundaries(errors: list[str]) -> None:
         if allowed_prefixes is None:
             continue
         for module in imported_modules(path):
-            if not module.startswith(("retainpdf_pipeline.translate.", "retainpdf_pipeline.services.pipeline_shared.")):
+            if not module.startswith(("retainpdf_pipeline.translate.", "retainpdf_base.")):
                 continue
             if module_allowed(module, allowed_prefixes):
                 continue

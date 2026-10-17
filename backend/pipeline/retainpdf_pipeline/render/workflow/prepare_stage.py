@@ -20,7 +20,7 @@ import json
 import time
 from pathlib import Path
 
-from retainpdf_pipeline.foundation.config.output_layout import ARTIFACTS_DIR_NAME
+from retainpdf_base.output_layout import ARTIFACTS_DIR_NAME
 from retainpdf_pipeline.foundation.shared.stage_specs import RenderPrepareStageSpec
 from retainpdf_pipeline.render.prepare.obstacle_scan import run_obstacle_scan
 from retainpdf_pipeline.render.prepare.page_analysis import run_page_analysis

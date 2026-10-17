@@ -8,7 +8,7 @@ import fitz
 import pytest
 
 
-from retainpdf_pipeline.foundation.config import paths
+from retainpdf_base import paths
 from retainpdf_pipeline.foundation.config.external_tools import ExternalToolNotFound
 from retainpdf_pipeline.render.output.typst import compiler
 from retainpdf_pipeline.render.output.typst.compiler import TypstCompileError

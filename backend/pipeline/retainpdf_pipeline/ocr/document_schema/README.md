@@ -225,7 +225,7 @@ provider 原始 OCR 不应直接进入翻译/渲染主线。
 - `ocr/document_schema/providers.py`
   稳定 OCR provider 标识常量，adapter、fixture registry、回归脚本优先共用这一层
 - `services/pipeline_shared/`
-  主线共享的 `pipeline_summary.json`、stdout 标签、JSON IO 和 source-json 选择规则
+  主线共享的 `pipeline_summary.json`；stdout 标签、JSON IO 在底座包 `retainpdf_base`
 - `ocr/mineru_provider/contracts.py`
   仅保留 MinerU provider 私有原始文件名、目录名约定
 

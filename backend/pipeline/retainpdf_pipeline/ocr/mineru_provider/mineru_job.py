@@ -5,7 +5,7 @@ import shutil
 from pathlib import Path
 
 from retainpdf_pipeline.foundation.shared.job_dirs import create_job_dirs
-from retainpdf_pipeline.foundation.shared.local_env import get_secret
+from retainpdf_base.local_env import get_secret
 from retainpdf_pipeline.ocr.mineru_provider.artifacts import download_file
 from retainpdf_pipeline.ocr.mineru_provider.artifacts import unpack_zip
 from retainpdf_pipeline.ocr.mineru_provider.mineru_api import MINERU_ENV_FILE

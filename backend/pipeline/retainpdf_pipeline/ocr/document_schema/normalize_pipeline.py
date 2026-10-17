@@ -30,7 +30,7 @@ from retainpdf_pipeline.ocr.ocr_provider.paddle_normalize import (
     post_rescale_rebuild_paddle_text_geometry,
     rescale_document_geometry_to_pdf,
 )
-from retainpdf_pipeline.services.pipeline_shared.io import save_json_atomic
+from retainpdf_base.io import save_json_atomic
 
 
 def parse_args() -> argparse.Namespace:

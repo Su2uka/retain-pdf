@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from retainpdf_pipeline.services.pipeline_shared.direct_typst_math import normalize_direct_typst_translation
+from retainpdf_math.direct_typst import normalize_direct_typst_translation
 from retainpdf_pipeline.translate.llm.citation_style import restore_bracket_citations
 from retainpdf_pipeline.translate.llm.placeholder_transform import repair_safe_duplicate_placeholders
 from retainpdf_pipeline.translate.llm.result_payload import KEEP_ORIGIN_LABEL

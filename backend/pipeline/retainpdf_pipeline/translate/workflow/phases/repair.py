@@ -4,8 +4,8 @@ import os
 import time
 from pathlib import Path
 
-from retainpdf_pipeline.services.pipeline_shared.events import emit_stage_progress
-from retainpdf_pipeline.services.pipeline_shared.events import emit_stage_transition
+from retainpdf_base.events import emit_stage_progress
+from retainpdf_base.events import emit_stage_transition
 from retainpdf_pipeline.translate.artifacts import TranslationRunDiagnostics
 from retainpdf_pipeline.translate.artifacts import blocking_untranslated_items
 from retainpdf_pipeline.translate.core.provider_identity import is_deepseek_family_provider

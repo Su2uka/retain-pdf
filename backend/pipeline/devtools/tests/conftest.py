@@ -39,7 +39,7 @@ os.environ["OUTPUT_ROOT"] = str(_SESSION_OUTPUT_ROOT)
 os.environ.pop("RUST_API_OUTPUT_ROOT", None)
 
 from retainpdf_pipeline.foundation.config import layout  # noqa: E402
-from retainpdf_pipeline.foundation.config import paths  # noqa: E402
+from retainpdf_base import paths  # noqa: E402
 
 # 仓库里那个真正的 data/：守卫用它，不受 OUTPUT_ROOT 影响。
 REPO_DATA_DIR = paths.ROOT_DIR / "data"

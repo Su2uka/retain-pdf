@@ -17,9 +17,9 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Callable, Mapping
 
-from retainpdf_pipeline.foundation.shared.stage_specs import resolve_credential_ref
-from retainpdf_pipeline.services.pipeline_shared.events import emit_stage_progress
-from retainpdf_pipeline.services.pipeline_shared.events import emit_stage_transition
+from retainpdf_base.credentials import resolve_credential_ref
+from retainpdf_base.events import emit_stage_progress
+from retainpdf_base.events import emit_stage_transition
 from retainpdf_pipeline.translate.core.payload.manifest import load_translation_manifest
 from retainpdf_pipeline.translate.core.terms import normalize_glossary_entries
 from retainpdf_pipeline.translate.services.preparation.style_guide import STYLE_GUIDE_FILE_NAME

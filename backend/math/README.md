@@ -7,6 +7,7 @@ RetainPDF 的公式处理包。翻译流水线、AI 服务都从这里拿关于�
 | `registry` | LaTeX 命令登记表（`latex_commands.json`）：哪些命令渲染器支持、哪些写法等价、哪些会被模型改写、渲染不了时提示换成什么 |
 | `spans` | 从文本里找公式：`$...$` 行内、`$$...$$` 行间 |
 | `checks` | 不用渲染器就能判断的问题：花括号不配对、翻译时丢了 LaTeX 命令 |
+| `direct_typst` | direct_typst 译文的机械格式规整（公式和中文之间的空格、相邻公式、双反斜杠）、`$` 是否成对、提示词里「渲染不了的命令换成什么」的替换表 |
 | `render_check` | 交给排版引擎同一套 MathJax 试渲染，「ok」就等于能排进 PDF |
 
 ## render_check 怎么找到引擎

@@ -11,8 +11,8 @@ from datetime import timezone
 from pathlib import Path
 from typing import Any
 
-from retainpdf_pipeline.foundation.config.output_layout import ARTIFACTS_DIR_NAME
-from retainpdf_pipeline.services.pipeline_shared.io import save_json_atomic
+from retainpdf_base.output_layout import ARTIFACTS_DIR_NAME
+from retainpdf_base.io import save_json_atomic
 from retainpdf_pipeline.translate.services.refine.review import CATEGORIES
 from retainpdf_pipeline.translate.services.refine.review import SEVERITIES
 

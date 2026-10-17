@@ -9,11 +9,11 @@ from retainpdf_pipeline.foundation.config import layout
 from retainpdf_pipeline.foundation.shared.job_dirs import job_dirs_from_explicit_args
 from retainpdf_pipeline.foundation.shared.stage_specs import build_stage_invocation_metadata
 from retainpdf_pipeline.foundation.shared.stage_specs import ProviderStageSpec
-from retainpdf_pipeline.foundation.shared.stage_specs import resolve_credential_ref
+from retainpdf_base.credentials import resolve_credential_ref
 from retainpdf_pipeline.foundation.shared.tee_output import enable_job_log_capture
 from retainpdf_pipeline.ocr.document_schema import DOCUMENT_SCHEMA_REPORT_FILE_NAME
 from retainpdf_pipeline.ocr.mineru_provider.job_flow import run_mineru_to_job_dir
-from retainpdf_pipeline.services.pipeline_shared.contracts import PIPELINE_SUMMARY_FILE_NAME
+from retainpdf_base.contracts import PIPELINE_SUMMARY_FILE_NAME
 from retainpdf_pipeline.services.pipeline_shared.summary import print_pipeline_summary
 from retainpdf_pipeline.services.pipeline_shared.summary import write_pipeline_summary
 from retainpdf_pipeline.ocr.source_json import resolve_translation_source_json_path

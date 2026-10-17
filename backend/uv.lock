@@ -6,6 +6,7 @@ requires-python = "==3.11.*"
 members = [
     "retainpdf-ai-service",
     "retainpdf-backend-workspace",
+    "retainpdf-base",
     "retainpdf-math",
     "retainpdf-pipeline",
 ]
@@ -432,6 +433,7 @@ version = "4.2.6"
 source = { virtual = "." }
 dependencies = [
     { name = "retainpdf-ai-service" },
+    { name = "retainpdf-base" },
     { name = "retainpdf-math" },
     { name = "retainpdf-pipeline" },
 ]
@@ -439,6 +441,7 @@ dependencies = [
 [package.optional-dependencies]
 test = [
     { name = "retainpdf-ai-service", extra = ["test"] },
+    { name = "retainpdf-base", extra = ["test"] },
     { name = "retainpdf-math", extra = ["test"] },
     { name = "retainpdf-pipeline", extra = ["test"] },
 ]
@@ -447,11 +450,27 @@ test = [
 requires-dist = [
     { name = "retainpdf-ai-service", editable = "ai" },
     { name = "retainpdf-ai-service", extras = ["test"], marker = "extra == 'test'", editable = "ai" },
+    { name = "retainpdf-base", editable = "base" },
+    { name = "retainpdf-base", extras = ["test"], marker = "extra == 'test'", editable = "base" },
     { name = "retainpdf-math", editable = "math" },
     { name = "retainpdf-math", extras = ["test"], marker = "extra == 'test'", editable = "math" },
     { name = "retainpdf-pipeline", editable = "pipeline" },
     { name = "retainpdf-pipeline", extras = ["test"], marker = "extra == 'test'", editable = "pipeline" },
 ]
+provides-extras = ["test"]
+
+[[package]]
+name = "retainpdf-base"
+version = "4.2.6"
+source = { editable = "base" }
+
+[package.optional-dependencies]
+test = [
+    { name = "pytest" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "pytest", marker = "extra == 'test'", specifier = "==9.0.3" }]
 provides-extras = ["test"]
 
 [[package]]
@@ -477,6 +496,7 @@ dependencies = [
     { name = "pillow" },
     { name = "pymupdf" },
     { name = "requests" },
+    { name = "retainpdf-base" },
     { name = "retainpdf-math" },
     { name = "urllib3" },
 ]
@@ -495,6 +515,7 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'test'", specifier = "==9.0.3" },
     { name = "python-docx", marker = "extra == 'test'", specifier = "==1.1.2" },
     { name = "requests", specifier = "==2.32.5" },
+    { name = "retainpdf-base", editable = "base" },
     { name = "retainpdf-math", editable = "math" },
     { name = "urllib3", specifier = "==2.5.0" },
 ]

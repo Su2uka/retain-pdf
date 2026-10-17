@@ -9,8 +9,8 @@ direct_typst 模式让模型直接输出 `$...$` inline LaTeX(渲染时由 mitex
 `$` 扫描语义对齐渲染层 tokenizer(render/layout/text_tokens.py),
 使翻译时规整与渲染时 passthrough 对跨度边界的判定一致。渲染层既有的规整链
 (surround_inline_math_with_spaces 等)保持不动,作为旧缓存条目的幂等兜底。
-本模块必须保持零依赖:translation 与 rendering 都可以 import pipeline_shared,
-但二者不能互相 import。
+本模块只依赖 retainpdf_math 自己:翻译与渲染都从这里拿,二者不能互相 import。
+(原来是流水线的 services/pipeline_shared/direct_typst_math.py,翻译拆包时挪进公式包。)
 """
 
 from __future__ import annotations

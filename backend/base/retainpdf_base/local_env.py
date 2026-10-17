@@ -11,7 +11,7 @@ def _env_dir() -> Path:
         return Path(override).expanduser().resolve()
     # Source checkout compatibility. Installed wheels should use the explicit
     # env var (or process environment) instead of relying on package location.
-    return Path(__file__).resolve().parents[3] / ".env"
+    return Path(__file__).resolve().parents[2] / "pipeline" / ".env"
 
 
 ENV_DIR = _env_dir()

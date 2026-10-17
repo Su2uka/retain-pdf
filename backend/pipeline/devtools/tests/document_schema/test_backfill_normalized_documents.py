@@ -12,7 +12,7 @@ from devtools import backfill_normalized_documents as backfill
 
 
 def test_payload_hash_matches_atomic_json_encoding(tmp_path: Path) -> None:
-    from retainpdf_pipeline.services.pipeline_shared.io import save_json_atomic
+    from retainpdf_base.io import save_json_atomic
 
     payload = {"text": "完整", "pages": [{"blocks": [1, 2]}]}
     compact_path = tmp_path / "compact.json"

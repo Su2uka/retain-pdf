@@ -5,8 +5,8 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from retainpdf_pipeline.services.pipeline_shared.events import emit_stage_progress
-from retainpdf_pipeline.services.pipeline_shared.events import emit_stage_transition
+from retainpdf_base.events import emit_stage_progress
+from retainpdf_base.events import emit_stage_transition
 from retainpdf_pipeline.translate.artifacts import TranslationRunDiagnostics
 from retainpdf_pipeline.translate.llm.shared.control_context import TranslationControlContext
 from retainpdf_pipeline.translate.workflow.batching.pending_units import translate_pending_units

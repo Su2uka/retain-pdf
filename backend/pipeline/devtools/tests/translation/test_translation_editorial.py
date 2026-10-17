@@ -147,8 +147,8 @@ def test_chief_routes_blocks_and_the_reviser_rewrites_an_omission(tmp_path: Path
 
 def test_progress_events_carry_round_and_batch_counts_for_the_flow_chart(tmp_path: Path) -> None:
     """前端流程图靠载荷里的 refine_round / refine_max_rounds / batch_done / batch_total 画，不从文案里抠。"""
-    from retainpdf_pipeline.services.pipeline_shared.events import PipelineEventWriter
-    from retainpdf_pipeline.services.pipeline_shared.events import pipeline_event_writer_scope
+    from retainpdf_base.events import PipelineEventWriter
+    from retainpdf_base.events import pipeline_event_writer_scope
 
     model = EditorialModel(
         chief=[_decide(("p001-b001", "rewrite"), ("p001-b002", "patch"))],

@@ -209,8 +209,11 @@ production 代码在 translation 外部引用本模块时，默认只允许：
 目标依赖方向：
 
 ```text
-entrypoints
-  -> workflow / pipeline_shared / foundation
+entrypoints（worker 外壳，拆包后留在流水线）
+  -> workflow / foundation / retainpdf_base
+其余各层（翻译库本体）
+  -> 只依赖翻译自己、retainpdf_base、retainpdf_math；不 import 流水线的其他部分
+     （门禁：check_translation_library_self_contained）
 workflow
   -> core / services / llm / artifacts
 core

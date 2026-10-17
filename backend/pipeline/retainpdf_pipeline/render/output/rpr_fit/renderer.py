@@ -34,7 +34,7 @@ from retainpdf_pipeline.render.output.rpr_fit.report import build_rpr_fit_fit_re
 from retainpdf_pipeline.render.output.typst.block_renderer import sanitize_typst_markdown_for_compile
 from retainpdf_pipeline.render.output.typst.book_support import prepare_background_work_dir
 from retainpdf_pipeline.render.output.typst.fit_report import record_fit_report_payload
-from retainpdf_pipeline.services.pipeline_shared.events import emit_render_compile_progress
+from retainpdf_base.events import emit_render_compile_progress
 
 RPR_FIT_INPUT_SCHEMA = "rpr_fit_input_v1"
 RPR_FIT_BACKGROUND_MODES = frozenset({"typst", "typst_visual"})

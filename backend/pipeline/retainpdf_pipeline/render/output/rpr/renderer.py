@@ -38,7 +38,7 @@ from retainpdf_pipeline.render.output.typst.book_support import prepare_backgrou
 from retainpdf_pipeline.render.output.typst.book_support import save_background_pdf_to_output
 from retainpdf_pipeline.render.output.typst.overlay_prepare import prepare_overlay_pages
 from retainpdf_pipeline.render.output.typst.fit_report import record_fit_report_payload
-from retainpdf_pipeline.services.pipeline_shared.events import emit_render_compile_progress
+from retainpdf_base.events import emit_render_compile_progress
 
 RPR_BACKGROUND_MODES = frozenset({"typst", "typst_visual"})
 RPR_SUPPORTED_MODES = RPR_BACKGROUND_MODES | {"overlay"}

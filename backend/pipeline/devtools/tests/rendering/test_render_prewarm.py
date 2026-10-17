@@ -301,8 +301,8 @@ def test_render_plan_reuses_source_prewarm_without_sync_document_analysis() -> N
 
 
 def test_cold_sync_render_prepare_emits_main_lane_steps_and_warm_render_skips_them() -> None:
-    from retainpdf_pipeline.services.pipeline_shared.events import PipelineEventWriter
-    from retainpdf_pipeline.services.pipeline_shared.events import pipeline_event_writer_scope
+    from retainpdf_base.events import PipelineEventWriter
+    from retainpdf_base.events import pipeline_event_writer_scope
 
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)

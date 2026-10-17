@@ -18,7 +18,7 @@ from retainpdf_pipeline.ocr.document_schema.provider_adapters.paddle.content_ext
 from retainpdf_pipeline.ocr.document_schema.reporting import build_normalization_summary
 from retainpdf_pipeline.ocr.document_schema.providers import PROVIDER_PADDLE
 from retainpdf_pipeline.ocr.document_schema.toc import build_toc_entries
-from retainpdf_pipeline.services.pipeline_shared.io import save_json
+from retainpdf_base.io import save_json
 
 
 AdaptDocumentFn = Callable[..., tuple[dict, dict]]

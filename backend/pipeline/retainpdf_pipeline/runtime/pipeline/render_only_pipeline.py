@@ -15,8 +15,8 @@ from typing import Any
 
 from retainpdf_pipeline.foundation.shared.stage_specs import RenderStageSpec
 from retainpdf_pipeline.render.workflow.render_only import main as render_only_main
-from retainpdf_pipeline.services.pipeline_shared.events import PipelineEventWriter
-from retainpdf_pipeline.services.pipeline_shared.events import pipeline_event_writer_scope
+from retainpdf_base.events import PipelineEventWriter
+from retainpdf_base.events import pipeline_event_writer_scope
 from retainpdf_pipeline.translate.public import refresh_translation_qa_after_render
 from retainpdf_pipeline.translate.public import run_refine_for_render
 
