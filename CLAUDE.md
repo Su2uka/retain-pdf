@@ -35,7 +35,7 @@ python3 backend/pipeline/devtools/check_pipeline_architecture.py
 backend/.venv/bin/python backend/pipeline/devtools/extract_pipeline_requirements.py --services-root backend --check
 python3 .github/scripts/sync_backend_python_requirements.py --repo-root . --services-root backend --check
 backend/.venv/bin/python -m pytest -q .github/scripts/tests   # 文档相对链接、交付和 CI 约定；改了文档也要跑
-cargo test -p retain-pdf-api -p retain-pdf-api-base -p retain-pdf-accounts -p retain-pdf-ai -p retain-pdf-files -p retain-pdf-glossaries -p retain-pdf-ingest -p retain-pdf-jobs -p retain-pdf-platform -p retain-pdf-providers -p retain-pdf-runner -p retain-pdf-db -p retain-pdf-data -p retain-pdf-core -p retain-pdf-config
+cargo test -p retain-pdf-api -p retain-pdf-api-base -p retain-pdf-accounts -p retain-pdf-ai -p retain-pdf-files -p retain-pdf-glossaries -p retain-pdf-ingest -p retain-pdf-jobs -p retain-pdf-library -p retain-pdf-platform -p retain-pdf-providers -p retain-pdf-runner -p retain-pdf-db -p retain-pdf-data -p retain-pdf-core -p retain-pdf-config
 ```
 
 - 改了 `backend/pipeline/retainpdf_pipeline/translate/`：再跑
@@ -71,19 +71,21 @@ cargo test -p retain-pdf-api -p retain-pdf-api-base -p retain-pdf-accounts -p re
 - `/jobs` 按 9 类分：路由 `app/router/jobs/<类>.rs`、处理函数 `routes/jobs/<类>.rs`、业务逻辑
   `services/jobs/<类>/`，三处同名。新接口放进对应的类，不要再加 `/jobs/:job_id/<名字>` 这种顶层地址；
   旧地址紧跟在新地址下面、行尾标 `// 旧地址`。`services/jobs/` 根目录只放各类共用的（门面、依赖、返回视图）。
-  任务已经拆成包，`services/jobs/...` 是逻辑路径（架构检查报错也这么写），实际在 `backend/packages/retain-pdf-jobs/src/...`。
+  任务、书库已经拆成包，`services/jobs/...`、`services/library/...` 是逻辑路径（架构检查报错也这么写），实际在
+  `backend/packages/retain-pdf-jobs/src/...`、`backend/packages/retain-pdf-library/src/...`。
 - 建新任务只走 `services/jobs/lifecycle/creation/submit.rs` 的 `submit_job`，原地重跑已有任务走 `relaunch_in_place`；
   别处直接落库或发射任务，`check_job_entry_ownership` 会报错。
-- `services/` 下只有 9 个领域目录（`accounts`、`providers`、`ingest`、`files`、`jobs`、`library`、`glossaries`、
-  `ai`、`platform`），新模块放进其中一个。每个领域的 `mod.rs` 是唯一的门面：子模块私有，领域外要用的东西在
-  `// 门面` 那一块 `pub(crate) use` 出来，只给测试用的标 `#[cfg(test)]`。
-- 拆成独立包的领域（`EXTRACTED_DOMAINS`，现在有账号 `retain-pdf-accounts`、AI `retain-pdf-ai`、文件 `retain-pdf-files`、术语表 `retain-pdf-glossaries`、入口 `retain-pdf-ingest`、任务 `retain-pdf-jobs`、平台 `retain-pdf-platform`、服务商 `retain-pdf-providers`）：代码在 `backend/packages/<包>`，`lib.rs` 是门面；
+- 业务逻辑只在 9 个领域里（`accounts`、`providers`、`ingest`、`files`、`jobs`、`library`、`glossaries`、
+  `ai`、`platform`），新模块放进其中一个。9 个都已拆成包（2026-10-17 拆完），`services/` 下不再有目录，只有接上它们的 `mod.rs`。
+  每个领域包的 `lib.rs` 是唯一的门面：子模块私有，领域外要用的东西在 `// 门面` 那一块 `pub use` 出来。
+- 拆成独立包的领域（`EXTRACTED_DOMAINS`，现在有账号 `retain-pdf-accounts`、AI `retain-pdf-ai`、文件 `retain-pdf-files`、术语表 `retain-pdf-glossaries`、入口 `retain-pdf-ingest`、任务 `retain-pdf-jobs`、书库 `retain-pdf-library`、平台 `retain-pdf-platform`、服务商 `retain-pdf-providers`）：代码在 `backend/packages/<包>`，`lib.rs` 是门面；
   `services/mod.rs` 里 `pub(crate) use <包> as <领域>;` 接上，`services/` 下不再留它的目录。
   只给 rust_api 测试用的导出，在包里挂在 `test-fixtures` 特性下（`#[cfg(any(test, feature = "test-fixtures"))]`），
   rust_api 的 `[dev-dependencies]` 打开它；`#[cfg(test)]` 跨包看不到。
 - 领域之间只能往下依赖，允许的方向登记在 `ALLOWED_DOMAIN_DEPENDENCIES`，也不许有环；两边都要用的东西往下放。
   按编号读出任务（`job_loading`）和错误类型（`AppError`）在单独的包 `retain-pdf-api-base` 里，services 下面一层；
-  rust_api 里照旧写 `crate::job_loading`、`crate::error`。
+  rust_api 里照旧写 `crate::error`（`job_loading` 只有领域包用，写 `retain_pdf_api_base::job_loading`）。
+  只给测试用的小工具（找项目 Python 环境的 `project_venv_bin`、最小 PDF `minimal_pdf_bytes`）也在底座包，挂在 `test-fixtures` 下。
 - 读任务请求里的东西用 retain-core `models/job/questions.rs` 的方法（`job.source_job_id()`、`job.uses_model_executor()`……），
   不要一路点进 `job.request_payload.<字段>`；只有 `KNOWN_REQUEST_PAYLOAD_WRITERS` 里生成、改写请求的模块可以，名单只许减不许加。
 - 产物文件路径只许出口模块拼（`services/jobs/files/downloads`、`services/jobs/reader/markdown.rs`、`services/library/media.rs`，以及文件包
