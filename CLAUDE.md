@@ -92,7 +92,8 @@ cargo test -p retainpdf-api -p retainpdf-api-base -p retainpdf-accounts -p retai
 - 读任务请求里的东西用 retainpdf-core `models/job/questions.rs` 的方法（`job.source_job_id()`、`job.uses_model_executor()`……），
   不要一路点进 `job.request_payload.<字段>`；只有 `KNOWN_REQUEST_PAYLOAD_WRITERS` 里生成、改写请求的模块可以，名单只许减不许加。
 - 产物文件路径只许出口模块拼（`services/jobs/files/downloads`、`services/jobs/reader/markdown.rs`、`services/library/media.rs`，以及文件包
-  `retainpdf-files` 的 `src/artifacts`、`src/derived_artifacts`）。`KNOWN_ARTIFACT_PATH_READERS` 是冻结的现状名单，只许减不许加。
+  `retainpdf-files` 的 `src/artifacts`、`src/derived_artifacts`）。别处要读已经落盘的产物（规范化文档、翻译清单、译文 PDF……），
+  调任务包的 `stored_path(任务, data_root, StoredFile::…)`，不要直接调 `storage_paths::resolve_*`；冻结名单 `KNOWN_ARTIFACT_PATH_READERS` 已清空，不许再加。
 
 ## 记录
 

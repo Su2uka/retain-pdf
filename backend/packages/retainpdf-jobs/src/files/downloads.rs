@@ -17,6 +17,7 @@ mod files;
 mod paths;
 mod pdf;
 mod service;
+mod stored;
 
 #[cfg(all(test, unix))]
 mod tests;
@@ -25,6 +26,7 @@ pub(crate) mod fixture;
 
 pub use catalog::{job_files_view, FileGroup, JobFilesView};
 pub use files::{Disposition, JobFile, JobScope};
+pub use stored::{stored_path, StoredFile};
 /// 文件句柄的类型定义在下载调度里（它调度的就是这个），这里转出去，任务这边照旧这么叫。
 pub use retainpdf_files::FileDownload;
 

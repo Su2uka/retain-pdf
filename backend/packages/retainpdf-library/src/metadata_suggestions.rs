@@ -15,11 +15,12 @@ use retainpdf_core::models::api::{
     DocumentTitleCandidateView, ListDocumentMetadataSuggestionsQuery,
 };
 use retainpdf_core::models::domain::build_job_id;
-use retainpdf_core::storage_paths::{resolve_job_root, resolve_normalized_document};
+use retainpdf_core::storage_paths::resolve_job_root;
 use retainpdf_data::db::{ApplyDocumentMetadataSuggestionResult, StoredDocumentMetadataSuggestion};
 
 use super::documents::require_document_upload;
 use super::LibraryDeps;
+use retainpdf_jobs::{stored_path, StoredFile};
 
 const MAX_NORMALIZED_DOCUMENT_BYTES: u64 = 256 * 1024 * 1024;
 const MAX_SUGGESTIONS: u32 = 100;
@@ -269,7 +270,7 @@ fn normalized_document_path(
     job: &retainpdf_core::models::domain::JobSnapshot,
     data_root: &Path,
 ) -> Option<PathBuf> {
-    resolve_normalized_document(job, data_root)
+    stored_path(job, data_root, StoredFile::NormalizedDocument)
         .filter(|path| path.is_file())
         .or_else(|| {
             resolve_job_root(job, data_root)

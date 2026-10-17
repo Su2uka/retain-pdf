@@ -5,7 +5,7 @@ use serde_json::Value;
 
 use retainpdf_core::models::api::TranslationRequestRecoveryView;
 use retainpdf_core::models::domain::JobSnapshot;
-use retainpdf_core::storage_paths::resolve_translation_request_journal;
+use crate::{stored_path, StoredFile};
 
 const JOURNAL_SCHEMA: &str = "translation_request_journal_v1";
 const JOURNAL_SCHEMA_VERSION: u64 = 1;
@@ -20,7 +20,7 @@ pub fn load_translation_request_recovery(
     {
         return Some(model_retry_blocked_view());
     }
-    let path = resolve_translation_request_journal(job, data_root)?;
+    let path = stored_path(job, data_root, StoredFile::TranslationRequestJournal)?;
     Some(parse_translation_request_journal(&path))
 }
 

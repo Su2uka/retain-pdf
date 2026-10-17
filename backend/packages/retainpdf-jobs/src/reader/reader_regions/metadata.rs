@@ -3,7 +3,7 @@ use std::path::Path;
 use retainpdf_api_base::error::AppError;
 use retainpdf_core::models::api::{ReaderDocumentMetadataView, ReaderMetadataView, ReaderPageMetadataView};
 use retainpdf_core::models::domain::JobSnapshot;
-use retainpdf_core::storage_paths::{resolve_output_pdf, resolve_source_pdf};
+use crate::{stored_path, StoredFile};
 
 #[path = "metadata_geometry.rs"]
 mod geometry;
@@ -13,11 +13,11 @@ pub(crate) fn load_reader_metadata_view(
     job: &JobSnapshot,
 ) -> Result<ReaderMetadataView, AppError> {
     Ok(ReaderMetadataView {
-        source: resolve_source_pdf(job, data_root)
+        source: stored_path(job, data_root, StoredFile::SourcePdf)
             .filter(|path| path.exists() && path.is_file())
             .map(|path| load_pdf_metadata(&path))
             .transpose()?,
-        translated: resolve_output_pdf(job, data_root)
+        translated: stored_path(job, data_root, StoredFile::TranslatedPdf)
             .filter(|path| path.exists() && path.is_file())
             .map(|path| load_pdf_metadata(&path))
             .transpose()?,

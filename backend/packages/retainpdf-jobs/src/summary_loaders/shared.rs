@@ -7,9 +7,8 @@ use retainpdf_core::models::api::{
     GlossaryUsageSummaryView, InvocationSummaryView, NormalizationSummaryView,
 };
 use retainpdf_core::models::domain::{JobSnapshot, UploadRecord};
-use retainpdf_core::storage_paths::{
-    resolve_data_path, resolve_normalization_report, resolve_translation_manifest,
-};
+use retainpdf_core::storage_paths::resolve_data_path;
+use crate::{stored_path, StoredFile};
 
 /// A request owns this cache. Successful parses and failed reads are both
 /// memoized; no mutable job artifact state survives into the next request.
@@ -66,7 +65,7 @@ impl SummaryCache {
         job: &JobSnapshot,
         data_root: &Path,
     ) -> Option<NormalizationSummaryView> {
-        let path = resolve_normalization_report(job, data_root)?;
+        let path = stored_path(job, data_root, StoredFile::NormalizationReport)?;
         super::normalization::load_normalization_summary_from_json(self.read(path)?)
     }
 
@@ -100,7 +99,7 @@ impl SummaryCache {
         data_root: &Path,
         project: impl Fn(&Value) -> Option<T>,
     ) -> Option<T> {
-        let manifest = resolve_translation_manifest(job, data_root);
+        let manifest = stored_path(job, data_root, StoredFile::TranslationManifest);
         if let Some(value) = manifest.and_then(|path| self.read(path)).and_then(&project) {
             return Some(value);
         }

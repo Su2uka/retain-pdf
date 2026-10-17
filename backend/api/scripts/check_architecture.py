@@ -1727,21 +1727,9 @@ FILES_ARTIFACT_PATH_OWNERS = (
     Path("derived_artifacts"),
 )
 # 2026-10-15 冻结的现状：这些文件还直接拼产物路径。只许删，不许加；删掉一个之后名单里还留着
-# 就报错（免得名单悄悄变宽）。要读产物内容就去调出口，不要往这里加文件。
-KNOWN_ARTIFACT_PATH_READERS = {
-    Path("src/services/jobs/actions/translation_request_recovery.rs"),
-    Path("src/services/jobs/files/readiness.rs"),
-    Path("src/services/jobs/presentation/helpers.rs"),
-    Path("src/services/jobs/progress/live_translation.rs"),
-    Path("src/services/jobs/reader/reader_regions/artifacts.rs"),
-    Path("src/services/jobs/reader/reader_regions/metadata.rs"),
-    Path("src/services/jobs/summary_loaders/shared.rs"),
-    Path("src/services/jobs/translations/artifacts.rs"),
-    Path("src/services/jobs/translations/revision.rs"),
-    Path("src/services/library/book_projection.rs"),
-    Path("src/services/library/metadata_suggestions.rs"),
-    Path("src/services/library/merge/sources.rs"),
-}
+# 就报错（免得名单悄悄变宽）。2026-10-17 清空：任务包、书库包内部读产物都改走任务包
+# `files/downloads/stored.rs` 的 `stored_path(任务, data_root, StoredFile::…)`。要读产物就调它，不要往这里加文件。
+KNOWN_ARTIFACT_PATH_READERS: set[Path] = set()
 
 
 def check_artifact_path_ownership(errors: list[str]) -> None:
@@ -1767,7 +1755,8 @@ def check_artifact_path_ownership(errors: list[str]) -> None:
     for relative in sorted(readers - KNOWN_ARTIFACT_PATH_READERS):
         errors.append(
             f"{relative}: builds artifact paths itself (storage_paths::resolve_*); "
-            "read job files through services::jobs downloads (`open`) or services::files::artifacts instead"
+            "find stored job files with services::jobs::stored_path(job, data_root, StoredFile::…), "
+            "download them through services::jobs downloads (`open`), or use services::files::artifacts"
         )
     for relative in sorted(KNOWN_ARTIFACT_PATH_READERS - readers):
         errors.append(

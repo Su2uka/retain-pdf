@@ -596,6 +596,13 @@ mod tests { fn f() { resolve_output_pdf(job, root); } }
             ''',
         }))
 
+    def test_no_reader_is_grandfathered_any_more(self):
+        self.assertEqual(set(), checks.KNOWN_ARTIFACT_PATH_READERS)
+        # 内部读产物的窄出口在 downloads 里，可以拼。
+        self.assertEqual([], self.run_check({
+            "services/jobs/files/downloads/stored.rs": "fn f() { resolve_translation_manifest(job, root); }",
+        }))
+
     def test_known_readers_are_frozen_and_must_shrink(self):
         source = {"services/library/metadata_suggestions.rs": "fn f() { resolve_source_pdf(job, root); }"}
         known = {"src/services/library/metadata_suggestions.rs"}
