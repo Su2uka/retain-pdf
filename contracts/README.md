@@ -39,7 +39,7 @@
 
 `@retainpdf/contracts/create-job-fields` 是唯一导出**运行期值**的子路径：`CREATE_JOB_TOP_LEVEL_FIELDS` 与 `CREATE_JOB_SECTION_FIELDS` 是 `create-job.v1.schema.json` 里各 definition 的 `properties` 键。TS 类型在运行期不存在，而 `frontend/web` 的 mock 要模拟后端的 `deny_unknown_fields`（多一个键 => 400），需要的正是一份运行期能读的白名单——以前那份是手抄在 mock 里的第二真相源。生成器只为 `additionalProperties: false` 的 definition 发这张表：定义本身允许额外字段却发一张封闭清单，就是对下游撒谎。
 
-事件 v2 在原有普通/OCR `/events` 路径替换 offset 协议：首次用 `start=tail`（默认）或 `start=head`，后续只传不透明 `cursor`；`limit` 默认 500、限制为 1–500。`has_more` 只追平游标的固定批次上界。410 `error.code=EVENT_CURSOR_EXPIRED` 表示只需重置事件缓存并按原模式重新初始化；其他错误保留已有展示。API 与第一方客户端必须同时升级。翻译 `live-events` SSE 不受此次版本升级影响。
+事件 v2 在原有普通/OCR 事件路径（现为 `/jobs/:id/progress/events`，旧地址 `/jobs/:id/events` 与 `/ocr/jobs/:id/events` 同一个处理函数）替换 offset 协议：首次用 `start=tail`（默认）或 `start=head`，后续只传不透明 `cursor`；`limit` 默认 500、限制为 1–500。`has_more` 只追平游标的固定批次上界。410 `error.code=EVENT_CURSOR_EXPIRED` 表示只需重置事件缓存并按原模式重新初始化；其他错误保留已有展示。API 与第一方客户端必须同时升级。翻译 `live-events` SSE 不受此次版本升级影响。
 
 ```bash
 npm --prefix contracts run lint:schemas
