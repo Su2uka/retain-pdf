@@ -7,9 +7,9 @@ imports translate; the authoritative knobs remain the translate stage spec
 (``translation.base_url``) and environment/credential refs.
 
 Duplicated from:
-- retainpdf_pipeline.translate.llm.providers.deepseek.client
+- retainpdf_translation.llm.providers.deepseek.client
   (``DEFAULT_BASE_URL``, ``DEFAULT_API_KEY_ENV``, ``get_api_key`` shape)
-- retainpdf_pipeline.translate.llm.providers.deepseek.transport
+- retainpdf_translation.llm.providers.deepseek.transport
   (``normalize_base_url``)
 """
 

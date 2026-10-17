@@ -37,7 +37,7 @@
 
 3. raw -> normalized 必须显式经过 adapter
    - 任何 provider 返回结果，先进入 `ocr/document_schema/adapters.py`
-   - 不能直接让 `translate/core/ocr`、`render/` 去理解 provider JSON
+   - 不能直接让 `retainpdf_translation/core/ocr`、`render/` 去理解 provider JSON
 
 4. provider 能力是可变的，统一 schema 才是稳定契约
    - provider 可能变接口、变字段、变返回格式

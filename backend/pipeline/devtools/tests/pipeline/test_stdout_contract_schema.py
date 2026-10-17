@@ -29,6 +29,7 @@ EMIT_SCAN_DIRS = [
     REPO_SCRIPTS_ROOT / "retainpdf_pipeline" / "entrypoints",
     REPO_SCRIPTS_ROOT / "retainpdf_pipeline" / "ocr",
     REPO_SCRIPTS_ROOT / "retainpdf_pipeline" / "translate",
+    BACKEND_ROOT / "translation" / "retainpdf_translation",
     REPO_SCRIPTS_ROOT / "retainpdf_pipeline" / "render",
 ]
 
@@ -109,8 +110,8 @@ def test_checkpoint_event_has_real_producer() -> None:
     checkpoint_contract = SCHEMA["checkpoint_event"]
     assert checkpoint_contract["event_type"] == "pipeline_checkpoint"
     session_source = (
-        REPO_SCRIPTS_ROOT
-        / "retainpdf_pipeline/translate/workflow/checkpoint/session.py"
+        BACKEND_ROOT
+        / "translation/retainpdf_translation/workflow/checkpoint/session.py"
     ).read_text(encoding="utf-8")
     assert '"event_type": "pipeline_checkpoint"' in session_source
     for field in checkpoint_contract["required_payload_fields"]:

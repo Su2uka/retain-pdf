@@ -22,10 +22,10 @@ final_recovery 1 次）全部 HTTP 成功，全部被本地校验判 english_res
 from __future__ import annotations
 
 
-from retainpdf_pipeline.translate.llm.validation.english_residue import (
+from retainpdf_translation.llm.validation.english_residue import (
     _looks_like_author_name_list,
 )
-from retainpdf_pipeline.translate.llm.validation.quality import review_translation_item
+from retainpdf_translation.llm.validation.quality import review_translation_item
 
 
 JOB_B009_SOURCE = (

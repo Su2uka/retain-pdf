@@ -29,5 +29,5 @@
 
 ## 项目内实现入口
 
-- [Translation 模块说明](../../../backend/pipeline/retainpdf_pipeline/translate/README.md)
+- [Translation 模块说明](../../../backend/translation/README.md)
 - [Python 依赖单一事实来源](../../core/python/dependency_source_of_truth.md)

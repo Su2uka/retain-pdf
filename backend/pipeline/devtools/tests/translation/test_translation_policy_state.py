@@ -4,10 +4,10 @@ from __future__ import annotations
 import pytest
 
 
-from retainpdf_pipeline.translate.core.payload.parts.policy_state import mark_policy_skip
-from retainpdf_pipeline.translate.core.payload.parts.policy_state import mark_translation_required
-from retainpdf_pipeline.translate.core.payload.parts.common import seed_orchestration_metadata
-from retainpdf_pipeline.translate.services.policy.payload_rules.policy_mutations import reset_policy_state
+from retainpdf_translation.core.payload.parts.policy_state import mark_policy_skip
+from retainpdf_translation.core.payload.parts.policy_state import mark_translation_required
+from retainpdf_translation.core.payload.parts.common import seed_orchestration_metadata
+from retainpdf_translation.services.policy.payload_rules.policy_mutations import reset_policy_state
 
 
 def test_reset_policy_preserves_completed_keep_origin_result() -> None:

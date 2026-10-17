@@ -9,7 +9,7 @@
 | 职责 | 实际位置 |
 | --- | --- |
 | OCR provider、MinerU、文档结构与适配 | [ocr](../ocr/ocr_provider/README.md)、[document_schema](../ocr/document_schema/README.md)、[mineru](../ocr/mineru_provider/README.md) |
-| 翻译策略、模型调用与结果回填 | [translate](../translate/README.md) |
+| 翻译策略、模型调用与结果回填 | 独立包 [retainpdf-translation](../../../translation/README.md)；流水线里只剩 worker 外壳 [translate](../translate/README.md) |
 | 排版、渲染与 PDF 输出 | [render](../render/README.md) |
 | 流程编排 | [runtime/pipeline](../runtime/pipeline/README.md) |
 | 公共配置与基础工具 | [foundation/config](../foundation/config/README.md)、[foundation/shared](../foundation/shared/README.md)；流水线和翻译共用的在底座包 [retainpdf-base](../../../base/README.md) |

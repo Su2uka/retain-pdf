@@ -35,7 +35,7 @@ from retainpdf_pipeline.ocr.document_schema.normalize_pipeline import write_norm
 from retainpdf_pipeline.ocr.document_schema.reporting import build_normalization_summary
 from retainpdf_base.io import save_json_atomic
 from retainpdf_pipeline.ocr.ocr_provider.paddle_runner import apply_cli_normalization_report_semantics
-from retainpdf_pipeline.translate.public import load_translation_manifest
+from retainpdf_translation.public import load_translation_manifest
 
 
 _URL_RE = re.compile(r"https?://[^\s\"']+", re.IGNORECASE)

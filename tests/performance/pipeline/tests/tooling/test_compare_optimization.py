@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 from tools.analysis.compare_optimization import evaluate
-from retainpdf_pipeline.translate.llm.shared.request_capture import digest, plan_input_digest
+from retainpdf_translation.llm.shared.request_capture import digest, plan_input_digest
 
 
 def write_plan(root, plan):

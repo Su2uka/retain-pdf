@@ -169,7 +169,7 @@ def _offline_only(monkeypatch):
         pytest.fail("Offline recovery must not connect to a provider")
 
     monkeypatch.setattr("socket.socket.connect", deny_network)
-    monkeypatch.setattr("retainpdf_pipeline.translate.workflow.checkpoint.contract.now_iso", lambda: "2026-09-14T02:00:00Z")
+    monkeypatch.setattr("retainpdf_translation.workflow.checkpoint.contract.now_iso", lambda: "2026-09-14T02:00:00Z")
 
 
 def test_repair_matches_frozen_pre_refactor_output_and_preserves_source(tmp_path: Path) -> None:
@@ -296,7 +296,7 @@ def test_invalid_recovery_inputs_fail_before_copy(tmp_path: Path, failure: str) 
 
 @pytest.mark.parametrize("failure", ["missing_mapping", "wrong_target", "wrong_document", "zero_moves"])
 def test_public_recovery_validates_normalized_relocation_contract(tmp_path: Path, failure: str) -> None:
-    from retainpdf_pipeline.translate.public import prepare_relocated_translation_copy
+    from retainpdf_translation.public import prepare_relocated_translation_copy
 
     source, output = tmp_path / "source", tmp_path / "repaired"
     new, report = create_repair_fixture(source)

@@ -5,12 +5,12 @@ import json
 import pytest
 
 
-from retainpdf_pipeline.translate.llm import placeholder_guard
-from retainpdf_pipeline.translate.llm.providers.deepseek import client as deepseek_client
-from retainpdf_pipeline.translate.llm.shared import structured_models
-from retainpdf_pipeline.translate.llm.shared import structured_output
-from retainpdf_pipeline.translate.llm.shared import structured_parsers
-from retainpdf_pipeline.translate.llm.shared.orchestration import segment_routing
+from retainpdf_translation.llm import placeholder_guard
+from retainpdf_translation.llm.providers.deepseek import client as deepseek_client
+from retainpdf_translation.llm.shared import structured_models
+from retainpdf_translation.llm.shared import structured_output
+from retainpdf_translation.llm.shared import structured_parsers
+from retainpdf_translation.llm.shared.orchestration import segment_routing
 
 
 def test_single_item_extractor_returns_plain_text_when_not_json() -> None:

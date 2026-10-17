@@ -2,10 +2,10 @@ import json
 from pathlib import Path
 
 
-from retainpdf_pipeline.translate.artifacts import blocking_untranslated_items
-from retainpdf_pipeline.translate.services.finalization import recover_blocking_untranslated_items
-from retainpdf_pipeline.translate.workflow import stages
-from retainpdf_pipeline.translate.workflow.phases import repair as repair_phase
+from retainpdf_translation.artifacts import blocking_untranslated_items
+from retainpdf_translation.services.finalization import recover_blocking_untranslated_items
+from retainpdf_translation.workflow import stages
+from retainpdf_translation.workflow.phases import repair as repair_phase
 
 
 def _failed_item(item_id: str, source_text: str) -> dict:

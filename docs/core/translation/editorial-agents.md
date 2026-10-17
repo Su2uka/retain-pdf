@@ -146,8 +146,8 @@
 ## 第一期的实际做法
 
 - 档位：`preparation=editorial`（术语专员审定）+ `refine=editorial`（编辑部主循环），原有档位不变。参数说明见 `docs/api/04-翻译/01-翻译参数.md`。
-- 术语专员：`translate/services/preparation/term_review.py`。预扫之后按批审定，类别决定用法（专业术语锁定、文献保留原文、人名机构不强制、通用词剔除），括注只给标了 annotate 的专业术语；质检同口径。翻译中向术语专员提问（`term.query`）留到第二期。
-- 主循环：`translate/workflow/editorial.py`，纯逻辑在 `translate/services/editorial/`（台账、主编规则框、整块重写）。译者就是现有的全书翻译；审校复用精修的挑错；修订的局部改复用精修的定点修改，整块重写是新的；质检复用确定性 QA。
+- 术语专员：`retainpdf_translation/services/preparation/term_review.py`。预扫之后按批审定，类别决定用法（专业术语锁定、文献保留原文、人名机构不强制、通用词剔除），括注只给标了 annotate 的专业术语；质检同口径。翻译中向术语专员提问（`term.query`）留到第二期。
+- 主循环：`retainpdf_translation/workflow/editorial.py`，纯逻辑在 `retainpdf_translation/services/editorial/`（台账、主编规则框、整块重写）。译者就是现有的全书翻译；审校复用精修的挑错；修订的局部改复用精修的定点修改，整块重写是新的；质检复用确定性 QA。
 - 第一期的简化：
   - 争议由规则裁决（一律按术语库），改术语库的申请留到第二期；
   - 各批按顺序跑，没有多节并行；

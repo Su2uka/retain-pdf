@@ -5,4 +5,5 @@ pikepdf
 requests
 retainpdf_base
 retainpdf_math
+retainpdf_translation
 urllib3

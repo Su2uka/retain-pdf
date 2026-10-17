@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from retainpdf_pipeline.translate.services.context import TranslationDocumentContext
-from retainpdf_pipeline.translate.services.context import build_unit_context
-from retainpdf_pipeline.translate.services.context import build_unit_contexts
-from retainpdf_pipeline.translate.services.context.windows import annotate_translation_context_windows
-from retainpdf_pipeline.translate.services.context.windows import build_translation_context_windows
+from retainpdf_translation.services.context import TranslationDocumentContext
+from retainpdf_translation.services.context import build_unit_context
+from retainpdf_translation.services.context import build_unit_contexts
+from retainpdf_translation.services.context.windows import annotate_translation_context_windows
+from retainpdf_translation.services.context.windows import build_translation_context_windows
 
 
 def test_build_unit_context_carries_document_item_and_neighbor_context() -> None:
@@ -204,7 +204,7 @@ def test_translation_context_windows_off_mode_clears_context() -> None:
 
 
 def test_context_mode_off_suppresses_continuation_prompt_context() -> None:
-    from retainpdf_pipeline.translate.core.context import build_item_context
+    from retainpdf_translation.core.context import build_item_context
 
     item = {
         "item_id": "p006-b056",
@@ -223,7 +223,7 @@ def test_context_mode_off_suppresses_continuation_prompt_context() -> None:
 
 
 def test_batch_payload_includes_needed_context_without_continuation_group() -> None:
-    from retainpdf_pipeline.translate.core.context import build_item_context
+    from retainpdf_translation.core.context import build_item_context
 
     item = {
         "item_id": "p005-b002",
@@ -245,7 +245,7 @@ def test_batch_payload_includes_needed_context_without_continuation_group() -> N
 
 
 def test_prompt_building_uses_translation_context_windows() -> None:
-    from retainpdf_pipeline.translate.llm.shared.prompt_building import build_single_item_fallback_messages
+    from retainpdf_translation.llm.shared.prompt_building import build_single_item_fallback_messages
 
     item = {
         "item_id": "p005-b002",

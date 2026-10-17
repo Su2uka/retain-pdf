@@ -4,10 +4,10 @@ import os
 
 import pytest
 
-from retainpdf_pipeline.translate.artifacts.request_journal import TranslationRequestJournal
-from retainpdf_pipeline.translate.workflow import execution, execution_plan
-from retainpdf_pipeline.translate.workflow.checkpoint.contract import translation_checkpoint_path
-from retainpdf_pipeline.translate.workflow.checkpoint.store import CheckpointStore
+from retainpdf_translation.artifacts.request_journal import TranslationRequestJournal
+from retainpdf_translation.workflow import execution, execution_plan
+from retainpdf_translation.workflow.checkpoint.contract import translation_checkpoint_path
+from retainpdf_translation.workflow.checkpoint.store import CheckpointStore
 
 
 def request_for(tmp_path):
@@ -99,10 +99,10 @@ def test_borrowed_checkpoint_store_rejects_wrong_or_unowned_path(tmp_path):
 
 
 def test_copied_resume_reinitializes_under_same_borrowed_lease(tmp_path, monkeypatch):
-    from retainpdf_pipeline.translate.workflow.checkpoint.session import (
+    from retainpdf_translation.workflow.checkpoint.session import (
         TranslationCheckpointSession, ResumeCandidateFingerprintMismatch,
     )
-    from retainpdf_pipeline.translate.workflow.checkpoint.resume import discard_copied_resume_candidate
+    from retainpdf_translation.workflow.checkpoint.resume import discard_copied_resume_candidate
     monkeypatch.setenv("RETAIN_TRANSLATION_TRANSPORT", "legacy")
     request = request_for(tmp_path)
     request.source_json_path.write_text("{}")
@@ -128,7 +128,7 @@ def test_copied_resume_reinitializes_under_same_borrowed_lease(tmp_path, monkeyp
 
 
 def test_journal_constructor_failure_releases_open_descriptor(tmp_path, monkeypatch):
-    from retainpdf_pipeline.translate.artifacts import request_journal
+    from retainpdf_translation.artifacts import request_journal
     opened = []
     original_open = os.open
     def tracked_open(*args, **kwargs):

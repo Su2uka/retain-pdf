@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 
-from retainpdf_pipeline.translate.core.payload.parts.diagnostics import record_translation_diagnostics
+from retainpdf_translation.core.payload.parts.diagnostics import record_translation_diagnostics
 
 
 def test_top_level_merge_semantics_unchanged() -> None:

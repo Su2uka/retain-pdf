@@ -14,9 +14,9 @@ import json
 import sys
 from pathlib import Path
 
-from retainpdf_pipeline.translate.public import RevisionOutcome
-from retainpdf_pipeline.translate.public import RevisionRequest
-from retainpdf_pipeline.translate.public import revise_translation_item
+from retainpdf_translation.public import RevisionOutcome
+from retainpdf_translation.public import RevisionRequest
+from retainpdf_translation.public import revise_translation_item
 
 
 def _parse_args(argv: list[str] | None) -> argparse.Namespace:

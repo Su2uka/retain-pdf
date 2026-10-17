@@ -20,7 +20,7 @@
 
 明确不负责：
 
-1. 不改翻译层 `backend/pipeline/retainpdf_pipeline/translate/*`
+1. 不改翻译层 `backend/translation/retainpdf_translation/*`（及其 worker 外壳 `backend/pipeline/retainpdf_pipeline/translate/*`）
 2. 不改渲染层 `backend/pipeline/retainpdf_pipeline/render/*`
 3. 不在 `backend/pipeline/retainpdf_pipeline/runtime/pipeline/*` 里写 Paddle 私有特判
 4. 不让下游直接读取 Paddle raw JSON

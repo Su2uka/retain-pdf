@@ -38,8 +38,9 @@ backend/.venv/bin/python -m pytest -q .github/scripts/tests   # 文档相对链�
 cargo test -p retainpdf-api -p retainpdf-api-base -p retainpdf-accounts -p retainpdf-ai -p retainpdf-files -p retainpdf-glossaries -p retainpdf-ingest -p retainpdf-jobs -p retainpdf-library -p retainpdf-platform -p retainpdf-providers -p retainpdf-runner -p retainpdf-db -p retainpdf-data -p retainpdf-core -p retainpdf-config
 ```
 
-- 改了 `backend/pipeline/retainpdf_pipeline/translate/`：再跑
+- 改了翻译包 `backend/translation/`（或它的 worker 外壳 `backend/pipeline/retainpdf_pipeline/translate/`）：再跑
   `backend/.venv/bin/python backend/pipeline/devtools/run_translation_tests.py`，以及加 `--reverse` 再跑一次。
+  翻译的测试在 `backend/pipeline/devtools/tests/translation`，翻译包自己的冒烟测试在 `backend/translation/tests`。
   它会连带跑 `tests/performance/pipeline/tests`；提示词快照有 sha256 守卫，改提示词只重录受影响的用例。
 - 改了 `backend/ai/`：跑 AI 服务的 pytest。
 - 跑不了的检查，在回复和合并说明里写明没跑、为什么。

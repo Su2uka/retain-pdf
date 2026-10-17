@@ -5,15 +5,15 @@ import json
 
 import pytest
 
-from retainpdf_pipeline.translate.llm.shared.prompt_building import (
+from retainpdf_translation.llm.shared.prompt_building import (
     build_messages,
     build_single_item_fallback_messages,
 )
-from retainpdf_pipeline.translate.llm.shared.prompt_protocols import (
+from retainpdf_translation.llm.shared.prompt_protocols import (
     build_translation_system_prompt,
     direct_math_guidance,
 )
-from retainpdf_pipeline.translate.prompt_loader import load_prompt
+from retainpdf_translation.prompt_loader import load_prompt
 
 
 def _item(math_mode):

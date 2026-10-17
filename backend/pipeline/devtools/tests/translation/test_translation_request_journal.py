@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 
 
-from retainpdf_pipeline.translate.artifacts import TranslationRequestJournal
+from retainpdf_translation.artifacts import TranslationRequestJournal
 
 
 def _crash_after_durable_dispatch(path: str, request_key: str) -> None:

@@ -17,7 +17,7 @@ from retainpdf_pipeline.render.output.typst.fit_report import fit_report_scope
 from retainpdf_pipeline.render.workflow.context import RenderExecutionContext
 from retainpdf_pipeline.render.workflow.engine_dispatch import dispatch_with_render_engine
 from retainpdf_pipeline.render.workflow.engine_dispatch import render_engine_summary
-from retainpdf_pipeline.translate.services.quality.qa.fit import check_fit_report
+from retainpdf_translation.services.quality.qa.fit import check_fit_report
 
 
 def _job(tmp_path: Path, *, texts: tuple[str, str] = ("译文 $x^2$ 正文", "第二页译文")) -> tuple[Path, Path, dict[int, list[dict]]]:

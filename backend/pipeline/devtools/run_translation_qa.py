@@ -18,9 +18,9 @@ import sys
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
-from retainpdf_pipeline.translate.services.quality.qa import build_translation_qa_for_job
-from retainpdf_pipeline.translate.services.quality.qa import default_translation_qa_path
-from retainpdf_pipeline.translate.services.quality.qa import write_translation_qa
+from retainpdf_translation.services.quality.qa import build_translation_qa_for_job
+from retainpdf_translation.services.quality.qa import default_translation_qa_path
+from retainpdf_translation.services.quality.qa import write_translation_qa
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:

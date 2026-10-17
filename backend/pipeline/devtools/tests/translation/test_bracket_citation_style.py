@@ -12,9 +12,9 @@ from pathlib import Path
 
 import pytest
 
-from retainpdf_pipeline.translate.llm.citation_style import restore_bracket_citations
-from retainpdf_pipeline.translate.llm.result_canonicalizer import canonicalize_batch_result
-from retainpdf_pipeline.translate.prompt_loader import load_prompt
+from retainpdf_translation.llm.citation_style import restore_bracket_citations
+from retainpdf_translation.llm.result_canonicalizer import canonicalize_batch_result
+from retainpdf_translation.prompt_loader import load_prompt
 
 FIXTURE = Path(__file__).parent / "fixtures" / "bracket_citations_b343d1_1ed40e.json"
 _BARE = re.compile(r"\[\s*(\d{1,4}(?:\s*[,，–—\-−]\s*\d{1,4})*)\s*\]")

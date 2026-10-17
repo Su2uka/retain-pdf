@@ -4,10 +4,10 @@ from pathlib import Path
 
 
 from retainpdf_pipeline.render.translation_loader import load_translated_pages
-import retainpdf_pipeline.translate.core.payload.manifest as manifest_module
-from retainpdf_pipeline.translate.core.payload.manifest import load_translation_manifest
-from retainpdf_pipeline.translate.core.payload.manifest import load_translation_manifest_file
-from retainpdf_pipeline.translate.core.payload.manifest import write_translation_manifest
+import retainpdf_translation.core.payload.manifest as manifest_module
+from retainpdf_translation.core.payload.manifest import load_translation_manifest
+from retainpdf_translation.core.payload.manifest import load_translation_manifest_file
+from retainpdf_translation.core.payload.manifest import write_translation_manifest
 
 
 def _write_payload(path: Path, translated_text: str) -> None:

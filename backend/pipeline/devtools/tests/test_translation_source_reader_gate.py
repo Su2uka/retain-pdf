@@ -64,7 +64,8 @@ def test_ignores_construction_and_ungated_keys(source: str) -> None:
 
 def test_canonical_reader_is_pinned_as_the_full_chain() -> None:
     # item_source_text 必须一次覆盖全部四个范围,否则「用它就够了」这句话不成立。
-    reader = REPO_SCRIPTS_ROOT / gate.CANONICAL_READER
+    # 名单里翻译包的文件相对 backend/ 登记（见 architecture_checks.common.rel）。
+    reader = REPO_SCRIPTS_ROOT.parent / gate.CANONICAL_READER
     reads = gate.gated_source_text_reads(ast.parse(reader.read_text(encoding="utf-8")))
 
     assert set(reads) == set(gate.GATED_SOURCE_TEXT_KEYS)
@@ -96,7 +97,7 @@ def test_allowlist_only_shrinks_never_silently_grows(monkeypatch) -> None:
 
 def test_removing_an_allowlist_entry_while_the_code_remains_turns_red(monkeypatch) -> None:
     # 反证:代码还在,但白名单条目被删掉 -> 必须报"新增了裸读取点"。
-    victim = "retainpdf_pipeline/translate/services/continuation/rules.py"
+    victim = "translation/retainpdf_translation/services/continuation/rules.py"
     trimmed = {
         path: count
         for path, count in gate.SOURCE_TEXT_READER_ALLOWLIST.items()

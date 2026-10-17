@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 
-from retainpdf_pipeline.translate.workflow.batching.plan import _build_translation_batches
-from retainpdf_pipeline.translate.llm.shared.control_context import build_translation_control_context
+from retainpdf_translation.workflow.batching.plan import _build_translation_batches
+from retainpdf_translation.llm.shared.control_context import build_translation_control_context
 
 
 def _item(item_id: str, text: str, **overrides):

@@ -26,10 +26,10 @@ ENTRYPOINT_IMPORT_ALLOWLIST: dict[Path, tuple[str, ...]] = {
         "from retainpdf_pipeline.translate.entrypoints.translate_only_pipeline import",
     ),
     Path("diagnose_failure_with_ai.py"): (
-        "from retainpdf_pipeline.translate.public import",
+        "from retainpdf_translation.public import",
     ),
     Path("revise_translation_item.py"): (
-        "from retainpdf_pipeline.translate.public import",
+        "from retainpdf_translation.public import",
     ),
     Path("run_document_operation.py"): (
         "from retainpdf_pipeline.document_operations import",

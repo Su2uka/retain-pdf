@@ -1,7 +1,7 @@
 import unittest
 
 
-from retainpdf_pipeline.translate.llm.result_payload import result_entry
+from retainpdf_translation.llm.result_payload import result_entry
 
 
 from retrying_translator_test_support import load_retrying_translator
@@ -92,8 +92,8 @@ def make_formula_dense_prose_item() -> dict:
 class RetryingTranslatorFormulaRoutesTests(unittest.TestCase):
     def test_plain_text_retry_for_large_formula_block_uses_plain_route(self):
         module = load_retrying_translator()
-        import retainpdf_pipeline.translate.llm.shared.orchestration.fallbacks as fallbacks
-        from retainpdf_pipeline.translate.llm.shared.control_context import build_translation_control_context
+        import retainpdf_translation.llm.shared.orchestration.fallbacks as fallbacks
+        from retainpdf_translation.llm.shared.control_context import build_translation_control_context
 
         item = make_formula_item(20)
         item["_heavy_formula_split_applied"] = True
@@ -123,8 +123,8 @@ class RetryingTranslatorFormulaRoutesTests(unittest.TestCase):
 
     def test_small_formula_inline_uses_plain_text_directly(self):
         module = load_retrying_translator()
-        import retainpdf_pipeline.translate.llm.shared.orchestration.fallbacks as fallbacks
-        from retainpdf_pipeline.translate.llm.shared.control_context import build_translation_control_context
+        import retainpdf_translation.llm.shared.orchestration.fallbacks as fallbacks
+        from retainpdf_translation.llm.shared.control_context import build_translation_control_context
 
         item = make_small_formula_inline_item()
         calls: list[str] = []
@@ -172,8 +172,8 @@ class RetryingTranslatorFormulaRoutesTests(unittest.TestCase):
 
     def test_formula_dense_prose_uses_plain_text_before_segmented(self):
         module = load_retrying_translator()
-        import retainpdf_pipeline.translate.llm.shared.orchestration.fallbacks as fallbacks
-        from retainpdf_pipeline.translate.llm.shared.control_context import build_translation_control_context
+        import retainpdf_translation.llm.shared.orchestration.fallbacks as fallbacks
+        from retainpdf_translation.llm.shared.control_context import build_translation_control_context
 
         item = make_formula_dense_prose_item()
         calls: list[str] = []

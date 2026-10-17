@@ -5,7 +5,7 @@ import time
 from pathlib import Path
 from types import SimpleNamespace
 
-from retainpdf_pipeline.translate.llm.shared.model_wire import register_stage_connections
+from retainpdf_translation.llm.shared.model_wire import register_stage_connections
 from retainpdf_pipeline.foundation.shared.job_dirs import job_dirs_from_explicit_args
 from retainpdf_pipeline.foundation.shared.stage_specs import build_stage_invocation_metadata
 from retainpdf_base.credentials import resolve_credential_ref
@@ -31,13 +31,13 @@ from retainpdf_base.events import emit_stage_transition
 from retainpdf_base.events import PipelineEventWriter
 from retainpdf_base.events import pipeline_event_writer_scope
 from retainpdf_base.io import save_json
-from retainpdf_pipeline.translate.artifacts import write_translation_debug_index
-from retainpdf_pipeline.translate.artifacts import write_translation_diagnostics
-from retainpdf_pipeline.translate.artifacts import blocking_untranslated_items
-from retainpdf_pipeline.translate.llm.shared.provider_runtime import DEFAULT_BASE_URL
-from retainpdf_pipeline.translate.llm.shared.provider_runtime import get_api_key
-from retainpdf_pipeline.translate.llm.shared.provider_runtime import normalize_base_url
-from retainpdf_pipeline.translate.services.terms import parse_glossary_json
+from retainpdf_translation.artifacts import write_translation_debug_index
+from retainpdf_translation.artifacts import write_translation_diagnostics
+from retainpdf_translation.artifacts import blocking_untranslated_items
+from retainpdf_translation.llm.shared.provider_runtime import DEFAULT_BASE_URL
+from retainpdf_translation.llm.shared.provider_runtime import get_api_key
+from retainpdf_translation.llm.shared.provider_runtime import normalize_base_url
+from retainpdf_translation.services.terms import parse_glossary_json
 from retainpdf_pipeline.translate.translation_stage import translate_book_pipeline
 
 

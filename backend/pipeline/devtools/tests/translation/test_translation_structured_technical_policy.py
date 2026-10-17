@@ -1,12 +1,12 @@
 
 
 
-from retainpdf_pipeline.translate.services.policy.config import build_translation_policy_config
-from retainpdf_pipeline.translate.services.policy.flow import apply_translation_policies
-from retainpdf_pipeline.translate.services.policy.structured_technical_blocks import (
+from retainpdf_translation.services.policy.config import build_translation_policy_config
+from retainpdf_translation.services.policy.flow import apply_translation_policies
+from retainpdf_translation.services.policy.structured_technical_blocks import (
     collect_structured_technical_hints,
 )
-from retainpdf_pipeline.translate.services.policy.structured_technical_blocks import (
+from retainpdf_translation.services.policy.structured_technical_blocks import (
     looks_like_structured_technical_block,
 )
 

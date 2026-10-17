@@ -6,9 +6,9 @@ import threading
 import time
 
 
-from retainpdf_pipeline.translate.services.results.applier import TranslationResultApplier
-from retainpdf_pipeline.translate.services.results.flush import TranslationFlushState
-from retainpdf_pipeline.translate.workflow import batch_runner
+from retainpdf_translation.services.results.applier import TranslationResultApplier
+from retainpdf_translation.services.results.flush import TranslationFlushState
+from retainpdf_translation.workflow import batch_runner
 
 
 def test_parallel_idle_heartbeat_saves_success_before_slow_request_returns(monkeypatch, tmp_path):

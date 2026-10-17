@@ -21,7 +21,7 @@ from retainpdf_pipeline.ocr.document_schema.providers import PROVIDER_GENERIC_FL
 from retainpdf_pipeline.render.source_cleanup.planning.item_classifier import TEXT_STRIP_ROLE_ALLOWLIST
 from retainpdf_pipeline.render.source_cleanup.planning.item_classifier import item_allows_forced_text_strip
 from retainpdf_pipeline.render.workflow import source_page_records
-from retainpdf_pipeline.translate.core.ocr import json_extractor
+from retainpdf_translation.core.ocr import json_extractor
 
 CAPTION_ROLES = ("table_caption", "image_caption", "code_caption")
 

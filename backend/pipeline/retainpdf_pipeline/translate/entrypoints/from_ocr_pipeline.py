@@ -4,7 +4,7 @@ import argparse
 from pathlib import Path
 from types import SimpleNamespace
 
-from retainpdf_pipeline.translate.llm.shared.model_wire import register_stage_connections
+from retainpdf_translation.llm.shared.model_wire import register_stage_connections
 from retainpdf_pipeline.foundation.shared.stage_specs import DEFAULT_RENDER_ENGINE
 from retainpdf_pipeline.foundation.config import layout
 from retainpdf_pipeline.foundation.shared.job_dirs import job_dirs_from_explicit_args
@@ -21,9 +21,9 @@ from retainpdf_base.events import PipelineEventWriter
 from retainpdf_base.events import pipeline_event_writer_scope
 from retainpdf_pipeline.services.pipeline_shared.summary import print_pipeline_summary
 from retainpdf_pipeline.services.pipeline_shared.summary import write_pipeline_summary
-from retainpdf_pipeline.translate.llm.shared.provider_runtime import DEFAULT_BASE_URL
-from retainpdf_pipeline.translate.llm.shared.provider_runtime import get_api_key
-from retainpdf_pipeline.translate.llm.shared.provider_runtime import normalize_base_url
+from retainpdf_translation.llm.shared.provider_runtime import DEFAULT_BASE_URL
+from retainpdf_translation.llm.shared.provider_runtime import get_api_key
+from retainpdf_translation.llm.shared.provider_runtime import normalize_base_url
 from retainpdf_pipeline.runtime.pipeline.book_pipeline import run_book_pipeline
 
 

@@ -13,15 +13,15 @@ import requests
 
 
 from retainpdf_pipeline.foundation.shared.structured_errors import classify_exception
-from retainpdf_pipeline.translate.artifacts import TranslationRunDiagnostics
-from retainpdf_pipeline.translate.artifacts import TranslationRequestJournal
-from retainpdf_pipeline.translate.artifacts import classify_provider_family
-from retainpdf_pipeline.translate.artifacts import infer_stage_from_request_label
-from retainpdf_pipeline.translate.artifacts import translation_run_diagnostics_scope
+from retainpdf_translation.artifacts import TranslationRunDiagnostics
+from retainpdf_translation.artifacts import TranslationRequestJournal
+from retainpdf_translation.artifacts import classify_provider_family
+from retainpdf_translation.artifacts import infer_stage_from_request_label
+from retainpdf_translation.artifacts import translation_run_diagnostics_scope
 
 
 def load_deepseek_client():
-    return importlib.import_module("retainpdf_pipeline.translate.llm.providers.deepseek.client")
+    return importlib.import_module("retainpdf_translation.llm.providers.deepseek.client")
 
 
 def _without_retry_wait(client):
@@ -252,7 +252,7 @@ class TranslationRunDiagnosticsTests(unittest.TestCase):
         self.assertEqual(summary["tail_retry"]["early_tail_retry_drains"], 1)
         self.assertEqual(summary["retry_summary"]["retrying_request_labels"], 1)
 
-    @patch("retainpdf_pipeline.translate.llm.providers.deepseek.client._prewarm_dns", new=lambda *args, **kwargs: None)
+    @patch("retainpdf_translation.llm.providers.deepseek.client._prewarm_dns", new=lambda *args, **kwargs: None)
     def test_request_chat_content_records_retry_attempts(self):
         deepseek_client = load_deepseek_client()
         run = TranslationRunDiagnostics(
@@ -284,7 +284,7 @@ class TranslationRunDiagnosticsTests(unittest.TestCase):
         self.assertEqual(summary["retry_summary"]["max_http_attempt"], 2)
         self.assertEqual(summary["adaptive_concurrency"]["current_limit"], 16)
 
-    @patch("retainpdf_pipeline.translate.llm.providers.deepseek.client._prewarm_dns", new=lambda *args, **kwargs: None)
+    @patch("retainpdf_translation.llm.providers.deepseek.client._prewarm_dns", new=lambda *args, **kwargs: None)
     def test_request_chat_content_persists_dispatch_and_terminal_without_secrets(self):
         deepseek_client = load_deepseek_client()
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -319,7 +319,7 @@ class TranslationRunDiagnosticsTests(unittest.TestCase):
             self.assertNotIn("sk-sensitive-api-key", persisted)
             self.assertNotIn("safe-label", persisted)
 
-    @patch("retainpdf_pipeline.translate.llm.providers.deepseek.client._prewarm_dns", new=lambda *args, **kwargs: None)
+    @patch("retainpdf_translation.llm.providers.deepseek.client._prewarm_dns", new=lambda *args, **kwargs: None)
     def test_request_chat_content_uses_bounded_transport_recovery_budget(self):
         deepseek_client = load_deepseek_client()
         session = _TransportRecoverySession()
@@ -343,7 +343,7 @@ class TranslationRunDiagnosticsTests(unittest.TestCase):
         self.assertEqual(content, "recovered")
         self.assertEqual(session.calls, 3)
 
-    @patch("retainpdf_pipeline.translate.llm.providers.deepseek.client._prewarm_dns", new=lambda *args, **kwargs: None)
+    @patch("retainpdf_translation.llm.providers.deepseek.client._prewarm_dns", new=lambda *args, **kwargs: None)
     def test_transport_recovery_budget_can_be_disabled(self):
         deepseek_client = load_deepseek_client()
         session = _TransportRecoverySession()
@@ -560,7 +560,7 @@ class TranslationRunDiagnosticsTests(unittest.TestCase):
         self.assertEqual(content, "ok")
         self.assertEqual(session.calls, 3)
 
-    @patch("retainpdf_pipeline.translate.llm.providers.deepseek.client._prewarm_dns", new=lambda *args, **kwargs: None)
+    @patch("retainpdf_translation.llm.providers.deepseek.client._prewarm_dns", new=lambda *args, **kwargs: None)
     def test_request_chat_content_falls_back_from_json_schema_on_400(self):
         deepseek_client = load_deepseek_client()
         session = _SchemaFallbackSession()
@@ -585,7 +585,7 @@ class TranslationRunDiagnosticsTests(unittest.TestCase):
         self.assertEqual(session.calls[0]["response_format"]["type"], "json_schema")
         self.assertEqual(session.calls[1]["response_format"]["type"], "json_object")
 
-    @patch("retainpdf_pipeline.translate.llm.providers.deepseek.client._prewarm_dns", new=lambda *args, **kwargs: None)
+    @patch("retainpdf_translation.llm.providers.deepseek.client._prewarm_dns", new=lambda *args, **kwargs: None)
     def test_request_chat_content_preemptively_downgrades_json_schema_for_deepseek_v1(self):
         deepseek_client = load_deepseek_client()
         session = _SchemaFallbackSession()
@@ -610,7 +610,7 @@ class TranslationRunDiagnosticsTests(unittest.TestCase):
         self.assertEqual(len(session.calls), 1)
         self.assertEqual(session.calls[0]["response_format"]["type"], "json_object")
 
-    @patch("retainpdf_pipeline.translate.llm.providers.deepseek.client._prewarm_dns", new=lambda *args, **kwargs: None)
+    @patch("retainpdf_translation.llm.providers.deepseek.client._prewarm_dns", new=lambda *args, **kwargs: None)
     def test_request_chat_content_includes_response_body_and_request_meta_on_400(self):
         deepseek_client = load_deepseek_client()
         session = _AlwaysBadRequestSession('{"error":{"message":"prompt too long"}}')

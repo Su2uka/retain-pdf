@@ -3,17 +3,17 @@ from __future__ import annotations
 import time
 
 
-from retainpdf_pipeline.translate.llm.shared.control_context import (
+from retainpdf_translation.llm.shared.control_context import (
     build_translation_control_context,
 )
-from retainpdf_pipeline.translate.llm.shared.tail_retry_queue import (
+from retainpdf_translation.llm.shared.tail_retry_queue import (
     TranslationTailItem,
 )
-from retainpdf_pipeline.translate.services.results.applier import (
+from retainpdf_translation.services.results.applier import (
     TranslationResultApplier,
 )
-from retainpdf_pipeline.translate.workflow import batch_runner
-from retainpdf_pipeline.translate.workflow.scheduling import tail_retry
+from retainpdf_translation.workflow import batch_runner
+from retainpdf_translation.workflow.scheduling import tail_retry
 
 
 class _FlushState:

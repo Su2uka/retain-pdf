@@ -8,8 +8,8 @@ from pathlib import Path
 import pytest
 
 from retainpdf_math import render_check
-from retainpdf_pipeline.translate.llm.result_validator import validate_batch_result
-from retainpdf_pipeline.translate.llm.validation.errors import MathDelimiterError
+from retainpdf_translation.llm.result_validator import validate_batch_result
+from retainpdf_translation.llm.validation.errors import MathDelimiterError
 
 FAKE = Path(__file__).resolve().parents[4] / "math" / "tests" / "fake_math_check.py"
 SOURCE = "the integral $ \\int f $ and the symbol $ \\alpha $."

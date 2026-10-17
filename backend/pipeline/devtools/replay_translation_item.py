@@ -16,15 +16,15 @@ if str(REPO_SCRIPTS_ROOT) not in sys.path:
 
 from retainpdf_pipeline.foundation.shared.stage_specs import TranslateStageSpec
 from retainpdf_base.credentials import resolve_credential_ref
-from retainpdf_pipeline.translate.llm import translate_batch
-from retainpdf_pipeline.translate.core.payload import load_translation_manifest_file
-from retainpdf_pipeline.translate.core.payload import load_translations
-from retainpdf_pipeline.translate.services.policy import build_translation_policy_config
-from retainpdf_pipeline.translate.services.policy.flow import apply_translation_policies
-from retainpdf_pipeline.translate.services.context.session_context import build_translation_context_from_policy
-from retainpdf_pipeline.translate.public import RevisionOutcome
-from retainpdf_pipeline.translate.public import RevisionRequest
-from retainpdf_pipeline.translate.public import revise_translation_item
+from retainpdf_translation.llm import translate_batch
+from retainpdf_translation.core.payload import load_translation_manifest_file
+from retainpdf_translation.core.payload import load_translations
+from retainpdf_translation.services.policy import build_translation_policy_config
+from retainpdf_translation.services.policy.flow import apply_translation_policies
+from retainpdf_translation.services.context.session_context import build_translation_context_from_policy
+from retainpdf_translation.public import RevisionOutcome
+from retainpdf_translation.public import RevisionRequest
+from retainpdf_translation.public import revise_translation_item
 
 
 def _preview_text(text: str, *, limit: int = 220) -> str:

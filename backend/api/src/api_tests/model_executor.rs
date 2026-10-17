@@ -217,8 +217,8 @@ async fn real_python_worker_bridge_uses_only_the_local_capability() {
         .parent()
         .unwrap();
     let script = r#"
-from retainpdf_pipeline.translate.llm.shared.executor_context import unit_scope
-from retainpdf_pipeline.translate.llm.providers.deepseek.client import request_chat_content, get_api_key
+from retainpdf_translation.llm.shared.executor_context import unit_scope
+from retainpdf_translation.llm.providers.deepseek.client import request_chat_content, get_api_key
 assert get_api_key(required=True) == ''
 with unit_scope('domain', ['document-preview']):
     text = request_chat_content([{'role':'user','content':'test source'}], timeout=1, max_attempts=99)

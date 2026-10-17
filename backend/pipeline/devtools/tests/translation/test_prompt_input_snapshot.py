@@ -5,8 +5,8 @@ import json
 
 import pytest
 
-from retainpdf_pipeline.translate.core.context import build_item_context, TranslationItemContext
-from retainpdf_pipeline.translate.llm.shared.prompt_building import (
+from retainpdf_translation.core.context import build_item_context, TranslationItemContext
+from retainpdf_translation.llm.shared.prompt_building import (
     build_messages, build_single_item_fallback_messages,
 )
 

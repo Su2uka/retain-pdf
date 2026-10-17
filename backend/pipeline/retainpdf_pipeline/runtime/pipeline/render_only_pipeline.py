@@ -1,10 +1,10 @@
 """render-only worker：渲染前按 spec 精修译文，渲染完成后带上这次的排版 fit 报告重算一次翻译 QA。
 
 render 阶段不能 import translate（阶段解耦），所以跨阶段编排放在 runtime 层：
-1. ``params.refine.mode != off`` 时先调 translate.public 的精修入口（挑错 / 定点修改，
+1. ``params.refine.mode != off`` 时先调 retainpdf_translation.public 的精修入口（挑错 / 定点修改，
    写回走修订链路）；mode=off（含旧 spec 没有这个对象）时什么都不做，行为与没有精修时一致；
 2. 原样跑 render-only；
-3. 成功后再调 translate.public 的 QA 重算入口。
+3. 成功后再调 retainpdf_translation.public 的 QA 重算入口。
 精修和 QA 失败都只记日志 / 报告，不影响渲染结果。
 """
 from __future__ import annotations
@@ -17,8 +17,8 @@ from retainpdf_pipeline.foundation.shared.stage_specs import RenderStageSpec
 from retainpdf_pipeline.render.workflow.render_only import main as render_only_main
 from retainpdf_base.events import PipelineEventWriter
 from retainpdf_base.events import pipeline_event_writer_scope
-from retainpdf_pipeline.translate.public import refresh_translation_qa_after_render
-from retainpdf_pipeline.translate.public import run_refine_for_render
+from retainpdf_translation.public import refresh_translation_qa_after_render
+from retainpdf_translation.public import run_refine_for_render
 
 
 def _spec_path_from_argv() -> Path:

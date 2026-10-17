@@ -7,7 +7,7 @@ from retainpdf_pipeline.ocr.document_schema.provider_adapters.paddle.payload_rea
     iter_page_specs,
 )
 from retainpdf_pipeline.ocr.document_schema.provider_adapters.paddle.adapter import build_paddle_document
-from retainpdf_pipeline.translate.core.ocr.json_extractor import extract_text_items
+from retainpdf_translation.core.ocr.json_extractor import extract_text_items
 from devtools.tests.document_schema.fixtures.registry import PADDLE_FIXTURE_JSON
 
 

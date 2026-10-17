@@ -13,13 +13,13 @@ import sys
 
 def _load_state_module():
     return (
-        import_module("retainpdf_pipeline.translate.services.continuation.rules"),
-        import_module("retainpdf_pipeline.translate.services.continuation.state"),
+        import_module("retainpdf_translation.services.continuation.rules"),
+        import_module("retainpdf_translation.services.continuation.state"),
     )
 
 
 def test_continuation_imports_preserve_cached_module_identity() -> None:
-    package = import_module("retainpdf_pipeline.translate.services.continuation")
+    package = import_module("retainpdf_translation.services.continuation")
     rules, state = _load_state_module()
     path_before = list(sys.path)
     loaded_rules, loaded_state = _load_state_module()

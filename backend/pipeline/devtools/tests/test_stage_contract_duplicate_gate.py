@@ -27,6 +27,8 @@ def _synthetic_package(
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(source, encoding="utf-8")
     monkeypatch.setattr(gate, "DUPLICATE_SCAN_ROOT", package_root)
+    # 真实的翻译包不参与合成用例；需要跨包的用例自己在 tmp_path/retainpdf_translation 下建文件。
+    monkeypatch.setattr(gate, "TRANSLATION_SCAN_ROOT", tmp_path / "retainpdf_translation")
     monkeypatch.setattr(gate, "REQUIRED_COMPARISONS", required if required is not None else {})
     if not floors:
         monkeypatch.setattr(gate, "MIN_MARKED_COPIES", 0)
@@ -416,13 +418,13 @@ def test_real_repository_still_covers_the_translation_record_schema() -> None:
     """判据的落点必须是真在比对 88 字段那张表,而不是「扫到了但没比」。"""
     copy_path = gate.DUPLICATE_SCAN_ROOT / "render" / "workflow" / "translation_records.py"
     source_path = gate.resolve_module_path(
-        "retainpdf_pipeline.translate.core.payload.template_records"
+        "retainpdf_translation.core.payload.template_records"
     )
     assert source_path is not None
 
     modules = gate.duplicate_source_modules(copy_path)
     assert modules is not None
-    assert "retainpdf_pipeline.translate.core.payload.template_records" in modules
+    assert "retainpdf_translation.core.payload.template_records" in modules
 
     copy_symbols = gate.contract_symbols(copy_path)
     source_symbols = gate.contract_symbols(source_path)

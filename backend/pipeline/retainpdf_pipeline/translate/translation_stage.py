@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from retainpdf_pipeline.translate.public import GlossaryEntry
-from retainpdf_pipeline.translate.public import DEFAULT_BASE_URL
-from retainpdf_pipeline.translate.public import DEFAULT_MODEL
-from retainpdf_pipeline.translate.public import TranslationExecutionRequest
-from retainpdf_pipeline.translate.public import execute_translation_request
+from retainpdf_translation.public import GlossaryEntry
+from retainpdf_translation.public import DEFAULT_BASE_URL
+from retainpdf_translation.public import DEFAULT_MODEL
+from retainpdf_translation.public import TranslationExecutionRequest
+from retainpdf_translation.public import execute_translation_request
 
 
 def translate_book_pipeline(

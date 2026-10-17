@@ -1,13 +1,13 @@
 
 
 
-from retainpdf_pipeline.translate.llm.shared.orchestration.common import (
+from retainpdf_translation.llm.shared.orchestration.common import (
     is_low_risk_deepseek_batch_item,
 )
-from retainpdf_pipeline.translate.llm.shared.orchestration.direct_typst_long_text import (
+from retainpdf_translation.llm.shared.orchestration.direct_typst_long_text import (
     should_split_direct_typst_long_text,
 )
-from retainpdf_pipeline.translate.llm.validation.english_residue import (
+from retainpdf_translation.llm.validation.english_residue import (
     should_force_translate_body_text,
 )
 

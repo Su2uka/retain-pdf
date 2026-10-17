@@ -9,6 +9,7 @@ members = [
     "retainpdf-base",
     "retainpdf-math",
     "retainpdf-pipeline",
+    "retainpdf-translation",
 ]
 
 [[package]]
@@ -436,6 +437,7 @@ dependencies = [
     { name = "retainpdf-base" },
     { name = "retainpdf-math" },
     { name = "retainpdf-pipeline" },
+    { name = "retainpdf-translation" },
 ]
 
 [package.optional-dependencies]
@@ -444,6 +446,7 @@ test = [
     { name = "retainpdf-base", extra = ["test"] },
     { name = "retainpdf-math", extra = ["test"] },
     { name = "retainpdf-pipeline", extra = ["test"] },
+    { name = "retainpdf-translation", extra = ["test"] },
 ]
 
 [package.metadata]
@@ -456,6 +459,8 @@ requires-dist = [
     { name = "retainpdf-math", extras = ["test"], marker = "extra == 'test'", editable = "math" },
     { name = "retainpdf-pipeline", editable = "pipeline" },
     { name = "retainpdf-pipeline", extras = ["test"], marker = "extra == 'test'", editable = "pipeline" },
+    { name = "retainpdf-translation", editable = "translation" },
+    { name = "retainpdf-translation", extras = ["test"], marker = "extra == 'test'", editable = "translation" },
 ]
 provides-extras = ["test"]
 
@@ -498,6 +503,7 @@ dependencies = [
     { name = "requests" },
     { name = "retainpdf-base" },
     { name = "retainpdf-math" },
+    { name = "retainpdf-translation" },
     { name = "urllib3" },
 ]
 
@@ -514,6 +520,35 @@ requires-dist = [
     { name = "pymupdf", specifier = "==1.26.5" },
     { name = "pytest", marker = "extra == 'test'", specifier = "==9.0.3" },
     { name = "python-docx", marker = "extra == 'test'", specifier = "==1.1.2" },
+    { name = "requests", specifier = "==2.32.5" },
+    { name = "retainpdf-base", editable = "base" },
+    { name = "retainpdf-math", editable = "math" },
+    { name = "retainpdf-translation", editable = "translation" },
+    { name = "urllib3", specifier = "==2.5.0" },
+]
+provides-extras = ["test"]
+
+[[package]]
+name = "retainpdf-translation"
+version = "4.2.6"
+source = { editable = "translation" }
+dependencies = [
+    { name = "pymupdf" },
+    { name = "requests" },
+    { name = "retainpdf-base" },
+    { name = "retainpdf-math" },
+    { name = "urllib3" },
+]
+
+[package.optional-dependencies]
+test = [
+    { name = "pytest" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pymupdf", specifier = "==1.26.5" },
+    { name = "pytest", marker = "extra == 'test'", specifier = "==9.0.3" },
     { name = "requests", specifier = "==2.32.5" },
     { name = "retainpdf-base", editable = "base" },
     { name = "retainpdf-math", editable = "math" },

@@ -17,12 +17,12 @@ import pytest
 
 from retainpdf_pipeline.entrypoints import console
 from retainpdf_pipeline.render.translation_loader import load_translated_pages
-from retainpdf_pipeline.translate.public import RevisionOutcome
-from retainpdf_pipeline.translate.public import RevisionRequest
-from retainpdf_pipeline.translate.public import revise_translation_item
-from retainpdf_pipeline.translate.workflow.checkpoint.contract import project_progress
-from retainpdf_pipeline.translate.workflow.checkpoint.store import CheckpointStore
-from retainpdf_pipeline.translate.workflow.revision import load_item_revisions
+from retainpdf_translation.public import RevisionOutcome
+from retainpdf_translation.public import RevisionRequest
+from retainpdf_translation.public import revise_translation_item
+from retainpdf_translation.workflow.checkpoint.contract import project_progress
+from retainpdf_translation.workflow.checkpoint.store import CheckpointStore
+from retainpdf_translation.workflow.revision import load_item_revisions
 
 
 _CONTRACT = {

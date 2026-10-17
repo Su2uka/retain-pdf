@@ -5,7 +5,7 @@ from contextlib import redirect_stdout
 from pathlib import Path
 
 
-from retainpdf_pipeline.translate.artifacts.debug_index import build_translation_debug_index
+from retainpdf_translation.artifacts.debug_index import build_translation_debug_index
 from devtools.replay_translation_item import replay_translation_case_artifact
 from devtools.replay_translation_item import replay_translation_item
 

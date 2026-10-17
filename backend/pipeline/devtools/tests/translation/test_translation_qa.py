@@ -6,18 +6,18 @@ import re
 
 import pytest
 
-from retainpdf_pipeline.translate.services.quality.qa import TRANSLATION_QA_FILE_NAME
-from retainpdf_pipeline.translate.services.quality.qa import build_translation_qa
-from retainpdf_pipeline.translate.services.quality.qa import build_translation_qa_for_job
-from retainpdf_pipeline.translate.services.quality.qa import refresh_translation_qa_after_render
-from retainpdf_pipeline.translate.services.quality.qa import translation_qa_enabled
-from retainpdf_pipeline.translate.services.quality.qa import write_translation_qa_for_run
-from retainpdf_pipeline.translate.services.quality.qa import report as qa_report
+from retainpdf_translation.services.quality.qa import TRANSLATION_QA_FILE_NAME
+from retainpdf_translation.services.quality.qa import build_translation_qa
+from retainpdf_translation.services.quality.qa import build_translation_qa_for_job
+from retainpdf_translation.services.quality.qa import refresh_translation_qa_after_render
+from retainpdf_translation.services.quality.qa import translation_qa_enabled
+from retainpdf_translation.services.quality.qa import write_translation_qa_for_run
+from retainpdf_translation.services.quality.qa import report as qa_report
 
 
 SCHEMA_PATH = (
-    Path(__file__).resolve().parents[3]
-    / "retainpdf_pipeline/translate/services/quality/qa/translation_qa.v1.schema.json"
+    Path(__file__).resolve().parents[4]
+    / "translation/retainpdf_translation/services/quality/qa/translation_qa.v1.schema.json"
 )
 
 
@@ -229,7 +229,7 @@ def test_cross_reference_kind_mismatch_and_untranslated_label() -> None:
 
 
 def test_untranslated_abbreviated_labels_are_found_and_rewritable() -> None:
-    from retainpdf_pipeline.translate.services.quality.qa.references import untranslated_ref_rewrites
+    from retainpdf_translation.services.quality.qa.references import untranslated_ref_rewrites
 
     report = _run([_item("p001-b001", "using the result of Prob. 14.8, we get", "利用 Prob. 14.8 的结果，得到")])
     assert _find(report, "ref_label_untranslated")["evidence"]["ref_kind"] == "problem"
@@ -769,7 +769,7 @@ def test_execution_runner_writes_qa_after_commit(tmp_path: Path, monkeypatch) ->
     from devtools.tests.translation.test_translation_checkpoint_commit import _install_execution_stubs
     from devtools.tests.translation.test_translation_checkpoint_commit import _plan
     from devtools.tests.translation.test_translation_checkpoint_commit import _request
-    from retainpdf_pipeline.translate.workflow import execution_runner
+    from retainpdf_translation.workflow import execution_runner
 
     request = _request(tmp_path)
     _install_execution_stubs(monkeypatch, translated_text="译文")
@@ -784,7 +784,7 @@ def test_execution_runner_survives_qa_failure(tmp_path: Path, monkeypatch) -> No
     from devtools.tests.translation.test_translation_checkpoint_commit import _install_execution_stubs
     from devtools.tests.translation.test_translation_checkpoint_commit import _plan
     from devtools.tests.translation.test_translation_checkpoint_commit import _request
-    from retainpdf_pipeline.translate.workflow import execution_runner
+    from retainpdf_translation.workflow import execution_runner
 
     def boom(*_args, **_kwargs):
         raise RuntimeError("qa exploded")

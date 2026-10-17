@@ -35,6 +35,10 @@ def test_macos_python_bundle_uses_prebuilt_wheels_without_homebrew_qpdf():
     base = next(line for line in mac.splitlines() if '"$RETAIN_PDF_SERVICES_ROOT/base"' in line)
     assert "--no-deps" in base and "--only-binary" not in base
     assert mac.index('"$RETAIN_PDF_SERVICES_ROOT/base"') < mac.index('"$RETAIN_PDF_SERVICES_ROOT/pipeline"')
+    # 翻译包 retainpdf-translation 同理：pipeline 的翻译 worker 外壳调它，也得先装。
+    translation = next(line for line in mac.splitlines() if '"$RETAIN_PDF_SERVICES_ROOT/translation"' in line)
+    assert "--no-deps" in translation and "--only-binary" not in translation
+    assert mac.index('"$RETAIN_PDF_SERVICES_ROOT/translation"') < mac.index('"$RETAIN_PDF_SERVICES_ROOT/pipeline"')
 
 
 def test_each_desktop_build_smokes_frontend_bundle_once_before_manifest_validation():

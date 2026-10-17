@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import requests
 
-from retainpdf_pipeline.translate.artifacts.aggregator import TranslationRunDiagnostics, translation_run_diagnostics_scope
-from retainpdf_pipeline.translate.llm.providers.deepseek import client, transport
+from retainpdf_translation.artifacts.aggregator import TranslationRunDiagnostics, translation_run_diagnostics_scope
+from retainpdf_translation.llm.providers.deepseek import client, transport
 
 
 def test_translation_requests_send_stable_opencode_session(monkeypatch):

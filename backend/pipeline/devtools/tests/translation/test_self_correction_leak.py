@@ -4,10 +4,10 @@
 
 import pytest
 
-from retainpdf_pipeline.translate.llm.result_validator import validate_batch_result
-from retainpdf_pipeline.translate.llm.validation.errors import TranslationProtocolError
-from retainpdf_pipeline.translate.llm.validation.self_correction import self_correction_leak
-from retainpdf_pipeline.translate.services.quality import review_translation_item
+from retainpdf_translation.llm.result_validator import validate_batch_result
+from retainpdf_translation.llm.validation.errors import TranslationProtocolError
+from retainpdf_translation.llm.validation.self_correction import self_correction_leak
+from retainpdf_translation.services.quality import review_translation_item
 
 ALLENE_SOURCE = "FIGURE 12.16 Two views of allene. The C=C=C axis is perpendicular to the plane of the paper in (a)."
 ALLENE_OUTPUT = (
@@ -80,10 +80,10 @@ def test_validation_raises_so_the_item_is_retranslated():
 
 # ---------------------------------------------------------------- 拆外壳 / 部分接受不能把自言自语收下
 
-from retainpdf_pipeline.translate.llm.shared.orchestration.direct_typst_salvage import (  # noqa: E402
+from retainpdf_translation.llm.shared.orchestration.direct_typst_salvage import (  # noqa: E402
     try_salvage_direct_typst_protocol_shell_error,
 )
-from retainpdf_pipeline.translate.llm.validation.self_correction import text_after_self_correction  # noqa: E402
+from retainpdf_translation.llm.validation.self_correction import text_after_self_correction  # noqa: E402
 
 # 真实输出（续接段落，p005-b013）：先抄原文，再自言自语，最后才是译文。以前被「部分接受」整段收下。
 ECHO_SOURCE = (

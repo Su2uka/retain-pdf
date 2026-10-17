@@ -1,7 +1,7 @@
 
 
-from retainpdf_pipeline.translate.core.orchestration.units import finalize_payload_orchestration_metadata
-from retainpdf_pipeline.translate.core.payload.parts.units import pending_translation_items
+from retainpdf_translation.core.orchestration.units import finalize_payload_orchestration_metadata
+from retainpdf_translation.core.payload.parts.units import pending_translation_items
 
 
 def test_heavy_continuation_group_is_split_back_to_single_units() -> None:

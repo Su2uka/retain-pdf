@@ -8,6 +8,7 @@ dependencies = [
   "retainpdf-base",
   "retainpdf-math",
   "retainpdf-pipeline",
+  "retainpdf-translation",
 ]
 
 [project.optional-dependencies]
@@ -16,6 +17,7 @@ test = [
   "retainpdf-base[test]",
   "retainpdf-math[test]",
   "retainpdf-pipeline[test]",
+  "retainpdf-translation[test]",
 ]
 
 [tool.uv.sources]
@@ -23,6 +25,7 @@ retainpdf-ai-service = { workspace = true }
 retainpdf-base = { workspace = true }
 retainpdf-math = { workspace = true }
 retainpdf-pipeline = { workspace = true }
+retainpdf-translation = { workspace = true }
 
 [tool.uv.workspace]
 members = [
@@ -30,6 +33,7 @@ members = [
   "base",
   "math",
   "pipeline",
+  "translation",
 ]
 
 [tool.retain_pdf.external-binaries]

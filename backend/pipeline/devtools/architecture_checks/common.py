@@ -5,8 +5,12 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
-SCRIPTS_ROOT = REPO_ROOT / "backend" / "pipeline"
+BACKEND_ROOT = REPO_ROOT / "backend"
+SCRIPTS_ROOT = BACKEND_ROOT / "pipeline"
 PACKAGE_ROOT = SCRIPTS_ROOT / "retainpdf_pipeline"
+# 翻译库是独立包 retainpdf-translation（backend/translation），和流水线并列；
+# 流水线里的 retainpdf_pipeline/translate/ 只剩 worker 外壳。
+TRANSLATION_PACKAGE_ROOT = BACKEND_ROOT / "translation" / "retainpdf_translation"
 
 
 class ArchitectureCheckSyntaxError(Exception):
@@ -32,7 +36,11 @@ def scan_py_files(root: Path) -> list[Path]:
 
 
 def rel(path: Path) -> Path:
-    return path.relative_to(SCRIPTS_ROOT)
+    """流水线里的文件相对 backend/pipeline；流水线外（翻译包等）的相对 backend/。"""
+    try:
+        return path.relative_to(SCRIPTS_ROOT)
+    except ValueError:
+        return path.relative_to(BACKEND_ROOT)
 
 
 def display_path(path: Path) -> Path:
@@ -81,9 +89,11 @@ def module_allowed(module: str, allowed_prefixes: tuple[str, ...]) -> bool:
 
 __all__ = [
     "ArchitectureCheckSyntaxError",
+    "BACKEND_ROOT",
     "PACKAGE_ROOT",
     "REPO_ROOT",
     "SCRIPTS_ROOT",
+    "TRANSLATION_PACKAGE_ROOT",
     "imported_from_symbols",
     "imported_modules",
     "module_allowed",

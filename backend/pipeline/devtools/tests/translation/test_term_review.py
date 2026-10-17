@@ -4,12 +4,12 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from retainpdf_pipeline.translate.services.preparation.segments import PrescanSegment
-from retainpdf_pipeline.translate.services.preparation.term_base import term_base_glossary_entries
-from retainpdf_pipeline.translate.services.preparation.term_review import parse_term_review_response
-from retainpdf_pipeline.translate.services.preparation.term_review import review_term_base
-from retainpdf_pipeline.translate.services.quality.qa.terms import build_term_specs
-from retainpdf_pipeline.translate.services.quality.qa.terms import load_term_base
+from retainpdf_translation.services.preparation.segments import PrescanSegment
+from retainpdf_translation.services.preparation.term_base import term_base_glossary_entries
+from retainpdf_translation.services.preparation.term_review import parse_term_review_response
+from retainpdf_translation.services.preparation.term_review import review_term_base
+from retainpdf_translation.services.quality.qa.terms import build_term_specs
+from retainpdf_translation.services.quality.qa.terms import load_term_base
 
 
 def _term(source: str, target: str, kind: str = "domain_term", item_id: str = "s1") -> dict:
@@ -127,7 +127,7 @@ def test_unknown_categories_are_ignored_and_annotate_needs_technical() -> None:
 
 
 def test_harmonize_unifies_variants_and_makes_compounds_follow_the_short_term() -> None:
-    from retainpdf_pipeline.translate.services.preparation.term_review import harmonize_term_base
+    from retainpdf_translation.services.preparation.term_review import harmonize_term_base
 
     def term(source, target, votes=1, conflicts=()):
         row = _term(source, target)

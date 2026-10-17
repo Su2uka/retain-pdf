@@ -39,7 +39,7 @@ BOOK_STAGE_SCHEMA_VERSION = "book.stage.v1"
 #
 # 三个 loader 都用 `_int_field` 取这个值，而不是原先的 `get(..., 1) or 1`：
 # 只有「key 缺失 / None / 空串」才走兜底，显式写进 spec 的 0 仍然原样传下去，
-# 由 `translate/workflow` 里那几处 `max(1, batch_size)` 收口——和改之前完全一样。
+# 由 `retainpdf_translation/workflow` 里那几处 `max(1, batch_size)` 收口——和改之前完全一样。
 # 这次只动兜底值，不顺手改显式值的语义。
 DEFAULT_TRANSLATION_BATCH_SIZE = 8
 
