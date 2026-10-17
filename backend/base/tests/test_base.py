@@ -41,7 +41,10 @@ def test_credential_ref_reads_environment(monkeypatch: pytest.MonkeyPatch) -> No
 def test_default_env_dir_is_the_pipeline_env_dir(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv(local_env.PIPELINE_ENV_DIR_ENV, raising=False)
     # 搬进底座包之前就是 backend/pipeline/.env，.gitignore、文档和前端脚本都写的这个位置。
-    assert local_env._env_dir() == Path(__file__).resolve().parents[2] / "pipeline" / ".env"
+    # 按模块自己的位置算，不按测试文件：worktree 里跑测试时 venv 装的可能是另一个检出的 retainpdf_base。
+    backend_root = Path(local_env.__file__).resolve().parents[2]
+    assert backend_root.name == "backend" and (backend_root / "pipeline").is_dir()
+    assert local_env._env_dir() == backend_root / "pipeline" / ".env"
 
 
 def test_events_without_active_writer_are_dropped() -> None:
