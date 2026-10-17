@@ -38,6 +38,11 @@ pub fn job_file_path(job_id: &str, relative: &str) -> String {
     format!("/api/v1/jobs/{job_id}/files/{relative}")
 }
 
+/// 任务的文件清单：`/api/v1/jobs/{job_id}/files`。取代旧的 `/artifacts`、`/artifacts-manifest`。
+pub fn job_files_list_path(job_id: &str) -> String {
+    format!("/api/v1/jobs/{job_id}/files")
+}
+
 /// 书的一个文件：`/api/v1/documents/{document_id}/files/{name}`。
 pub fn document_file_path(document_id: &str, name: &str) -> String {
     format!("/api/v1/documents/{document_id}/files/{name}")

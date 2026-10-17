@@ -243,7 +243,13 @@ fn workflow_contract_uses_expected_route_prefixes() {
         assert!(!actions.rerun.enabled);
         assert_eq!(
             actions.open_artifacts.path,
-            format!("{prefix}/job-contract/artifacts")
+            format!("{prefix}/job-contract/files")
+        );
+        assert_eq!(links.artifacts_path, format!("{prefix}/job-contract/files"));
+        assert_eq!(links.artifacts_manifest_path, format!("{prefix}/job-contract/files"));
+        assert_eq!(
+            links.artifacts_manifest_url,
+            "https://api.example/api/v1/jobs/job-contract/files"
         );
         assert_eq!(
             actions.download_pdf.path,
@@ -359,7 +365,29 @@ fn artifact_manifest_maps_canonical_resource_paths() {
             artifact_record("job-artifacts", ARTIFACT_KEY_TRANSLATED_PDF),
             artifact_record("job-artifacts", ARTIFACT_KEY_MARKDOWN_RAW),
             artifact_record("job-artifacts", ARTIFACT_KEY_TRANSLATION_MANIFEST_JSON),
+            artifact_record("job-artifacts", "source_pdf"),
         ],
+        Some("doc-1"),
+    );
+
+    let source_pdf = manifest
+        .items
+        .iter()
+        .find(|item| item.artifact_key == "source_pdf")
+        .expect("source pdf item");
+    assert_eq!(
+        source_pdf.resource_path.as_deref(),
+        Some("/api/v1/documents/doc-1/files/source.pdf?download=1")
+    );
+    let without_document = build_artifact_manifest(
+        &job,
+        "https://api.example",
+        &[artifact_record("job-artifacts", "source_pdf")],
+        None,
+    );
+    assert_eq!(
+        without_document.items[0].resource_path.as_deref(),
+        Some("/api/v1/jobs/job-artifacts/artifacts/source_pdf")
     );
 
     let translated_pdf = manifest
@@ -407,6 +435,7 @@ fn ocr_artifact_manifest_uses_the_generic_job_routes() {
             "ocr-artifacts",
             ARTIFACT_KEY_NORMALIZED_DOCUMENT_JSON,
         )],
+        None,
     );
 
     let document = manifest.items.first().expect("normalized document item");

@@ -19,7 +19,8 @@ use super::super::test_support::{
     load_invocation_summary, load_normalization_summary,
 };
 use super::super::file_paths::{
-    job_bundle_path, job_file_path, job_internal_file_name, job_markdown_view_path,
+    document_file_path, job_bundle_path, job_file_path, job_files_list_path, job_internal_file_name,
+    job_markdown_view_path,
     job_ocr_images_base_path, job_ocr_markdown_path, job_translated_pdf_path,
 };
 use super::super::to_absolute_url;
@@ -46,9 +47,9 @@ pub fn build_job_links_with_workflow(
 ) -> JobLinksView {
     let prefix = job_path_prefix(workflow);
     let self_path = format!("{prefix}/{job_id}");
-    // 产物列表、产物清单还是旧地址：新的 `/files` 结构不一样，等前端改成读 `/files` 再换。
-    let artifacts_path = format!("{prefix}/{job_id}/artifacts");
-    let artifacts_manifest_path = format!("{prefix}/{job_id}/artifacts-manifest");
+    // 产物列表、产物清单都换成文件清单 `/files`；两组旧字段名照旧返回，值相同。
+    let artifacts_path = job_files_list_path(job_id);
+    let artifacts_manifest_path = artifacts_path.clone();
     let events_path = format!("{prefix}/{job_id}/progress/events");
     let cancel_path = format!("{prefix}/{job_id}/actions/cancel");
     JobLinksView {
@@ -118,8 +119,7 @@ pub fn build_job_actions(
     let markdown_raw_path = job_ocr_markdown_path(&job.job_id);
     let bundle_path = job_bundle_path(&job.job_id);
     let self_path = format!("{prefix}/{}", job.job_id);
-    // 产物列表还是旧的 `/artifacts`：新的 `/files` 结构不一样，等前端改成读 `/files` 再换。
-    let artifacts_path = format!("{prefix}/{}/artifacts", job.job_id);
+    let artifacts_path = job_files_list_path(&job.job_id);
     JobActionsView {
         open_job: action_link(true, "GET", self_path, base_url),
         open_artifacts: action_link(true, "GET", artifacts_path, base_url),
@@ -140,7 +140,6 @@ pub fn build_artifact_links(
     markdown_ready: bool,
     bundle_ready: bool,
 ) -> ArtifactLinksView {
-    let prefix = job_path_prefix(&job.workflow);
     let pdf_path = job_translated_pdf_path(&job.job_id);
     let markdown_path = job_markdown_view_path(&job.job_id);
     let markdown_raw_path = job_ocr_markdown_path(&job.job_id);
@@ -148,8 +147,7 @@ pub fn build_artifact_links(
     let bundle_path = job_bundle_path(&job.job_id);
     let normalized_document_path = job_file_path(&job.job_id, "internal/normalized-document.json");
     let normalization_report_path = job_file_path(&job.job_id, "internal/normalization-report.json");
-    // 产物清单还是旧地址：新的 `/files` 结构不一样，等前端改成读 `/files` 再换。
-    let manifest_path = format!("{prefix}/{}/artifacts-manifest", job.job_id);
+    let manifest_path = job_files_list_path(&job.job_id);
     let pdf_file_path = resolve_output_pdf(job, data_root);
     let markdown_file_path = resolve_markdown_path(job, data_root);
 
@@ -233,6 +231,7 @@ pub fn build_artifact_manifest(
     job: &JobSnapshot,
     base_url: &str,
     items: &[JobArtifactRecord],
+    document_id: Option<&str>,
 ) -> JobArtifactManifestView {
     let attempt = job
         .runtime
@@ -256,8 +255,8 @@ pub fn build_artifact_manifest(
                 source_stage: item.source_stage.clone(),
                 updated_at: item.updated_at.clone(),
                 attempt,
-                resource_path: artifact_resource_path(job, &item.artifact_key),
-                resource_url: artifact_resource_path(job, &item.artifact_key)
+                resource_path: artifact_resource_path(job, &item.artifact_key, document_id),
+                resource_url: artifact_resource_path(job, &item.artifact_key, document_id)
                     .map(|path| to_absolute_url(base_url, &path)),
             })
             .collect(),
@@ -266,13 +265,24 @@ pub fn build_artifact_manifest(
 
 /// 产物清单里一项的地址。旧的 `/artifacts/<名字>` 默认下载，换成新地址时带 `?download=1` 保持原样；
 /// 原来就是在浏览器里打开的（译文 PDF、Markdown、规范化文档）不带。
-fn artifact_resource_path(job: &JobSnapshot, artifact_key: &str) -> Option<String> {
+///
+/// `source_pdf` 在书下面（`/documents/:id/files/source.pdf`）：知道书编号就给新地址，不知道还是旧地址。
+fn artifact_resource_path(
+    job: &JobSnapshot,
+    artifact_key: &str,
+    document_id: Option<&str>,
+) -> Option<String> {
     let prefix = job.workflow.job_api_prefix();
     let job_id = job.job_id.as_str();
     let legacy = || format!("{prefix}/{job_id}/artifacts/{artifact_key}");
     Some(match artifact_key {
-        // 原文在书下面（`/documents/:id/files/source.pdf`），任务的清单里不一定有书编号，先留旧地址。
-        "source_pdf" => legacy(),
+        "source_pdf" => match document_id.map(str::trim).filter(|id| !id.is_empty()) {
+            Some(document_id) => {
+                format!("{}?download=1", document_file_path(document_id, "source.pdf"))
+            }
+            // 任务不一定查得到书编号，查不到就还是旧地址。
+            None => legacy(),
+        },
         "translated_pdf" => job_translated_pdf_path(job_id),
         "markdown_raw" => job_ocr_markdown_path(job_id),
         "markdown_images_dir" => job_ocr_images_base_path(job_id),
