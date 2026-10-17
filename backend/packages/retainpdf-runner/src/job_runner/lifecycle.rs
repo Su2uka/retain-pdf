@@ -340,7 +340,8 @@ fn release_document_after_foreign_terminal(deps: &ProcessRuntimeDeps, job_id: &s
 }
 
 /// 任务属于哪本书:有 upload_id 就按它关联(并写回 jobs.document_id);没有 —— 重新渲染、
-/// 重试、继续/重跑这些派生任务只带 artifact_job_id —— 就用提交时继承下来的 jobs.document_id。
+/// 重试、继续/重跑这些派生任务只带 artifact_job_id —— 就用提交时继承下来的 jobs.document_id;
+/// 都没有(从 source_url 建的任务)就把它的原文 PDF 登记成一本书。
 /// 以前没有 upload_id 直接跳过,这些任务成功后不纠正书卡、不重建全文索引。
 fn job_document(deps: &ProcessRuntimeDeps, job_id: &str, upload_id: Option<&str>) -> Option<String> {
     if let Some(upload_id) = upload_id.filter(|id| !id.is_empty()) {
@@ -351,9 +352,28 @@ fn job_document(deps: &ProcessRuntimeDeps, job_id: &str, upload_id: Option<&str>
         }
     }
     match deps.db.document_id_for_job(job_id) {
-        Ok(document_id) => document_id,
+        Ok(Some(document_id)) => Some(document_id),
+        Ok(None) => adopt_source_document(deps, job_id),
         Err(error) => {
             error!("library: resolve document for job {job_id} failed: {error}");
+            None
+        }
+    }
+}
+
+/// 既没有上传、也没继承到书的任务（从 `source_url` 建的）：把它的原文 PDF 登记成一本书（见 `source_document`）。
+fn adopt_source_document(deps: &ProcessRuntimeDeps, job_id: &str) -> Option<String> {
+    let job = match deps.db.get_job(job_id) {
+        Ok(job) => job,
+        Err(error) => {
+            error!("library: reload job {job_id} to adopt its source pdf failed: {error}");
+            return None;
+        }
+    };
+    match super::adopt_job_source_document(&deps.config, &deps.db, &job) {
+        Ok(document_id) => document_id,
+        Err(error) => {
+            error!("library: adopt source pdf of job {job_id} failed: {error}");
             None
         }
     }

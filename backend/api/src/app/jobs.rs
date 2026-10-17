@@ -5,7 +5,8 @@ use anyhow::Result;
 use crate::config::AppConfig;
 use crate::db::Db;
 use crate::job_runner::{
-    reconcile_stale_running_jobs, requeue_stuck_queued_jobs, spawn_job, ProcessRuntimeDeps,
+    adopt_unlinked_job_sources, reconcile_stale_running_jobs, requeue_stuck_queued_jobs, spawn_job,
+    ProcessRuntimeDeps,
 };
 use crate::services::jobs::{
     build_jobs_facade, CommandJobsDeps, ControlDeps, JobLaunchDeps, JobRuntimeLauncher, JobsFacade,
@@ -21,6 +22,12 @@ pub(super) fn reconcile_owned_runtime(config: &AppConfig, db: &Db) -> Result<usi
         return Ok(0);
     }
     reconcile_stale_running_jobs(config, db)
+}
+
+/// 启动时把还没归属到书的老任务（从 `source_url` 建的、早年没登记上传的）按原文 PDF 归到书上。
+/// 有了书，书架、文件清单里的原文都能走书的地址 `/documents/:id/files/source.pdf`。
+pub(super) fn adopt_unlinked_job_documents(config: &AppConfig, db: &Db) -> Result<usize> {
+    adopt_unlinked_job_sources(config, db)
 }
 
 pub(super) fn resume_requeued_pipeline_jobs(state: &AppState) -> Result<usize> {

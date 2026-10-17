@@ -167,6 +167,7 @@ pub async fn execute_ocr_job(
     job.updated_at = now_iso();
     sync_runtime_state(&mut job);
     save_ocr_job(&deps, &job, parent_job_id.as_deref()).await?;
+    adopt_provider_source_document(&deps, &job, parent_job_id.as_deref());
 
     execute_process_job(deps, job, &parent_cancel_ids).await
 }
@@ -274,5 +275,40 @@ mod parent_cancel_contract {
                  父任务的取消,OCR 会一路跑到成功然后把产物丢掉"
             );
         }
+    }
+}
+
+/// 原文是 OCR 服务商这边拿到的（从 `source_url` 建的任务，没有上传记录）：原文一落盘就登记成一本书，
+/// 父任务（翻译任务）也归到这本书。不等任务结束，跑着的时候书架、文件清单里也有原文。失败只记日志。
+fn adopt_provider_source_document(deps: &ProcessRuntimeDeps, job: &JobRuntimeState, parent_job_id: Option<&str>) {
+    if !job.source_upload_id().trim().is_empty() {
+        return;
+    }
+    let snapshot = match deps.db.get_job(&job.job_id) {
+        Ok(snapshot) => snapshot,
+        Err(error) => {
+            tracing::warn!("library: reload job {} to adopt its source pdf failed: {error}", job.job_id);
+            return;
+        }
+    };
+    let document_id = match super::adopt_job_source_document(&deps.config, &deps.db, &snapshot) {
+        Ok(Some(document_id)) => document_id,
+        Ok(None) => return,
+        Err(error) => {
+            tracing::warn!("library: adopt source pdf of job {} failed: {error}", job.job_id);
+            return;
+        }
+    };
+    let Some(parent_job_id) = parent_job_id.filter(|id| !id.is_empty()) else {
+        return;
+    };
+    match deps.db.document_id_for_job(parent_job_id) {
+        Ok(Some(_)) => {}
+        Ok(None) => {
+            if let Err(error) = deps.db.set_job_document_id(parent_job_id, &document_id) {
+                tracing::warn!("library: link parent job {parent_job_id} to {document_id} failed: {error}");
+            }
+        }
+        Err(error) => tracing::warn!("library: resolve document for parent job {parent_job_id} failed: {error}"),
     }
 }

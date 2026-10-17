@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use anyhow::{Context, Result};
-use rusqlite::params;
+use rusqlite::{params, OptionalExtension};
 
 use crate::models::domain::UploadRecord;
 use crate::storage_paths::{resolve_data_path, to_relative_data_path};
@@ -88,6 +88,20 @@ impl Db {
             ],
         )?;
         Ok(())
+    }
+
+    /// 内容一样（sha256 相同）的上传里最早的一条；没有就是 None。书的编号就是这个哈希。
+    pub fn upload_with_content_hash(&self, content_hash: &str) -> Result<Option<UploadRecord>> {
+        let conn = self.connect()?;
+        let upload_id: Option<String> = conn
+            .query_row(
+                "SELECT upload_id FROM uploads WHERE content_hash = ?1 ORDER BY uploaded_at LIMIT 1",
+                params![content_hash],
+                |row| row.get(0),
+            )
+            .optional()?;
+        drop(conn);
+        upload_id.map(|id| self.get_upload(&id)).transpose()
     }
 
     pub fn get_upload(&self, upload_id: &str) -> Result<UploadRecord> {
