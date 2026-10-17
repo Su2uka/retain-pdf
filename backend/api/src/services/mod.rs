@@ -1,4 +1,5 @@
-//! 业务逻辑按领域分成 9 个目录，一个领域以后拆成一个包（拆包规划第 3 节）。
+//! 业务逻辑按领域分成 9 个包（拆包规划第 3 节），都在 `backend/packages/retain-pdf-<领域>`，这里只把它们接上，
+//! rust_api 里照旧写 `crate::services::<领域>::…`。
 //!
 //! | 领域 | 管什么 |
 //! |---|---|
@@ -12,7 +13,7 @@
 //! | `ai` | AI 问答、Agent、计算、文档操作 |
 //! | `platform` | 同步、备份、字体、健康检查 |
 //!
-//! 每个领域的 `mod.rs` 是它唯一的门面：子模块私有，领域外只能用门面导出的东西。领域之间只能往下
+//! 每个领域包的 `lib.rs` 是它唯一的门面：子模块私有，领域外只能用门面导出的东西。领域之间只能往下
 //! 依赖，允许的方向登记在 `scripts/check_architecture.py` 的 `ALLOWED_DOMAIN_DEPENDENCIES`。
 
 // 账号已经拆成独立的包，这里接上。
@@ -27,7 +28,8 @@ pub(crate) use retain_pdf_glossaries as glossaries;
 pub(crate) use retain_pdf_ingest as ingest;
 // 任务已经拆成独立的包，这里接上。
 pub(crate) use retain_pdf_jobs as jobs;
-pub(crate) mod library;
+// 书库已经拆成独立的包，这里接上。
+pub(crate) use retain_pdf_library as library;
 // 平台已经拆成独立的包，这里接上。
 pub(crate) use retain_pdf_platform as platform;
 // 服务商已经拆成独立的包，这里接上。

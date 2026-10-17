@@ -200,7 +200,7 @@ use sit under `#[cfg(test)]` in the same block. `check_domain_facades` rejects a
 `pub mod` in a domain's `mod.rs`. Inside a domain, code may use any path.
 
 A domain that has been split into its own crate is listed in
-`EXTRACTED_DOMAINS` (so far: `accounts` → `backend/packages/retain-pdf-accounts`, `ai` → `backend/packages/retain-pdf-ai`, `files` → `backend/packages/retain-pdf-files`, `glossaries` → `backend/packages/retain-pdf-glossaries`, `ingest` → `backend/packages/retain-pdf-ingest`, `jobs` → `backend/packages/retain-pdf-jobs`, `platform` →
+`EXTRACTED_DOMAINS` (so far: `accounts` → `backend/packages/retain-pdf-accounts`, `ai` → `backend/packages/retain-pdf-ai`, `files` → `backend/packages/retain-pdf-files`, `glossaries` → `backend/packages/retain-pdf-glossaries`, `ingest` → `backend/packages/retain-pdf-ingest`, `jobs` → `backend/packages/retain-pdf-jobs`, `library` → `backend/packages/retain-pdf-library`, `platform` →
 `backend/packages/retain-pdf-platform`, `providers` → `backend/packages/retain-pdf-providers`).
 Its `lib.rs` is the facade, `services/mod.rs` re-exports it as
 `services::<domain>` (`pub(crate) use retain_pdf_glossaries as glossaries;`),
@@ -213,7 +213,7 @@ uses `retain-pdf-proc` to stop operation workers; `retain-pdf-jobs` also uses
 `retain-pdf-proc` and the job runtime `retain-pdf-runner` behind `runtime_gateway`) and on
 the crates of extracted domains below it (`retain-pdf-accounts` uses
 `retain-pdf-providers`, `retain-pdf-ingest` uses `retain-pdf-accounts`, `retain-pdf-jobs` uses
-accounts, files, glossaries, ingest and providers). Such a use is written with the crate name
+accounts, files, glossaries, ingest and providers, `retain-pdf-library` uses files and jobs). Such a use is written with the crate name
 (`retain_pdf_providers::…`); `check_domain_dependency_direction` counts it as a
 domain edge just like `crate::services::providers::…`.
 

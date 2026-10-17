@@ -1,0 +1,25 @@
+[package]
+name = "retain-pdf-library"
+version = "0.1.0"
+edition = "2021"
+description = "书库：书、书架、合集、全文检索、合并阅读"
+
+[dependencies]
+retain-pdf-api-base = { path = "../retain-pdf-api-base" }
+retain-pdf-core = { path = "../retain-core" }
+retain-pdf-data = { path = "../retain-data" }
+retain-pdf-files = { path = "../retain-pdf-files" }
+retain-pdf-jobs = { path = "../retain-pdf-jobs" }
+axum = "0.7"
+fastrand = "2"
+lopdf = "0.32"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.11.0"
+tokio = { version = "1", features = ["full"] }
+
+[dev-dependencies]
+retain-pdf-api-base = { path = "../retain-pdf-api-base", features = ["test-fixtures"] }
+retain-pdf-jobs = { path = "../retain-pdf-jobs", features = ["test-fixtures"] }
+chrono = { version = "0.4", features = ["serde", "clock"] }
+rusqlite = { version = "0.31", features = ["bundled"] }

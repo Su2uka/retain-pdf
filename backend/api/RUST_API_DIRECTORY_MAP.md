@@ -11,8 +11,8 @@
 - 改 jobs 用例编排：
   [`packages/retain-pdf-jobs/src`](../packages/retain-pdf-jobs/src)
 - 改图书馆域（文档/收藏/检索/资产/会话/合集）：
-  [`src/services/library/api.rs`](src/services/library/api.rs) +
-  [`src/services/library`](src/services/library)
+  [`packages/retain-pdf-library/src/api.rs`](../packages/retain-pdf-library/src/api.rs) +
+  [`packages/retain-pdf-library/src`](../packages/retain-pdf-library/src)
 - 改 worker 运行链路：
   [`../packages/retain-jobs/src/job_runner`](../packages/retain-jobs/src/job_runner)
 - 改 OCR provider 分发和适配：
@@ -164,6 +164,9 @@ jobs 的依赖装配由 `app/jobs.rs` 完成；依赖定义在 `services/jobs/de
 
 #### `src/services/library/api.rs` + `src/services/library/*`
 
+> 书库已拆成独立的包 `retain-pdf-library`，代码在 [`../packages/retain-pdf-library/src`](../packages/retain-pdf-library/src)，
+> `lib.rs` 是门面；rust_api 里照旧写 `crate::services::library::…`。本节的 `services/library/...` 都是逻辑路径。
+
 - 作用：
   给 route 提供统一 **Library** 入口（与 `JobsFacade` / `glossaries::api` 同级）。
 - 进入条件：
@@ -209,7 +212,7 @@ jobs 的依赖装配由 `app/jobs.rs` 完成；依赖定义在 `services/jobs/de
   HTTP 凭据入口；jobs 所需凭据使用锁等能力由模块根部明确导出，不经 HTTP 入口。
 - [`../packages/retain-pdf-ai/src/agent_calculations/api.rs`](../packages/retain-pdf-ai/src/agent_calculations/api.rs)
   Agent 计算记录与产物接口，内部只依赖数据库和目录，不接收完整配置。
-- [`src/services/library/api.rs`](src/services/library/api.rs)
+- [`packages/retain-pdf-library/src/api.rs`](../packages/retain-pdf-library/src/api.rs)
   图书馆接口入口（见上）。
 - [`packages/retain-pdf-jobs/src/lifecycle/snapshot_factory.rs`](../packages/retain-pdf-jobs/src/lifecycle/snapshot_factory.rs)
   job snapshot/command 构造边界。

@@ -59,8 +59,11 @@ ALL_SRC_ROOTS = (
 #     "jobs": lambda: extracted_domain_root("jobs") / "src",
 # 挪进包以后门面从 mod.rs 变成 lib.rs，abs_src() 和 rel() 会对上。按目录扫文件用 scan_logical()，
 # 不要直接 scan_rs_files(SRC_ROOT / ...)，否则挪走的领域扫不到，规则会静悄悄地什么都不查。
-# 任务 2026-10-17 挪进了 retain-pdf-jobs。
-DOMAIN_MOUNTS: dict = {"jobs": lambda: extracted_domain_root("jobs") / "src", "library": None}
+# 任务、书库 2026-10-17 分别挪进了 retain-pdf-jobs、retain-pdf-library。
+DOMAIN_MOUNTS: dict = {
+    "jobs": lambda: extracted_domain_root("jobs") / "src",
+    "library": lambda: extracted_domain_root("library") / "src",
+}
 
 
 def mounted_domain_root(domain: str) -> Path:
@@ -1485,6 +1488,7 @@ EXTRACTED_DOMAINS = {
     "glossaries": "retain-pdf-glossaries",
     "ingest": "retain-pdf-ingest",
     "jobs": "retain-pdf-jobs",
+    "library": "retain-pdf-library",
     "platform": "retain-pdf-platform",
     "providers": "retain-pdf-providers",
 }

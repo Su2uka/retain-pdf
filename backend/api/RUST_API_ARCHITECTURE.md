@@ -375,7 +375,7 @@ Rust 侧关键落点：
 当前路由已经统一收口到 application facade：
 
 - jobs → [packages/retain-pdf-jobs/src/facade.rs](../packages/retain-pdf-jobs/src/facade.rs)
-- library → [src/services/library_api.rs](src/services/library_api.rs)
+- library → [packages/retain-pdf-library/src/api.rs](../packages/retain-pdf-library/src/api.rs)
 - glossaries → [../packages/retain-pdf-glossaries/src/api.rs](../packages/retain-pdf-glossaries/src/api.rs)
   → `retain-pdf-glossaries` 包里的 `{records,entries,csv}.rs`
 - uploads → [../packages/retain-pdf-ingest/src/uploads/api.rs](../packages/retain-pdf-ingest/src/uploads/api.rs)（入口已拆成独立的包 `retain-pdf-ingest`）
@@ -446,7 +446,7 @@ Rust 侧关键落点：
 当前已经成型的 application 入口：
 
 - [packages/retain-pdf-jobs/src/facade.rs](../packages/retain-pdf-jobs/src/facade.rs)
-- [src/services/library_api.rs](src/services/library_api.rs)
+- [packages/retain-pdf-library/src/api.rs](../packages/retain-pdf-library/src/api.rs)
 - [../packages/retain-pdf-glossaries/src/api.rs](../packages/retain-pdf-glossaries/src/api.rs)
 - [../packages/retain-pdf-ingest/src/uploads/api.rs](../packages/retain-pdf-ingest/src/uploads/api.rs)
 - [../packages/retain-pdf-ai/src/api.rs](../packages/retain-pdf-ai/src/api.rs)
@@ -480,9 +480,9 @@ routes/library*.rs, collections.rs
       → derived_artifacts (仅 media 内部使用 cover/thumbnail)
 ```
 
-- [src/services/library_api.rs](src/services/library_api.rs)
+- [packages/retain-pdf-library/src/api.rs](../packages/retain-pdf-library/src/api.rs)
   route 唯一允许的 library service import
-- [src/services/library/](src/services/library/)
+- [packages/retain-pdf-library/src/](../packages/retain-pdf-library/src)
   内部实现；`LibraryDeps` 持有 `db + data_root + output_root + downloads_dir + scripts_dir + python_bin`
 - 从馆藏发起翻译：`library/translate.rs` 绑定文档 upload 后只调用
   `JobsFacade::create_submission`，不绕过 job 创建管线；传入
@@ -516,9 +516,9 @@ routes/library*.rs, collections.rs
   负责 services 侧 runtime 能力收口
 - [packages/retain-pdf-jobs/src](../packages/retain-pdf-jobs/src)
   负责 jobs 相关业务
-- [src/services/library](src/services/library)
+- [packages/retain-pdf-library/src](../packages/retain-pdf-library/src)
   负责图书馆域业务（见 2.3）
-- [src/services/library/book_projection.rs](src/services/library/book_projection.rs)
+- [packages/retain-pdf-library/src/book_projection.rs](../packages/retain-pdf-library/src/book_projection.rs)
   负责 library books 投影（由 `library/books` 调用）
 - [../packages/retain-pdf-files/src/artifacts/presentation.rs](../packages/retain-pdf-files/src/artifacts/presentation.rs)
   只将 `ArtifactLinksView` 转为公共产物展示数据，通过文件包门面（`services::files`）的
