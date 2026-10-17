@@ -3,11 +3,12 @@
 //!
 //! 两道关：
 //! 1. 按路由：有的路由只给管理员（凭据、同步、备份、运行配置……），有的这一期对网站账号整个关掉
-//!    （助手相关——助手能读全部数据、跑命令，等按用户隔离做完再开）。
+//!    （助手相关——助手能读全部数据、跑命令，等按用户隔离做完再开）。每条路由归哪一种写在 rust_api 的
+//!    接口登记表里（`app/router/*.rs`，2026-10-17 起），调用方查好 [`RoutePolicy`] 传进来，这里不再按地址前缀猜。
 //! 2. 按路径参数：路径里出现任务 / 书 / 术语表 / 文件夹编号的，必须是自己的；别人的一律当不存在。
 //!
 //! 宁可错拒，不可错放：
-//! - 路由不在下面列出的「网站账号能用的资源」里就当关闭（新加的接口默认网站账号看不到，要明确放开）；
+//! - 登记表里没有的路由当关闭；
 //! - 路径参数名不在下面的分类里就拒绝。
 //! 测试会扫一遍所有路由：每个参数都要分了类；登录就能用、路径里又没有资源编号的接口（列表、新建……）
 //! 只能靠处理函数自己按当前用户过滤，必须逐条登记、写明怎么隔离的。
@@ -23,54 +24,6 @@ pub enum RoutePolicy {
     /// 这一期对网站账号关闭（回 404，看起来就是没有这个接口）。
     Closed,
 }
-
-/// 路由模板（axum 的 MatchedPath，例如 `/api/v1/jobs/:job_id`）对应的策略。
-pub fn route_policy(method: &str, template: &str) -> RoutePolicy {
-    let starts = |prefix: &str| template == prefix || template.starts_with(&format!("{prefix}/"));
-    if starts("/api/v1/ai")
-        || starts("/api/v1/assets")
-        || starts("/api/v1/internal")
-        || starts("/api/v1/translate/bundle")
-        // 旧别名，网站前端不用；它还能带文件建任务，多一个入口就多一处要核归属。
-        || starts("/api/v1/ocr")
-        || template.ends_with("/agent-versions")
-        || template.ends_with("/agent-workspace")
-    {
-        return RoutePolicy::Closed;
-    }
-    // 任务的中间产物（翻译请求日志里是完整的提示词和模型返回）只给管理员。
-    if template.starts_with("/api/v1/jobs/:job_id/files/internal/") {
-        return RoutePolicy::AdminOnly;
-    }
-    if starts("/api/v1/credentials")
-        || starts("/api/v1/sync")
-        || starts("/api/v1/backups")
-        || starts("/api/v1/admin")
-        || (starts("/api/v1/providers") && !(method == "GET" && template == "/api/v1/providers/ocr"))
-        || template == "/api/v1/fonts/upload"
-    {
-        return RoutePolicy::AdminOnly;
-    }
-    if SIGNED_FAMILIES.iter().any(|prefix| starts(prefix)) || template == "/api/v1/providers/ocr" {
-        return RoutePolicy::Signed;
-    }
-    RoutePolicy::Closed
-}
-
-/// 网站账号能用的资源（按路径段前缀）。不在这里的路由对网站账号关闭。
-const SIGNED_FAMILIES: &[&str] = &[
-    "/api/v1/account",
-    "/api/v1/auth",
-    "/api/v1/collections",
-    "/api/v1/documents",
-    "/api/v1/fonts",
-    "/api/v1/glossaries",
-    "/api/v1/jobs",
-    "/api/v1/library",
-    "/api/v1/search",
-    "/api/v1/uploads",
-    "/api/v1/usage",
-];
 
 /// 路径参数的分类。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -157,32 +110,6 @@ pub fn json_references(template: &str, value: &serde_json::Value) -> Vec<(OwnedK
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn route_policies() {
-        assert_eq!(route_policy("GET", "/api/v1/jobs"), RoutePolicy::Signed);
-        assert_eq!(route_policy("GET", "/api/v1/jobs/:job_id"), RoutePolicy::Signed);
-        assert_eq!(route_policy("GET", "/api/v1/providers/ocr"), RoutePolicy::Signed);
-        assert_eq!(route_policy("GET", "/api/v1/jobs/:job_id/files/output/*name"), RoutePolicy::Signed);
-        assert_eq!(route_policy("GET", "/api/v1/jobs/:job_id/files/pages/:page"), RoutePolicy::Signed);
-        assert_eq!(route_policy("GET", "/api/v1/jobs/:job_id/files/internal/*name"), RoutePolicy::AdminOnly);
-        assert_eq!(route_policy("GET", "/api/v1/fonts"), RoutePolicy::Signed);
-        assert_eq!(route_policy("POST", "/api/v1/providers/deepseek/balance"), RoutePolicy::AdminOnly);
-        assert_eq!(route_policy("POST", "/api/v1/fonts/upload"), RoutePolicy::AdminOnly);
-        // 这一期 AI 助手整体对网站账号关闭，运行设置也一样（管理员也不例外）。
-        assert_eq!(route_policy("GET", "/api/v1/ai/runtime-config"), RoutePolicy::Closed);
-        assert_eq!(route_policy("GET", "/api/v1/credentials/:credential_ref"), RoutePolicy::AdminOnly);
-        assert_eq!(route_policy("POST", "/api/v1/backups"), RoutePolicy::AdminOnly);
-        assert_eq!(route_policy("POST", "/api/v1/sync/run"), RoutePolicy::AdminOnly);
-        assert_eq!(route_policy("POST", "/api/v1/ai/ask"), RoutePolicy::Closed);
-        assert_eq!(route_policy("GET", "/api/v1/ai/conversations"), RoutePolicy::Closed);
-        assert_eq!(route_policy("GET", "/api/v1/documents/:document_id/agent-versions"), RoutePolicy::Closed);
-        assert_eq!(route_policy("POST", "/api/v1/internal/model/jobs/:job_id/requests"), RoutePolicy::Closed);
-        // 前缀要按段比较，别把 /api/v1/jobsx 当成 /api/v1/jobs。
-        assert_eq!(route_policy("GET", "/api/v1/jobsx"), RoutePolicy::Closed);
-        // 没列出来的新接口默认关闭。
-        assert_eq!(route_policy("GET", "/api/v1/reports"), RoutePolicy::Closed);
-    }
 
     #[test]
     fn references_in_query_and_body() {

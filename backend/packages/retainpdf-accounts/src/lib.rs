@@ -328,18 +328,18 @@ impl AccountsService {
         }
     }
 
-    /// 一个请求能不能过：路由策略 + 路径里每个有归属的编号。
+    /// 一个请求能不能过：路由策略 + 路径里每个有归属的编号。策略由调用方从接口登记表查好传进来。
     pub fn authorize_route(
         &self,
         principal: &Principal,
-        method: &str,
+        policy: access::RoutePolicy,
         template: &str,
         params: &[(String, String)],
     ) -> Result<(), AppError> {
         if principal.owner_filter().is_none() {
             return Ok(());
         }
-        match access::route_policy(method, template) {
+        match policy {
             access::RoutePolicy::Closed => return Err(AppError::not_found(format!("route not found: {template}"))),
             access::RoutePolicy::AdminOnly if !principal.is_admin() => {
                 return Err(AppError::forbidden("administrator only"))
@@ -537,7 +537,7 @@ pub use platform_settings::api::{
     PlatformSettingsApiDeps, PlatformSettingsView, PlatformTestView, TestPlatformInput,
 };
 // 访问策略：rust_api 的接口清单、路由覆盖测试按它核对每一条路由。
-pub use access::{classify_param, route_policy, ParamClass, RoutePolicy};
+pub use access::{classify_param, ParamClass, RoutePolicy};
 // 只给测试用的（建任务结果快照）。跨包用不了 `#[cfg(test)]`，只能照常导出。
 pub use platform_settings::{
     save as save_platform_settings, SaveOcrSettings, SaveTranslationSettings,
