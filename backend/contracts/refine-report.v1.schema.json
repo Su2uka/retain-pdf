@@ -7,7 +7,8 @@
   "endpoints": [
     {
       "method": "GET",
-      "path": "/api/v1/jobs/:job_id/translation/refine-report",
+      "path": "/api/v1/jobs/:job_id/reports/refine",
+      "deprecated_aliases": ["/api/v1/jobs/:job_id/translation/refine-report"],
       "output": "RefineReportView",
       "errors": {
         "404": "NOT_FOUND: job does not exist or the job has no refine report yet"
@@ -458,7 +459,7 @@
       "type": "object",
       "additionalProperties": false,
       "required": ["job_id", "report"],
-      "description": "data payload of GET /api/v1/jobs/:job_id/translation/refine-report (JobReportView).",
+      "description": "data payload of GET /api/v1/jobs/:job_id/reports/refine (JobReportView).",
       "properties": {
         "job_id": {"type": "string"},
         "report": {"$ref": "#/definitions/RefineReport"}

@@ -7,8 +7,9 @@ const schema = read("job-events.v2.schema.json");
 
 test("events v2 owns both route scopes without the legacy offset operation", () => {
   assert.deepEqual(schema.endpoints.map(endpoint => endpoint.path), [
-    "/api/v1/jobs/:job_id/events", "/api/v1/ocr/jobs/:job_id/events",
+    "/api/v1/jobs/:job_id/progress/events", "/api/v1/ocr/jobs/:job_id/events",
   ]);
+  assert.deepEqual(schema.endpoints[0].deprecated_aliases, ["/api/v1/jobs/:job_id/events"]);
   assert.ok(read("job-status.v1.schema.json").endpoints.every(endpoint => !endpoint.path.endsWith("/events")));
   const query = schema.definitions.ListJobEventsQuery;
   assert.equal(query.additionalProperties, false);

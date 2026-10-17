@@ -23,7 +23,8 @@
     },
     {
       "method": "GET",
-      "path": "/api/v1/jobs/:job_id/usage",
+      "path": "/api/v1/jobs/:job_id/reports/usage",
+      "deprecated_aliases": ["/api/v1/jobs/:job_id/usage"],
       "output": "UsageSummaryView",
       "note": "scope=job：单个任务（含它的原地精修、重渲染）。任务不存在时 404。",
       "rust_view": "services/jobs/reports/usage :: UsageSummaryView",

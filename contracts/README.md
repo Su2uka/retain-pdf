@@ -18,8 +18,8 @@
 | `pipeline-stdout.v1.schema.json` | Python stdout 协议 | `backend/packages/retainpdf-runner/src/job_runner/stdout_parser/contract_lock.rs` | `backend/pipeline` worker 与对应 contract test |
 | `public-document-operation.v1.schema.json` | 浏览器安全的 PDF operation 查询、分页与 CAS action | `frontend/packages/api`、Reader/网页宿主 | `backend/packages/retainpdf-ai/src/public_document_operations.rs` |
 | `runtime-config.v1.schema.json` | AI runtime 配置更新与受鉴权的本机可见 Key 视图 | `backend/api` 透明代理、设置客户端 | `backend/ai/retainpdf_ai/runtime_config_api.py` |
-| `translation-revisions.v1.schema.json` | 单块译文修订写回 `PATCH /api/v1/jobs/:job_id/translation/items/:item_id`、修订历史 `GET .../revisions`、`translated/revisions.v1.jsonl` 行格式与 409/422 结构化错误 | 前端阅读页编辑、终端 agent | `backend/api/src/api_tests/translation_debug/revisions.rs`、`backend/translation/retainpdf_translation/workflow/revision.py` |
-| `refine-report.v1.schema.json` | 译后精修报告 `artifacts/refine_report.v1.json` 与 `GET /api/v1/jobs/:job_id/translation/refine-report`（挑错发现、定点修改的采纳/拒绝及原因、token 用量、精修前后 QA 对比） | 终端 agent（`retainpdf-agent translation issues`） | `backend/translation/retainpdf_translation/workflow/refine.py` |
+| `translation-revisions.v1.schema.json` | 单块译文修订写回 `PATCH /api/v1/jobs/:job_id/translations/:item_id`、修订历史 `GET .../revisions`、`translated/revisions.v1.jsonl` 行格式与 409/422 结构化错误 | 前端阅读页编辑、终端 agent | `backend/api/src/api_tests/translation_debug/revisions.rs`、`backend/translation/retainpdf_translation/workflow/revision.py` |
+| `refine-report.v1.schema.json` | 译后精修报告 `artifacts/refine_report.v1.json` 与 `GET /api/v1/jobs/:job_id/reports/refine`（挑错发现、定点修改的采纳/拒绝及原因、token 用量、精修前后 QA 对比） | 终端 agent（`retainpdf-agent translation issues`） | `backend/translation/retainpdf_translation/workflow/refine.py` |
 | `reader-data.v1.schema.json` | Reader 宿主读模型：产物、Markdown、区域、页面元数据、实时译文布局/快照/SSE | Reader host adapter、后续 `@retainpdf/reader` ports | `backend/api` Reader 查询视图 |
 
 `contracts/*.schema.json` 是 monorepo 上游真值；
@@ -28,6 +28,10 @@
 `python3 backend/contracts/check_parity.py --require-upstream` 检查。
 
 **规则**：改契约先改 schema，再让两端测试变绿。
+
+**地址**：`endpoints[].path` 写现用地址；接口换了新地址、旧地址还能用时，旧地址写在同一条的 `deprecated_aliases` 里
+（2026-10-17 起，例如事件列表的新地址 `/progress/events`、旧地址 `/events`）。返回形状不一样的新接口（比如 `/files` 和旧的
+`/artifacts-manifest`）不算别名，要另写一条 endpoint 和它自己的 definition。全部接口和新旧对照见 `docs/api/00-接口目录.md`。
 
 ## npm 包
 
