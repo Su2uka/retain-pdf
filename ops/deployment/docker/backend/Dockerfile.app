@@ -27,6 +27,7 @@ COPY backend/packages/retain-pdf-ai ./backend/packages/retain-pdf-ai
 COPY backend/packages/retain-pdf-api-base ./backend/packages/retain-pdf-api-base
 COPY backend/packages/retain-pdf-glossaries ./backend/packages/retain-pdf-glossaries
 COPY backend/packages/retain-pdf-ingest ./backend/packages/retain-pdf-ingest
+COPY backend/packages/retain-pdf-jobs ./backend/packages/retain-pdf-jobs
 COPY backend/packages/retain-pdf-files ./backend/packages/retain-pdf-files
 COPY backend/packages/retain-pdf-platform ./backend/packages/retain-pdf-platform
 COPY backend/packages/retain-pdf-providers ./backend/packages/retain-pdf-providers
@@ -57,6 +58,7 @@ COPY backend/packages/retain-pdf-ai ./backend/packages/retain-pdf-ai
 COPY backend/packages/retain-pdf-api-base ./backend/packages/retain-pdf-api-base
 COPY backend/packages/retain-pdf-glossaries ./backend/packages/retain-pdf-glossaries
 COPY backend/packages/retain-pdf-ingest ./backend/packages/retain-pdf-ingest
+COPY backend/packages/retain-pdf-jobs ./backend/packages/retain-pdf-jobs
 COPY backend/packages/retain-pdf-files ./backend/packages/retain-pdf-files
 COPY backend/packages/retain-pdf-platform ./backend/packages/retain-pdf-platform
 COPY backend/packages/retain-pdf-providers ./backend/packages/retain-pdf-providers

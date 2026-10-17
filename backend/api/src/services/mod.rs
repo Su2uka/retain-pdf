@@ -6,7 +6,7 @@
 //! | `providers` | 模型和 OCR 服务商、凭据库、模型调用、连通性测试 |
 //! | `ingest` | 上传 |
 //! | `files` | 产物清单和打包、派生产物生成、下载文件名 |
-//! | `jobs` | 任务：按 9 类分（见 `jobs/mod.rs`），含质量报告、模型用量 |
+//! | `jobs` | 任务：按 9 类分（见任务包 `retain-pdf-jobs` 的 `lib.rs`），含质量报告、模型用量 |
 //! | `library` | 书、书架、合集、全文检索、合并阅读 |
 //! | `glossaries` | 术语表 |
 //! | `ai` | AI 问答、Agent、计算、文档操作 |
@@ -25,7 +25,8 @@ pub(crate) use retain_pdf_files as files;
 pub(crate) use retain_pdf_glossaries as glossaries;
 // 入口已经拆成独立的包，这里接上。
 pub(crate) use retain_pdf_ingest as ingest;
-pub(crate) mod jobs;
+// 任务已经拆成独立的包，这里接上。
+pub(crate) use retain_pdf_jobs as jobs;
 pub(crate) mod library;
 // 平台已经拆成独立的包，这里接上。
 pub(crate) use retain_pdf_platform as platform;

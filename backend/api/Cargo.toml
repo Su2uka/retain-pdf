@@ -19,6 +19,7 @@ retain-pdf-core = { path = "../packages/retain-core" }
 retain-pdf-files = { path = "../packages/retain-pdf-files" }
 retain-pdf-glossaries = { path = "../packages/retain-pdf-glossaries" }
 retain-pdf-ingest = { path = "../packages/retain-pdf-ingest" }
+retain-pdf-jobs = { path = "../packages/retain-pdf-jobs" }
 retain-pdf-platform = { path = "../packages/retain-pdf-platform" }
 retain-pdf-providers = { path = "../packages/retain-pdf-providers" }
 retain-pdf-data = { path = "../packages/retain-data" }
@@ -63,4 +64,5 @@ futures-util = "0.3"
 [dev-dependencies]
 retain-pdf-ai = { path = "../packages/retain-pdf-ai", features = ["test-fixtures"] }
 retain-pdf-ingest = { path = "../packages/retain-pdf-ingest", features = ["test-fixtures"] }
+retain-pdf-jobs = { path = "../packages/retain-pdf-jobs", features = ["test-fixtures"] }
 tower = { version = "0.5", features = ["util"] }

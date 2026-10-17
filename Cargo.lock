@@ -1623,6 +1623,7 @@ dependencies = [
  "retain-pdf-files",
  "retain-pdf-glossaries",
  "retain-pdf-ingest",
+ "retain-pdf-jobs",
  "retain-pdf-platform",
  "retain-pdf-proc",
  "retain-pdf-providers",
@@ -1778,6 +1779,39 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "retain-pdf-jobs"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "base64",
+ "chrono",
+ "fastrand",
+ "lopdf",
+ "mime_guess",
+ "regex",
+ "reqwest",
+ "retain-pdf-accounts",
+ "retain-pdf-api-base",
+ "retain-pdf-core",
+ "retain-pdf-data",
+ "retain-pdf-files",
+ "retain-pdf-glossaries",
+ "retain-pdf-ingest",
+ "retain-pdf-proc",
+ "retain-pdf-providers",
+ "retain-pdf-runner",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tokio",
+ "tracing",
+ "url",
+ "walkdir",
 ]
 
 [[package]]

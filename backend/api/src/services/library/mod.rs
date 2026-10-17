@@ -14,6 +14,8 @@ mod collection_workspace_tests;
 mod collections;
 mod conversations;
 mod documents;
+#[cfg(all(test, unix))]
+mod jobs_view_parity_tests;
 mod media;
 mod merge;
 mod metadata_suggestions;

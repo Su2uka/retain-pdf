@@ -41,7 +41,7 @@
 代码主入口：
 
 - [`src/routes/jobs/mod.rs`](src/routes/jobs/mod.rs)
-- [`src/services/jobs/*`](src/services/jobs)
+- [`packages/retain-pdf-jobs/src/*`](../packages/retain-pdf-jobs/src)
 - [`../packages/retain-jobs/src/job_runner/*`](../packages/retain-jobs/src/job_runner)
 
 ### Python 层
@@ -152,7 +152,7 @@ legacy/local helper stage：
 Rust 路由：
 
 - [`src/routes/jobs/create.rs`](src/routes/jobs/create.rs)
-- [`src/services/jobs/facade.rs`](src/services/jobs/facade.rs)
+- [`packages/retain-pdf-jobs/src/facade.rs`](../packages/retain-pdf-jobs/src/facade.rs)
 
 ### 第二步：Rust 创建 job
 
@@ -165,9 +165,9 @@ Rust 路由：
 
 主要代码：
 
-- [`src/services/jobs/lifecycle/creation`](src/services/jobs/lifecycle/creation)
-- [`src/services/jobs/lifecycle/snapshot_factory.rs`](src/services/jobs/lifecycle/snapshot_factory.rs)
-- [`src/services/jobs/lifecycle/launcher.rs`](src/services/jobs/lifecycle/launcher.rs)
+- [`packages/retain-pdf-jobs/src/lifecycle/creation`](../packages/retain-pdf-jobs/src/lifecycle/creation)
+- [`packages/retain-pdf-jobs/src/lifecycle/snapshot_factory.rs`](../packages/retain-pdf-jobs/src/lifecycle/snapshot_factory.rs)
+- [`packages/retain-pdf-jobs/src/lifecycle/launcher.rs`](../packages/retain-pdf-jobs/src/lifecycle/launcher.rs)
 
 注意：
 
