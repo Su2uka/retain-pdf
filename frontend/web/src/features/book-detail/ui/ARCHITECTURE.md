@@ -88,7 +88,8 @@ library controller 注入，展示组件不得直接 import API。
 ## 文件与产物中心
 
 `BookDetailArtifactsTab` 是文档级编排壳，只有用户切到“文件”Tab 后才逐个读取已结束
-任务的 `artifacts-manifest`。运行中任务不会抢跑 manifest；任务状态或 `updated_at`
+任务的文件清单 `/jobs/:id/files`（接口包 `fetchJobArtifactsManifest` 把它换成产物清单的形状，
+文件名换回 `artifact_key`）。运行中任务不会抢跑 manifest；任务状态或 `updated_at`
 改变后会重新读取。下载继续使用 `fetchProtected` 和共享保存流程，因而不会把本机
 API Key 拼进 URL。
 

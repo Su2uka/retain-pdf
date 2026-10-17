@@ -30,7 +30,7 @@ function installFetch(gate) {
       return envelope({ documents: [{ document_id: "doc-host", active_job_id: "job-other", active_version_id: "" }], total: 1 });
     }
     await gate.promise;
-    if (url.includes("artifacts-manifest")) return envelope({ items: [] });
+    if (url.includes(`/jobs/${JOB_ID}/files`)) return envelope({ job_id: JOB_ID, output: [], internal: [] });
     if (url.includes("/reader/regions")) return envelope({ items: [] });
     if (url.includes("/reader/metadata")) return envelope(null);
     if (url.includes(`/jobs/${JOB_ID}`)) return envelope({ job_id: JOB_ID, status: "succeeded", workflow: "translate" });

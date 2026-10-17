@@ -59,6 +59,9 @@ export function renderArtifactsManifest(manifestPayload: ManifestPayload | null 
   const preferredOrder = [
     "source_pdf",
     "translated_pdf",
+    "side_by_side_pdf",
+    "layout_docx",
+    "artifact_bundle_zip",
     "pdf",
     "typst_render_pdf",
     "markdown_raw",
@@ -86,7 +89,8 @@ export function renderArtifactsManifest(manifestPayload: ManifestPayload | null 
   });
   container.innerHTML = items.map((item) => {
     const resource = firstNonEmptyText(item?.resource_url, item?.resource_path, item?.relative_path) || "-";
-    const readyLabel = item?.ready ? "ready" : "pending";
+    // 对照 PDF、Word、打包这类第一次下载时才生成，没有大小和时间，标成 on demand 而不是 ready。
+    const readyLabel = item?.ready ? (item?.on_demand ? "on demand" : "ready") : "pending";
     const readyClass = item?.ready ? "is-ready" : "is-pending";
     const topLabel = summarizeArtifactLabel(item?.artifact_key);
     const metaBits = [

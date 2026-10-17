@@ -46,6 +46,8 @@ export function labelFor(item: ArtifactManifestItem): string {
   // 识别报告的文件名是 document.v1.report.json，必须先于「结构化文档」判断，否则会被 document.v1 吃掉。
   if (/normalization.report|document\.v1\.report/.test(key)) return "识别报告";
   if (/normalized.document|document\.v1/.test(key)) return "结构化文档";
+  // OCR 服务商的原始返回（/files 里叫 ocr-provider/result.json、raw.zip），要先于「任务包」判断，否则 zip 会被当成完整任务包。
+  if (/provider.result|provider.bundle|ocr-provider\//.test(key)) return "识别原始数据";
   if (/markdown.*bundle|bundle.*markdown/.test(key)) return "Markdown 任务包";
   if (/bundle|archive|zip/.test(key)) return "完整任务包";
   if (/translation.manifest/.test(key)) return "翻译清单";

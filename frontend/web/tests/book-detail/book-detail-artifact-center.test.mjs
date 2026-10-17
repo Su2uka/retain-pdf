@@ -264,6 +264,37 @@ test("artifact center: 内部文件名映射人话标签，不裸奔", () => {
   }
 });
 
+test("artifact center: /files 的文件名同样映射人话标签，服务商原始包不当成完整任务包", async () => {
+  const { jobFilesToArtifactManifest } = await import("@retainpdf/api/jobs-artifacts");
+  const file = (name) => ({ name, url: `/api/v1/jobs/translate-1/files/internal/${name}`, ready: true });
+  const manifest = jobFilesToArtifactManifest({
+    job_id: "translate-1",
+    output: [file("all.zip"), file("ocr.zip")],
+    internal: [
+      file("events.jsonl"),
+      file("ocr-provider/result.json"),
+      file("ocr-provider/raw.zip"),
+      file("translation-requests.jsonl"),
+      file("translation-checkpoint.json"),
+      file("render-config.json"),
+    ],
+  });
+  const sections = buildArtifactCenterSections({ documentId: "doc-1", source, jobs, manifests: { "translate-1": manifest } });
+  const labelOf = Object.fromEntries(sections.flatMap((section) => section.items.map((item) => [item.id, item.label])));
+  for (const [key, label] of [
+    ["artifact_bundle_zip", "完整任务包"],
+    ["markdown_bundle_zip", "Markdown 任务包"],
+    ["events_jsonl", "事件记录"],
+    ["provider_result_json", "识别原始数据"],
+    ["provider_bundle_zip", "识别原始数据"],
+    ["translation_request_journal_jsonl", "翻译请求记录"],
+    ["translation_checkpoint_json", "翻译断点"],
+    ["render_config_json", "渲染配置"],
+  ]) {
+    assert.equal(labelOf[`translate-1:${key}`], label, `${key} → ${label}`);
+  }
+});
+
 test("artifact center: 文件页每类只摆最新一份，调试文件和旧任务的同类文件收进调试区", () => {
   const ocrJobs = [
     { job_id: "ocr-new", workflow: "ocr", status: "succeeded", attempt: 1, created_at: "2026-10-06T02:32:50Z", updated_at: "2026-10-06T02:34:58Z" },
