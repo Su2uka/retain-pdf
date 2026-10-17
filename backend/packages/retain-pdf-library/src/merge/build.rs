@@ -29,9 +29,9 @@ use std::time::{Duration, UNIX_EPOCH};
 
 use sha2::{Digest, Sha256};
 
-use crate::error::AppError;
-use crate::job_loading::MergedTranslation;
-use crate::services::files::{document_artifacts_dir, DerivedArtifactDeps};
+use retain_pdf_api_base::error::AppError;
+use retain_pdf_api_base::job_loading::MergedTranslation;
+use retain_pdf_files::{document_artifacts_dir, DerivedArtifactDeps};
 
 use super::plan::PageSource;
 use super::sources::BuildInputs;
@@ -197,7 +197,7 @@ fn run_step(
     let mut command = std::process::Command::new(deps.pipeline_command);
     command.arg(subcommand).args(args);
     let (status, diagnostics) =
-        crate::services::files::run_supervised(anchor, label, BUILD_TIMEOUT, command)?;
+        retain_pdf_files::run_supervised(anchor, label, BUILD_TIMEOUT, command)?;
     if !status.success() {
         return Err(diagnostics.error(format!("failed to build {label}")));
     }

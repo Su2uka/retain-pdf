@@ -12,8 +12,8 @@
 use std::fs;
 use std::path::PathBuf;
 
-use crate::db::Db;
-use crate::models::domain::{CreateJobInput, JobArtifacts, JobSnapshot, UploadRecord};
+use retain_pdf_data::db::Db;
+use retain_pdf_core::models::domain::{CreateJobInput, JobArtifacts, JobSnapshot, UploadRecord};
 
 use super::collection_workspace::{
     collection_workspace_dir, ensure_collection_workspace, link_name,

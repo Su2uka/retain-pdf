@@ -1624,6 +1624,7 @@ dependencies = [
  "retain-pdf-glossaries",
  "retain-pdf-ingest",
  "retain-pdf-jobs",
+ "retain-pdf-library",
  "retain-pdf-platform",
  "retain-pdf-proc",
  "retain-pdf-providers",
@@ -1812,6 +1813,26 @@ dependencies = [
  "tracing",
  "url",
  "walkdir",
+]
+
+[[package]]
+name = "retain-pdf-library"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "chrono",
+ "fastrand",
+ "lopdf",
+ "retain-pdf-api-base",
+ "retain-pdf-core",
+ "retain-pdf-data",
+ "retain-pdf-files",
+ "retain-pdf-jobs",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tokio",
 ]
 
 [[package]]

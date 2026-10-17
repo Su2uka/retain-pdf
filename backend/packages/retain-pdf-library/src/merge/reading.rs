@@ -18,12 +18,12 @@ use std::path::Path;
 
 use serde::Serialize;
 
-use crate::db::Db;
-use crate::error::AppError;
-use crate::job_loading::{contributing_jobs, MergedTranslation, ReadingSidecar, VirtualJobId, SIDECAR};
-use crate::models::domain::JobSnapshot;
-use crate::services::files::DerivedArtifactDeps;
-use crate::storage_paths::{resolve_data_path, to_relative_data_path};
+use retain_pdf_data::db::Db;
+use retain_pdf_api_base::error::AppError;
+use retain_pdf_api_base::job_loading::{contributing_jobs, MergedTranslation, ReadingSidecar, VirtualJobId, SIDECAR};
+use retain_pdf_core::models::domain::JobSnapshot;
+use retain_pdf_files::DerivedArtifactDeps;
+use retain_pdf_core::storage_paths::{resolve_data_path, to_relative_data_path};
 
 use super::build::{ensure_merged_translation, JobInputs};
 use super::plan::{merge_plan, PageSource};

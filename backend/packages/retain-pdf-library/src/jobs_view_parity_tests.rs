@@ -8,10 +8,10 @@ use chrono::Utc;
 use rusqlite::Connection;
 use serde_json::json;
 
-use crate::config::AssetConfig;
-use crate::models::api::{ListDocumentJobsQuery, ListJobsQuery};
-use crate::models::domain::{now_iso, JobStatusKind, UploadRecord};
-use crate::services::jobs::{
+use retain_pdf_core::config::AssetConfig;
+use retain_pdf_core::models::api::{ListDocumentJobsQuery, ListJobsQuery};
+use retain_pdf_core::models::domain::{now_iso, JobStatusKind, UploadRecord};
+use retain_pdf_jobs::{
     build_document_job_list_view, build_job_list_view, event_line as line, jsonl_bytes_read,
     Disposition, DownloadFixture, EventFeedFixture, DOWNLOAD_FIXTURE_JOB_ID,
 };
@@ -125,7 +125,7 @@ fn task_document_and_library_lists_keep_live_progress_and_background_stage_parit
 #[tokio::test(flavor = "current_thread")]
 async fn document_images_use_the_same_bounded_generation_without_jobs() {
     let fixture = DownloadFixture::new();
-    let document_id = crate::db::documents::sha256_hex(b"source");
+    let document_id = retain_pdf_data::db::documents::sha256_hex(b"source");
     fixture
         .db
         .save_upload_with_document(&UploadRecord {

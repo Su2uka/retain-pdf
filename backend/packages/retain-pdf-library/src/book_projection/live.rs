@@ -1,9 +1,9 @@
 use std::path::Path;
 
-use crate::db::Db;
-use crate::models::api::JobProgressView;
-use crate::models::domain::JobSnapshot;
-use crate::services::jobs::{build_job_stage_view, load_live_stage_snapshot, LiveStageSnapshot};
+use retain_pdf_data::db::Db;
+use retain_pdf_core::models::api::JobProgressView;
+use retain_pdf_core::models::domain::JobSnapshot;
+use retain_pdf_jobs::{build_job_stage_view, load_live_stage_snapshot, LiveStageSnapshot};
 
 pub(super) struct BookLiveProjection {
     pub stage: Option<String>,

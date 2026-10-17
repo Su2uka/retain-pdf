@@ -1,17 +1,17 @@
 use std::path::{Path, PathBuf};
 
 use super::LibraryDeps;
-use crate::db::Db;
-use crate::error::AppError;
-use crate::models::api::{
+use retain_pdf_data::db::Db;
+use retain_pdf_api_base::error::AppError;
+use retain_pdf_core::models::api::{
     LibraryBookDetailView,
     LibraryBookListView, LibraryDeleteResultView, ListJobsQuery,
 };
-use crate::models::domain::{JobSnapshot, JobStatusKind, WorkflowKind};
+use retain_pdf_core::models::domain::{JobSnapshot, JobStatusKind, WorkflowKind};
 use super::book_projection::{
     build_library_book_detail_view, build_library_book_list_view,
 };
-use crate::services::jobs::cleanup_deleted_job_credentials;
+use retain_pdf_jobs::cleanup_deleted_job_credentials;
 
 pub fn list_library_books(
     db: &Db,

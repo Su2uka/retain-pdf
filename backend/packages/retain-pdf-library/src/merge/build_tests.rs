@@ -1,5 +1,5 @@
 use super::*;
-use crate::test_support::python::project_venv_bin;
+use retain_pdf_api_base::test_fixtures::project_venv_bin;
 
 struct Dir(PathBuf);
 
@@ -261,7 +261,7 @@ fn end_to_end_the_real_pipeline_builds_a_full_length_merged_directory_and_caches
         make_range_job(&dir.0, "mid", &[3, 4], &["ZH 3", "ZH 4"]),
     ]);
     let ranked = [ranked("a", &[1]), ranked("mid", &[3, 4])];
-    let plan = crate::services::library::merge::plan::merge_plan(4, &ranked);
+    let plan = crate::merge::plan::merge_plan(4, &ranked);
     let pipeline = project_venv_bin("retainpdf-pipeline");
 
     let merged =
@@ -323,9 +323,9 @@ fn end_to_end_a_failed_step_publishes_nothing_and_surfaces_the_python_error() {
     assert!(entries.is_empty(), "失败后留下了东西: {entries:?}");
 }
 
-fn ranked(job_id: &str, pages: &[u32]) -> crate::services::library::merge::plan::RankedPages {
-    crate::services::library::merge::plan::RankedPages {
-        rank: crate::services::library::merge::plan::Rank {
+fn ranked(job_id: &str, pages: &[u32]) -> crate::merge::plan::RankedPages {
+    crate::merge::plan::RankedPages {
+        rank: crate::merge::plan::Rank {
             producer_created_at: "2026-10-01T00:00:00".to_string(),
             finished_at: "2026-10-01T00:00:00".to_string(),
             created_at: "2026-10-01T00:00:00".to_string(),

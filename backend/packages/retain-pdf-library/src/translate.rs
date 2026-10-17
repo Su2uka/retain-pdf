@@ -1,10 +1,10 @@
 //! Translate-from-library: reuse a document's stored upload and submit via JobsFacade.
 
-use crate::error::AppError;
-use crate::models::api::JobSubmissionView;
-use crate::models::domain::WorkflowKind;
-use crate::models::request::CreateJobInput;
-use crate::services::jobs::{
+use retain_pdf_api_base::error::AppError;
+use retain_pdf_core::models::api::JobSubmissionView;
+use retain_pdf_core::models::domain::WorkflowKind;
+use retain_pdf_core::models::request::CreateJobInput;
+use retain_pdf_jobs::{
     reusable_ocr_coverage, validate_ocr_artifact_reuse, validate_ocr_credential_reference,
     validate_provider_credentials, JobsFacade,
 };
@@ -24,7 +24,7 @@ pub fn translate_document(
 ) -> Result<JobSubmissionView, AppError> {
     let (document, upload) = require_document_upload(deps, document_id)?;
     // 开发栈的翻译默认值要在拆段预检（会校验翻译凭据）之前补上。
-    request = crate::services::jobs::with_dev_translation_defaults(&request);
+    request = retain_pdf_jobs::with_dev_translation_defaults(&request);
 
     if !request.source.upload_id.trim().is_empty()
         && request.source.upload_id.trim() != upload.upload_id

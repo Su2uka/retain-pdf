@@ -3,9 +3,9 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::models::domain::{JobSnapshot, JobStatusKind, WorkflowKind};
+use retain_pdf_core::models::domain::{JobSnapshot, JobStatusKind, WorkflowKind};
 use retain_pdf_core::document_pages::translated_document_pages;
-use crate::storage_paths::{
+use retain_pdf_core::storage_paths::{
     resolve_data_path, resolve_normalized_document, resolve_ocr_markdown_images_dir,
     resolve_output_pdf,
 };
@@ -134,7 +134,7 @@ pub(crate) fn job_merge_source(
 #[cfg(test)]
 mod tests {
     use super::covered_pages;
-    use crate::models::domain::{JobStatusKind, WorkflowKind};
+    use retain_pdf_core::models::domain::{JobStatusKind, WorkflowKind};
 
     const OK: JobStatusKind = JobStatusKind::Succeeded;
 
@@ -232,9 +232,9 @@ mod tests {
 #[cfg(test)]
 mod job_merge_source_tests {
     use super::job_merge_source;
-    use crate::api_tests::jobs_common::minimal_pdf_bytes;
-    use crate::models::domain::{JobArtifacts, JobSnapshot, JobStatusKind, WorkflowKind};
-    use crate::models::request::CreateJobInput;
+    use retain_pdf_api_base::test_fixtures::minimal_pdf_bytes;
+    use retain_pdf_core::models::domain::{JobArtifacts, JobSnapshot, JobStatusKind, WorkflowKind};
+    use retain_pdf_core::models::request::CreateJobInput;
 
     struct DataRoot(std::path::PathBuf);
 

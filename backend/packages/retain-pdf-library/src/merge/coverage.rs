@@ -11,11 +11,11 @@ use std::path::Path;
 
 use serde::Serialize;
 
-use crate::db::Db;
-use crate::error::AppError;
-use crate::models::domain::{JobSnapshot, JobStatusKind, WorkflowKind};
+use retain_pdf_data::db::Db;
+use retain_pdf_api_base::error::AppError;
+use retain_pdf_core::models::domain::{JobSnapshot, JobStatusKind, WorkflowKind};
 use retain_pdf_core::document_pages::translated_document_pages;
-use crate::services::jobs::terminal_completion_note;
+use retain_pdf_jobs::terminal_completion_note;
 
 use super::plan::{merge_plan, PageSource};
 use super::reading::document_merge_sources;
@@ -337,7 +337,7 @@ mod tests {
 
     #[test]
     fn failure_text_only_for_failed_jobs_and_is_trimmed() {
-        let mut job = JobSnapshot::new("j".to_string(), crate::models::domain::CreateJobInput::default(), vec![]);
+        let mut job = JobSnapshot::new("j".to_string(), retain_pdf_core::models::domain::CreateJobInput::default(), vec![]);
         job.status = JobStatusKind::Failed;
         assert_eq!(failed_text(&job, Some("  外部服务请求超时 ")), Some("外部服务请求超时".into()));
         assert_eq!(failed_text(&job, Some("   ")), None);

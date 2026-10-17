@@ -1,6 +1,6 @@
 use super::*;
-use crate::models::domain::JobArtifacts;
-use crate::models::request::CreateJobInput;
+use retain_pdf_core::models::domain::JobArtifacts;
+use retain_pdf_core::models::request::CreateJobInput;
 
 fn job_page(id: &str, local: usize) -> PageSource {
     PageSource::Job { job_id: id.to_string(), local_index: local }
@@ -65,8 +65,8 @@ fn a_job_root_that_merely_shares_a_prefix_is_not_the_producer() {
 /// 重新排版任务。几个任务同一份译文、同一个产出者；原任务提交得最早，但最后跑完。
 #[test]
 fn reading_opens_the_in_place_refined_original_rather_than_an_earlier_relayout() {
-    use crate::api_tests::jobs_common::minimal_pdf_bytes;
-    use crate::models::domain::{JobStatusKind, WorkflowKind};
+    use retain_pdf_api_base::test_fixtures::minimal_pdf_bytes;
+    use retain_pdf_core::models::domain::{JobStatusKind, WorkflowKind};
 
     let root = std::env::temp_dir().join(format!("retain-reading-refine-{:016x}", fastrand::u64(..)));
     let job = |job_id: &str, created_at: &str, finished_at: &str| {
@@ -99,8 +99,8 @@ fn reading_opens_the_in_place_refined_original_rather_than_an_earlier_relayout()
 /// 而不是退回更早的重新排版。排序用上一份 PDF 的完成时间。
 #[test]
 fn a_queued_in_place_rerun_keeps_serving_its_previous_pdf() {
-    use crate::api_tests::jobs_common::minimal_pdf_bytes;
-    use crate::models::domain::{JobStatusKind, WorkflowKind};
+    use retain_pdf_api_base::test_fixtures::minimal_pdf_bytes;
+    use retain_pdf_core::models::domain::{JobStatusKind, WorkflowKind};
 
     let root = std::env::temp_dir().join(format!("retain-reading-queued-{:016x}", fastrand::u64(..)));
     let job = |job_id: &str, created_at: &str, finished_at: &str| {

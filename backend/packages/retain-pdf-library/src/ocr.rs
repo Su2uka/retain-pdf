@@ -1,10 +1,10 @@
 //! OCR-from-library: reuse a document's stored upload without exposing upload_id.
 
-use crate::error::AppError;
-use crate::models::api::JobSubmissionView;
-use crate::models::domain::WorkflowKind;
-use crate::models::request::CreateJobInput;
-use crate::services::jobs::JobsFacade;
+use retain_pdf_api_base::error::AppError;
+use retain_pdf_core::models::api::JobSubmissionView;
+use retain_pdf_core::models::domain::WorkflowKind;
+use retain_pdf_core::models::request::CreateJobInput;
+use retain_pdf_jobs::JobsFacade;
 
 use super::documents::require_document_upload;
 use super::LibraryDeps;

@@ -2,10 +2,10 @@
 
 use std::path::PathBuf;
 
-use crate::db::documents::sha256_hex;
-use crate::error::AppError;
-use crate::models::api::AssetRecord;
-use crate::models::domain::now_iso;
+use retain_pdf_data::db::documents::sha256_hex;
+use retain_pdf_api_base::error::AppError;
+use retain_pdf_core::models::api::AssetRecord;
+use retain_pdf_core::models::domain::now_iso;
 
 use super::LibraryDeps;
 
@@ -121,8 +121,8 @@ mod tests {
     use std::path::PathBuf;
 
     use super::*;
-    use crate::config::AssetConfig;
-    use crate::db::Db;
+    use retain_pdf_core::config::AssetConfig;
+    use retain_pdf_data::db::Db;
 
     fn test_deps(test_name: &str, asset_config: AssetConfig) -> (LibraryDeps<'static>, PathBuf) {
         let root = std::env::temp_dir().join(format!(

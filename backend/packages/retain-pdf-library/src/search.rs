@@ -1,8 +1,8 @@
 //! Block full-text search.
 
-use crate::config::limits::MAX_SEARCH_LIMIT;
-use crate::error::AppError;
-use crate::models::api::{SearchQuery, SearchResultView};
+use retain_pdf_core::config::limits::MAX_SEARCH_LIMIT;
+use retain_pdf_api_base::error::AppError;
+use retain_pdf_core::models::api::{SearchQuery, SearchResultView};
 
 use super::LibraryDeps;
 

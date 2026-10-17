@@ -1,11 +1,11 @@
 //! Collection folders and document membership.
 
-use crate::error::AppError;
-use crate::models::api::{
+use retain_pdf_api_base::error::AppError;
+use retain_pdf_core::models::api::{
     AddCollectionDocumentsInput, CollectionListView, CollectionMutationResult, CollectionRecord,
     CreateCollectionInput, PatchCollectionInput,
 };
-use crate::models::domain::build_job_id;
+use retain_pdf_core::models::domain::build_job_id;
 
 use super::LibraryDeps;
 

@@ -8,15 +8,15 @@ use std::sync::Arc;
 
 use serde::Serialize;
 
-use crate::db::Db;
-use crate::error::AppError;
-use crate::models::api::{to_absolute_url, JobFilesQuery};
-use crate::models::api::DocumentRecord;
-use crate::services::files::{
+use retain_pdf_data::db::Db;
+use retain_pdf_api_base::error::AppError;
+use retain_pdf_core::models::api::{to_absolute_url, JobFilesQuery};
+use retain_pdf_core::models::api::DocumentRecord;
+use retain_pdf_files::{
     document_artifacts_dir, ensure_document_book_image, ensure_page_preview, BookImageKind,
     DerivedArtifactDeps, DownloadGeneration,
 };
-use crate::services::jobs::{Disposition, FileDownload};
+use retain_pdf_jobs::{Disposition, FileDownload};
 
 use super::LibraryDeps;
 
@@ -98,7 +98,7 @@ pub(super) fn document_source(db: &Db, data_root: &Path, document_id: &str) -> R
         .active_job_id
         .as_deref()
         .and_then(|job_id| db.get_job(job_id).ok())
-        .and_then(|job| crate::storage_paths::resolve_source_pdf(&job, data_root))
+        .and_then(|job| retain_pdf_core::storage_paths::resolve_source_pdf(&job, data_root))
         .filter(|path| path.is_file());
     match from_job {
         Some(path) => Ok((document, path)),
@@ -115,9 +115,9 @@ fn download_title(document: &DocumentRecord) -> String {
         .find(|value| !value.is_empty())
         .unwrap_or(document.document_id.as_str())
         .to_string();
-    crate::services::files::download_file_name(
+    retain_pdf_files::download_file_name(
         &title,
-        crate::services::files::DownloadKind::Source,
+        retain_pdf_files::DownloadKind::Source,
     )
 }
 
@@ -162,7 +162,7 @@ fn locate(db: &Db, data_root: &Path, python_bin: &str, document_id: &str, file: 
 
 /// 书的文件的唯一出口。读文件、按需生成都放进 `download_generation`：同一份产物同时被
 /// 请求时只生成一次。
-pub(crate) async fn open_document_file(
+pub async fn open_document_file(
     deps: &LibraryDeps<'_>,
     generation: &Arc<DownloadGeneration>,
     document_id: &str,

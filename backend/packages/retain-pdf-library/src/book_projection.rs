@@ -1,20 +1,20 @@
 use std::path::Path;
 
-use crate::config::limits::MAX_JOB_LIMIT;
-use crate::db::{Db, JobListSelection};
-use crate::error::AppError;
-use crate::models::api::{
+use retain_pdf_core::config::limits::MAX_JOB_LIMIT;
+use retain_pdf_data::db::{Db, JobListSelection};
+use retain_pdf_api_base::error::AppError;
+use retain_pdf_core::models::api::{
     build_artifact_links, to_absolute_url, LibraryBookDetailView, LibraryBookListItemView,
     LibraryBookListView, ListJobsQuery,
 };
-use crate::models::domain::{JobSnapshot, UploadRecord};
-use crate::storage_paths::resolve_source_pdf;
+use retain_pdf_core::models::domain::{JobSnapshot, UploadRecord};
+use retain_pdf_core::storage_paths::resolve_source_pdf;
 
-use crate::services::files::{
+use retain_pdf_files::{
     build_artifacts_display, display_title, document_titles_for, job_upload_id, source_file_name,
     source_url_file_name, DocumentTitles,
 };
-use crate::services::jobs::{
+use retain_pdf_jobs::{
     job_readiness, load_live_stage_snapshots, LiveStageSnapshot, SummaryCache,
 };
 

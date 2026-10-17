@@ -26,7 +26,7 @@ mod translate;
 mod translate_plan;
 
 // 门面：领域外只能用这里导出的东西，子模块都是私有的（见 BOUNDARIES.md「Domain Facades」）。
-pub(crate) use api::{
+pub use api::{
     add_collection_documents_view, append_message_view, apply_document_metadata_suggestion_view,
     collection_agent_workspace, create_collection_view, create_conversation_view,
     create_document_metadata_suggestion_view, delete_collection_view, delete_conversation_view,
@@ -39,15 +39,15 @@ pub(crate) use api::{
     translate_document_view, CollectionWorkspace, Disposition, DocumentReadingView,
     TranslationCoverageView,
 };
-pub(crate) use media::{open_document_file, DocumentFile};
+pub use media::{open_document_file, DocumentFile};
 // 只给测试用的。
 #[cfg(test)]
 pub(crate) use book_projection::{build_library_book_detail_view, build_library_book_list_view};
 
 use std::path::Path;
 
-use crate::config::AssetConfig;
-use crate::db::Db;
+use retain_pdf_core::config::AssetConfig;
+use retain_pdf_data::db::Db;
 
 use assets::{load_asset, store_asset, AssetDownload};
 use books::{delete_library_book, get_library_book, list_library_books};

@@ -38,9 +38,9 @@ use std::path::{Path, PathBuf};
 
 use serde::Serialize;
 
-use crate::db::Db;
-use crate::error::AppError;
-use crate::storage_paths::resolve_job_root;
+use retain_pdf_data::db::Db;
+use retain_pdf_api_base::error::AppError;
+use retain_pdf_core::storage_paths::resolve_job_root;
 
 /// 一次最多纳入多少本。工作区是给模型读的，超过这个数它也摸不完，
 /// 而 `ls books/` 刷屏本身就是一种噪音。
@@ -155,7 +155,7 @@ pub fn ensure_collection_workspace(
     db: &Db,
     data_root: &Path,
     collection_id: &str,
-    reading_book: &dyn Fn(&crate::models::api::DocumentRecord) -> Option<ReadingBook>,
+    reading_book: &dyn Fn(&retain_pdf_core::models::api::DocumentRecord) -> Option<ReadingBook>,
 ) -> Result<CollectionWorkspace, AppError> {
     let documents = db
         .list_documents(MAX_BOOKS, 0, None, Some(collection_id), None)
@@ -177,7 +177,7 @@ pub fn ensure_collection_workspace(
         if let Some(book) = reading_book(&document) {
             let name = link_name(&document.title, &document.document_id, &mut taken);
             let dir = link_book(&books_dir.join(&name), &book.root).ok().map(|()| name);
-            let relative = crate::storage_paths::to_relative_data_path(data_root, &book.root)
+            let relative = retain_pdf_core::storage_paths::to_relative_data_path(data_root, &book.root)
                 .unwrap_or_else(|_| format!("jobs/{}", book.job_id));
             books.push(CollectionWorkspaceBook {
                 document_id: document.document_id,

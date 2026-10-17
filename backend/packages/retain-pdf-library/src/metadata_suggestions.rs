@@ -7,15 +7,15 @@ use lopdf::Object;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 
-use crate::error::AppError;
-use crate::models::api::{
+use retain_pdf_api_base::error::AppError;
+use retain_pdf_core::models::api::{
     ApplyDocumentMetadataSuggestionInput, CreateDocumentMetadataSuggestionInput,
     DocumentMetadataEvidenceView, DocumentMetadataSuggestionApplyView,
     DocumentMetadataSuggestionListView, DocumentMetadataSuggestionView, DocumentRecord,
     DocumentTitleCandidateView, ListDocumentMetadataSuggestionsQuery,
 };
-use crate::models::domain::build_job_id;
-use crate::storage_paths::{resolve_job_root, resolve_normalized_document};
+use retain_pdf_core::models::domain::build_job_id;
+use retain_pdf_core::storage_paths::{resolve_job_root, resolve_normalized_document};
 use retain_pdf_data::db::{ApplyDocumentMetadataSuggestionResult, StoredDocumentMetadataSuggestion};
 
 use super::documents::require_document_upload;
@@ -266,7 +266,7 @@ fn resolve_normalized_source(
 }
 
 fn normalized_document_path(
-    job: &crate::models::domain::JobSnapshot,
+    job: &retain_pdf_core::models::domain::JobSnapshot,
     data_root: &Path,
 ) -> Option<PathBuf> {
     resolve_normalized_document(job, data_root)

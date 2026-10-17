@@ -2,14 +2,14 @@
 
 use std::path::PathBuf;
 
-use crate::config::limits::MAX_DOCUMENT_LIMIT;
-use crate::error::AppError;
-use crate::models::api::{
+use retain_pdf_core::config::limits::MAX_DOCUMENT_LIMIT;
+use retain_pdf_api_base::error::AppError;
+use retain_pdf_core::models::api::{
     DocumentDeleteResultView, DocumentListView, DocumentRecord, ListDocumentsQuery,
     PatchDocumentInput,
 };
-use crate::models::domain::UploadRecord;
-use crate::services::jobs::cleanup_deleted_job_credentials;
+use retain_pdf_core::models::domain::UploadRecord;
+use retain_pdf_jobs::cleanup_deleted_job_credentials;
 
 use super::books::{ensure_deletable, remove_job_files, remove_path_if_exists};
 use super::LibraryDeps;
@@ -79,7 +79,7 @@ pub fn list_documents(
     {
         // 合并结果的虚拟 id 不在 jobs 表里，但 id 本身就写着它属于哪本书。阅读器拿书名和
         // 原文 PDF、AI 服务核对「这个任务属于哪个文档」走的都是这条路。
-        let by_job = match crate::storage_paths::MergedJobId::parse(job_id) {
+        let by_job = match retain_pdf_core::storage_paths::MergedJobId::parse(job_id) {
             Some(merged) => deps.db.get_document(&merged.document_id).ok(),
             None => deps.db.get_document_by_job_id(job_id)?,
         };

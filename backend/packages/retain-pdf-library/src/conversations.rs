@@ -1,13 +1,13 @@
 //! AI conversation history (soft-anchor citations + message tree branches).
 
-use crate::config::limits::MAX_CONVERSATION_LIMIT;
-use crate::error::AppError;
-use crate::models::api::{
+use retain_pdf_core::config::limits::MAX_CONVERSATION_LIMIT;
+use retain_pdf_api_base::error::AppError;
+use retain_pdf_core::models::api::{
     AppendMessageInput, ConversationDetailView, ConversationListView, ConversationMutationResult,
     ConversationRecord, CreateConversationInput, ForkConversationInput, ListConversationsQuery,
     MessageRecord, PatchConversationInput,
 };
-use crate::models::domain::build_job_id;
+use retain_pdf_core::models::domain::build_job_id;
 
 use super::LibraryDeps;
 

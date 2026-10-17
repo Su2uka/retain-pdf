@@ -6,12 +6,12 @@
 
 use std::path::Path;
 
-use crate::error::AppError;
-use crate::models::api::DocumentRecord;
+use retain_pdf_api_base::error::AppError;
+use retain_pdf_core::models::api::DocumentRecord;
 use super::collection_workspace::{ensure_collection_workspace, CollectionWorkspace, ReadingBook};
-use crate::services::files::DerivedArtifactDeps;
-use crate::services::library::merge::coverage::{translation_coverage, TranslationCoverageView};
-use crate::services::library::merge::reading::{resolve_reading_target, DocumentReadingView, ReadingTarget};
+use retain_pdf_files::DerivedArtifactDeps;
+use crate::merge::coverage::{translation_coverage, TranslationCoverageView};
+use crate::merge::reading::{resolve_reading_target, DocumentReadingView, ReadingTarget};
 
 use super::documents::get_document;
 use super::media::document_source;
@@ -19,7 +19,7 @@ use super::LibraryDeps;
 
 /// 阻塞线程里要用的那几样，全部持有所有权。
 struct OwnedReadingDeps {
-    db: crate::db::Db,
+    db: retain_pdf_data::db::Db,
     data_root: std::path::PathBuf,
     python_bin: String,
     pipeline_command: String,
@@ -38,7 +38,7 @@ impl OwnedReadingDeps {
 
 /// GET /documents/:id/reading：一个任务就覆盖了整本，返回它；多次范围翻译（或只覆盖一部分
 /// 的任务）按需生成合并目录，返回虚拟任务 id。
-pub(crate) async fn document_reading(
+pub async fn document_reading(
     deps: &LibraryDeps<'_>,
     document_id: &str,
 ) -> Result<DocumentReadingView, AppError> {
@@ -55,7 +55,7 @@ pub(crate) async fn document_reading(
 }
 
 /// GET /documents/:id/translation-coverage：只算合并计划，不生成合并目录。
-pub(crate) async fn document_translation_coverage(
+pub async fn document_translation_coverage(
     deps: &LibraryDeps<'_>,
     document_id: &str,
 ) -> Result<TranslationCoverageView, AppError> {
@@ -68,7 +68,7 @@ pub(crate) async fn document_translation_coverage(
 }
 
 /// 物化合集的 agent 工作区。多次范围翻译的书链到阅读入口指的合并目录。
-pub(crate) async fn collection_agent_workspace(
+pub async fn collection_agent_workspace(
     deps: &LibraryDeps<'_>,
     collection_id: &str,
 ) -> Result<CollectionWorkspace, AppError> {

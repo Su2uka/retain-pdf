@@ -11,6 +11,7 @@ members = [
   "backend/packages/retain-pdf-ai",
   "backend/packages/retain-pdf-ingest",
   "backend/packages/retain-pdf-jobs",
+  "backend/packages/retain-pdf-library",
   "backend/packages/retain-pdf-files",
   "backend/packages/retain-pdf-glossaries",
   "backend/packages/retain-pdf-platform",

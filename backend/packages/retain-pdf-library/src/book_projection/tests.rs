@@ -1,11 +1,11 @@
 use std::path::PathBuf;
 
 use super::*;
-use crate::models::domain::{
+use retain_pdf_core::models::domain::{
     JobArtifacts, JobStatusKind, OcrProviderDiagnostics, OcrProviderKind, UploadRecord,
     WorkflowKind,
 };
-use crate::models::request::CreateJobInput;
+use retain_pdf_core::models::request::CreateJobInput;
 
 struct TestDb {
     db: Db,

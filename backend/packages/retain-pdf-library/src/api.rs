@@ -5,13 +5,13 @@
 //! directly; a public entrypoint does not need an extra forwarding function.
 
 pub use super::documents::{get_document, list_documents, patch_document};
-pub(crate) use super::reading::{collection_agent_workspace, document_reading, document_translation_coverage};
+pub use super::reading::{collection_agent_workspace, document_reading, document_translation_coverage};
 pub use super::collection_workspace::CollectionWorkspace;
-pub use crate::services::library::merge::coverage::TranslationCoverageView;
-pub use crate::services::library::merge::reading::DocumentReadingView;
+pub use crate::merge::coverage::TranslationCoverageView;
+pub use crate::merge::reading::DocumentReadingView;
 
-use crate::error::AppError;
-use crate::models::api::{
+use retain_pdf_api_base::error::AppError;
+use retain_pdf_core::models::api::{
     AddCollectionDocumentsInput, AppendMessageInput, ApplyDocumentMetadataSuggestionInput,
     AssetRecord, CollectionListView, CollectionMutationResult, CollectionRecord,
     ConversationDetailView, ConversationListView, ConversationMutationResult, ConversationRecord,
@@ -24,8 +24,8 @@ use crate::models::api::{
     PatchCollectionInput, PatchConversationInput, SearchQuery,
     SearchResultView,
 };
-use crate::models::request::CreateJobInput;
-use crate::services::jobs::JobsFacade;
+use retain_pdf_core::models::request::CreateJobInput;
+use retain_pdf_jobs::JobsFacade;
 
 use super::{
     add_collection_documents, append_message, apply_metadata_suggestion,
@@ -40,7 +40,7 @@ use super::{
 // --- books ---
 
 pub fn list_library_books_view(
-    db: &crate::db::Db,
+    db: &retain_pdf_data::db::Db,
     data_root: &std::path::Path,
     query: &ListJobsQuery,
     base_url: &str,
@@ -49,7 +49,7 @@ pub fn list_library_books_view(
 }
 
 pub fn get_library_book_view(
-    db: &crate::db::Db,
+    db: &retain_pdf_data::db::Db,
     data_root: &std::path::Path,
     job_id: &str,
     base_url: &str,
@@ -103,7 +103,7 @@ pub fn apply_document_metadata_suggestion_view(
 // --- media ---
 
 pub use super::media::DocumentFilesView;
-pub(crate) use crate::services::jobs::Disposition;
+pub use retain_pdf_jobs::Disposition;
 
 pub fn document_files(
     deps: &LibraryDeps<'_>,
@@ -208,7 +208,7 @@ pub fn patch_conversation_view(
 
 pub fn fork_conversation_view(
     deps: &LibraryDeps<'_>,
-    payload: &crate::models::api::ForkConversationInput,
+    payload: &retain_pdf_core::models::api::ForkConversationInput,
 ) -> Result<ConversationDetailView, AppError> {
     super::fork_conversation(deps, payload)
 }
@@ -221,7 +221,7 @@ pub fn create_collection_view(
     owner: &str,
 ) -> Result<CollectionRecord, AppError> {
     let record = create_collection(deps, payload)?;
-    deps.db.set_resource_owner(crate::db::OwnedKind::Collection, &record.collection_id, owner)?;
+    deps.db.set_resource_owner(retain_pdf_data::db::OwnedKind::Collection, &record.collection_id, owner)?;
     Ok(record)
 }
 
