@@ -32,9 +32,9 @@ def main():
         stack.enter_context(network_guard(forbidden))
         forbid_private_data()
         from retainpdf_pipeline.translate.translation_stage import translate_book_pipeline
-        from retainpdf_pipeline.translate.llm.shared import executor_context
-        from retainpdf_pipeline.translate.llm.shared.rust_executor import ExecutorError
-        from retainpdf_pipeline.translate.llm.providers.deepseek import client
+        from retainpdf_translation.llm.shared import executor_context
+        from retainpdf_translation.llm.shared.rust_executor import ExecutorError
+        from retainpdf_translation.llm.providers.deepseek import client
 
         def _answer(messages, **kwargs):
             user = messages[-1]["content"]

@@ -5,11 +5,11 @@
 
 import pytest
 
-from retainpdf_pipeline.translate.llm.result_validator import validate_batch_result
-from retainpdf_pipeline.translate.llm.shared.orchestration.direct_typst_repair import build_direct_typst_repair_messages
-from retainpdf_pipeline.translate.llm.validation.errors import MathDelimiterError
+from retainpdf_translation.llm.result_validator import validate_batch_result
+from retainpdf_translation.llm.shared.orchestration.direct_typst_repair import build_direct_typst_repair_messages
+from retainpdf_translation.llm.validation.errors import MathDelimiterError
 from retainpdf_math.checks import unbalanced_brace_math_spans
-from retainpdf_pipeline.translate.services.quality import review_translation_item
+from retainpdf_translation.services.quality import review_translation_item
 
 SOURCE = (
     "ground-state electron density $ \\rho_{0}(\\mathbf{r}) $ of the molecule we are interested in; "

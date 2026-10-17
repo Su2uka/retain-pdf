@@ -20,6 +20,7 @@ REQUIRED_PATHS = (
     "base/pyproject.toml",
     "math/pyproject.toml",
     "pipeline/pyproject.toml",
+    "translation/pyproject.toml",
     "config/ocr_providers.json",
 )
 

@@ -8,11 +8,11 @@ from types import SimpleNamespace
 import pytest
 
 
-from retainpdf_pipeline.translate.core.payload import save_translations
-from retainpdf_pipeline.translate.workflow import book_flow
-from retainpdf_pipeline.translate.workflow import execution_runner
-from retainpdf_pipeline.translate.workflow.checkpoint import TRANSLATION_CHECKPOINT_FILE_NAME
-from retainpdf_pipeline.translate.workflow.execution import TranslationExecutionRequest
+from retainpdf_translation.core.payload import save_translations
+from retainpdf_translation.workflow import book_flow
+from retainpdf_translation.workflow import execution_runner
+from retainpdf_translation.workflow.checkpoint import TRANSLATION_CHECKPOINT_FILE_NAME
+from retainpdf_translation.workflow.execution import TranslationExecutionRequest
 
 
 def _request(tmp_path: Path) -> TranslationExecutionRequest:
@@ -28,7 +28,7 @@ def _request(tmp_path: Path) -> TranslationExecutionRequest:
 
 
 def _plan():
-    from retainpdf_pipeline.translate.artifacts.aggregator import TranslationRunDiagnostics
+    from retainpdf_translation.artifacts.aggregator import TranslationRunDiagnostics
     return SimpleNamespace(
         data={},
         start=0,

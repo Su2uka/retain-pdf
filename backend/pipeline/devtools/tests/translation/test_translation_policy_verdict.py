@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 
-from retainpdf_pipeline.translate.services.policy import translation_policy_verdict
+from retainpdf_translation.services.policy import translation_policy_verdict
 
 
 def _item(item_id: str, source_text: str, **overrides) -> dict:

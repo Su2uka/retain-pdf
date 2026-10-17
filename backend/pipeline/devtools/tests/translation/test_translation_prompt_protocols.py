@@ -4,8 +4,8 @@ import json
 from unittest import mock
 
 
-from retainpdf_pipeline.translate.llm.providers.deepseek import client as deepseek_client
-from retainpdf_pipeline.translate.llm.providers.deepseek import translation_client
+from retainpdf_translation.llm.providers.deepseek import client as deepseek_client
+from retainpdf_translation.llm.providers.deepseek import translation_client
 
 
 def test_translate_single_item_plain_text_uses_plain_text_protocol() -> None:
@@ -529,7 +529,7 @@ def test_direct_typst_single_prompt_has_no_rewrite_hint_for_clean_source() -> No
 
 
 def test_context_bleed_downgraded_to_warning_for_continuation_items() -> None:
-    from retainpdf_pipeline.translate.llm.validation.quality import review_translation_item
+    from retainpdf_translation.llm.validation.quality import review_translation_item
 
     # 连续段片段按设计无终止标点,后文公式泄漏由 apply 层机械修剪,
     # 不应触发昂贵的错误级重试。

@@ -8,9 +8,9 @@ import pytest
 import requests
 
 
-from retainpdf_pipeline.translate.core.ocr import json_extractor as _json_extractor
-from retainpdf_pipeline.translate.llm.providers.deepseek import transport as _transport
-from retainpdf_pipeline.translate.services.continuation import review as _review
+from retainpdf_translation.core.ocr import json_extractor as _json_extractor
+from retainpdf_translation.llm.providers.deepseek import transport as _transport
+from retainpdf_translation.services.continuation import review as _review
 
 
 def _http_error(status: int, *, retry_after: str = "") -> requests.HTTPError:

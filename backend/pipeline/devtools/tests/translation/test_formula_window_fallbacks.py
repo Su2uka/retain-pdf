@@ -5,7 +5,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 
-from retainpdf_pipeline.translate.llm.result_payload import result_entry
+from retainpdf_translation.llm.result_payload import result_entry
 
 
 from retrying_translator_test_support import load_retrying_translator
@@ -96,8 +96,8 @@ def make_formula_dense_prose_item() -> dict:
 class FormulaWindowFallbacksTests(unittest.TestCase):
     def test_single_segmented_failure_falls_back_to_plain_text(self):
         module = load_retrying_translator()
-        import retainpdf_pipeline.translate.llm.shared.orchestration.fallbacks as fallbacks
-        from retainpdf_pipeline.translate.llm.shared.control_context import build_translation_control_context
+        import retainpdf_translation.llm.shared.orchestration.fallbacks as fallbacks
+        from retainpdf_translation.llm.shared.control_context import build_translation_control_context
 
         item = make_fragmented_formula_item()
         calls: list[str] = []
@@ -133,9 +133,9 @@ class FormulaWindowFallbacksTests(unittest.TestCase):
 
     def test_windowed_formula_translation_failed_window_marks_block_failed(self):
         load_retrying_translator()
-        import retainpdf_pipeline.translate.llm.providers.deepseek.client as deepseek_client
-        import retainpdf_pipeline.translate.llm.shared.orchestration.segment_routing as segment_routing
-        import retainpdf_pipeline.translate.llm.shared.orchestration.segment_windows as segment_windows
+        import retainpdf_translation.llm.providers.deepseek.client as deepseek_client
+        import retainpdf_translation.llm.shared.orchestration.segment_routing as segment_routing
+        import retainpdf_translation.llm.shared.orchestration.segment_windows as segment_windows
 
         sleep = Mock()
         self.enterContext(patch.object(segment_windows, "time", SimpleNamespace(perf_counter=time.perf_counter, sleep=sleep)))

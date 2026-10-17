@@ -33,7 +33,8 @@ Python 翻译相关：
 
 ```bash
 BACKEND_ROOT="$(python3 .github/scripts/resolve_backend_source.py --print-path)"
-python3 -m compileall -q "$BACKEND_ROOT/pipeline/retainpdf_pipeline/translate"
+python3 -m compileall -q "$BACKEND_ROOT/translation/retainpdf_translation" "$BACKEND_ROOT/pipeline/retainpdf_pipeline/translate"
+uv run --project "$BACKEND_ROOT" python -m pytest "$BACKEND_ROOT/translation/tests" -q
 uv run --project "$BACKEND_ROOT" python -m pytest "$BACKEND_ROOT/pipeline/devtools/tests/translation" -q
 python3 "$BACKEND_ROOT/pipeline/devtools/check_pipeline_architecture.py"
 ```

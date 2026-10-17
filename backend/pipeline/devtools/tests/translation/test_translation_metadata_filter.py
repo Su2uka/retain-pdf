@@ -1,7 +1,7 @@
 
 
 
-from retainpdf_pipeline.translate.services.policy import metadata_filter
+from retainpdf_translation.services.policy import metadata_filter
 
 
 def test_editorial_metadata_token_is_not_force_skipped_anymore() -> None:

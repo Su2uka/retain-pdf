@@ -3,11 +3,11 @@ import tempfile
 from pathlib import Path
 
 
-from retainpdf_pipeline.translate.artifacts.review import write_translation_review
-from retainpdf_pipeline.translate.artifacts.status import blocking_review_error_items
-from retainpdf_pipeline.translate.services.agents.review_artifact import build_translation_review
-from retainpdf_pipeline.translate.llm.shared.control_context import GlossaryEntry
-from retainpdf_pipeline.translate.llm.shared.control_context import build_translation_control_context
+from retainpdf_translation.artifacts.review import write_translation_review
+from retainpdf_translation.artifacts.status import blocking_review_error_items
+from retainpdf_translation.services.agents.review_artifact import build_translation_review
+from retainpdf_translation.llm.shared.control_context import GlossaryEntry
+from retainpdf_translation.llm.shared.control_context import build_translation_control_context
 
 
 def _item(item_id: str, source_text: str, translated_text: str) -> dict:

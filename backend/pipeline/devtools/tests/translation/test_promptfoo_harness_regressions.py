@@ -5,7 +5,7 @@ from pathlib import Path
 
 import devtools.promptfoo.provider as promptfoo_provider
 import devtools.promptfoo.tests as promptfoo_tests
-from retainpdf_pipeline.translate.services.policy.payload_rules.legacy_policy_mutations import apply_ref_text_skip
+from retainpdf_translation.services.policy.payload_rules.legacy_policy_mutations import apply_ref_text_skip
 
 
 def test_generate_tests_omits_none_vars_and_blank_math_expectations(monkeypatch) -> None:

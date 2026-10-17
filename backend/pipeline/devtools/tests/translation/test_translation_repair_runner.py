@@ -9,7 +9,7 @@ from devtools.translation_repair_runner import TRANSLATION_REPAIR_PREVIEW_SCHEMA
 from devtools.translation_repair_runner import build_translation_repair_plan
 from devtools.translation_repair_runner import build_translation_repair_preview
 from devtools.translation_repair_runner import load_translation_repair_inputs
-from retainpdf_pipeline.translate.artifacts.review import TRANSLATION_REVIEW_FILE_NAME
+from retainpdf_translation.artifacts.review import TRANSLATION_REVIEW_FILE_NAME
 
 
 def _write_json(path: Path, payload: object) -> None:

@@ -8,10 +8,10 @@ p021-b010 / p043-b013 的 "and"、p022-b006 的 "SO" 判成保留原文，留下
 
 import pytest
 
-from retainpdf_pipeline.translate.core.execution_policy import is_standalone_number
-from retainpdf_pipeline.translate.core.payload.parts.apply import apply_single_translated_entry
-from retainpdf_pipeline.translate.services.fast_path.keep_origin import _fast_path_keep_origin_result
-from retainpdf_pipeline.translate.services.fast_path.keep_origin import _is_fast_path_keep_origin_item
+from retainpdf_translation.core.execution_policy import is_standalone_number
+from retainpdf_translation.core.payload.parts.apply import apply_single_translated_entry
+from retainpdf_translation.services.fast_path.keep_origin import _fast_path_keep_origin_result
+from retainpdf_translation.services.fast_path.keep_origin import _is_fast_path_keep_origin_item
 
 
 @pytest.fixture(autouse=True)
@@ -109,7 +109,7 @@ def test_fast_path_only_applies_to_isolated_whole_block(item):
 def test_builder_routes_tiny_blocks_without_requests_by_default(monkeypatch):
     from types import SimpleNamespace
 
-    from retainpdf_pipeline.translate.workflow.batching import batching
+    from retainpdf_translation.workflow.batching import batching
 
     monkeypatch.setattr(batching, "_is_low_risk_batchable_item", lambda *args, **kwargs: False)
     items = [_item("(7)", item_id="n"), _item("and", item_id="c"), _item("Introduction", item_id="body")]

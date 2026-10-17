@@ -138,7 +138,7 @@ normal retry chain takes over 30 seconds.
   request or quality review, and reports touched pages (including diagnostic-only
   rejections) for persistence. The legacy outcome-only entrypoint is retained;
   candidate budgets, group application and request scheduling are unchanged.
-- Placeholder syntax and text helpers live in `translate/core/placeholder_tokens.py`
+- Placeholder syntax and text helpers live in `retainpdf_translation/core/placeholder_tokens.py`
   with standard-library-only dependencies. Policy and formula protection use
   this owner; the previous LLM validation module remains a compatibility export
   of the same objects. The two policy-to-LLM frozen import exceptions are removed.

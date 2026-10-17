@@ -1,7 +1,7 @@
 
 
 
-from retainpdf_pipeline.translate.services.continuation import orchestrator
+from retainpdf_translation.services.continuation import orchestrator
 
 
 def test_continuation_review_short_circuits_high_confidence_pairs() -> None:

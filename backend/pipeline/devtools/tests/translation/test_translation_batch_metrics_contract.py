@@ -6,11 +6,11 @@ from types import SimpleNamespace
 import pytest
 
 
-from retainpdf_pipeline.translate.artifacts import TranslationRunDiagnostics
-from retainpdf_pipeline.translate.llm.shared import executor_context
-from retainpdf_pipeline.translate.services.results.applier import TranslationResultApplier
-from retainpdf_pipeline.translate.workflow import batch_runner
-from retainpdf_pipeline.translate.workflow.phases import batch_translation
+from retainpdf_translation.artifacts import TranslationRunDiagnostics
+from retainpdf_translation.llm.shared import executor_context
+from retainpdf_translation.services.results.applier import TranslationResultApplier
+from retainpdf_translation.workflow import batch_runner
+from retainpdf_translation.workflow.phases import batch_translation
 
 
 def _stage_args(tmp_path, *, workers, diagnostics, count=1):

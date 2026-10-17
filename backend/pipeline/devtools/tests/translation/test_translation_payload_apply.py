@@ -1,10 +1,10 @@
 import json
 
 
-from retainpdf_pipeline.translate.core.payload.parts.apply import apply_translated_text_map
-from retainpdf_pipeline.translate.core.payload.translations import load_translations
-from retainpdf_pipeline.translate.core.payload.translations import migrate_translations
-from retainpdf_pipeline.translate.services.results.page_io import save_pages
+from retainpdf_translation.core.payload.parts.apply import apply_translated_text_map
+from retainpdf_translation.core.payload.translations import load_translations
+from retainpdf_translation.core.payload.translations import migrate_translations
+from retainpdf_translation.services.results.page_io import save_pages
 
 
 def test_apply_translated_text_map_unwraps_json_string_result() -> None:

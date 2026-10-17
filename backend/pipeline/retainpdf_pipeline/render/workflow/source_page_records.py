@@ -1,6 +1,6 @@
 """Render-local source page extractor (file-contract duplicate).
 
-Duplicated from retainpdf_pipeline.translate.core.ocr.json_extractor
+Duplicated from retainpdf_translation.core.ocr.json_extractor
 (stage-decouple: render must not import translate/ocr; duplicate wins over
 cross-package). The input is always the ``document.v1.json`` file produced by
 the ocr stage; non-normalized payloads are rejected instead of adapted.

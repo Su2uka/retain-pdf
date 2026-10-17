@@ -2,7 +2,7 @@ from unittest import mock
 
 import pytest
 
-from retainpdf_pipeline.translate.llm.providers.deepseek import client
+from retainpdf_translation.llm.providers.deepseek import client
 
 
 @pytest.mark.parametrize("model,base,expected", [

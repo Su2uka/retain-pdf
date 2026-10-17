@@ -13,9 +13,9 @@ from __future__ import annotations
 
 import re
 
-from retainpdf_pipeline.translate.core.payload.parts.apply import apply_group_translated_entry
-from retainpdf_pipeline.translate.core.payload.parts.units import _build_group_translation_unit
-from retainpdf_pipeline.translate.core.payload.parts.units import join_member_sources
+from retainpdf_translation.core.payload.parts.apply import apply_group_translated_entry
+from retainpdf_translation.core.payload.parts.units import _build_group_translation_unit
+from retainpdf_translation.core.payload.parts.units import join_member_sources
 
 HAN_RE = re.compile(r"[一-鿿]")
 

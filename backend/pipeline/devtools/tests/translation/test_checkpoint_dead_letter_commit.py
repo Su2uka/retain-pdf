@@ -28,7 +28,7 @@ from pathlib import Path
 import pytest
 
 
-from retainpdf_pipeline.translate.workflow.checkpoint.contract import (  # noqa: E402
+from retainpdf_translation.workflow.checkpoint.contract import (  # noqa: E402
     assert_checkpoint_committable,
     project_progress,
 )

@@ -6,7 +6,7 @@ from unittest import mock
 
 def _translate_direct_typst_for_test(module, item: dict, *, context, request_label: str = "test"):
     direct_typst = import_module(
-        "retainpdf_pipeline.translate.llm.shared.orchestration.direct_typst"
+        "retainpdf_translation.llm.shared.orchestration.direct_typst"
     )
     return direct_typst.translate_direct_typst_plain_text_with_retries(
         item,
@@ -28,19 +28,19 @@ class TranslationContinuationFastPathTests(unittest.TestCase):
     def setUp(self):
         # These cases test content recovery, not provider DNS warmup. Keep the
         # transport seam fake for every case, independent of DNS cache/order.
-        prewarm = mock.patch("retainpdf_pipeline.translate.llm.providers.deepseek.client._prewarm_dns")
+        prewarm = mock.patch("retainpdf_translation.llm.providers.deepseek.client._prewarm_dns")
         prewarm.start()
         self.addCleanup(prewarm.stop)
 
     def test_continuation_group_protocol_shell_degrades_to_keep_origin(self):
         retry_module = import_module(
-            "retainpdf_pipeline.translate.llm.shared.orchestration.plain_text_retry"
+            "retainpdf_translation.llm.shared.orchestration.plain_text_retry"
         )
         module = import_module(
-            "retainpdf_pipeline.translate.llm.shared.orchestration.fallbacks"
+            "retainpdf_translation.llm.shared.orchestration.fallbacks"
         )
         context_module = import_module(
-            "retainpdf_pipeline.translate.llm.shared.control_context"
+            "retainpdf_translation.llm.shared.control_context"
         )
         context = context_module.build_translation_control_context(mode="sci")
         item = {
@@ -99,10 +99,10 @@ class TranslationContinuationFastPathTests(unittest.TestCase):
     def test_continuation_group_is_translated_as_one_full_text(self):
         """模型只翻整段，切回各框由程序做；不再要求模型按原来的分界返回各框译文。"""
         module = import_module(
-            "retainpdf_pipeline.translate.llm.shared.orchestration.fallbacks"
+            "retainpdf_translation.llm.shared.orchestration.fallbacks"
         )
         context_module = import_module(
-            "retainpdf_pipeline.translate.llm.shared.control_context"
+            "retainpdf_translation.llm.shared.control_context"
         )
         context = context_module.build_translation_control_context(mode="sci")
         item = {
@@ -147,10 +147,10 @@ class TranslationContinuationFastPathTests(unittest.TestCase):
 
     def test_abstract_aggregate_group_uses_one_full_text_translation(self):
         module = import_module(
-            "retainpdf_pipeline.translate.llm.shared.orchestration.fallbacks"
+            "retainpdf_translation.llm.shared.orchestration.fallbacks"
         )
         context_module = import_module(
-            "retainpdf_pipeline.translate.llm.shared.control_context"
+            "retainpdf_translation.llm.shared.control_context"
         )
         context = context_module.build_translation_control_context(mode="sci")
         item = {
@@ -201,10 +201,10 @@ class TranslationContinuationFastPathTests(unittest.TestCase):
 
     def test_direct_typst_continuation_group_protocol_shell_is_salvaged(self):
         module = import_module(
-            "retainpdf_pipeline.translate.llm.shared.orchestration.fallbacks"
+            "retainpdf_translation.llm.shared.orchestration.fallbacks"
         )
         context_module = import_module(
-            "retainpdf_pipeline.translate.llm.shared.control_context"
+            "retainpdf_translation.llm.shared.control_context"
         )
         context = context_module.build_translation_control_context(mode="sci")
         item = {
@@ -243,10 +243,10 @@ class TranslationContinuationFastPathTests(unittest.TestCase):
 
     def test_direct_typst_continuation_group_protocol_shell_partial_accepts_body_text(self):
         module = import_module(
-            "retainpdf_pipeline.translate.llm.shared.orchestration.fallbacks"
+            "retainpdf_translation.llm.shared.orchestration.fallbacks"
         )
         context_module = import_module(
-            "retainpdf_pipeline.translate.llm.shared.control_context"
+            "retainpdf_translation.llm.shared.control_context"
         )
         context = context_module.build_translation_control_context(mode="sci")
         item = {
@@ -287,10 +287,10 @@ class TranslationContinuationFastPathTests(unittest.TestCase):
 
     def test_continuation_group_english_residue_does_not_enter_sentence_level_fallback(self):
         module = import_module(
-            "retainpdf_pipeline.translate.llm.shared.orchestration.fallbacks"
+            "retainpdf_translation.llm.shared.orchestration.fallbacks"
         )
         control_context = import_module(
-            "retainpdf_pipeline.translate.llm.shared.control_context"
+            "retainpdf_translation.llm.shared.control_context"
         )
         item = {
             "item_id": "__cg__:cg-001-001",
@@ -334,10 +334,10 @@ class TranslationContinuationFastPathTests(unittest.TestCase):
 
     def test_continuation_group_english_residue_with_partial_chinese_is_salvaged(self):
         module = import_module(
-            "retainpdf_pipeline.translate.llm.shared.orchestration.fallbacks"
+            "retainpdf_translation.llm.shared.orchestration.fallbacks"
         )
         control_context = import_module(
-            "retainpdf_pipeline.translate.llm.shared.control_context"
+            "retainpdf_translation.llm.shared.control_context"
         )
         item = {
             "item_id": "__cg__:cg-001-002",
@@ -385,10 +385,10 @@ class TranslationContinuationFastPathTests(unittest.TestCase):
 
     def test_continuation_group_english_residue_salvage_rejected_on_placeholder_mismatch(self):
         module = import_module(
-            "retainpdf_pipeline.translate.llm.shared.orchestration.fallbacks"
+            "retainpdf_translation.llm.shared.orchestration.fallbacks"
         )
         control_context = import_module(
-            "retainpdf_pipeline.translate.llm.shared.control_context"
+            "retainpdf_translation.llm.shared.control_context"
         )
         source_text = (
             "This is the first sentence <f1-abc/>. This is the second sentence with reaction details."
@@ -448,10 +448,10 @@ class TranslationContinuationFastPathTests(unittest.TestCase):
 
     def test_protocol_shell_unwrap_salvages_continuation_group_without_sentence_fallback(self):
         module = import_module(
-            "retainpdf_pipeline.translate.llm.shared.orchestration.fallbacks"
+            "retainpdf_translation.llm.shared.orchestration.fallbacks"
         )
         control_context = import_module(
-            "retainpdf_pipeline.translate.llm.shared.control_context"
+            "retainpdf_translation.llm.shared.control_context"
         )
         item = {
             "item_id": "__cg__:cg-005-007",
@@ -489,10 +489,10 @@ class TranslationContinuationFastPathTests(unittest.TestCase):
 
     def test_continuation_group_with_placeholders_uses_plain_path_first(self):
         module = import_module(
-            "retainpdf_pipeline.translate.llm.shared.orchestration.fallbacks"
+            "retainpdf_translation.llm.shared.orchestration.fallbacks"
         )
         control_context = import_module(
-            "retainpdf_pipeline.translate.llm.shared.control_context"
+            "retainpdf_translation.llm.shared.control_context"
         )
         item = {
             "item_id": "__cg__:cg-009-013",

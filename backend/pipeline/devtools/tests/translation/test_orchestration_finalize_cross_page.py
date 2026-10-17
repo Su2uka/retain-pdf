@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 
-from retainpdf_pipeline.translate.core.orchestration.units import finalize_orchestration_metadata_by_page
+from retainpdf_translation.core.orchestration.units import finalize_orchestration_metadata_by_page
 
 
 def _item(

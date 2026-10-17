@@ -26,8 +26,8 @@
   [`retainpdf_pipeline/ocr/ocr_provider/`](./retainpdf_pipeline/ocr/ocr_provider)
 - 改统一 OCR 契约：
   [`retainpdf_pipeline/ocr/document_schema/`](./retainpdf_pipeline/ocr/document_schema)
-- 改翻译主链（含翻译阶段门面）：
-  [`retainpdf_pipeline/translate/`](./retainpdf_pipeline/translate)
+- 改翻译主链：独立包 [`backend/translation/`](../translation/README.md)（`retainpdf_translation`）；
+  流水线里的 [`retainpdf_pipeline/translate/`](./retainpdf_pipeline/translate) 只剩 worker 外壳
 - 改渲染主链（含渲染阶段门面）：
   [`retainpdf_pipeline/render/`](./retainpdf_pipeline/render)
 
@@ -175,12 +175,14 @@ console 别名：`retainpdf-pipeline render-only --spec <job_root>/specs/render.
 - 注意：
   这里是 provider 实现，不是 OCR 总线，也不是翻译/渲染主链。
 
-### `retainpdf_pipeline/translate/`
+### `retainpdf_pipeline/translate/`（翻译 worker 外壳）
 
 - 作用：
-  把 `document.v1.json` 变成稳定翻译产物；翻译阶段门面也在这里。
+  Rust 用 `python -m retainpdf_pipeline.translate` 启动的翻译 worker 外壳：读 stage spec、建任务目录、写事件和 stdout 标签。
+  把 `document.v1.json` 变成翻译产物的逻辑在独立包 [`backend/translation/`](../translation/README.md)（`retainpdf_translation`）。
 - 进入条件：
-  改翻译策略、LLM 调度、continuation、payload 落盘、diagnostics 时进这里。
+  改 worker 的 spec 读取、stdout 协议、任务目录时进这里；改翻译策略、LLM 调度、continuation、payload 落盘、
+  diagnostics 去翻译包。
 - 关键文件：
   - [`__main__.py`](./retainpdf_pipeline/translate/__main__.py)
     `python -m retainpdf_pipeline.translate` 进程入口。
@@ -190,10 +192,8 @@ console 别名：`retainpdf-pipeline render-only --spec <job_root>/specs/render.
     normalized OCR -> translate -> render 的 worker 包装入口。
   - [`entrypoints/translate_only_pipeline.py`](./retainpdf_pipeline/translate/entrypoints/translate_only_pipeline.py)
     translate-only worker 包装入口。
-  - [`workflow/translation_workflow.py`](./retainpdf_pipeline/translate/workflow/translation_workflow.py)
-    单页翻译流程。
-  - [`llm/README.md`](./retainpdf_pipeline/translate/llm/README.md)
-    LLM 目录边界说明。
+  - 翻译包里的入口：[`workflow/translation_workflow.py`](../translation/retainpdf_translation/workflow/translation_workflow.py)
+    单页翻译流程；[`llm/README.md`](../translation/retainpdf_translation/llm/README.md) LLM 目录边界说明。
 
 ### `retainpdf_pipeline/render/`
 
@@ -256,7 +256,7 @@ console 别名：`retainpdf-pipeline render-only --spec <job_root>/specs/render.
 - “这是 provider 接入问题吗？”
   先看 `retainpdf_pipeline/ocr/ocr_provider/` 或 `retainpdf_pipeline/ocr/mineru_provider/`
 - “这是翻译结果不对吗？”
-  先看 `retainpdf_pipeline/translate/`（含 `translation_stage.py`）
+  先看翻译包 `backend/translation/retainpdf_translation/`；worker 外壳在 `retainpdf_pipeline/translate/`
 - “这是 PDF 渲染不对吗？”
   先看 `retainpdf_pipeline/render/`（含 `render_stage.py`）
 

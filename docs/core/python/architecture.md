@@ -83,7 +83,7 @@ render/workflow
 ## 翻译层边界
 
 ```text
-translate/workflow
+retainpdf_translation/workflow
   -> context
   -> policy
   -> memory

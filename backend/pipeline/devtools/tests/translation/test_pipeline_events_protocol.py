@@ -281,7 +281,7 @@ def test_render_prepare_progress_is_main_lane_render_step(tmp_path: Path) -> Non
 
 
 def test_throttle_progress_callback_keeps_min_interval_from_stage_start() -> None:
-    from retainpdf_pipeline.translate.workflow.phases.events import throttle_progress_callback
+    from retainpdf_translation.workflow.phases.events import throttle_progress_callback
 
     now = [100.0]
     seen: list[int] = []
@@ -310,8 +310,8 @@ def _run_page_policy_stage_with_fake_pages(tmp_path: Path, *, clock_step_s: floa
     import functools
     from unittest import mock
 
-    from retainpdf_pipeline.translate.workflow.phases import policy as policy_phase
-    from retainpdf_pipeline.translate.workflow.phases.events import throttle_progress_callback
+    from retainpdf_translation.workflow.phases import policy as policy_phase
+    from retainpdf_translation.workflow.phases.events import throttle_progress_callback
 
     page_payloads = {page_idx: [] for page_idx in range(48)}
 
@@ -370,7 +370,7 @@ def test_slow_page_policy_stage_throttles_per_page_events(tmp_path: Path) -> Non
 def test_fast_continuation_review_emits_only_start_and_finish(tmp_path: Path) -> None:
     from unittest import mock
 
-    from retainpdf_pipeline.translate.workflow.phases import continuation as continuation_phase
+    from retainpdf_translation.workflow.phases import continuation as continuation_phase
 
     page_payloads = {page_idx: [] for page_idx in range(48)}
 

@@ -5,8 +5,8 @@ from unittest import mock
 
 import pytest
 
-from retainpdf_pipeline.translate.llm.providers.deepseek import client
-from retainpdf_pipeline.translate.llm.shared import model_wire, usage_ledger
+from retainpdf_translation.llm.providers.deepseek import client
+from retainpdf_translation.llm.shared import model_wire, usage_ledger
 
 
 def _response(payload):

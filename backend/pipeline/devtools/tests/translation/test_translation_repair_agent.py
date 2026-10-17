@@ -1,12 +1,12 @@
 import json
 
 
-from retainpdf_pipeline.translate.services.agents import RepairAgent
-from retainpdf_pipeline.translate.services.agents import TranslationAgentCoordinator
-from retainpdf_pipeline.translate.services.agents import TranslationRepairRequest
-from retainpdf_pipeline.translate.llm.shared.control_context import GlossaryEntry
-from retainpdf_pipeline.translate.llm.shared.control_context import build_translation_control_context
-from retainpdf_pipeline.translate.services.quality import TranslationQualityIssue
+from retainpdf_translation.services.agents import RepairAgent
+from retainpdf_translation.services.agents import TranslationAgentCoordinator
+from retainpdf_translation.services.agents import TranslationRepairRequest
+from retainpdf_translation.llm.shared.control_context import GlossaryEntry
+from retainpdf_translation.llm.shared.control_context import build_translation_control_context
+from retainpdf_translation.services.quality import TranslationQualityIssue
 
 
 def _item() -> dict:

@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::models::defaults::*;
 
 /// 这四个字段的允许值。**权威来源是 Python 的 `_normalize_*` 函数**
-/// （`translate/llm/shared/control_context.py`）和 `workflow-config.ts` 的
+/// （`retainpdf_translation/llm/shared/control_context.py`）和 `workflow-config.ts` 的
 /// `normalizeMathMode`；Rust 只是把同一份集合提前到入口校验。
 ///
 /// 在此之前 Rust 侧完全不校验，填错的值会一路走到 Python 被**静默归一化**成默认值：
@@ -275,7 +275,7 @@ mod allowed_value_tests {
     /// Rust 只是把同一份集合提前到入口校验,两边漂了就等于「Rust 放行 / Python 静默改写」
     /// 或者反过来「Rust 拒绝一个 Python 明明支持的值」。所以直接读 Python 源码比对。
     const CONTROL_CONTEXT_PY: &str =
-        include_str!("../../../../../pipeline/retainpdf_pipeline/translate/llm/shared/control_context.py");
+        include_str!("../../../../../translation/retainpdf_translation/llm/shared/control_context.py");
 
     /// 从 `def _normalize_xxx(...)` 的函数体里抠出 `in {"a", "b"}` 的集合。
     fn python_normalizer_set(fn_name: &str) -> BTreeSet<String> {
@@ -323,7 +323,7 @@ mod allowed_value_tests {
     }
 
     const MODEL_WIRE_PY: &str =
-        include_str!("../../../../../pipeline/retainpdf_pipeline/translate/llm/shared/model_wire.py");
+        include_str!("../../../../../translation/retainpdf_translation/llm/shared/model_wire.py");
 
     /// 从 `NAME = ("a", "b")` 抠出元组里的字符串。
     fn python_tuple(name: &str) -> BTreeSet<String> {

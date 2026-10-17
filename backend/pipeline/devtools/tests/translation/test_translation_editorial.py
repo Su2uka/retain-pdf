@@ -15,13 +15,13 @@ from test_translation_refine import _build_job
 from test_translation_refine import _item
 from test_translation_refine import _revisions
 
-from retainpdf_pipeline.translate.public import run_refine_for_render
-from retainpdf_pipeline.translate.services.editorial.chief import Attempts
-from retainpdf_pipeline.translate.services.editorial.chief import allowed_actions
-from retainpdf_pipeline.translate.services.editorial.ledger import read_ledger
-from retainpdf_pipeline.translate.services.refine.llm import ChatResult
-from retainpdf_pipeline.translate.services.refine.review import Finding
-from retainpdf_pipeline.translate.workflow import editorial
+from retainpdf_translation.public import run_refine_for_render
+from retainpdf_translation.services.editorial.chief import Attempts
+from retainpdf_translation.services.editorial.chief import allowed_actions
+from retainpdf_translation.services.editorial.ledger import read_ledger
+from retainpdf_translation.services.refine.llm import ChatResult
+from retainpdf_translation.services.refine.review import Finding
+from retainpdf_translation.workflow import editorial
 
 B001_FULL = B001_TEXT + "它的能级等间距，而且彼此从不交叉。"
 B002_FIXED = "在 298 K 时键长为 1.21 Å。"
@@ -362,8 +362,8 @@ class ContentAwareModel:
 
 
 def test_concurrent_batches_give_the_same_result_as_one_by_one(tmp_path: Path, monkeypatch) -> None:
-    from retainpdf_pipeline.translate.services.editorial import chief as chief_rules
-    from retainpdf_pipeline.translate.services.editorial import rewrite as rewrite_rules
+    from retainpdf_translation.services.editorial import chief as chief_rules
+    from retainpdf_translation.services.editorial import rewrite as rewrite_rules
 
     monkeypatch.setattr(chief_rules, "CHIEF_BATCH_SIZE", 1)
     monkeypatch.setattr(rewrite_rules, "REWRITE_BATCH_SIZE", 1)
@@ -387,8 +387,8 @@ def test_concurrent_provider_calls_keep_their_own_token_usage(monkeypatch) -> No
     import time
     from concurrent.futures import ThreadPoolExecutor
 
-    from retainpdf_pipeline.translate.artifacts.aggregator import get_active_translation_run_diagnostics
-    from retainpdf_pipeline.translate.services.refine import llm
+    from retainpdf_translation.artifacts.aggregator import get_active_translation_run_diagnostics
+    from retainpdf_translation.services.refine import llm
 
     barrier = threading.Barrier(4)
 

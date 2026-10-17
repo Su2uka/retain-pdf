@@ -7,7 +7,7 @@ guard failed the entire job.
 """
 
 
-from retainpdf_pipeline.translate.core.payload.parts.units import (
+from retainpdf_translation.core.payload.parts.units import (
     pending_translation_items,
 )
 

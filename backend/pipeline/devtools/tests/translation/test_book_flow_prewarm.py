@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 
-from retainpdf_pipeline.translate.workflow import book_flow
+from retainpdf_translation.workflow import book_flow
 
 
 def test_initial_continuation_state_is_checkpointed_before_provider_review(

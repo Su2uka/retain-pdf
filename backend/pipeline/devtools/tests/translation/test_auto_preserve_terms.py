@@ -4,9 +4,9 @@ import json
 from pathlib import Path
 
 
-from retainpdf_pipeline.translate.services.terms import auto_preserve_glossary_entries_from_texts
-from retainpdf_pipeline.translate.workflow.execution import TranslationExecutionRequest
-from retainpdf_pipeline.translate.workflow.execution_plan import build_translation_execution_plan
+from retainpdf_translation.services.terms import auto_preserve_glossary_entries_from_texts
+from retainpdf_translation.workflow.execution import TranslationExecutionRequest
+from retainpdf_translation.workflow.execution_plan import build_translation_execution_plan
 
 
 def test_auto_preserve_terms_keeps_hyphenated_scientific_names() -> None:
@@ -206,7 +206,7 @@ def test_execution_plan_can_cap_deepseek_initial_concurrency(tmp_path: Path, mon
 
 
 def test_prefix_cache_warmup_restores_full_concurrency_after_first_release() -> None:
-    from retainpdf_pipeline.translate.artifacts.aggregator import TranslationRunDiagnostics
+    from retainpdf_translation.artifacts.aggregator import TranslationRunDiagnostics
 
     diagnostics = TranslationRunDiagnostics(
         provider_family="deepseek_official",
@@ -225,7 +225,7 @@ def test_prefix_cache_warmup_restores_full_concurrency_after_first_release() -> 
 
 
 def test_prefix_cache_warmup_releases_gate_even_when_first_request_fails() -> None:
-    from retainpdf_pipeline.translate.artifacts.aggregator import TranslationRunDiagnostics
+    from retainpdf_translation.artifacts.aggregator import TranslationRunDiagnostics
 
     diagnostics = TranslationRunDiagnostics(
         provider_family="deepseek_official",
@@ -243,7 +243,7 @@ def test_prefix_cache_warmup_releases_gate_even_when_first_request_fails() -> No
 
 
 def test_aimd_backs_off_on_sustained_connect_timeout_storm() -> None:
-    from retainpdf_pipeline.translate.artifacts.aggregator import TranslationRunDiagnostics
+    from retainpdf_translation.artifacts.aggregator import TranslationRunDiagnostics
 
     diagnostics = TranslationRunDiagnostics(
         provider_family="deepseek_official",

@@ -174,9 +174,12 @@ jobs:
           python -m pip install --target $sitePackages --no-deps --no-build-isolation $baseSrc
           $mathSrc = Join-Path $env:RETAIN_PDF_SERVICES_ROOT "math"
           python -m pip install --target $sitePackages --no-deps --no-build-isolation $mathSrc
+          # 翻译包（retainpdf-translation）同理，提示词作为包数据随 wheel 装进去。
+          $translationSrc = Join-Path $env:RETAIN_PDF_SERVICES_ROOT "translation"
+          python -m pip install --target $sitePackages --no-deps --no-build-isolation $translationSrc
           python -m pip install --target $sitePackages --no-deps --no-build-isolation $pipelineSrc
           $env:PYTHONPATH = $sitePackages
-          & $pythonBundleExe -c "import requests, fitz, pikepdf, PIL, urllib3, retainpdf_base, retainpdf_math; print('python_bundle_import_check=ok')"
+          & $pythonBundleExe -c "import requests, fitz, pikepdf, PIL, urllib3, retainpdf_base, retainpdf_math, retainpdf_translation; print('python_bundle_import_check=ok')"
           # console 入口探针（过渡期 warn-only，不阻断打包）
           try {
             & $pythonBundleExe -m retainpdf_pipeline.entrypoints.console --help
@@ -403,6 +406,8 @@ jobs:
           # 底座包（retainpdf-base）、公式包（retainpdf-math）先装：pipeline 依赖它们，--no-deps 不会替我们拉。
           "$bundle_root/bin/python3" -m pip install --target "$site_packages" --no-deps --no-build-isolation "$RETAIN_PDF_SERVICES_ROOT/base"
           "$bundle_root/bin/python3" -m pip install --target "$site_packages" --no-deps --no-build-isolation "$RETAIN_PDF_SERVICES_ROOT/math"
+          # 翻译包（retainpdf-translation）同理，提示词作为包数据随 wheel 装进去。
+          "$bundle_root/bin/python3" -m pip install --target "$site_packages" --no-deps --no-build-isolation "$RETAIN_PDF_SERVICES_ROOT/translation"
           "$bundle_root/bin/python3" -m pip install --target "$site_packages" --no-deps --no-build-isolation "$RETAIN_PDF_SERVICES_ROOT/pipeline"
           # 兜底：pip 生成脚本首行多为 runner 绝对路径，重写为可搬运 shebang
           pipeline_entry="$(find "$bundle_root" -maxdepth 4 -name 'retainpdf-pipeline' -type f | head -n 1 || true)"
@@ -872,6 +877,8 @@ jobs:
           # 底座包（retainpdf-base）、公式包（retainpdf-math）先装：pipeline 依赖它们，--no-deps 不会替我们拉。
           "$bundle_python3" -m pip install --no-deps --no-build-isolation "$RETAIN_PDF_SERVICES_ROOT/base"
           "$bundle_python3" -m pip install --no-deps --no-build-isolation "$RETAIN_PDF_SERVICES_ROOT/math"
+          # 翻译包（retainpdf-translation）同理，提示词作为包数据随 wheel 装进去。
+          "$bundle_python3" -m pip install --no-deps --no-build-isolation "$RETAIN_PDF_SERVICES_ROOT/translation"
           "$bundle_python3" -m pip install --no-deps --no-build-isolation "$RETAIN_PDF_SERVICES_ROOT/pipeline"
           # 兜底：pip 生成脚本首行多为 runner 绝对路径，重写为可搬运 shebang（纯文本替换，不跑 install_name_tool）
           pipeline_entry="$bundle_root/bin/retainpdf-pipeline"

@@ -1,8 +1,8 @@
 import pytest
 
-from retainpdf_pipeline.translate.core.execution_policy import is_standalone_number, strategy
-from retainpdf_pipeline.translate.workflow.scheduling.optimization import page_local_batches
-from retainpdf_pipeline.translate.workflow.scheduling.metrics import SchedulerMetrics
+from retainpdf_translation.core.execution_policy import is_standalone_number, strategy
+from retainpdf_translation.workflow.scheduling.optimization import page_local_batches
+from retainpdf_translation.workflow.scheduling.metrics import SchedulerMetrics
 
 
 @pytest.fixture(autouse=True)
@@ -67,7 +67,7 @@ def test_metrics_distinguish_task_wait_and_applied_from_http_and_commit():
 
 
 def test_committed_page_metric_uses_checkpoint_page_index_and_is_first_only():
-    from retainpdf_pipeline.translate.artifacts.aggregator import TranslationRunDiagnostics
+    from retainpdf_translation.artifacts.aggregator import TranslationRunDiagnostics
     d = TranslationRunDiagnostics("other", "test", "", 8, 8, 1)
     d.record_committed_pages([{"page_index": 0}, {"page_index": 2}])
     first = dict(d._first_page_commit_ms)
@@ -85,8 +85,8 @@ def test_large_page_plan_does_not_drop_or_duplicate_items():
 
 def test_builder_applies_filter_before_batching_and_returns_explicit_result(monkeypatch):
     from types import SimpleNamespace
-    from retainpdf_pipeline.translate.workflow.batching import batching
-    from retainpdf_pipeline.translate.services.fast_path.keep_origin import _is_fast_path_keep_origin_item, _fast_path_keep_origin_result
+    from retainpdf_translation.workflow.batching import batching
+    from retainpdf_translation.services.fast_path.keep_origin import _is_fast_path_keep_origin_item, _fast_path_keep_origin_result
     monkeypatch.setattr(batching, "_is_low_risk_batchable_item", lambda *args, **kwargs: True)
     items = [{"item_id": "n", "page_idx": 0, "source_text": "(1)"},
              {"item_id": "body", "page_idx": 0, "source_text": "Introduction"}]

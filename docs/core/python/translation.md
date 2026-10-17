@@ -4,11 +4,16 @@
 
 ## 位置与职责
 
-翻译层位于：
+翻译层是独立包 `retainpdf-translation`（`import retainpdf_translation`），和流水线、公式包、底座包并列：
 
 ```text
-backend/pipeline/retainpdf_pipeline/translate/
+backend/translation/retainpdf_translation/
 ```
+
+流水线里的 `backend/pipeline/retainpdf_pipeline/translate/` 只剩 worker 外壳（`__main__.py`、`entrypoints/`、
+`translation_stage.py`）：Rust 照旧用 `python -m retainpdf_pipeline.translate --spec ...` 启动，外壳读 spec、建任务目录，
+再调翻译包的 `retainpdf_translation.public`。翻译包只依赖 `retainpdf_base`、`retainpdf_math`，不 import 流水线。
+翻译的测试仍在 `backend/pipeline/devtools/tests/translation`。
 
 它只负责把标准化 OCR 文档变成可渲染的翻译产物：
 
@@ -35,8 +40,8 @@ document.v1.json
   `translate.stage.v1` worker，要求 `--spec <job_root>/specs/translate.spec.json`。
 - `retainpdf-pipeline translate-from-ocr --spec <job_root>/specs/book.spec.json`
   provider/normalize 后继续翻译和渲染的入口之一（顶层垫片已删除，只有包内入口 `backend/pipeline/retainpdf_pipeline/translate/entrypoints/from_ocr_pipeline.py` 和 console 子命令，仅桌面兼容注脚）。
-- `backend/pipeline/retainpdf_pipeline/translate/workflow`
-  翻译层内部 facade，`backend/pipeline/retainpdf_pipeline/translate/translation_stage.py` 通过这里进入翻译执行。
+- `backend/translation/retainpdf_translation/public`
+  翻译包对外的门面；worker 外壳 `backend/pipeline/retainpdf_pipeline/translate/translation_stage.py` 通过这里进入翻译执行。
 
 Rust 固定使用配置的 `PYTHON_BIN` 启动上述模块入口，不再回退到旧脚本。
 `retainpdf-pipeline translate-only` 仍可用于手动调用相同的翻译阶段。
@@ -201,7 +206,8 @@ data/jobs/<job_id>/logs/pipeline_events.jsonl
 翻译层改动后至少跑：
 
 ```bash
-uv run --project backend python -m compileall -q backend/pipeline/retainpdf_pipeline/translate
+uv run --project backend python -m compileall -q backend/translation/retainpdf_translation backend/pipeline/retainpdf_pipeline/translate
+uv run --project backend python -m pytest backend/translation/tests -q
 PYTHONPATH=backend/pipeline uv run --project backend python -m pytest backend/pipeline/devtools/tests/translation -q
 PYTHONPATH=backend/pipeline uv run --project backend python backend/pipeline/devtools/check_pipeline_architecture.py
 ```

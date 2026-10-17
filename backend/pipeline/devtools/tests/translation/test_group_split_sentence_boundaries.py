@@ -16,8 +16,8 @@ import json
 import re
 from pathlib import Path
 
-from retainpdf_pipeline.translate.core.payload.parts.apply import apply_group_translated_entry
-from retainpdf_pipeline.translate.core.payload.parts.group_split import split_group_protected_translation
+from retainpdf_translation.core.payload.parts.apply import apply_group_translated_entry
+from retainpdf_translation.core.payload.parts.group_split import split_group_protected_translation
 
 FIXTURE = Path(__file__).parent / "fixtures" / "abstract_group_split_1ed40e.json"
 SENTENCE_END_RE = re.compile(r"[。！？]$")

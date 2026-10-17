@@ -30,7 +30,7 @@
 
 不要修改：
 
-- `backend/pipeline/retainpdf_pipeline/translate/*`
+- `backend/translation/retainpdf_translation/*`（翻译包）、`backend/pipeline/retainpdf_pipeline/translate/*`（翻译 worker 外壳）
 - `backend/pipeline/retainpdf_pipeline/render/*`
 - `backend/pipeline/retainpdf_pipeline/runtime/pipeline/*`
 

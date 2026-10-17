@@ -13,7 +13,7 @@ use super::url_policy::validate_provider_base_url;
 /// 翻译接口探针。
 ///
 /// 探针必须走**和翻译流水线完全相同的调用路径**，否则绿灯是假的：
-/// `translate/llm/providers/deepseek/transport.py` 对所有服务商一律发
+/// `retainpdf_translation/llm/providers/deepseek/transport.py` 对所有服务商一律发
 /// `POST {base_url}/chat/completions` + `Authorization: Bearer`。曾经这里
 /// 打的是 `GET {base_url}/models`，两个后果：
 ///   1. 只验 Key 能否列模型，不验用户填的模型名真能调通 —— 模型名写错时

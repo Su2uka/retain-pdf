@@ -7,8 +7,8 @@ from importlib import import_module
 
 def _load_continuation_modules():
     return (
-        import_module("retainpdf_pipeline.translate.services.continuation.rules"),
-        import_module("retainpdf_pipeline.translate.services.continuation.state"),
+        import_module("retainpdf_translation.services.continuation.rules"),
+        import_module("retainpdf_translation.services.continuation.state"),
     )
 
 

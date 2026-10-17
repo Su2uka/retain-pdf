@@ -99,9 +99,11 @@
 
 如果要改翻译链路，推荐阅读顺序是：
 
-1. `retainpdf_pipeline/translate/README.md`
-2. `retainpdf_pipeline/translate/llm/README.md`
-3. 再按需要进入 `retainpdf_pipeline/translate/llm/providers/` 或 `retainpdf_pipeline/translate/llm/shared/orchestration/`
+翻译在独立包 `backend/translation`（`retainpdf_translation`），流水线里的 `retainpdf_pipeline/translate/` 只剩 worker 外壳：
+
+1. `../translation/README.md`
+2. `../translation/retainpdf_translation/llm/README.md`
+3. 再按需要进入 `retainpdf_translation/llm/providers/` 或 `retainpdf_translation/llm/shared/orchestration/`
 
 ## 页面操作独立安装验收
 
@@ -147,7 +149,8 @@ RETAINPDF_PIPELINE_ONLY_PYTHON=/path/to/isolated/venv/bin/python \
   `retainpdf_base`（`backend/base`）。
   `retainpdf_pipeline/services/` 下只有它仍有实体文件，其余子目录是搬家空壳。
 - `retainpdf_pipeline/translate`
-  OCR payload 到翻译 JSON（含 `translation_stage.py` 阶段门面）。
+  翻译 worker 外壳（`python -m retainpdf_pipeline.translate`、`translation_stage.py` 阶段门面）；
+  OCR payload 到翻译 JSON 的逻辑在独立包 `retainpdf_translation`（`backend/translation`）。
 - `retainpdf_pipeline/render`
   翻译 JSON 到 PDF（含 `render_stage.py`、`translation_loader.py`、`render_inputs.py` 阶段门面）。
 - `retainpdf_pipeline/document_operations`
@@ -351,7 +354,7 @@ Docker 镜像安装 pipeline 包并固定使用 `console` 模式；尚未安装�
 - [runtime/pipeline/README.md](./retainpdf_pipeline/runtime/pipeline/README.md)
 - [services/README.md](./retainpdf_pipeline/services/README.md)
 - [ocr/ocr_provider/README.md](./retainpdf_pipeline/ocr/ocr_provider/README.md)
-- [translate/README.md](./retainpdf_pipeline/translate/README.md)
+- [translate/README.md](./retainpdf_pipeline/translate/README.md)（worker 外壳）、[翻译包 README](../translation/README.md)
 - [render/README.md](./retainpdf_pipeline/render/README.md)
 - [ocr/mineru_provider/README.md](./retainpdf_pipeline/ocr/mineru_provider/README.md)
 

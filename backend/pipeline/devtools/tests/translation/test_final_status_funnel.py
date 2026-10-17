@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 
-from retainpdf_pipeline.translate.core.payload.parts.final_status import (
+from retainpdf_translation.core.payload.parts.final_status import (
     FAILED_STATUS,
     KEPT_ORIGIN_STATUS,
     TRANSLATED_STATUS,
     final_status_violation,
     set_final_status,
 )
-from retainpdf_pipeline.translate.core.payload.parts.policy_state import (
+from retainpdf_translation.core.payload.parts.policy_state import (
     mark_policy_skip,
     mark_translation_failed_policy_state,
 )

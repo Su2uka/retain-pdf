@@ -11,7 +11,7 @@ import re
 
 import pytest
 
-from retainpdf_pipeline.translate.core.payload.parts.group_split import split_group_protected_translation
+from retainpdf_translation.core.payload.parts.group_split import split_group_protected_translation
 
 INLINE_MATH_RE = re.compile(r"(?<!\\)\$(?:\\.|[^$\\\n])+(?<!\\)\$")
 

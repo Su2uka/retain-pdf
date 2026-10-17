@@ -1,9 +1,9 @@
 
 
 
-from retainpdf_pipeline.translate.services.context import TranslationDocumentContext
-from retainpdf_pipeline.translate.services.policy.flow import apply_translation_policies
-from retainpdf_pipeline.translate.services.policy.planner import TranslationPlanner
+from retainpdf_translation.services.context import TranslationDocumentContext
+from retainpdf_translation.services.policy.flow import apply_translation_policies
+from retainpdf_translation.services.policy.planner import TranslationPlanner
 
 
 def test_translation_planner_reuses_page_context_for_no_trans_classification() -> None:

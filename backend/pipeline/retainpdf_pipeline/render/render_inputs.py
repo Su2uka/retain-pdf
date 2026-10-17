@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-# Duplicated from retainpdf_pipeline.translate.core.payload.manifest
+# Duplicated from retainpdf_translation.core.payload.manifest
 # (stage-decouple: render must not import translate; file-contract duplicate).
 TRANSLATION_MANIFEST_FILE_NAME = "translation-manifest.json"
 

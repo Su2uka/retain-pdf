@@ -22,7 +22,7 @@ from retainpdf_pipeline.render.workflow import source_page_records
 from retainpdf_pipeline.render.workflow.prepare_stage import document_path_for_render
 from retainpdf_pipeline.render.workflow.prepare_stage import run_render_prepare
 from retainpdf_pipeline.render.workflow.prewarm_entry import build_source_render_preprocess_pages
-from retainpdf_pipeline.translate.core.ocr import json_extractor
+from retainpdf_translation.core.ocr import json_extractor
 
 
 def _block(sub_type: str, top: float, text: str) -> dict:

@@ -6,7 +6,7 @@ from unittest import mock
 from retainpdf_pipeline.render.render_inputs import resolve_render_inputs
 from retainpdf_pipeline.render.render_stage import run_render_stage
 from retainpdf_pipeline.render.translation_loader import load_translated_pages
-from retainpdf_pipeline.translate.core.payload.manifest import write_translation_manifest
+from retainpdf_translation.core.payload.manifest import write_translation_manifest
 from devtools.tests.pdf_fixtures import write_pdf
 
 

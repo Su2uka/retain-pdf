@@ -1,10 +1,10 @@
 import pytest
 
-from retainpdf_pipeline.translate.llm.shared.prompt_building import (
+from retainpdf_translation.llm.shared.prompt_building import (
     build_messages,
     build_single_item_fallback_messages,
 )
-from retainpdf_pipeline.translate.prompt_loader import render_prompt
+from retainpdf_translation.prompt_loader import render_prompt
 
 
 def item(**changes):
