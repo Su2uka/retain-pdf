@@ -5,15 +5,15 @@ use serde_json::Value;
 use retainpdf_api_base::error::AppError;
 use retainpdf_core::models::api::TranslationDebugIndexView;
 use retainpdf_core::models::domain::JobSnapshot;
-use retainpdf_core::storage_paths::{resolve_translation_debug_index, resolve_translation_manifest};
 
 use crate::translations::common::{read_json_value, value_string};
+use crate::{stored_path, StoredFile};
 
 pub(super) fn read_translation_debug_index_file(
     data_root: &Path,
     job: &JobSnapshot,
 ) -> Result<Option<TranslationDebugIndexView>, AppError> {
-    let Some(path) = resolve_translation_debug_index(job, data_root) else {
+    let Some(path) = stored_path(job, data_root, StoredFile::TranslationDebugIndex) else {
         return Ok(None);
     };
     let text = std::fs::read_to_string(&path)?;
@@ -27,7 +27,7 @@ pub(super) fn translation_manifest_path(
     data_root: &Path,
     job: &JobSnapshot,
 ) -> Result<PathBuf, AppError> {
-    resolve_translation_manifest(job, data_root).ok_or_else(|| {
+    stored_path(job, data_root, StoredFile::TranslationManifest).ok_or_else(|| {
         AppError::not_found(format!("translation manifest not found: {}", job.job_id))
     })
 }

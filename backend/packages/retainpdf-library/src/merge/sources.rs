@@ -5,12 +5,10 @@ use std::path::{Path, PathBuf};
 
 use retainpdf_core::models::domain::{JobSnapshot, JobStatusKind, WorkflowKind};
 use retainpdf_core::document_pages::translated_document_pages;
-use retainpdf_core::storage_paths::{
-    resolve_data_path, resolve_normalized_document, resolve_ocr_markdown_images_dir,
-    resolve_output_pdf,
-};
+use retainpdf_core::storage_paths::{resolve_data_path, resolve_ocr_markdown_images_dir};
 
 use super::plan::{Rank, RankedPages};
+use retainpdf_jobs::{stored_path, StoredFile};
 
 /// 一个任务能不能参与合并、覆盖哪些文档页：输出 PDF 第 `i` 页 = 文档第 `pages[i]` 页。
 ///
@@ -89,7 +87,7 @@ pub(crate) fn job_merge_source(
             .as_deref()
             .and_then(|path| resolve_data_path(data_root, path).ok())
     } else {
-        resolve_output_pdf(job, data_root)
+        stored_path(job, data_root, StoredFile::TranslatedPdf)
     }
     .filter(|path| path.is_file());
     let page_count = output_pdf
@@ -124,7 +122,7 @@ pub(crate) fn job_merge_source(
                 .translations_dir
                 .as_deref()
                 .and_then(|path| resolve_data_path(data_root, path).ok()),
-            normalized_document: resolve_normalized_document(job, data_root)
+            normalized_document: stored_path(job, data_root, StoredFile::NormalizedDocument)
                 .filter(|path| path.is_file()),
             markdown_images_dir: resolve_ocr_markdown_images_dir(job, data_root),
         },

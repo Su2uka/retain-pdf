@@ -20,9 +20,10 @@ use retainpdf_core::models::api::{
 };
 use retainpdf_core::models::domain::JobSnapshot;
 use crate::deps::ReplayDeps;
-use retainpdf_core::storage_paths::{resolve_job_root, resolve_translation_manifest};
+use retainpdf_core::storage_paths::resolve_job_root;
 
 use crate::translations::item::load_translation_debug_item_view;
+use crate::{stored_path, StoredFile};
 
 pub(crate) const TRANSLATION_REVISIONS_FILE_NAME: &str = "revisions.v1.jsonl";
 /// 与 Python 侧 MAX_REVISION_TEXT_CHARS 一致;这里先挡一道,免得大请求白起一个进程。
@@ -75,7 +76,7 @@ fn validate_request(request: &ReviseTranslationItemRequest) -> Result<(), AppErr
 fn owned_job_root(data_root: &Path, job: &JobSnapshot) -> Result<PathBuf, AppError> {
     let job_root = resolve_job_root(job, data_root)
         .ok_or_else(|| AppError::not_found(format!("job root not found: {}", job.job_id)))?;
-    let manifest = resolve_translation_manifest(job, data_root).ok_or_else(|| {
+    let manifest = stored_path(job, data_root, StoredFile::TranslationManifest).ok_or_else(|| {
         AppError::not_found(format!("translation manifest not found: {}", job.job_id))
     })?;
     let owned = manifest
@@ -216,7 +217,7 @@ pub(crate) fn load_translation_revision_history(
 ) -> Result<TranslationRevisionHistoryView, AppError> {
     validate_item_id(item_id)?;
     load_translation_debug_item_view(data_root, job, item_id)?;
-    let manifest = resolve_translation_manifest(job, data_root).ok_or_else(|| {
+    let manifest = stored_path(job, data_root, StoredFile::TranslationManifest).ok_or_else(|| {
         AppError::not_found(format!("translation manifest not found: {}", job.job_id))
     })?;
     let path = manifest

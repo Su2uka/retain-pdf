@@ -8,7 +8,6 @@ use retainpdf_core::models::api::{
     LibraryBookListView, ListJobsQuery,
 };
 use retainpdf_core::models::domain::{JobSnapshot, UploadRecord};
-use retainpdf_core::storage_paths::resolve_source_pdf;
 
 use retainpdf_files::{
     build_artifacts_display, display_title, document_titles_for, job_upload_id, source_file_name,
@@ -23,6 +22,7 @@ mod metadata;
 
 use live::{build_live_projection, project_live_stage};
 use metadata::build_book_summary;
+use retainpdf_jobs::{stored_path, StoredFile};
 
 pub(crate) fn build_library_book_list_view(
     db: &Db,
@@ -151,7 +151,7 @@ fn library_image_url(
     kind: &str,
 ) -> Option<String> {
     let document_id = document_id.map(str::trim).filter(|id| !id.is_empty());
-    resolve_source_pdf(job, data_root).map(|_| {
+    stored_path(job, data_root, StoredFile::SourcePdf).map(|_| {
         let path = match document_id {
             Some(document_id) => document_file_path(document_id, &format!("{kind}.jpg")),
             // 没有书编号的旧书只有按任务的旧地址。

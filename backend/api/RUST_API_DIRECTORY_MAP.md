@@ -292,7 +292,7 @@ jobs 的依赖装配由 `app/jobs.rs` 完成；依赖定义在 `services/jobs/de
   - `path_ops.rs`
     相对路径规范化、存储归一化、legacy 判定。
   - `resolvers.rs`
-    各类 published artifact 路径解析。
+    各类 published artifact 路径解析。只给出口模块调；任务包、书库包内部读产物走任务包的 `stored_path`（`files/downloads/stored.rs`）。
   - `registry.rs`
     把任务文件投影成 artifact entry 列表。
 

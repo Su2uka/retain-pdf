@@ -1,13 +1,13 @@
 use std::path::Path;
 
 use retainpdf_core::models::domain::{JobSnapshot, JobStatusKind};
-use retainpdf_core::storage_paths::{resolve_markdown_path, resolve_output_pdf};
+use crate::{stored_path, StoredFile};
 
 pub fn job_readiness(job: &JobSnapshot, data_root: &Path) -> (bool, bool, bool) {
-    let pdf_ready = resolve_output_pdf(job, data_root)
+    let pdf_ready = stored_path(job, data_root, StoredFile::TranslatedPdf)
         .map(|path| path.exists())
         .unwrap_or(false);
-    let markdown_ready = resolve_markdown_path(job, data_root)
+    let markdown_ready = stored_path(job, data_root, StoredFile::OcrMarkdown)
         .map(|path| path.exists())
         .unwrap_or(false);
     let bundle_ready = matches!(job.status, JobStatusKind::Succeeded);

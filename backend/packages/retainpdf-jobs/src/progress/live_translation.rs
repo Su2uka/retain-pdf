@@ -12,7 +12,8 @@ use retainpdf_core::models::api::{
     LiveTranslationLayoutPageView, LiveTranslationLayoutView, LiveTranslationPageView,
 };
 use retainpdf_core::models::domain::{JobSnapshot, JobStatusKind};
-use retainpdf_core::storage_paths::{resolve_data_path, resolve_job_root, resolve_normalized_document};
+use retainpdf_core::storage_paths::{resolve_data_path, resolve_job_root};
+use crate::{stored_path, StoredFile};
 
 const TRANSLATION_STAGE: &str = "translate";
 const CHECKPOINTS_DIR: &str = ".translation-checkpoints";
@@ -33,7 +34,7 @@ pub(crate) fn load_live_translation_layout(
     data_root: &Path,
     job: &JobSnapshot,
 ) -> Result<LiveTranslationLayoutView, AppError> {
-    let path = resolve_normalized_document(job, data_root)
+    let path = stored_path(job, data_root, StoredFile::NormalizedDocument)
         .filter(|path| path.is_file())
         .ok_or_else(|| {
             live_error(

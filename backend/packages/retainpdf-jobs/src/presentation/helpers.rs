@@ -8,7 +8,7 @@ use retainpdf_core::models::api::{
 use retainpdf_data::db::Db;
 use retainpdf_core::models::domain::{JobFailureInfo, JobSnapshot, UploadRecord};
 use retainpdf_files::source_file_name;
-use retainpdf_core::storage_paths::resolve_source_pdf;
+use crate::{stored_path, StoredFile};
 
 pub(super) fn build_book_summary(
     upload: Option<&UploadRecord>,
@@ -48,7 +48,7 @@ pub(super) fn cover_url(
     data_root: &Path,
     base_url: &str,
 ) -> Option<String> {
-    resolve_source_pdf(job, data_root).map(|_| job_image_url(job, document_id, base_url, "cover"))
+    stored_path(job, data_root, StoredFile::SourcePdf).map(|_| job_image_url(job, document_id, base_url, "cover"))
 }
 
 pub(super) fn thumbnail_url(
@@ -57,7 +57,7 @@ pub(super) fn thumbnail_url(
     data_root: &Path,
     base_url: &str,
 ) -> Option<String> {
-    resolve_source_pdf(job, data_root).map(|_| job_image_url(job, document_id, base_url, "thumbnail"))
+    stored_path(job, data_root, StoredFile::SourcePdf).map(|_| job_image_url(job, document_id, base_url, "thumbnail"))
 }
 
 /// 封面、缩略图是书的属性：有书的编号就给 `/documents/:id/files/cover.jpg`，和书架、文档列表同一个地址；

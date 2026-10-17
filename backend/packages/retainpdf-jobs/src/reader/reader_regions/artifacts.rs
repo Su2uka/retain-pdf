@@ -6,14 +6,12 @@ use serde_json::Value;
 use retainpdf_api_base::error::AppError;
 use retainpdf_core::models::api::job_ocr_images_base_path;
 use retainpdf_core::models::domain::JobSnapshot;
-use retainpdf_core::storage_paths::{
-    resolve_markdown_images_dir, resolve_normalized_document, resolve_translation_manifest,
-};
 
 use super::value_extract::{
     bbox_from_value, canonical_item_id, heading_level_from_block, reading_order_from_item,
     region_type_from_item, source_text_from_item, sub_type_from_item, value_string,
 };
+use crate::{stored_path, StoredFile};
 
 #[derive(Clone)]
 pub(super) struct SourceRegion {
@@ -30,14 +28,14 @@ pub(super) struct SourceRegion {
 }
 
 pub(super) fn has_translation_manifest(data_root: &Path, job: &JobSnapshot) -> bool {
-    resolve_translation_manifest(job, data_root).is_some_and(|path| path.is_file())
+    stored_path(job, data_root, StoredFile::TranslationManifest).is_some_and(|path| path.is_file())
 }
 
 pub(super) fn load_translation_manifest_pages(
     data_root: &Path,
     job: &JobSnapshot,
 ) -> Result<Vec<(i64, Vec<Value>)>, AppError> {
-    let manifest_path = resolve_translation_manifest(job, data_root).ok_or_else(|| {
+    let manifest_path = stored_path(job, data_root, StoredFile::TranslationManifest).ok_or_else(|| {
         AppError::not_found(format!("translation manifest not found: {}", job.job_id))
     })?;
     load_manifest_pages(&manifest_path)
@@ -93,7 +91,7 @@ pub(super) fn load_source_region_map(
     data_root: &Path,
     job: &JobSnapshot,
 ) -> Result<HashMap<String, SourceRegion>, AppError> {
-    let Some(path) = resolve_normalized_document(job, data_root) else {
+    let Some(path) = stored_path(job, data_root, StoredFile::NormalizedDocument) else {
         return Ok(HashMap::new());
     };
     if !path.exists() {
@@ -117,7 +115,7 @@ pub(super) fn load_source_region_map(
         .and_then(Value::as_object)
         .cloned()
         .unwrap_or_default();
-    let markdown_images_dir = resolve_markdown_images_dir(job, data_root);
+    let markdown_images_dir = stored_path(job, data_root, StoredFile::OcrImagesDir);
     let mut regions = HashMap::new();
     for page in pages {
         let page_idx = page
