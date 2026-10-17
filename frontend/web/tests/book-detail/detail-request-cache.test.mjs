@@ -36,8 +36,9 @@ test("覆盖情况：任务列表没回来不请求；回来请求一次；关�
   root.render(React.createElement(Host, { open: false, jobs, ready: true }));
   await tick();
   root.render(React.createElement(Host, { open: true, jobs, ready: false }));
-  await tick();
-  assert.equal(seen?.translated_pages, 6, "再打开先显示上次的结果");
+  // 缓存是在 effect 里放回去的，机器忙时 30ms 内不一定跑到（全套并发跑时偶发失败），等它到。
+  await waitFor(() => seen?.translated_pages === 6, "再打开先显示上次的结果");
+  assert.equal(calls, 1, "任务列表没回来时只用缓存，不请求");
   root.render(React.createElement(Host, { open: true, jobs, ready: true }));
   await tick();
   assert.equal(calls, 1, "任务状态没变，不再请求");
