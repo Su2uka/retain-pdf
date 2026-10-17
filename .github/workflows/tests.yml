@@ -59,7 +59,7 @@ jobs:
           workspaces: ${{ steps.backend.outputs.source_root }} -> target
 
       # 必须 --workspace：裸 cargo test 只跑主 crate，会漏掉
-      # retain-core/retain-data/retain-jobs 三个子 crate 的测试
+      # retainpdf-core/retainpdf-data/retainpdf-runner 三个子 crate 的测试
       # 通过 uv 启动 cargo，确保 Rust 集成测试派生的 python3 继承已安装
       # PyMuPDF 等依赖的 Python 虚拟环境，而不是误用 runner 的系统 Python。
       - name: Cargo Workspace Tests

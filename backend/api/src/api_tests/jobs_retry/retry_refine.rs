@@ -313,7 +313,7 @@ async fn refine_retry_imports_a_new_inline_key_instead_of_using_the_old_one() {
     let new_ref = job.request_payload.translation.credential_ref.clone();
     assert!(!new_ref.is_empty() && new_ref != old_ref, "要换成新 key 的引用，不能沿用旧的 {old_ref}");
     assert!(job.request_payload.translation.api_key.is_empty(), "明文 key 不能落库");
-    let resolved = retain_pdf_data::credentials::resolve_credential(&state.config.data_root, &new_ref, "translation_api_key")
+    let resolved = retainpdf_data::credentials::resolve_credential(&state.config.data_root, &new_ref, "translation_api_key")
         .expect("new reference resolves");
     assert_eq!(resolved.secret, "sk-rotated-key");
     let stored = serde_json::to_string(&job.request_payload).unwrap();

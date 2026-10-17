@@ -2,7 +2,7 @@
 //!
 //! 接口多了、杂了，很大一部分是因为加接口没有门槛——加一条就是加一条，没人注意到总数在涨。
 //! 这份快照让每次增删、改策略都出现在提交的 diff 里，要有意识地确认。改了路由之后这里会红，
-//! 确认是有意的，就用 `UPDATE_ROUTES=1 cargo test -p retain-pdf-api --lib route_manifest` 重新生成。
+//! 确认是有意的，就用 `UPDATE_ROUTES=1 cargo test -p retainpdf-api --lib route_manifest` 重新生成。
 //!
 //! 清单从路由源码里读（和 `services::accounts::access` 的参数分类测试一样），不启动服务。
 
@@ -90,7 +90,7 @@ fn manifest() -> String {
     let mut lines = vec![
         "# 全部 HTTP 路由：方法 路径 多用户下网站账号的访问策略（signed 登录可用 / admin 只给管理员 /".to_string(),
         "# closed 关闭 / public 不需要登录）。由 src/api_tests/route_manifest.rs 生成，不要手改：".to_string(),
-        "#   UPDATE_ROUTES=1 cargo test -p retain-pdf-api --lib route_manifest".to_string(),
+        "#   UPDATE_ROUTES=1 cargo test -p retainpdf-api --lib route_manifest".to_string(),
     ];
     let count: usize = table.values().map(Vec::len).sum();
     lines.push(format!("# {} 条路径，{count} 个接口", table.len()));
@@ -118,7 +118,7 @@ fn route_manifest_matches_snapshot() {
         let removed: Vec<_> = saved_lines.difference(&current_lines).collect();
         panic!(
             "routes changed (docs/routes.txt is out of date).\n+ {added:#?}\n- {removed:#?}\n\
-             If intended: UPDATE_ROUTES=1 cargo test -p retain-pdf-api --lib route_manifest"
+             If intended: UPDATE_ROUTES=1 cargo test -p retainpdf-api --lib route_manifest"
         );
     }
 }

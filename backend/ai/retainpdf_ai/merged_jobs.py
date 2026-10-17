@@ -2,7 +2,7 @@
 
 同一本书的多次范围翻译被合成一个整本长度、任务形状的目录
 `data/documents/<文档>/merged/<指纹>/`，阅读器把它当成一个任务打开。这里的格式和目录规则
-**照抄** Rust 的 `storage_paths::MergedJobId`（backend/packages/retain-core/src/
+**照抄** Rust 的 `storage_paths::MergedJobId`（backend/packages/retainpdf-core/src/
 storage_paths/merged_job.rs），两边必须一致：Rust 决定 AI 工作区在哪，这里决定终端落在哪。
 
 格式卡得很死：id 来自浏览器和模型的工具参数（提示注入面），会被拼进文件路径，任何不是

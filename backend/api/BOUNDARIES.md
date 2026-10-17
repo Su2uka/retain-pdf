@@ -167,8 +167,8 @@ The response contract for all download endpoints is pinned in
 
 ## Query Scope
 
-`job_loading` in the `retain-pdf-api-base` crate
-(`backend/packages/retain-pdf-api-base`, re-exported as `crate::job_loading`)
+`job_loading` in the `retainpdf-api-base` crate
+(`backend/packages/retainpdf-api-base`, re-exported as `crate::job_loading`)
 owns job loading and compatibility checks:
 
 - missing job -> `404`;
@@ -200,21 +200,21 @@ use sit under `#[cfg(test)]` in the same block. `check_domain_facades` rejects a
 `pub mod` in a domain's `mod.rs`. Inside a domain, code may use any path.
 
 A domain that has been split into its own crate is listed in
-`EXTRACTED_DOMAINS` (so far: `accounts` → `backend/packages/retain-pdf-accounts`, `ai` → `backend/packages/retain-pdf-ai`, `files` → `backend/packages/retain-pdf-files`, `glossaries` → `backend/packages/retain-pdf-glossaries`, `ingest` → `backend/packages/retain-pdf-ingest`, `jobs` → `backend/packages/retain-pdf-jobs`, `library` → `backend/packages/retain-pdf-library`, `platform` →
-`backend/packages/retain-pdf-platform`, `providers` → `backend/packages/retain-pdf-providers`).
+`EXTRACTED_DOMAINS` (so far: `accounts` → `backend/packages/retainpdf-accounts`, `ai` → `backend/packages/retainpdf-ai`, `files` → `backend/packages/retainpdf-files`, `glossaries` → `backend/packages/retainpdf-glossaries`, `ingest` → `backend/packages/retainpdf-ingest`, `jobs` → `backend/packages/retainpdf-jobs`, `library` → `backend/packages/retainpdf-library`, `platform` →
+`backend/packages/retainpdf-platform`, `providers` → `backend/packages/retainpdf-providers`).
 Its `lib.rs` is the facade, `services/mod.rs` re-exports it as
-`services::<domain>` (`pub(crate) use retain_pdf_glossaries as glossaries;`),
+`services::<domain>` (`pub(crate) use retainpdf_glossaries as glossaries;`),
 and nothing for it stays under `services/`. Exports only rust_api tests use sit
 under `#[cfg(any(test, feature = "test-fixtures"))]`; rust_api turns the feature on in
 `[dev-dependencies]` (`#[cfg(test)]` is not visible across crates), so production
 builds never see them. It depends only on the base
-crates (`retain-pdf-api-base`, `retain-pdf-core`, `retain-pdf-data`; `retain-pdf-ai` also
-uses `retain-pdf-proc` to stop operation workers; `retain-pdf-jobs` also uses
-`retain-pdf-proc` and the job runtime `retain-pdf-runner` behind `runtime_gateway`) and on
-the crates of extracted domains below it (`retain-pdf-accounts` uses
-`retain-pdf-providers`, `retain-pdf-ingest` uses `retain-pdf-accounts`, `retain-pdf-jobs` uses
-accounts, files, glossaries, ingest and providers, `retain-pdf-library` uses files and jobs). Such a use is written with the crate name
-(`retain_pdf_providers::…`); `check_domain_dependency_direction` counts it as a
+crates (`retainpdf-api-base`, `retainpdf-core`, `retainpdf-data`; `retainpdf-ai` also
+uses `retainpdf-proc` to stop operation workers; `retainpdf-jobs` also uses
+`retainpdf-proc` and the job runtime `retainpdf-runner` behind `runtime_gateway`) and on
+the crates of extracted domains below it (`retainpdf-accounts` uses
+`retainpdf-providers`, `retainpdf-ingest` uses `retainpdf-accounts`, `retainpdf-jobs` uses
+accounts, files, glossaries, ingest and providers, `retainpdf-library` uses files and jobs). Such a use is written with the crate name
+(`retainpdf_providers::…`); `check_domain_dependency_direction` counts it as a
 domain edge just like `crate::services::providers::…`.
 
 Domains depend downward only. The allowed edges are listed in
@@ -241,7 +241,7 @@ never the other way: building the merged directory lives in
 
 Code that needs something from a job's submitted request asks the job:
 `job.source_job_id()`, `job.uses_model_executor()`, `job.credential_refs()`
-and the other methods in retain-core `models/job/questions.rs`. Do not reach
+and the other methods in retainpdf-core `models/job/questions.rs`. Do not reach
 into `job.request_payload.<field>`; add a method there instead. Only the
 modules that build or rewrite the request (credential handling at creation,
 rerun, retry-stage, the merged-reading virtual job) touch fields directly; they
@@ -273,12 +273,12 @@ They are intentionally outside `presentation` so library/book projections do not
 depend on job view internals.
 
 Shared artifact display belongs to `src/artifacts/presentation.rs` in the
-`retain-pdf-files` crate, exposed only through `services::files::build_artifacts_display`. It consumes
+`retainpdf-files` crate, exposed only through `services::files::build_artifacts_display`. It consumes
 `ArtifactLinksView` without loading jobs, files, or database records. Both book
 and job views may depend on it; jobs must not import `book_projection` back.
 
 The book title / upload id / source file name rules live once in
-`src/artifacts/titles.rs` of the `retain-pdf-files` crate (`display_title`, `job_upload_id`,
+`src/artifacts/titles.rs` of the `retainpdf-files` crate (`display_title`, `job_upload_id`,
 `source_file_name`); job and book projections call them instead of keeping
 their own copies.
 
@@ -292,13 +292,13 @@ global configuration or execution control capabilities again.
 
 ## Persistence
 
-`../../database/retain-db/src/db/**` should stay focused on SQLite rows and records.
+`../../database/retainpdf-db/src/db/**` should stay focused on SQLite rows and records.
 It should not know about HTTP view contracts, route URLs, or frontend display
 decisions.
 
 ## Models
 
-`../packages/retain-core/src/models/**` contains serializable input, job records, and
+`../packages/retainpdf-core/src/models/**` contains serializable input, job records, and
 public view types. Model helpers can build plain data structures, but service
 decisions such as file readiness, route scope, and event-source merging should
 remain in services.

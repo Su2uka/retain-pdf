@@ -37,7 +37,7 @@ Python 命令需要已安装测试依赖的解释器；推荐先执行
   `tests/` 下是这两个脚本自身的离线单元测试。
 - `performance/pipeline/`：测速入口与离线对比工具，详见该目录 README。
 - `fixtures/golden-jobs/`：已脱敏的真实任务快照。Rust（`api_tests/golden_replay.rs`、
-  `retain-data` 的 stage spec 契约）、`backend/pipeline/devtools/tests` 和
+  `retainpdf-data` 的 stage spec 契约）、`backend/pipeline/devtools/tests` 和
   `ops/release/check_standalone.py` 都直接读它，改动前先看它自己的 README。
 - `fixtures/pdfs/`：真实 PDF 回归样本，只被手动脚本（`run_golden_flow.py`、
   渲染速度基准、`golden_harness.py` 的源 PDF 兜底）使用，没有自动化测试读取。

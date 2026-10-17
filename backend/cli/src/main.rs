@@ -1,6 +1,6 @@
 //! `retainpdf`:RetainPDF 的命令行。
 //!
-//! 配置在 `~/.retainpdf/`(见 retain-config),与桌面版共用。后端开着时会改东西的命令转给
+//! 配置在 `~/.retainpdf/`(见 retainpdf-config),与桌面版共用。后端开着时会改东西的命令转给
 //! 后端,没开时直接操作数据目录(见 `context.rs`)。默认输出给人看,`--json` 给脚本。
 
 mod cmd;

@@ -21,13 +21,13 @@ RENDER_ENGINE_RPR = "rpr"
 # rpr_fit：字号也由 rpr 引擎按测量决定（fit-model 的 retain 规则），不走 retain-pdf 的缩字规则。
 RENDER_ENGINE_RPR_FIT = "rpr_fit"
 RENDER_ENGINES = (RENDER_ENGINE_TYPST, RENDER_ENGINE_RPR, RENDER_ENGINE_RPR_FIT)
-# 默认排版路线：自研引擎测量定字号、直接写 PDF（与 Rust retain-core DEFAULT_RENDER_ENGINE 一致）。
+# 默认排版路线：自研引擎测量定字号、直接写 PDF（与 Rust retainpdf-core DEFAULT_RENDER_ENGINE 一致）。
 # 引擎不可用或失败时照旧回退 Typst 路线。
 DEFAULT_RENDER_ENGINE = RENDER_ENGINE_RPR_FIT
 PROVIDER_STAGE_SCHEMA_VERSION = "provider.stage.v1"
 BOOK_STAGE_SCHEMA_VERSION = "book.stage.v1"
 
-# Rust 侧 `retain-core/src/models/defaults.rs::default_batch_size` 的兜底值。
+# Rust 侧 `retainpdf-core/src/models/defaults.rs::default_batch_size` 的兜底值。
 #
 # 兜底值只在 key 缺失时生效，所以两边不一致今天不咬人——spec 里这个 key 从来没
 # 缺过。但兜底值存在的意义就是 key 缺失时用：Rust 缺失时用 8，Python 缺失时用 1，

@@ -1,6 +1,6 @@
 use std::num::NonZeroU64;
 
-use retain_pdf_core::config::effective_upload_max_bytes;
+use retainpdf_core::config::effective_upload_max_bytes;
 
 use crate::app::AppState;
 use crate::services::ingest::UploadApiDeps;

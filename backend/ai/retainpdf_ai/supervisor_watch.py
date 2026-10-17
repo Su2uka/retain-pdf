@@ -5,7 +5,7 @@ SIGKILL(桌面端退出、OOM、``kill -9``)时信号到不了这里,本进程�
 占着端口,下次启动就是端口冲突。macOS 没有 ``PR_SET_PDEATHSIG``,所以轮询:
 监督者在 ``RETAIN_SUPERVISOR_PID`` 里写下自己的 pid,这里定期确认它还在。
 
-约定与 Rust 侧 ``retain-proc/src/supervisor_watch.rs`` 一致,两边改动需同步。
+约定与 Rust 侧 ``retainpdf-proc/src/supervisor_watch.rs`` 一致,两边改动需同步。
 """
 
 from __future__ import annotations

@@ -9,9 +9,9 @@ use std::process::{Child, Command, Stdio};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use retain_pdf_api::db::{Db, PipelineUnitCommit};
-use retain_pdf_api::models::domain::{JobSnapshot, JobStatusKind, WorkflowKind};
-use retain_pdf_api::models::request::CreateJobInput;
+use retainpdf_api::db::{Db, PipelineUnitCommit};
+use retainpdf_api::models::domain::{JobSnapshot, JobStatusKind, WorkflowKind};
+use retainpdf_api::models::request::CreateJobInput;
 
 const JOB_ID: &str = "job-api-process-recovery";
 

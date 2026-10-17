@@ -9,7 +9,7 @@ use serde_json::{json, Value};
 
 use crate::context::{BackendState, Ctx};
 use crate::ui;
-use retain_pdf_data::db::Db;
+use retainpdf_data::db::Db;
 
 pub fn dir_size(path: &Path) -> u64 {
     let Ok(entries) = std::fs::read_dir(path) else {

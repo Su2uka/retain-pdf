@@ -44,7 +44,7 @@ impl Sandbox {
     }
 
     fn library(&self) {
-        let db = retain_pdf_data::db::Db::new(self.data().join("db").join("jobs.db"), self.data());
+        let db = retainpdf_data::db::Db::new(self.data().join("db").join("jobs.db"), self.data());
         db.init().unwrap();
     }
 }

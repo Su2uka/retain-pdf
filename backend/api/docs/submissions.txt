@@ -1,4 +1,4 @@
-# 建任务各入口的结果快照（UPDATE_SUBMISSIONS=1 cargo test -p retain-pdf-api --lib submissions 重新生成）
+# 建任务各入口的结果快照（UPDATE_SUBMISSIONS=1 cargo test -p retainpdf-api --lib submissions 重新生成）
 
 ## POST /jobs  book，带上传和明文 key
 result: ok

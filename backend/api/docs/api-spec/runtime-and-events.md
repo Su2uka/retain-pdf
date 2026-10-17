@@ -98,11 +98,11 @@ Current internal boundary conventions:
 - `routes/*` only adapts HTTP requests/responses
 - `services/jobs/*` owns job query, presentation, creation orchestration, and control logic
 - `services/jobs/lifecycle/snapshot_factory` owns job snapshot assembly; `worker_command` owns Python worker command/spec construction
-- `../packages/retain-jobs/src/job_runner/*` owns runtime execution, process lifecycle,
+- `../packages/retainpdf-runner/src/job_runner/*` owns runtime execution, process lifecycle,
   OCR-child chaining, and cancellation
-- `retain-pdf-ai/src/api.rs` owns the Rust-to-AI HTTP proxy boundary;
+- `retainpdf-ai/src/api.rs` owns the Rust-to-AI HTTP proxy boundary;
   `services/library_api.rs` owns conversation persistence;
-  `retain-pdf-ai/src/public_document_operations_api.rs` owns the browser-safe operation
+  `retainpdf-ai/src/public_document_operations_api.rs` owns the browser-safe operation
   projection and CAS actions
 - `AppState` should stay at route entrypoints and runtime coordination layers; pure assembly helpers should prefer `&Db`, narrow config projections, and explicit arguments
 
@@ -199,19 +199,19 @@ Current precedence contract is:
 ## Runtime Knobs
 
 These values are deployment/provider knobs, not API protocol constants. Defaults are owned by
-`backend/packages/retain-core/src/config/*` and can be overridden by environment variables.
+`backend/packages/retainpdf-core/src/config/*` and can be overridden by environment variables.
 
 Config source map:
 
-- `../packages/retain-core/src/config/paths.rs`: project/data/scripts/jobs/uploads/downloads paths
-- `../packages/retain-core/src/config/auth.rs`: `auth.local.json`, API keys, job concurrency, simple API port
-- `../packages/retain-core/src/config/server.rs`: bind host, API port, Python binary
-- `../packages/retain-core/src/config/upload.rs`: global upload size/page gates
-- `../packages/retain-core/src/config/provider.rs`: MinerU / Paddle / DeepSeek runtime and provider limits
-- `../packages/retain-core/src/config/ai_service.rs` and `ai_proxy.rs`: supervised
+- `../packages/retainpdf-core/src/config/paths.rs`: project/data/scripts/jobs/uploads/downloads paths
+- `../packages/retainpdf-core/src/config/auth.rs`: `auth.local.json`, API keys, job concurrency, simple API port
+- `../packages/retainpdf-core/src/config/server.rs`: bind host, API port, Python binary
+- `../packages/retainpdf-core/src/config/upload.rs`: global upload size/page gates
+- `../packages/retainpdf-core/src/config/provider.rs`: MinerU / Paddle / DeepSeek runtime and provider limits
+- `../packages/retainpdf-core/src/config/ai_service.rs` and `ai_proxy.rs`: supervised
   AI sidecar address, startup command, and proxy timeouts
-- `../packages/retain-core/src/config/job_runner.rs`: queue polling, worker termination, failure diagnosis, sync wait knobs
-- `../packages/retain-core/src/config.rs`: config facade exposing the current `AppConfig` fields
+- `../packages/retainpdf-core/src/config/job_runner.rs`: queue polling, worker termination, failure diagnosis, sync wait knobs
+- `../packages/retainpdf-core/src/config.rs`: config facade exposing the current `AppConfig` fields
 
 Provider upload gates:
 

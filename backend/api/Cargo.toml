@@ -1,8 +1,8 @@
 [package]
-# 包名 2026-10-16 从 `rust_api` 改成 `retain-pdf-api`（库的 crate 名随之是 `retain_pdf_api`）。
+# 包名 2026-10-16 从 `rust_api` 改成 `retainpdf-api`（库的 crate 名随之是 `retainpdf_api`）。
 # 可执行文件名不变，仍是 `rust_api`：Docker 的 entrypoint-app.sh、桌面版打包脚本、
 # ops/development/dev_stack.py 和 CI 的 desktop 打包都按这个名字找它。
-name = "retain-pdf-api"
+name = "retainpdf-api"
 version = "0.1.0"
 edition = "2021"
 build = "build.rs"
@@ -12,21 +12,21 @@ name = "rust_api"
 path = "src/main.rs"
 
 [dependencies]
-retain-pdf-api-base = { path = "../packages/retain-pdf-api-base" }
-retain-pdf-accounts = { path = "../packages/retain-pdf-accounts" }
-retain-pdf-ai = { path = "../packages/retain-pdf-ai" }
-retain-pdf-core = { path = "../packages/retain-core" }
-retain-pdf-files = { path = "../packages/retain-pdf-files" }
-retain-pdf-glossaries = { path = "../packages/retain-pdf-glossaries" }
-retain-pdf-ingest = { path = "../packages/retain-pdf-ingest" }
-retain-pdf-jobs = { path = "../packages/retain-pdf-jobs" }
-retain-pdf-library = { path = "../packages/retain-pdf-library" }
-retain-pdf-platform = { path = "../packages/retain-pdf-platform" }
-retain-pdf-providers = { path = "../packages/retain-pdf-providers" }
-retain-pdf-data = { path = "../packages/retain-data" }
-retain-pdf-config = { path = "../packages/retain-config" }
-retain-pdf-runner = { path = "../packages/retain-jobs" }
-retain-pdf-proc = { path = "../packages/retain-proc" }
+retainpdf-api-base = { path = "../packages/retainpdf-api-base" }
+retainpdf-accounts = { path = "../packages/retainpdf-accounts" }
+retainpdf-ai = { path = "../packages/retainpdf-ai" }
+retainpdf-core = { path = "../packages/retainpdf-core" }
+retainpdf-files = { path = "../packages/retainpdf-files" }
+retainpdf-glossaries = { path = "../packages/retainpdf-glossaries" }
+retainpdf-ingest = { path = "../packages/retainpdf-ingest" }
+retainpdf-jobs = { path = "../packages/retainpdf-jobs" }
+retainpdf-library = { path = "../packages/retainpdf-library" }
+retainpdf-platform = { path = "../packages/retainpdf-platform" }
+retainpdf-providers = { path = "../packages/retainpdf-providers" }
+retainpdf-data = { path = "../packages/retainpdf-data" }
+retainpdf-config = { path = "../packages/retainpdf-config" }
+retainpdf-runner = { path = "../packages/retainpdf-runner" }
+retainpdf-proc = { path = "../packages/retainpdf-proc" }
 axum = { version = "0.7", features = ["multipart", "macros", "ws"] }
 tokio = { version = "1", features = ["full"] }
 tokio-util = { version = "0.7", features = ["io"] }
@@ -63,8 +63,8 @@ serde_urlencoded = "0.7"
 futures-util = "0.3"
 
 [dev-dependencies]
-retain-pdf-api-base = { path = "../packages/retain-pdf-api-base", features = ["test-fixtures"] }
-retain-pdf-ai = { path = "../packages/retain-pdf-ai", features = ["test-fixtures"] }
-retain-pdf-ingest = { path = "../packages/retain-pdf-ingest", features = ["test-fixtures"] }
-retain-pdf-jobs = { path = "../packages/retain-pdf-jobs", features = ["test-fixtures"] }
+retainpdf-api-base = { path = "../packages/retainpdf-api-base", features = ["test-fixtures"] }
+retainpdf-ai = { path = "../packages/retainpdf-ai", features = ["test-fixtures"] }
+retainpdf-ingest = { path = "../packages/retainpdf-ingest", features = ["test-fixtures"] }
+retainpdf-jobs = { path = "../packages/retainpdf-jobs", features = ["test-fixtures"] }
 tower = { version = "0.5", features = ["util"] }

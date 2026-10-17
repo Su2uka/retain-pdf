@@ -3,7 +3,7 @@
 //! 下载类接口（译文 PDF、对照版、Word、封面、预览图、Markdown、打包、产物清单……）要整理成
 //! 一个 `open(任务, 文件名)`，前端照着这些接口的状态码、`Content-Type`、下载文件名、缓存头
 //! 在工作。整理前先把这些钉住：改完以后快照一个字不变，才说明对外没变。确认是有意改的，用
-//! `UPDATE_FILE_RESPONSES=1 cargo test -p retain-pdf-api --lib file_responses` 重新生成。
+//! `UPDATE_FILE_RESPONSES=1 cargo test -p retainpdf-api --lib file_responses` 重新生成。
 //!
 //! 按需生成的产物（对照版、Word、封面、缩略图、预览图）事先在缓存位置放好文件，测试不调
 //! Python，只走"找文件 → 组响应"这一段。PDF 可能被 qpdf 线性化（看机器上有没有 qpdf），
@@ -291,7 +291,7 @@ async fn render() -> String {
     let app = build_app(fixture.state.clone());
     let mut out = vec![
         "# 文件出口的返回快照。由 src/api_tests/file_responses.rs 生成，不要手改：".to_string(),
-        "#   UPDATE_FILE_RESPONSES=1 cargo test -p retain-pdf-api --lib file_responses".to_string(),
+        "#   UPDATE_FILE_RESPONSES=1 cargo test -p retainpdf-api --lib file_responses".to_string(),
         "# PDF / zip 只记类型；ETag、Last-Modified、Content-Length 不记；content-range 的总长记成 *。".to_string(),
     ];
     for (label, uri, extra) in requests() {
@@ -359,7 +359,7 @@ async fn file_responses_match_snapshot() {
             .collect();
         panic!(
             "文件出口的返回变了（docs/file-responses.txt）。前 20 处不同：\n{}\n\
-             确认是有意改的：UPDATE_FILE_RESPONSES=1 cargo test -p retain-pdf-api --lib file_responses",
+             确认是有意改的：UPDATE_FILE_RESPONSES=1 cargo test -p retainpdf-api --lib file_responses",
             diff.join("\n")
         );
     }

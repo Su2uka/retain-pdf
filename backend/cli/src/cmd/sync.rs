@@ -1,13 +1,13 @@
 //! `retainpdf sync`:多设备同步。后端开着时经后端,没开时直接同步数据目录
-//! (`retain_pdf_data::sync::control`,与后端同一套)。
+//! (`retainpdf_data::sync::control`,与后端同一套)。
 
 use std::path::PathBuf;
 use std::process::ExitCode;
 
 use anyhow::{bail, Result};
 use clap::Subcommand;
-use retain_pdf_core::models::api::SyncSettingsInput;
-use retain_pdf_data::sync::SyncControl;
+use retainpdf_core::models::api::SyncSettingsInput;
+use retainpdf_data::sync::SyncControl;
 use serde_json::{json, Value};
 
 use crate::context::Ctx;

@@ -3,7 +3,7 @@
 后端测试镜像在 backend-root/contracts/pipeline-stdout.v1.schema.json；本测试保证
 python worker 的发射面与契约一致：常量文件与 schema 双向对齐、每个契约
 标签在源码里有真实发射点、artifact_published 的 key 不超出契约。
-消费者侧锁在 rust_api crates/retain-jobs stdout_parser/contract_lock.rs。
+消费者侧锁在 rust_api crates/retainpdf-runner stdout_parser/contract_lock.rs。
 改协议先改 schema，两端测试同步变绿才算完成。
 """
 

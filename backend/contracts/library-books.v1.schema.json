@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "retainpdf/contracts/library-books/v1",
   "title": "图书馆书架契约（Library Books）",
-  "description": "Rust ↔ TS 重复的图书馆视图单一真值。生产者：services/api crates/retain-core models/view/job_types.rs（LibraryBookListView / LibraryBookListItemView / LibraryBookDetailView / JobListView / JobListItemView）；消费者：@retainpdf/contracts/library-books 生成 DTO、packages/domain 的 job 归一化模型、apps/web 的 library API 与 apps/web-react 的 library 类型层。所有响应为 {code, message, data} 信封，本契约描述 data 部分。改契约先改本文件，再重新生成 DTO 并让 Rust 与 TS 契约测试变绿。",
+  "description": "Rust ↔ TS 重复的图书馆视图单一真值。生产者：services/api crates/retainpdf-core models/view/job_types.rs（LibraryBookListView / LibraryBookListItemView / LibraryBookDetailView / JobListView / JobListItemView）；消费者：@retainpdf/contracts/library-books 生成 DTO、packages/domain 的 job 归一化模型、apps/web 的 library API 与 apps/web-react 的 library 类型层。所有响应为 {code, message, data} 信封，本契约描述 data 部分。改契约先改本文件，再重新生成 DTO 并让 Rust 与 TS 契约测试变绿。",
   "base_path": "/api/v1/library",
   "endpoints": [
     {
@@ -65,7 +65,7 @@
     },
     "JobProgressView": {
       "type": "object",
-      "description": "services/api/crates/retain-core/src/models/view/common.rs :: JobProgressView。current/total 为页/批计数（i64），percent 0-100，unit 标识页/批/步/percent。",
+      "description": "services/api/crates/retainpdf-core/src/models/view/common.rs :: JobProgressView。current/total 为页/批计数（i64），percent 0-100，unit 标识页/批/步/percent。",
       "required": [],
       "properties": {
         "current": {

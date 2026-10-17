@@ -1,11 +1,11 @@
-//! 模型执行器里要用到任务领域或整个应用的测试。执行器本身在 `retain-pdf-providers` 包里，
+//! 模型执行器里要用到任务领域或整个应用的测试。执行器本身在 `retainpdf-providers` 包里，
 //! 它的单测留在包里；这几个要调任务领域的函数、或者搭起整个 `AppState`，包里做不到，放在这里。
 use crate::models::domain::JobSnapshot;
 use crate::models::request::CreateJobInput;
 use crate::services::providers::ModelExecutor;
 use axum::{http::StatusCode, routing::post, Json, Router};
-use retain_pdf_core::model_connection::{Deadlines, ModelConnection, Provider, Thinking};
-use retain_pdf_data::db::{Db, ModelReservation};
+use retainpdf_core::model_connection::{Deadlines, ModelConnection, Provider, Thinking};
+use retainpdf_data::db::{Db, ModelReservation};
 use serde_json::{json, Value};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -60,7 +60,7 @@ fn profile(url: &str) -> ModelConnection {
         thinking: Thinking::Auto,
         stream: Some(false),
         allow_private_endpoint: true,
-        // 和 retain-pdf-providers 里执行器测试的 profile 一样留足余量，见那边的注释。
+        // 和 retainpdf-providers 里执行器测试的 profile 一样留足余量，见那边的注释。
         deadlines: Deadlines {
             queue_ms: 2_000,
             connect_ms: 1_000,
@@ -84,11 +84,11 @@ fn successful() -> Value {
 #[test]
 fn submission_snapshot_is_validated_and_publicly_roundtrips_without_a_key() {
     let p = profile("https://example.org/v1");
-    let mut input:retain_pdf_core::models::request::CreateJobInput=serde_json::from_value(json!({"translation":{"model":p.model,"base_url":p.base_url,"credential_ref":p.credential_ref,"workers":p.concurrency,"execution_connection":p}})).unwrap();
+    let mut input:retainpdf_core::models::request::CreateJobInput=serde_json::from_value(json!({"translation":{"model":p.model,"base_url":p.base_url,"credential_ref":p.credential_ref,"workers":p.concurrency,"execution_connection":p}})).unwrap();
     crate::services::jobs::validate_translation_credentials(&input).unwrap();
     let snapshot =
-        retain_pdf_core::models::domain::JobSnapshot::new("roundtrip".into(), input.clone(), vec![]);
-    let public = serde_json::to_value(retain_pdf_core::models::public_request_payload(
+        retainpdf_core::models::domain::JobSnapshot::new("roundtrip".into(), input.clone(), vec![]);
+    let public = serde_json::to_value(retainpdf_core::models::public_request_payload(
         &snapshot.request_payload,
     ))
     .unwrap();
@@ -110,7 +110,7 @@ fn submission_snapshot_is_validated_and_publicly_roundtrips_without_a_key() {
 #[test]
 fn execution_connection_only_accepts_the_chat_completions_protocol() {
     let p = profile("https://example.org/v1");
-    let mut input: retain_pdf_core::models::request::CreateJobInput = serde_json::from_value(json!({"translation":{"model":p.model,"base_url":p.base_url,"credential_ref":p.credential_ref,"workers":p.concurrency,"execution_connection":p}})).unwrap();
+    let mut input: retainpdf_core::models::request::CreateJobInput = serde_json::from_value(json!({"translation":{"model":p.model,"base_url":p.base_url,"credential_ref":p.credential_ref,"workers":p.concurrency,"execution_connection":p}})).unwrap();
     for protocol in ["openai_responses", "anthropic"] {
         input.translation.api_protocol = protocol.into();
         let error = crate::services::jobs::validate_translation_credentials(&input)
@@ -195,10 +195,10 @@ async fn real_python_worker_bridge_uses_only_the_local_capability() {
     let mut state = crate::api_tests::jobs_common::test_state("python-model-bridge");
     state.model_executor = Some(e.clone());
     let p = profile(&upstream);
-    let input:retain_pdf_core::models::request::CreateJobInput=serde_json::from_value(json!({"workflow":"translate","translation":{"model":p.model,"base_url":p.base_url,"credential_ref":p.credential_ref,"workers":p.concurrency,"execution_connection":p}})).unwrap();
+    let input:retainpdf_core::models::request::CreateJobInput=serde_json::from_value(json!({"workflow":"translate","translation":{"model":p.model,"base_url":p.base_url,"credential_ref":p.credential_ref,"workers":p.concurrency,"execution_connection":p}})).unwrap();
     state
         .db
-        .save_job(&retain_pdf_core::models::domain::JobSnapshot::new(
+        .save_job(&retainpdf_core::models::domain::JobSnapshot::new(
             "j".into(),
             input,
             vec![],
@@ -263,10 +263,10 @@ async fn http_routes_separate_launcher_and_worker_authority() {
     let mut state = crate::api_tests::jobs_common::test_state("model-route-authority");
     state.model_executor = Some(f.executor.clone());
     let profile = profile("http://127.0.0.1:9/v1");
-    let input:retain_pdf_core::models::request::CreateJobInput=serde_json::from_value(json!({"workflow":"translate","translation":{"execution_connection":profile,"model":profile.model,"base_url":profile.base_url,"credential_ref":profile.credential_ref,"workers":profile.concurrency}})).unwrap();
+    let input:retainpdf_core::models::request::CreateJobInput=serde_json::from_value(json!({"workflow":"translate","translation":{"execution_connection":profile,"model":profile.model,"base_url":profile.base_url,"credential_ref":profile.credential_ref,"workers":profile.concurrency}})).unwrap();
     state
         .db
-        .save_job(&retain_pdf_core::models::domain::JobSnapshot::new(
+        .save_job(&retainpdf_core::models::domain::JobSnapshot::new(
             "j".into(),
             input,
             vec![],
