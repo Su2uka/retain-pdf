@@ -303,6 +303,8 @@ async fn real_job_and_library_views_match_published_schemas() {
         job_detail["book_summary"]["thumbnail_url"],
         format!("http://127.0.0.1:41000/api/v1/jobs/{job_id}/thumbnail")
     );
+    // 这个任务查不到书（没有上传，也没归属过），书的编号是 null。
+    assert!(job_detail["book_summary"]["document_id"].is_null());
     assert_eq!(job_events["limit"], 20);
     assert_eq!(job_events["protocol_version"], 2);
     assert_eq!(job_events["has_more"], false);
@@ -410,6 +412,8 @@ async fn job_files_view_matches_published_schema() {
     assert_eq!(detail["links"]["artifacts_manifest_path"], files_path);
     assert_eq!(detail["actions"]["open_artifacts"]["path"], files_path);
     assert_eq!(detail["artifacts"]["manifest_path"], files_path);
+    // 任务详情直接给出书的编号，前端拿到详情就能拼原文地址，不用先等文件清单。
+    assert_eq!(detail["book_summary"]["document_id"], fixture.document_id.as_str());
 
     // 产物清单里的原文也指向书的文件。
     let source_item = manifest["items"]

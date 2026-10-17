@@ -25,5 +25,6 @@ pub(super) fn build_book_summary(
         cover_url: None,
         thumbnail_url: None,
         file_size_bytes: upload.map(|record| record.bytes),
+        document_id: None,
     }
 }

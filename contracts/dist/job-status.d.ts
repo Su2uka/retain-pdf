@@ -358,6 +358,10 @@ export interface BookSummaryView {
      */
     thumbnail_url?: string | null;
     file_size_bytes?: number | null;
+    /**
+     * 书的编号（原文 PDF 的 sha256），原文、封面在 /documents/{document_id}/files/ 下；查不到书的任务是 null
+     */
+    document_id?: string | null;
 }
 export interface JobContractsView {
     schema_version: string;

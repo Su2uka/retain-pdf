@@ -244,6 +244,8 @@ pub struct BookSummaryView {
     pub cover_url: Option<String>,
     pub thumbnail_url: Option<String>,
     pub file_size_bytes: Option<u64>,
+    /// 书的编号（原文 PDF 的 sha256）。原文、封面都在 `/documents/{document_id}/files/` 下；查不到书的任务是 null。
+    pub document_id: Option<String>,
 }
 
 impl BookSummaryView {
@@ -254,6 +256,11 @@ impl BookSummaryView {
 
     pub fn with_thumbnail_url(mut self, thumbnail_url: Option<String>) -> Self {
         self.thumbnail_url = thumbnail_url;
+        self
+    }
+
+    pub fn with_document_id(mut self, document_id: Option<&str>) -> Self {
+        self.document_id = document_id.map(str::trim).filter(|id| !id.is_empty()).map(str::to_string);
         self
     }
 }

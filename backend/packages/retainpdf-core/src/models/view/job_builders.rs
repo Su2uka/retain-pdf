@@ -376,6 +376,7 @@ pub fn job_to_detail(
             cover_url: None,
             thumbnail_url: None,
             file_size_bytes: None,
+            document_id: None,
         },
         contracts: JobContractsView {
             schema_version: "job_stage_contracts.v1".to_string(),

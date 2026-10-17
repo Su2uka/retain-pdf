@@ -30,7 +30,9 @@ pub(super) fn build_book_summary(
         cover_url: cover_url(job, document_id, data_root, base_url),
         thumbnail_url: thumbnail_url(job, document_id, data_root, base_url),
         file_size_bytes: upload.map(|record| record.bytes),
+        document_id: None,
     }
+    .with_document_id(document_id)
 }
 
 /// 书的编号：先看上传记录，没有上传记录的任务（复用别的任务产物建出来的重渲染、续跑）

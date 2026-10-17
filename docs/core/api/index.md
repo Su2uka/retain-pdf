@@ -364,7 +364,7 @@ Reader 宿主接入 job/artifact、Markdown、区域、页面元数据和实时�
 - `actions`
 - `artifacts`
 - `artifacts_display`
-- `book_summary`
+- `book_summary`（`document_id` 是书的编号，原文、封面在 `/documents/{document_id}/files/` 下；查不到书时是 null）
 - `contracts`
 - `ocr_job`
 - `runtime`
