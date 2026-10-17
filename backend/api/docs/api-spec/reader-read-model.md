@@ -22,8 +22,9 @@ All listed endpoints require `X-API-Key`. New consumers branch on
 | Need | Route | Stable output | Notes |
 | --- | --- | --- | --- |
 | Current job/read snapshot | `GET /api/v1/jobs/{job_id}` | job detail | Explicit `job_id` selects that immutable job snapshot. |
-| Published artifact links | `GET /api/v1/jobs/{job_id}/artifacts` | `ReaderArtifactLinks` | Use readiness plus public resource links; do not infer files from names. |
-| Artifact manifest | `GET /api/v1/jobs/{job_id}/artifacts-manifest` | `ReaderArtifactManifestView` | Use `artifact_key`, readiness, and public `resource_*` links only. |
+| Published artifact links | `GET /api/v1/jobs/{job_id}/artifacts` | `ReaderArtifactLinks` | Deprecated alias; `GET /api/v1/jobs/{job_id}/files` (`JobFilesView`) replaces it and the returned `manifest_*` / `artifacts_*` / `open_artifacts` links already point there. Use readiness plus public resource links; do not infer files from names. |
+| Artifact manifest | `GET /api/v1/jobs/{job_id}/artifacts-manifest` | `ReaderArtifactManifestView` | Deprecated alias, replaced by `GET /api/v1/jobs/{job_id}/files` (`JobFilesView`). Use `artifact_key`, readiness, and public `resource_*` links only. |
+| Job file list | `GET /api/v1/jobs/{job_id}/files` | `JobFilesView` | `output` / `pages` / `internal` (`internal` only for administrators and single-user mode); each entry carries `name`, `url`, `content_type`, `ready`, `on_demand`, `size_bytes`. |
 | Structured Markdown | `GET /api/v1/jobs/{job_id}/markdown/document` | `MarkdownDocumentView` | Provides content, absolute-image content, and image manifest. |
 | Windowed raw Markdown | `GET /api/v1/jobs/{job_id}/markdown?raw=true` | raw Markdown | Supports `Range`, `Content-Range`, and `ETag`; see [artifacts](artifacts.md#reading-long-markdown-in-parts). |
 | PDF alignment/selection | `GET /api/v1/jobs/{job_id}/reader/regions` | `ReaderRegionsView` | Backend joins normalized source blocks and published translations. |
