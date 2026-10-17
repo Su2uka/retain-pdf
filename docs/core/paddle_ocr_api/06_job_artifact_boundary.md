@@ -221,12 +221,12 @@ artifact 层不应该反向变成 provider 语义层。
 
 关键代码：
 
-- `backend/api/src/services/jobs/files/downloads.rs`
+- `backend/packages/retainpdf-jobs/src/files/downloads.rs`
 - `backend/packages/retainpdf-files/src/artifacts/mod.rs`
 
 ### 稳定资源接口
 
-这些接口暴露的是“稳定资源类型”，不是 provider 私有字段：
+这些接口暴露的是“稳定资源类型”，不是 provider 私有字段。下表写的是旧地址（还能用），文件类的新地址在 `/jobs/{job_id}/files/…` 下，对照见 [下载总览](../../api/07-产物下载/01-下载总览.md)：
 
 | 接口 | 对应资源 | 说明 |
 | --- | --- | --- |

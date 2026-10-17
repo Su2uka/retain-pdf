@@ -54,4 +54,4 @@ SQLite 主要承担：
 - Rust 负责分配任务目录和登记 artifacts。
 - Python worker 只消费 Rust 传入的路径。
 - 前端和外部调用方不应该依赖任务目录内部布局。
-- 正式产物发现入口是 `GET /api/v1/jobs/{job_id}/artifacts-manifest`。
+- 正式产物发现入口是 `GET /api/v1/jobs/{job_id}/files`（旧地址 `/artifacts-manifest` 还能用）。

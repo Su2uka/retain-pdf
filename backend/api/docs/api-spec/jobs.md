@@ -32,21 +32,26 @@ and document-history rules are maintained in the pages below.
 
 ## Common Endpoint Map
 
+The `/jobs/{job_id}/…` addresses below are the new ones (nine categories). The old addresses
+(`/events`, `/diagnostics`, `/stage-actions`, `/resume-plan`, `/resume`, `/rerun`, `/retry-stage`,
+`/ocr/resolve-ambiguity`, `/cancel`) are still served; see
+[`docs/api/01-任务/04-任务接口分类.md`](../../../../docs/api/01-任务/04-任务接口分类.md) and [`docs/api/00-接口目录.md`](../../../../docs/api/00-接口目录.md).
+
 ```text
 POST /api/v1/uploads
 POST /api/v1/translate/bundle
 POST /api/v1/jobs
 GET  /api/v1/jobs
 GET  /api/v1/jobs/{job_id}
-GET  /api/v1/jobs/{job_id}/events
-GET  /api/v1/jobs/{job_id}/diagnostics
-GET  /api/v1/jobs/{job_id}/resume-plan
-GET  /api/v1/jobs/{job_id}/stage-actions
-POST /api/v1/jobs/{job_id}/resume
-POST /api/v1/jobs/{job_id}/rerun
-POST /api/v1/jobs/{job_id}/retry-stage
-POST /api/v1/jobs/{job_id}/ocr/resolve-ambiguity
-POST /api/v1/jobs/{job_id}/cancel
+GET  /api/v1/jobs/{job_id}/progress/events
+GET  /api/v1/jobs/{job_id}/reports/failure
+GET  /api/v1/jobs/{job_id}/actions
+GET  /api/v1/jobs/{job_id}/actions/resume
+POST /api/v1/jobs/{job_id}/actions/resume
+POST /api/v1/jobs/{job_id}/actions/rerun
+POST /api/v1/jobs/{job_id}/actions/retry-stage
+POST /api/v1/jobs/{job_id}/actions/resolve-ocr-ambiguity
+POST /api/v1/jobs/{job_id}/actions/cancel
 POST /api/v1/ocr/jobs
 GET  /api/v1/ocr/jobs
 GET  /api/v1/ocr/jobs/{job_id}

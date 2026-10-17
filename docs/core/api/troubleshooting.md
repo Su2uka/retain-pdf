@@ -10,7 +10,7 @@
 2. `failure`
 3. `failure_diagnostic`
 4. `log_tail`
-5. `GET /api/v1/jobs/{job_id}/events`
+5. `GET /api/v1/jobs/{job_id}/progress/events`
 6. `runtime.stage_history`
 
 `failure` 是结构化失败真源；`failure_diagnostic` 是给旧前端和简化展示保留的兼容视图。
@@ -24,10 +24,10 @@ curl -H "X-API-Key: your-key" \
   http://127.0.0.1:41000/api/v1/jobs/{job_id}
 
 curl -H "X-API-Key: your-key" \
-  "http://127.0.0.1:41000/api/v1/jobs/{job_id}/events?limit=200"
+  "http://127.0.0.1:41000/api/v1/jobs/{job_id}/progress/events?limit=200"
 
 curl -H "X-API-Key: your-key" \
-  http://127.0.0.1:41000/api/v1/jobs/{job_id}/artifacts-manifest
+  http://127.0.0.1:41000/api/v1/jobs/{job_id}/files
 ```
 
 ## 任务目录
@@ -78,10 +78,10 @@ curl -H "X-API-Key: your-key" \
 
 翻译阶段异常时查看：
 
-- `GET /api/v1/jobs/{job_id}/translation/diagnostics`
-- `GET /api/v1/jobs/{job_id}/translation/items`
-- `GET /api/v1/jobs/{job_id}/translation/items/{item_id}`
-- `POST /api/v1/jobs/{job_id}/translation/items/{item_id}/replay`
+- `GET /api/v1/jobs/{job_id}/reports/translation`
+- `GET /api/v1/jobs/{job_id}/translations`
+- `GET /api/v1/jobs/{job_id}/translations/{item_id}`
+- `POST /api/v1/jobs/{job_id}/translations/{item_id}/replay`
 
 这些接口面向开发和排障，不建议作为普通用户主流程依赖。
 

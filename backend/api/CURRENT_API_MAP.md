@@ -62,7 +62,7 @@
 - `retainpdf-pipeline translate-only --spec <job_root>/specs/translate.spec.json`
 - `retainpdf-pipeline render-only --spec <job_root>/specs/render.spec.json`
 
-未安装 retainpdf-pipeline 的桌面兼容目录回退到 python services/pipeline/entrypoints/run_*.py --spec <job_root>/specs/<stage>.spec.json。
+Rust 层实际用 `python -m retainpdf_pipeline.<阶段> --spec <job_root>/specs/<stage>.spec.json` 启动 stage worker（`RUST_API_PYTHON_ENTRYPOINT_MODE` 已弃用并被忽略）；`backend/pipeline/retainpdf_pipeline/entrypoints/run_*.py` 只留给手工运行。
 
 ## 2. 当前正式 workflow
 
@@ -108,7 +108,7 @@
 - Rust 写 spec：
   - [`../packages/retainpdf-data/src/worker_command.rs`](../packages/retainpdf-data/src/worker_command.rs)
 - Python 按 provider 分发：
-  - [`services/pipeline/retainpdf_pipeline/ocr/ocr_provider/provider_pipeline.py`](../pipeline/retainpdf_pipeline/ocr/ocr_provider/provider_pipeline.py)
+  - [`backend/pipeline/retainpdf_pipeline/ocr/ocr_provider/provider_pipeline.py`](../pipeline/retainpdf_pipeline/ocr/ocr_provider/provider_pipeline.py)
 
 注意：生产主链的 `book` job 不再以 `retainpdf-pipeline provider-case` 作为初始命令。`book` job 创建时只保存
 `book-workflow-rust-orchestrated` 占位命令，真正执行由 Rust `job_runner` 串联 OCR child、normalize、
@@ -122,7 +122,7 @@ Rust 和 Python worker 之间的正式协议已经不是长 CLI 参数，而是�
 retainpdf-pipeline <subcommand> --spec <job_root>/specs/<stage>.spec.json
 ```
 
-未安装 retainpdf-pipeline 的桌面兼容目录回退到 python services/pipeline/entrypoints/run_*.py --spec <job_root>/specs/<stage>.spec.json。
+Rust 层实际用 `python -m retainpdf_pipeline.<阶段> --spec <job_root>/specs/<stage>.spec.json` 启动 stage worker（`RUST_API_PYTHON_ENTRYPOINT_MODE` 已弃用并被忽略）；`backend/pipeline/retainpdf_pipeline/entrypoints/run_*.py` 只留给手工运行。
 
 当前正式 stage：
 
@@ -137,7 +137,7 @@ legacy/local helper stage：
 
 对应 Python loader：
 
-- [`services/pipeline/retainpdf_pipeline/foundation/shared/stage_specs.py`](../pipeline/retainpdf_pipeline/foundation/shared/stage_specs.py)
+- [`backend/pipeline/retainpdf_pipeline/foundation/shared/stage_specs.py`](../pipeline/retainpdf_pipeline/foundation/shared/stage_specs.py)
 
 ## 5. Rust 到 Python 的真实执行链
 
@@ -151,7 +151,7 @@ legacy/local helper stage：
 
 Rust 路由：
 
-- [`src/routes/jobs/create.rs`](src/routes/jobs/create.rs)
+- [`src/routes/jobs/lifecycle.rs`](src/routes/jobs/lifecycle.rs)
 - [`packages/retainpdf-jobs/src/facade.rs`](../packages/retainpdf-jobs/src/facade.rs)
 
 ### 第二步：Rust 创建 job
@@ -243,8 +243,8 @@ Rust 根据 workflow 选择运行计划：
 - `retainpdf-pipeline translate-only --spec specs/translate.spec.json`
 - `retainpdf-pipeline render-only --spec specs/render.spec.json`
 
-未安装 retainpdf-pipeline 的桌面兼容目录回退到 python services/pipeline/entrypoints/run_*.py --spec <job_root>/specs/<stage>.spec.json；两种启动方式
-消费同一份 stage spec，产物校验不依赖物理脚本路径。
+Rust 层实际用 `python -m retainpdf_pipeline.<阶段> --spec <job_root>/specs/<stage>.spec.json` 启动 stage worker（`RUST_API_PYTHON_ENTRYPOINT_MODE` 已弃用并被忽略）；
+`retainpdf-pipeline` 命令和 `run_*.py` 消费同一份 stage spec，产物校验不依赖物理脚本路径。
 
 `retainpdf-pipeline provider-case` 仍保留 legacy/local wrapper 用于本地一次性验证 provider-backed 全流程（`run_provider_case.py` 仅桌面兼容）；不要把它当成
 Rust API 生产主链入口。
@@ -309,7 +309,6 @@ Rust API 生产主链入口。
 保留的 local / legacy wrapper：
 
 - `retainpdf-pipeline provider-case`（`run_provider_case.py` 仅桌面兼容）
-- `run_document_flow.py`（script-mode，仅桌面兼容，无 console 等价物）
 
 当前原则：
 
@@ -324,7 +323,7 @@ Rust API 生产主链入口。
 
 - Python worker 写 `DATA_ROOT/jobs/<job_id>/logs/pipeline_events.jsonl`
 - Rust 查询层合并 DB events 和 `pipeline_events.jsonl`
-- 对 `book` / `translate` 这类会创建 OCR child 的主任务，`GET /api/v1/jobs/<job_id>/events` 还会合并 `{job_id}-ocr` 的 OCR 子任务事件
+- 对 `book` / `translate` 这类会创建 OCR child 的主任务，`GET /api/v1/jobs/<job_id>/progress/events`（旧地址 `/events`）还会合并 `{job_id}-ocr` 的 OCR 子任务事件
 - OCR 子任务事件会映射成主任务 `job_id`；原始来源放在 `payload.source_job_id` 和 `payload.source_event`
 - Rust detail/list 优先使用 live pipeline stage 快照，而不是陈旧的 DB `job.stage`
 
@@ -396,11 +395,11 @@ Rust API 生产主链入口。
 
 ### 看 Python provider 总入口怎么分发
 
-- [`services/pipeline/retainpdf_pipeline/ocr/ocr_provider/provider_pipeline.py`](../pipeline/retainpdf_pipeline/ocr/ocr_provider/provider_pipeline.py)
+- [`backend/pipeline/retainpdf_pipeline/ocr/ocr_provider/provider_pipeline.py`](../pipeline/retainpdf_pipeline/ocr/ocr_provider/provider_pipeline.py)
 
 ### 看 stage spec 长什么样
 
-- [`services/pipeline/retainpdf_pipeline/foundation/shared/stage_specs.py`](../pipeline/retainpdf_pipeline/foundation/shared/stage_specs.py)
+- [`backend/pipeline/retainpdf_pipeline/foundation/shared/stage_specs.py`](../pipeline/retainpdf_pipeline/foundation/shared/stage_specs.py)
 
 ### 看最终主链结果
 

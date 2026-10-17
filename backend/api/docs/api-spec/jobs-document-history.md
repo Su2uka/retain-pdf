@@ -2,6 +2,8 @@
 
 [Jobs API index](jobs.md) · [API spec index](../../API_SPEC.md)
 
+> Address note: `/jobs/{job_id}/…` is grouped into nine categories (`actions`, `progress`, `files`, `reports`, `reader`, `translations`, `data`, `ai`). Some addresses on this page are the old ones; they are still served and return the same thing, but new code should use the new ones (a book's cover and thumbnail are `GET /documents/{document_id}/files/cover.jpg` and `/files/thumbnail.jpg`). Old-to-new table: [`docs/api/01-任务/04-任务接口分类.md`](../../../../docs/api/01-任务/04-任务接口分类.md); every endpoint: [`docs/api/00-接口目录.md`](../../../../docs/api/00-接口目录.md).
+
 ## Frontend Library Contract
 
 The backend is the source of truth for book/library state. Frontend clients should not persist
@@ -72,8 +74,10 @@ Book display metadata:
 
 Book media endpoints:
 
-- `GET /api/v1/jobs/{job_id}/cover`
-- `GET /api/v1/jobs/{job_id}/thumbnail`
+- `GET /api/v1/documents/{document_id}/files/cover.jpg`
+- `GET /api/v1/documents/{document_id}/files/thumbnail.jpg`
+
+The old per-job addresses `GET /api/v1/jobs/{job_id}/cover` and `/thumbnail` still work.
 
 ## Document-scoped task and Agent version history
 

@@ -2,6 +2,8 @@
 
 [Jobs API index](jobs.md) · [API spec index](../../API_SPEC.md)
 
+> Address note: `/jobs/{job_id}/…` is grouped into nine categories (`actions`, `progress`, `files`, `reports`, `reader`, `translations`, `data`, `ai`). Some addresses on this page are the old ones; they are still served and return the same thing, but new code should use the new ones (for example `GET /jobs/{job_id}/actions`, `POST /jobs/{job_id}/actions/retry-stage`, `/actions/resume`, `/actions/rerun`, `/actions/cancel`, `/actions/resolve-ocr-ambiguity`, `GET /jobs/{job_id}/reports/failure`, `/reports/refine`). Old-to-new table: [`docs/api/01-任务/04-任务接口分类.md`](../../../../docs/api/01-任务/04-任务接口分类.md); every endpoint: [`docs/api/00-接口目录.md`](../../../../docs/api/00-接口目录.md).
+
 ## Stage Retry Actions
 
 `GET /api/v1/jobs/{job_id}/stage-actions`

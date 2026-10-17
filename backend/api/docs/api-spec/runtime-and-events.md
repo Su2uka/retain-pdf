@@ -34,14 +34,14 @@ Current installed Python entrypoints used by the Rust layer:
 - `retainpdf-pipeline translate-only`
 - `retainpdf-pipeline render-only`
 
-When the package command is unavailable, auto mode falls back to the compatible
-`services/pipeline/entrypoints/run_*.py` scripts. The stage spec and stdout
-contracts are identical in both modes.
+The Rust layer starts stage workers as `python -m retainpdf_pipeline.<stage>`
+(`RUST_API_PYTHON_ENTRYPOINT_MODE` is deprecated and ignored); the
+`backend/pipeline/retainpdf_pipeline/entrypoints/run_*.py` scripts are for manual
+runs. The stage spec and stdout contracts are identical everywhere.
 
 Legacy/local wrappers retained for manual runs (script-mode，仅桌面兼容）：
 
-- `retainpdf-pipeline provider-case`（`services/pipeline/entrypoints/run_provider_case.py` 仅桌面兼容）
-- `run_document_flow.py`（script-mode，仅桌面兼容，无 console 等价物，对应 `services/pipeline/entrypoints/run_document_flow.py`）
+- `retainpdf-pipeline provider-case`（`backend/pipeline/retainpdf_pipeline/entrypoints/run_provider_case.py` 仅桌面兼容）
 
 Current top-level workflow contract:
 
@@ -64,7 +64,7 @@ Current top-level workflow contract:
 
 The Rust layer treats the stage workers as the formal production path.
 For local manual use, use the neutral wrapper names above.
-Regression scripts under `scripts/devtools/` are not part of the runtime contract.
+Regression scripts under `backend/pipeline/devtools/` are not part of the runtime contract.
 
 Current `document.v1` consumption contract for downstream workers:
 
@@ -96,12 +96,12 @@ Goals:
 Current internal boundary conventions:
 
 - `routes/*` only adapts HTTP requests/responses
-- `services/jobs/*` owns job query, presentation, creation orchestration, and control logic
+- `services/jobs/*` (logical path; the code is the `retainpdf-jobs` package, `backend/packages/retainpdf-jobs/src`) owns job query, presentation, creation orchestration, and control logic
 - `services/jobs/lifecycle/snapshot_factory` owns job snapshot assembly; `worker_command` owns Python worker command/spec construction
 - `../packages/retainpdf-runner/src/job_runner/*` owns runtime execution, process lifecycle,
   OCR-child chaining, and cancellation
 - `retainpdf-ai/src/api.rs` owns the Rust-to-AI HTTP proxy boundary;
-  `services/library_api.rs` owns conversation persistence;
+  the `retainpdf-library` package's `src/api.rs` owns conversation persistence;
   `retainpdf-ai/src/public_document_operations_api.rs` owns the browser-safe operation
   projection and CAS actions
 - `AppState` should stay at route entrypoints and runtime coordination layers; pure assembly helpers should prefer `&Db`, narrow config projections, and explicit arguments
@@ -131,7 +131,7 @@ Planned but not fully implemented in this first pass:
 - callback/webhook
 - RBAC / tenant quota
 - public/private artifact signing
-- general job-status SSE push updates (`/api/v1/jobs/{job_id}/events` remains a
+- general job-status SSE push updates (`/api/v1/jobs/{job_id}/progress/events` remains a
   paginated JSON history endpoint; AI ask SSE and live-translation SSE already
   exist)
 - stronger cancel semantics
@@ -236,10 +236,10 @@ Provider HTTP and retry:
 - `RUST_API_MINERU_BUNDLE_READY_TIMEOUT_CAP_SECS`: default `120`
 - `RUST_API_MINERU_BUNDLE_RETRY_MAX_DELAY_SECS`: default `12`
 - `RUST_API_MINERU_WAITING_FILE_GRACE_SECS`: default `90`
-- `RETAIN_OCR_PROVIDER_CONFIG`: canonical shared Rust/Python registry path; default `services/config/ocr_providers.json`
+- `RETAIN_OCR_PROVIDER_CONFIG`: canonical shared Rust/Python registry path; default `backend/config/ocr_providers.json`
 - `RUST_API_OCR_PROVIDER_CONFIG`: compatibility alias used only when the shared variable is unset
 - `RUST_API_PADDLE_BASE_URL`: default `https://paddleocr.aistudio-app.com`
-- `RETAIN_PADDLE_DEFAULT_MODEL`: canonical shared Rust/Python override; default from `services/config/ocr_providers.json`
+- `RETAIN_PADDLE_DEFAULT_MODEL`: canonical shared Rust/Python override; default from `backend/config/ocr_providers.json`
 - `RUST_API_PADDLE_DEFAULT_MODEL`: compatibility alias used only when the shared variable is unset
 - `RUST_API_PADDLE_REQUEST_TIMEOUT_SECS`: default `120`
 - `RUST_API_PADDLE_DOWNLOAD_TIMEOUT_SECS`: default `300`
@@ -325,8 +325,8 @@ Queue semantics:
 
 Read-only structured event APIs:
 
-- `GET /api/v1/jobs/{job_id}/events`
-- `GET /api/v1/ocr/jobs/{job_id}/events`
+- `GET /api/v1/jobs/{job_id}/progress/events` (old address `/api/v1/jobs/{job_id}/events` still works)
+- `GET /api/v1/ocr/jobs/{job_id}/events` (alias kept for OCR-only jobs)
 
 Query parameters:
 
@@ -338,7 +338,7 @@ Behavior:
 - events are returned in ascending `seq` order
 - the JSON response contains `items`, the effective `limit`, and `offset`; it
   does not currently contain `total` or `has_more`
-- `GET /api/v1/jobs/{job_id}/events` is the historical progress and debugging stream
+- `GET /api/v1/jobs/{job_id}/progress/events` is the historical progress and debugging stream
 - runtime merges DB events, `DATA_ROOT/jobs/<job_id>/logs/pipeline_events.jsonl`, and OCR child events from `{job_id}-ocr`
 - OCR child events are mapped back to the parent `job_id`
 - when an event came from the OCR child job, `payload.source_job_id` contains the child job ID and `payload.source_event` contains the original child event payload
