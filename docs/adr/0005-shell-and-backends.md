@@ -9,6 +9,12 @@
 > 固定测试数量和性能数字是 ADR 形成时的历史快照，不是当前验收门槛。早期
 > “SQLite 唯一写者”措辞也只描述当时拓扑；remote 模式下 API 与 jobsd 现在通过
 > `retainpdf-data` 和 WAL 访问同一数据库。
+>
+> 现状（2026-10-17）：后端源码目录是 `backend/`（上一条注记里的 `services/` 是中间的旧名）；正文里
+> `backend/api/src/services/jobs/…` 这类路径是当时的位置，任务领域现在是独立的包
+> `backend/packages/retainpdf-jobs`（`runtime_gateway.rs`、取消、实时进度都在它的 `src/` 下），进程监督器在
+> `backend/api/src/runtime/`（`ai_supervisor.rs`、`jobsd_supervisor.rs`）；`db.rs` 在
+> `database/retainpdf-db/src/db.rs`；容器装配在 `ops/deployment/docker/backend/Dockerfile.app`。
 
 ## 为什么推翻 ADR-001 的那一条
 

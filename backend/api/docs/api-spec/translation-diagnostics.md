@@ -2,6 +2,8 @@
 
 [API spec index](../../API_SPEC.md)
 
+> Address note: `/jobs/{job_id}/…` is grouped into nine categories (`actions`, `progress`, `files`, `reports`, `reader`, `translations`, `data`, `ai`). Some addresses on this page are the old ones; they are still served and return the same thing, but new code should use the new ones (`GET /jobs/{job_id}/reports/translation`, `/reports/translation-qa`, `/reports/refine`, `/reports/layout-fit`, `/translations`, `/translations/{item_id}`, `POST /jobs/{job_id}/translations/{item_id}/replay`, `POST /jobs/{job_id}/actions/retry-stage`). Old-to-new table: [`docs/api/01-任务/04-任务接口分类.md`](../../../../docs/api/01-任务/04-任务接口分类.md); every endpoint: [`docs/api/00-接口目录.md`](../../../../docs/api/00-接口目录.md).
+
 ## Translation Diagnostics Contract
 
 These endpoints are for fast item-level debugging. They expose the translation diagnostics artifact, the per-item debug index, the saved item payload, and a replay hook that reruns the current translation code on a single item without mutating job artifacts.
@@ -232,7 +234,7 @@ Response:
 
 Behavior:
 
-- launches `services/pipeline/devtools/replay_translation_item.py`
+- launches `backend/pipeline/devtools/replay_translation_item.py`
 - re-applies current policy to the saved item payload
 - if the item still qualifies for translation, reruns `translate_batch([item])`
 - never writes back to the original job directory

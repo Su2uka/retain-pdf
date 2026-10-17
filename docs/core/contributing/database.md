@@ -14,7 +14,7 @@
 ## 代码边界
 
 数据库访问统一收敛在
-`backend/packages/retainpdf-data/src/db.rs` 及其子模块：
+`database/retainpdf-db/src/db.rs` 及其子模块（`retainpdf-data` 重导出成 `retainpdf_data::db`）：
 
 - `db.rs`：`Db` facade，对外提供 job、artifact、event、document、conversation、operation 等持久化能力。
 - `db/schema/mod.rs`：编号迁移的执行器，以及老表的幂等加列（`ensure_*_column`）。

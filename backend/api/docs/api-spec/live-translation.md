@@ -2,6 +2,8 @@
 
 [API spec index](../../API_SPEC.md)
 
+> Address note: `/jobs/{job_id}/…` is grouped into nine categories (`actions`, `progress`, `files`, `reports`, `reader`, `translations`, `data`, `ai`). Some addresses on this page are the old ones; they are still served and return the same thing, but new code should use the new ones (`GET /jobs/{job_id}/progress/layout`, `/progress/pages/{page}`, `/progress/stream`, `PATCH /jobs/{job_id}/translations/{item_id}`). Old-to-new table: [`docs/api/01-任务/04-任务接口分类.md`](../../../../docs/api/01-任务/04-任务接口分类.md); every endpoint: [`docs/api/00-接口目录.md`](../../../../docs/api/00-接口目录.md).
+
 ## Durable Overlay Contract
 
 These authenticated endpoints let a reader display translated blocks while a

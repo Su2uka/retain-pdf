@@ -61,7 +61,6 @@
 
 - `GET /api/v1/documents`
 - `GET|PATCH|DELETE /api/v1/documents/{document_id}`
-- `DELETE /api/v1/documents/{document_id}/favorites`
 - `POST /api/v1/documents/{document_id}/ocr`
 - `POST /api/v1/documents/{document_id}/translate`
 - `GET /api/v1/documents/{document_id}/jobs`
@@ -91,6 +90,8 @@ SSE 只负责通知；会话、operation 和文档版本查询才是刷新或断
 
 ### OCR
 
+`/ocr/jobs/…` 是只做 OCR 的任务的旧别名，原样保留；新代码用 `POST /jobs`（`workflow` 选 OCR）和 `/jobs/{job_id}` 下的新地址。
+
 - `POST /api/v1/ocr/jobs`
 - `GET /api/v1/ocr/jobs/{job_id}`
 - `GET /api/v1/ocr/jobs/{job_id}/events`
@@ -103,34 +104,31 @@ SSE 只负责通知；会话、operation 和文档版本查询才是刷新或断
 
 ### 事件与诊断
 
-- `GET /api/v1/jobs/{job_id}/events`
-- `GET /api/v1/jobs/{job_id}/diagnostics`
-- `GET /api/v1/jobs/{job_id}/translation/diagnostics`
-- `GET /api/v1/jobs/{job_id}/translation/items`
-- `GET /api/v1/jobs/{job_id}/translation/items/{item_id}`
-- `POST /api/v1/jobs/{job_id}/translation/items/{item_id}/replay`
+- `GET /api/v1/jobs/{job_id}/progress/events`
+- `GET /api/v1/jobs/{job_id}/reports/failure`
+- `GET /api/v1/jobs/{job_id}/reports/translation`
+- `GET /api/v1/jobs/{job_id}/translations`
+- `GET /api/v1/jobs/{job_id}/translations/{item_id}`
+- `POST /api/v1/jobs/{job_id}/translations/{item_id}/replay`
 
 ### 阶段操作
 
-- `GET /api/v1/jobs/{job_id}/resume-plan`
-- `POST /api/v1/jobs/{job_id}/resume`
-- `GET /api/v1/jobs/{job_id}/stage-actions`
-- `POST /api/v1/jobs/{job_id}/retry-stage`
+- `GET /api/v1/jobs/{job_id}/actions`
+- `GET /api/v1/jobs/{job_id}/actions/resume`
+- `POST /api/v1/jobs/{job_id}/actions/resume`
+- `POST /api/v1/jobs/{job_id}/actions/retry-stage`
 
 ### 产物下载
 
-- `GET /api/v1/jobs/{job_id}/artifacts`
-- `GET /api/v1/jobs/{job_id}/artifacts-manifest`
-- `GET /api/v1/jobs/{job_id}/artifacts/{artifact_key}`
-- `GET /api/v1/jobs/{job_id}/pdf`
-- `GET /api/v1/jobs/{job_id}/pdf/side-by-side`
-- `GET /api/v1/jobs/{job_id}/cover`
-- `GET /api/v1/jobs/{job_id}/thumbnail`
-- `GET /api/v1/jobs/{job_id}/preview/pages/{page}`
-- `GET /api/v1/jobs/{job_id}/markdown`
-- `GET /api/v1/jobs/{job_id}/markdown/document`
-- `GET /api/v1/jobs/{job_id}/markdown/images/{path}`
-- `GET /api/v1/jobs/{job_id}/download`
+- `GET /api/v1/jobs/{job_id}/files`
+- `GET /api/v1/jobs/{job_id}/files/output/{name}`
+- `GET /api/v1/jobs/{job_id}/files/pages/{page}.jpg`
+- `GET /api/v1/jobs/{job_id}/files/internal/{name}`（多用户下只给管理员）
+- `GET /api/v1/jobs/{job_id}/reader/markdown`
+- `GET /api/v1/documents/{document_id}/files`
+- `GET /api/v1/documents/{document_id}/files/{name}`（原文 `source.pdf`、封面、缩略图）
+
+旧地址（`/pdf`、`/download`、`/markdown`、`/cover`、`/artifacts` 等）还能用，对照见[下载总览](07-产物下载/01-下载总览.md)。
 
 ## 前端读取原则
 

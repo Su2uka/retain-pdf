@@ -40,7 +40,9 @@ Rust 的原始配置默认使用进程内 jobs runtime，并关闭两个子服�
 | --- | --- |
 | `backend/api/` | Rust HTTP 壳、持久化、任务编排、恢复、下载与安全边界 |
 | `backend/packages/retainpdf-core/` | 配置、公共模型、路径和失败契约 |
-| `backend/packages/retainpdf-data/` | SQLite、OCR provider、worker command 与持久化适配 |
+| `database/retainpdf-db/` | SQLite 持久化（`retainpdf-data` 重导出成 `db`） |
+| `backend/packages/retainpdf-data/` | OCR provider、worker command、凭据与产物读取等持久化适配 |
+| `backend/packages/retainpdf-<领域>/` | 9 个领域包（accounts、ai、files、glossaries、ingest、jobs、library、platform、providers）和共用底座 `retainpdf-api-base`；`backend/api` 的 `src/services/mod.rs` 只负责把它们接上 |
 | `backend/packages/retainpdf-runner/` | worker 生命周期和 pipeline 执行状态机 |
 | `backend/jobs/` | 可选的独立 jobs runtime 进程 |
 | `backend/packages/retainpdf-proc/` | 进程组与 OS 进程工具 |
@@ -80,7 +82,7 @@ delivery seq 不等于原始事件 seq，也不等于翻译 SSE seq。协议、�
 ### 数据根布局
 
 `RUST_API_DATA_ROOT` 是运行数据的共同根。开发启动器默认使用仓库根 `data/`，
-Docker 使用 `/data`，桌面端传入应用数据目录；`services/data/` 不是通用运行真值。
+Docker 使用 `/data`，桌面端传入应用数据目录；仓库里的 `backend/` 目录不放运行数据。
 
 | 路径 | 所有者与语义 |
 | --- | --- |

@@ -65,7 +65,7 @@
 1. `POST /api/v1/uploads`
 2. `POST /api/v1/jobs`
 3. `GET /api/v1/jobs/{job_id}`
-4. `GET /api/v1/jobs/{job_id}/events`
+4. `GET /api/v1/jobs/{job_id}/progress/events`
 5. 根据 `actions` / `artifacts` / `artifacts_display` 下载产物
 6. 阅读问答和受限 PDF 操作统一使用 `POST /api/v1/ai/ask`；旧的
    `/api/v1/jobs/{job_id}/reader/ai/chat` 只保留兼容
@@ -271,23 +271,27 @@ Reader 宿主接入 job/artifact、Markdown、区域、页面元数据和实时�
 
 阶段恢复：
 
-- `POST /api/v1/jobs/{job_id}/cancel`
-- `POST /api/v1/jobs/{job_id}/rerun`
-- `GET /api/v1/jobs/{job_id}/stage-actions`
-- `POST /api/v1/jobs/{job_id}/retry-stage`
-- `GET /api/v1/jobs/{job_id}/resume-plan`
-- `POST /api/v1/jobs/{job_id}/resume`
+- `POST /api/v1/jobs/{job_id}/actions/cancel`
+- `POST /api/v1/jobs/{job_id}/actions/rerun`
+- `GET /api/v1/jobs/{job_id}/actions`
+- `POST /api/v1/jobs/{job_id}/actions/retry-stage`
+- `GET /api/v1/jobs/{job_id}/actions/resume`
+- `POST /api/v1/jobs/{job_id}/actions/resume`
+
+（旧地址 `/cancel`、`/rerun`、`/stage-actions`、`/retry-stage`、`/resume-plan`、`/resume` 还能用，对照见
+[任务接口分类](../../api/01-任务/04-任务接口分类.md)。）
+
 - 有 `translations_dir + source_pdf` 时，复用原 `job_id` 原地重渲染并替换渲染产物
 - 只有 `normalized_document_json + source_pdf` 时，创建新的 `book` 恢复任务
 - `workflow=translate` + `source.artifact_job_id`：复用 OCR checkpoint
 - `workflow=book` + `source.artifact_job_id`：复用 OCR checkpoint 后继续翻译并渲染
 - `workflow=render` + `source.artifact_job_id`：复用翻译产物后只重跑渲染
 
-`/resume` 当前复用 `/rerun` 的恢复执行契约；`/resume-plan` 用于前端先展示“会从哪里恢复、会复用哪些产物、会重跑哪些阶段”。
+`actions/resume` 当前复用 `actions/rerun` 的恢复执行契约；`GET actions/resume` 用于前端先展示“会从哪里恢复、会复用哪些产物、会重跑哪些阶段”。
 
 主动阶段重试：
 
-`GET /api/v1/jobs/{job_id}/stage-actions`
+`GET /api/v1/jobs/{job_id}/actions`
 
 返回每个阶段当前是否能主动重跑。前端按钮优先读这个接口，不要自己猜可重试阶段。
 
@@ -317,7 +321,7 @@ Reader 宿主接入 job/artifact、Markdown、区域、页面元数据和实时�
 }
 ```
 
-`POST /api/v1/jobs/{job_id}/retry-stage`
+`POST /api/v1/jobs/{job_id}/actions/retry-stage`
 
 ```json
 {
@@ -333,7 +337,7 @@ Reader 宿主接入 job/artifact、Markdown、区域、页面元数据和实时�
 ```
 
 返回新任务或原地任务的 `job_id`。前端拿到响应后直接按返回的 `job_id`
-进入 `GET /jobs/{job_id}` 和 `GET /jobs/{job_id}/events` 轮询。
+进入 `GET /jobs/{job_id}` 和 `GET /jobs/{job_id}/progress/events` 轮询。
 
 ## 6. 任务查询与事件
 
@@ -547,6 +551,9 @@ provider、operation、`resolution_revision`、允许的解决方式和需要填
 `seq` 重连。布局、页面快照和事件身份必须匹配同一 `attempt/generation/page_hash`。
 
 ## 7. 产物与下载
+
+> 文件下载已统一到 `/jobs/{job_id}/files/…`（任务产出的文件）和 `/documents/{document_id}/files/…`（书本身的文件），
+> 新地址和旧地址对照见 [下载总览](../../api/07-产物下载/01-下载总览.md)。本节写的是旧地址，仍然可用。
 
 产物接口：
 
@@ -906,6 +913,8 @@ operation 列表响应包含 `operations`、`total`、`limit`、`offset` 和 `ha
 ## 13.4 多用户：网站账号能访问什么
 
 只在多用户模式下生效；单机模式、`X-API-Key`（内部服务）不受这些限制。
+
+每个接口具体开放给谁，写在后端的接口登记表里，[接口目录](../../api/00-接口目录.md)的“谁能用”一列是准的（`public` / `signed` / `admin` / `closed`，没登记的接口当关闭）；下面按资源概述。
 
 - **开放给网站账号的资源**只有：`account`、`auth`、`collections`、`documents`、`fonts`、`glossaries`、
   `jobs`、`library`、`search`、`uploads`、`usage`（都在 `/api/v1/` 下），以及 `GET /api/v1/providers/ocr`。

@@ -1,7 +1,7 @@
 # Job events v2
 
-This is a coordinated, breaking upgrade of `GET /api/v1/jobs/:id/events`
-and `/api/v1/ocr/jobs/:id/events`. Ship the API, generated contracts, SDK and
+This is a coordinated, breaking upgrade of `GET /api/v1/jobs/:id/progress/events`
+(old address `/jobs/:id/events`) and `/api/v1/ocr/jobs/:id/events`. Ship the API, generated contracts, SDK and
 first-party web/desktop clients together. Translation `/live-events` SSE is
 unchanged and its sequence numbers are not event-feed cursors.
 

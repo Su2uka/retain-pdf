@@ -79,9 +79,9 @@ come from the AI service. Runtime-config responses are buffered and use
 sidecar; model and Gateway credentials are never returned in cleartext.
 
 The ask payload and SSE/result fields are defined by
-[`services/contracts/ai-ask.v1.schema.json`](../../../contracts/ai-ask.v1.schema.json).
+[`backend/contracts/ai-ask.v1.schema.json`](../../../contracts/ai-ask.v1.schema.json).
 Runtime configuration updates and redacted views are defined by
-[`services/contracts/runtime-config.v1.schema.json`](../../../contracts/runtime-config.v1.schema.json).
+[`backend/contracts/runtime-config.v1.schema.json`](../../../contracts/runtime-config.v1.schema.json).
 Runtime-config update bodies reject unknown fields so misspelled settings cannot
 silently return success without taking effect.
 Important state rules are:
@@ -118,7 +118,7 @@ POST   /api/v1/ai/conversations/{conversation_id}/messages
 ```
 
 The request and response shapes are defined by
-[`services/contracts/ai-conversations.v1.schema.json`](../../../contracts/ai-conversations.v1.schema.json).
+[`backend/contracts/ai-conversations.v1.schema.json`](../../../contracts/ai-conversations.v1.schema.json).
 Messages form a tree through `parent_id`; `head_id` chooses the visible leaf.
 Appending without `parent_id` attaches to the current head. Stable client
 `message_id` values make a request retry safe after an uncertain network

@@ -39,7 +39,7 @@ POST /api/v1/jobs/{job_id}/retry-stage
   `max_items` / `max_tokens` 是这次精修的上限（`0` = 不限），省略 = 不限（审全书）；**不沿用**任务里存的
   `refine_max_items` / `refine_max_tokens`。上次精修中途停了的，报告里 `review.next_page` 是没审到的第一页，
   用 `start_page` 从那一页接着精修。
-  这次的精修参数是一次性的，不会写进任务的 `translation.refine`；报告见 `GET /api/v1/jobs/{job_id}/translation/refine-report`。
+  这次的精修参数是一次性的，不会写进任务的 `translation.refine`；报告见 `GET /api/v1/jobs/{job_id}/reports/refine`。
 
 ## 响应示例
 
