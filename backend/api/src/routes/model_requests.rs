@@ -1,6 +1,7 @@
 //! Launcher routes require the application API key. Worker routes instead use
 //! a short-lived capability bound to exactly one job; never accept an API key
 //! as a worker capability and never accept an upstream URL in a model request.
+//! 两组路由的登记表在 `app/router/model_requests.rs`。
 use crate::services::providers::{ModelConnection, ModelRequest};
 use crate::{
     app::{build_model_requests_api_from_state, AppState},
@@ -9,29 +10,10 @@ use crate::{
 use axum::{
     extract::{Path, State},
     http::HeaderMap,
-    routing::{get, post},
-    Json, Router,
+    Json,
 };
 use serde_json::{json, Value};
 
-pub fn worker_routes() -> Router<AppState> {
-    Router::new()
-        .route("/api/v1/internal/model/jobs/:job_id/requests", post(submit))
-        .route(
-            "/api/v1/internal/model/jobs/:job_id/requests/:operation_id",
-            get(status),
-        )
-        .route(
-            "/api/v1/internal/model/jobs/:job_id/requests/:operation_id/cancel",
-            post(cancel),
-        )
-}
-pub fn launcher_routes() -> Router<AppState> {
-    Router::new().route(
-        "/api/v1/internal/model/jobs/:job_id/capability",
-        post(issue),
-    )
-}
 fn token(headers: &HeaderMap) -> Result<&str, AppError> {
     headers
         .get("authorization")
@@ -40,7 +22,7 @@ fn token(headers: &HeaderMap) -> Result<&str, AppError> {
         .filter(|s| s.len() == 64)
         .ok_or_else(|| AppError::Unauthorized("worker capability required".into()))
 }
-async fn issue(
+pub(crate) async fn issue(
     State(state): State<AppState>,
     Path(job_id): Path<String>,
     Json(profile): Json<ModelConnection>,
@@ -49,7 +31,7 @@ async fn issue(
         build_model_requests_api_from_state(&state).issue(&job_id, profile)?,
     ))
 }
-async fn submit(
+pub(crate) async fn submit(
     State(state): State<AppState>,
     Path(job_id): Path<String>,
     headers: HeaderMap,
@@ -60,7 +42,7 @@ async fn submit(
         .await?;
     Ok(Json(json!(operation)))
 }
-async fn status(
+pub(crate) async fn status(
     State(state): State<AppState>,
     Path((job_id, operation_id)): Path<(String, String)>,
     headers: HeaderMap,
@@ -72,7 +54,7 @@ async fn status(
     )?;
     Ok(Json(json!(operation)))
 }
-async fn cancel(
+pub(crate) async fn cancel(
     State(state): State<AppState>,
     Path((job_id, operation_id)): Path<(String, String)>,
     headers: HeaderMap,

@@ -83,7 +83,8 @@ only for compatibility. See the detailed credential contract below.
 
 - Update the domain page that owns the behavior; do not append new numbered
   sections to this index.
-- Treat `src/app/router/*.rs` as the authority for route registration. Endpoint
+- Treat the endpoint tables in `src/app/router/*.rs` (generated into
+  `docs/api/00-接口目录.md`) as the authority for route registration. Endpoint
   maps in these pages are curated navigation aids and must not be interpreted
   as additional or planned routes.
 - Keep public HTTP paths and schema identifiers unchanged when moving prose.

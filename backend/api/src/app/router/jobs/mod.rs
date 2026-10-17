@@ -1,12 +1,12 @@
 //! `/jobs` 的路由，按 9 类分文件，和 routes/jobs/ 一一对应（分类见 routes/jobs/mod.rs）。
 //!
-//! 每个新地址下面紧跟着它的旧地址（行尾标着 `// 旧地址`），指向同一个处理函数，一眼能看出
-//! 谁是谁的旧名字。路径都写全：接口清单快照（docs/routes.txt）和路径参数分类的测试直接读这些
-//! 字符串。旧地址只为已有调用方留着，不要再加；访问统计（`data/*/diagnostics/route-usage.json`）
-//! 确认没人用以后再删。
+//! 每个文件是一张接口登记表（`crate::endpoints!`，见 `app/endpoints.rs`）。每个新地址下面紧跟着它的旧地址
+//! （行尾写着 `old "<新地址>"`），指向同一个处理函数。路径都写全：路径参数分类的测试直接读这些字符串。
+//! 旧地址只为已有调用方留着，不要再加；访问统计（`data/*/diagnostics/route-usage.json`）确认没人用以后再删。
 
 use axum::Router;
 
+#[cfg(test)]
 use crate::app::endpoints::Endpoint;
 use crate::app::AppState;
 
@@ -33,7 +33,18 @@ pub(super) fn routes() -> Router<AppState> {
         .merge(ai::routes())
 }
 
-/// `/jobs` 下已经写成登记表的接口（还没改成登记表的路由文件不在这里）。
+/// `/jobs` 下全部接口的登记表。
+#[cfg(test)]
 pub(super) fn endpoints() -> Vec<&'static [Endpoint]> {
-    vec![actions::ENDPOINTS]
+    vec![
+        lifecycle::ENDPOINTS,
+        actions::ENDPOINTS,
+        progress::ENDPOINTS,
+        files::ENDPOINTS,
+        reports::ENDPOINTS,
+        reader::ENDPOINTS,
+        translations::ENDPOINTS,
+        data::ENDPOINTS,
+        ai::ENDPOINTS,
+    ]
 }

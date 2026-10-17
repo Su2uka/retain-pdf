@@ -59,10 +59,13 @@ router (`src/app/router/jobs/<category>.rs`), the handlers
 `/jobs/:job_id/actions/…` and so on). A new job endpoint goes into the category that answers its question;
 do not add top-level `/jobs/:job_id/<name>` paths.
 
-Each legacy path is registered right below its new path, marked `// 旧地址`,
-and points at the same handler, so both return exactly the same thing. Paths
-are written out in full: `docs/routes.txt` and the path-parameter
-classification test read the router sources. Legacy paths are removed only
+Every router file is an endpoint table (`crate::endpoints!`, see
+`src/app/endpoints.rs`): method, path, handler, access, a one-line summary.
+Each legacy path is registered right below its new path with
+`old "<new path>"` and points at the same handler, so both return exactly the
+same thing. `docs/routes.txt` and `docs/api/00-接口目录.md` are generated from
+the tables; paths are written out in full because the path-parameter
+classification test reads the router sources. Legacy paths are removed only
 after route usage shows no callers.
 
 ## Library Facade

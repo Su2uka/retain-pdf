@@ -22,6 +22,7 @@ pub enum Access {
     Closed,
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
 impl Access {
     pub fn label(self) -> &'static str {
         match self {
@@ -33,8 +34,9 @@ impl Access {
     }
 }
 
-/// 登记表里的一条。
+/// 登记表里的一条。说明、处理函数这些字段只有接口目录用（测试里生成）。
 #[derive(Clone, Copy, Debug)]
+#[cfg_attr(not(test), allow(dead_code))]
 pub struct Endpoint {
     /// `GET`、`POST`……
     pub method: &'static str,
@@ -51,7 +53,7 @@ pub struct Endpoint {
     pub module: &'static str,
 }
 
-/// 写一张登记表，生成 `pub(super) fn routes()` 和 `pub(super) const ENDPOINTS`。
+/// 写一张登记表，生成 `pub(crate) fn routes()` 和 `pub(crate) const ENDPOINTS`。
 ///
 /// ```ignore
 /// endpoints! {
@@ -80,7 +82,7 @@ macro_rules! endpoints {
             ;
         )*
     ) => {
-        pub(super) fn routes() -> ::axum::Router<$state> {
+        pub(crate) fn routes() -> ::axum::Router<$state> {
             let router = ::axum::Router::new();
             $(
                 let router = router.route(
@@ -92,7 +94,7 @@ macro_rules! endpoints {
         }
 
         #[allow(dead_code)]
-        pub(super) const ENDPOINTS: &[$crate::app::endpoints::Endpoint] = &[
+        pub(crate) const ENDPOINTS: &[$crate::app::endpoints::Endpoint] = &[
             $(
                 $crate::app::endpoints::Endpoint {
                     method: stringify!($method),
