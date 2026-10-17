@@ -305,7 +305,7 @@ Reader 宿主接入 job/artifact、Markdown、区域、页面元数据和实时�
       "danger": false,
       "action": {
         "method": "POST",
-        "url": "/api/v1/jobs/job-id/retry-stage",
+        "url": "/api/v1/jobs/job-id/actions/retry-stage",
         "body": {
           "stage": "translation",
           "mode": "from_stage",
