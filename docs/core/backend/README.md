@@ -1,6 +1,6 @@
 # 后端总体架构
 
-这里描述 `services/` 下各后端模块的当前边界和运行关系。
+这里描述 `backend/` 下各后端模块的当前边界和运行关系。
 
 - [后端架构总览](./ARCHITECTURE.md)
 - [Rust API 架构](../rust_api/README.md)

@@ -24,6 +24,8 @@
 - `/api/v1/ocr/jobs/{job_id}/normalization-report`
 - `/api/v1/ocr/jobs/{job_id}/cancel`
 
+这组 `/ocr/jobs/…` 地址原样保留，在接口登记表里算 `/jobs` 的旧地址（只认 OCR-only 任务，对网站账号关闭）；新代码建任务用 `POST /api/v1/jobs`，其余用 `/jobs/{job_id}` 下的新地址，对照见 [任务接口分类](../../docs/api/01-任务/04-任务接口分类.md)。
+
 当前示例仍以 `mineru` 为主，但这只是 provider 示例，不代表 OCR-only 协议默认绑定 MinerU。
 
 这条 OCR-only 流程在整套系统中的位置是：
@@ -46,11 +48,12 @@
 
 内部实现说明：
 
-- `app/router.rs` 负责挂载 `/api/v1/ocr/jobs*` 路由
+- `app/router/ingestion.rs` 的接口登记表登记 `/api/v1/ocr/jobs*` 路由（这组是 `/jobs` 的旧地址别名，处理函数仍在 `routes/jobs/*`）
 - `routes/jobs/lifecycle.rs` 负责 OCR `multipart/form-data` 入口和查询
 - `routes/jobs/actions.rs` / `routes/jobs/files.rs` 负责取消和产物下载
 - `routes/job_requests.rs` 负责 OCR 表单解析
 - `routes/common.rs` / `routes/download_response/**` / `routes/job_helpers.rs` 负责 OCR / 通用 job 的公共 response 与下载辅助逻辑
+- 下面几条的 `services/jobs/...` 是逻辑路径，代码在任务包 `backend/packages/retainpdf-jobs/src/`
 - `services/jobs/facade.rs` 负责稳定服务入口
 - `services/jobs/lifecycle/creation/submit.rs`（`submit_job`）负责 OCR job 构建
 - `services/jobs/lifecycle/validation.rs` 负责 provider 参数校验

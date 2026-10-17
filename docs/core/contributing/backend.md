@@ -36,8 +36,8 @@ Rust 的底座包 `retainpdf-api-base` 和 Python 的底座包 `retainpdf-base`�
 默认依赖方向：
 
 ```text
-rust_api app/router -> routes -> services/facades
-services/facades -> retainpdf-core + retainpdf-data
+rust_api app/router -> routes -> services（9 个领域包的门面）
+领域包（retainpdf-jobs 等） -> retainpdf-api-base + retainpdf-core + retainpdf-data（任务包另用 retainpdf-runner、retainpdf-proc）
 retainpdf-runner -> retainpdf-core + retainpdf-data + retainpdf-proc
 retain-jobsd -> retainpdf-runner + retainpdf-data
 ```
@@ -45,11 +45,11 @@ retain-jobsd -> retainpdf-runner + retainpdf-data
 基本规则：
 
 - `src/app/router/*` 只装配路由；`src/routes/*` 只做 HTTP adapter、提取器和响应包装。
-- `src/services/*` 放应用用例、facade 和安全 projection，不直接拥有 worker 生命周期。
-- `crates/retainpdf-core` 只放跨 crate 的领域类型、配置和稳定 DTO，不反向依赖 HTTP、SQLite 或 runner。
-- `crates/retainpdf-data` 拥有 SQLite、artifact/credential 读取以及 provider 数据边界。
-- `crates/retainpdf-runner` 拥有队列、stage 编排、进程拉起、取消、OCR dispatch 和恢复。
-- `crates/retainpdf-proc` 只提供通用子进程安全原语；`retain-jobsd` 是独立任务监督入口。
+- 应用用例、facade 和安全 projection 放在 9 个领域包里（`backend/packages/retainpdf-<领域>`；`src/services/mod.rs` 只把它们接成 `crate::services::<领域>`），不直接拥有 worker 生命周期。
+- `backend/packages/retainpdf-core` 只放跨 crate 的领域类型、配置和稳定 DTO，不反向依赖 HTTP、SQLite 或 runner。
+- `database/retainpdf-db` 拥有 SQLite（`retainpdf-data` 重导出成 `db`）；`backend/packages/retainpdf-data` 拥有 artifact/credential 读取、worker 命令以及 provider 数据边界。
+- `backend/packages/retainpdf-runner` 拥有队列、stage 编排、进程拉起、取消、OCR dispatch 和恢复。
+- `backend/packages/retainpdf-proc` 只提供通用子进程安全原语；`retain-jobsd` 是独立任务监督入口。
 - 不要为了省事把 `AppState` 传进只需要 `Db`、`AppConfig`、`Path` 或 semaphore 的 helper。
 
 更细规则见 [Rust API 协同开发约定](../rust_api/09-协同开发约定.md)。

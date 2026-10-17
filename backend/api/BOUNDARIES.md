@@ -4,6 +4,13 @@ This backend keeps route wiring, job orchestration, query scope checks, and view
 projection separate. Keep new code on the narrowest layer that owns the
 decision.
 
+Paths written as `src/services/<domain>/…` (or `services/<domain>/…`) in this
+file are logical paths: every service domain is its own package, so the code
+lives in `backend/packages/retainpdf-<domain>/src/…` (for example
+`src/services/jobs/lifecycle/creation/submit.rs` is
+`backend/packages/retainpdf-jobs/src/lifecycle/creation/submit.rs`).
+`backend/api/src/services/` only holds `mod.rs`.
+
 ## Route Layer
 
 Files under `src/routes/**` should only:
@@ -189,23 +196,29 @@ that has already passed the route/facade scope.
 
 ## Domain Facades
 
-`src/services/` holds exactly nine domain directories, one per future crate
-(see `docs/ops/planning/api-reorg/20261015-模块化单体拆包规划.md`):
+There are exactly nine service domains, each its own package (see
+`docs/ops/planning/api-reorg/20261015-模块化单体拆包规划.md`):
 `accounts`, `providers`, `ingest`, `files`, `jobs`, `library`, `glossaries`,
 `ai`, `platform`. A new module goes inside one of them;
-`check_service_domains` rejects anything else at the top level.
+`check_service_domains` rejects anything else under `src/services/`, and
+`check_domain_facades` rejects code added back under `src/services/<domain>`.
 
-Each domain's `mod.rs` is its only facade. Submodules are private (`mod x;`),
-so the compiler rejects `crate::services::<domain>::<submodule>::…` from
-outside the domain; what other domains, routes and app assembly need is
-re-exported with `pub(crate) use` in one block marked `// 门面`. Items only tests
-use sit under `#[cfg(test)]` in the same block. `check_domain_facades` rejects a
-`pub mod` in a domain's `mod.rs`. Inside a domain, code may use any path.
+Each domain package's `lib.rs` is its only facade. Submodules are private
+(`mod x;`), so the compiler rejects `crate::services::<domain>::<submodule>::…`
+from outside the domain; what other domains, routes and app assembly need is
+re-exported with `pub use` in the facade. Items only tests use sit under
+`#[cfg(any(test, feature = "test-fixtures"))]`. `check_domain_facades` rejects a
+`pub mod` in a facade. Inside a domain, code may use any path.
 
-A domain that has been split into its own crate is listed in
-`EXTRACTED_DOMAINS` (so far: `accounts` → `backend/packages/retainpdf-accounts`, `ai` → `backend/packages/retainpdf-ai`, `files` → `backend/packages/retainpdf-files`, `glossaries` → `backend/packages/retainpdf-glossaries`, `ingest` → `backend/packages/retainpdf-ingest`, `jobs` → `backend/packages/retainpdf-jobs`, `library` → `backend/packages/retainpdf-library`, `platform` →
-`backend/packages/retainpdf-platform`, `providers` → `backend/packages/retainpdf-providers`).
-Its `lib.rs` is the facade, `services/mod.rs` re-exports it as
+All nine domains are listed in `EXTRACTED_DOMAINS`: `accounts` →
+`backend/packages/retainpdf-accounts`, `ai` → `backend/packages/retainpdf-ai`,
+`files` → `backend/packages/retainpdf-files`, `glossaries` →
+`backend/packages/retainpdf-glossaries`, `ingest` →
+`backend/packages/retainpdf-ingest`, `jobs` → `backend/packages/retainpdf-jobs`,
+`library` → `backend/packages/retainpdf-library`, `platform` →
+`backend/packages/retainpdf-platform`, `providers` →
+`backend/packages/retainpdf-providers`.
+`services/mod.rs` re-exports each as
 `services::<domain>` (`pub(crate) use retainpdf_glossaries as glossaries;`),
 and nothing for it stays under `services/`. Exports only rust_api tests use sit
 under `#[cfg(any(test, feature = "test-fixtures"))]`; rust_api turns the feature on in

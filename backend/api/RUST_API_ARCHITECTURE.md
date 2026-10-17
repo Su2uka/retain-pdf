@@ -100,8 +100,8 @@ app -> routes -> application services -> internal services -> job_runner / ocr_p
 - 平台包 `retainpdf-platform` 的 `health_api.rs`
   负责 liveness/readiness 投影和 supervisor 状态聚合；公共 health route
   只做 HTTP 状态码映射，不直接读取数据库或 supervisor 全局状态
-- `routes/jobs/json_response/**`
-  负责 jobs JSON 查询 / 调试 / 控制 / retry 的 response boundary
+- `routes/common/response.rs`
+  负责 JSON 响应的统一包装（`ok_json`，套 `ApiResponse` 信封）
 - `app/jobs.rs::build_process_runtime_deps(...)`
   负责 runner 装配
 
@@ -117,7 +117,7 @@ app -> routes -> application services -> internal services -> job_runner / ocr_p
     已固定为 persistence-only 边界；调用方传 `&deps.persist`。这些模块不能再接收
     `ProcessRuntimeDeps`、全局配置或执行控制资源；拆成子模块后规则仍然适用。
 - `app/state.rs`
-  只负责 `AppState` 组装；启动期遗留 running 任务恢复已经下沉到 `app/state_recovery.rs`
+  只负责 `AppState` 组装；启动期遗留 running 任务恢复已经下沉到运行器包的 `job_runner/startup_recovery.rs`
 - `job_runner/lifecycle.rs`
   只保留 runner 顶层编排；其中“queued 持久化/取消短路”和“按 workflow 分派执行”应继续保持为小 helper，而不是重新塞回一个大函数
 
@@ -263,8 +263,8 @@ Rust 侧关键落点：
   artifact facade（文件已拆成独立的包 `retainpdf-files`）；现在已拆成 `registry / bundle / response`
 - [src/routes/download_response.rs](src/routes/download_response.rs)
   负责文件下载、markdown、preview、cover、thumbnail 的 HTTP 响应出口
-- [src/routes/jobs/json_response](src/routes/jobs/json_response)
-  负责 jobs JSON 查询 / 调试 / 控制 / retry 类 HTTP 响应出口
+- [src/routes/common/response.rs](src/routes/common/response.rs)
+  负责 JSON 响应的统一包装（`ok_json`）
 
 边界规则：
 
@@ -277,7 +277,7 @@ Rust 侧关键落点：
 - `db.rs`
   现在也只保留 `Db` facade；row decode 和 schema 检查分别下沉到
   `../../database/retainpdf-db/src/db/rows.rs`、`../../database/retainpdf-db/src/db/schema/`
-- `routes/jobs/download.rs`
+- `routes/jobs/files.rs`
   只暴露稳定下载入口，不承诺 provider 私有字段语义
 - `normalized-document` / `normalization-report`
   属于 normalized 边界，不属于 provider raw
@@ -340,6 +340,7 @@ Rust 侧关键落点：
 - [src/app/mod.rs](src/app/mod.rs)
 - [src/app/state.rs](src/app/state.rs)
 - [src/app/router.rs](src/app/router.rs)
+- [src/app/endpoints.rs](src/app/endpoints.rs)（接口登记表的定义；路由都登记在 `app/router/**` 的表里）
 - [src/app/server.rs](src/app/server.rs)
 - [src/app/router/ai.rs](src/app/router/ai.rs)
 - [src/app/router/internal_agent.rs](src/app/router/internal_agent.rs)
@@ -395,14 +396,14 @@ Rust 侧关键落点：
 
 - `routes/jobs/*` 只通过 response boundary 调 `JobsFacade`
 - `routes/library.rs` / `library_data.rs` / `library_extras.rs` / `collections.rs`
-  只调 `services/library_api.rs`（经 `build_library_route_deps`）
+  只调书库包 `retainpdf-library` 的 `src/api.rs`（经 `build_library_route_deps`）
 - `routes/common.rs`
   作为稳定导出入口；`routes/common/**` 按领域保留 deps builder、
   base URL、统一 HTTP envelope 和安全输入 extractor
 - `routes/download_response/**`
   只保留文件响应出口
-- `routes/jobs/json_response/**`
-  只保留 JSON 响应出口
+- `routes/common/response.rs`
+  只保留 JSON 响应包装（`ok_json`）
 - `routes/glossaries.rs`
   只调术语表包（`retainpdf-glossaries`）的门面
 - `routes/uploads.rs`
@@ -439,7 +440,7 @@ Rust 侧关键落点：
 
 目录：
 
-- [src/services](src/services)
+- [src/services](src/services)（只剩 `mod.rs`，把 9 个领域包接成 `crate::services::<领域>`；代码在 `../packages/retainpdf-<领域>/src`）
 
 职责：
 
@@ -470,14 +471,14 @@ Rust 侧关键落点：
 - library 域 DTO（`DocumentRecord`、favorites/search/collections 等）经
   `models::api` 再导出；route 与 migrated `db/*` **不得** 直连 `models::library`
 
-#### `services/library_api` + `services/library/*`
+#### 书库包 `retainpdf-library`（`api.rs` + 其余模块）
 
 模块化单体下的 Library 域（**不是**微服务拆分）：
 
 ```text
 routes/library*.rs, collections.rs
-  → library_api (view 级 API)
-      → services/library/*
+  → library/api.rs (view 级 API)
+      → library 包内部模块
            books | documents | media | translate
            favorites | search | assets | conversations | collections
       → JobsFacade   (仅 translate-from-library 创建 job)
@@ -530,6 +531,9 @@ routes/library*.rs, collections.rs
   `jobs` 不能反向依赖 `book_projection`，公共展示也不能回调这些业务模块。
 - [../packages/retainpdf-files/src/derived_artifacts](../packages/retainpdf-files/src/derived_artifacts)
   负责 cover/thumbnail/page preview 等派生产物（由 library media / jobs downloads 调用，**不**被 route 直连）
+
+下面凡是 `services/<领域>/...` 都是**逻辑路径**：9 个领域都是独立的包，真实代码在
+`backend/packages/retainpdf-<领域>/src/...`（`services/mod.rs` 只负责把包接成 `crate::services::<领域>`）。
 
 其中 `services/jobs` 和 `routes/jobs/`、`app/router/jobs/` 一样按 9 类分目录（2026-10-16，
 见 `docs/ops/planning/api-reorg/20261016-任务接口分类实现记录.md`）：
@@ -604,15 +608,16 @@ routes/library*.rs, collections.rs
 
 - `views.rs`
   负责 API view 组装
-- `summary_loaders.rs`
-  负责从 manifest / report / summary 文件读取摘要信息
 - `mod.rs`
   负责 presentation 对外边界
+
+从 manifest / report / summary 文件读取摘要信息的是任务包根目录的 `summary_loaders/`（各类共用，不在
+`presentation/` 里）。
 
 规则：
 
 - 改 JSON 返回结构，优先改 `views.rs`
-- 改从磁盘补充的摘要字段，优先改 `summary_loaders.rs`
+- 改从磁盘补充的摘要字段，优先改 `summary_loaders/`
 - 不要把文件读取逻辑重新塞回 view 组装函数
 
 ### 2.5 `job_runner/`
@@ -837,9 +842,9 @@ routes/library*.rs, collections.rs
 主链：
 
 1. `POST /api/v1/jobs`
-2. `routes/jobs/create.rs`
-3. `services/jobs/facade.rs`
-4. `services/jobs/lifecycle/creation.rs`
+2. `routes/jobs/lifecycle.rs`
+3. `services/jobs/facade.rs`、`services/jobs/lifecycle/submission.rs`
+4. `services/jobs/lifecycle/creation/submit.rs`（`submit_job`）
 5. `services/jobs/lifecycle/snapshot_factory.rs`
 6. `services/jobs/lifecycle/launcher.rs`
 7. `job_runner/lifecycle.rs`
@@ -896,7 +901,7 @@ routes/library*.rs, collections.rs
 
 新增文件读取摘要逻辑，优先放：
 
-- `services/jobs/presentation/summary_loaders.rs`
+- `services/jobs/summary_loaders/`（任务包根目录）
 
 不要散落到：
 
@@ -941,7 +946,7 @@ routes/library*.rs, collections.rs
 改动顺序：
 
 1. `services/jobs/presentation/views.rs`
-2. 如果字段来自磁盘摘要，再改 `summary_loaders.rs`
+2. 如果字段来自磁盘摘要，再改 `summary_loaders/`
 
 ## 6. 当前建议
 

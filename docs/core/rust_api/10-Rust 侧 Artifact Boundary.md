@@ -113,16 +113,16 @@ Rust 侧不应把 provider raw 和 normalized 混成一个概念。
 Rust 侧与这四层最直接相关的文件是：
 
 - `backend/packages/retainpdf-core/src/storage_paths.rs`
-- `backend/api/src/services/files/artifacts/mod.rs`
-- `backend/api/src/routes/jobs/download.rs`
+- `backend/packages/retainpdf-files/src/artifacts/mod.rs`
+- `backend/api/src/routes/jobs/files.rs`
 
 这三处的边界约定是：
 
 - `storage_paths.rs`
   负责路径约定、artifact key、文件解析和 published artifact 发现
-- `services/files/artifacts/*`
+- 文件包 `retainpdf-files` 的 `src/artifacts/*`
   负责 artifact registry、bundle 构建、资源路径映射
-- `routes/jobs/download.rs`
+- `routes/jobs/files.rs`
   负责 HTTP 下载入口适配
 
 它们都不应该开始理解 provider raw 的内部字段。
@@ -134,5 +134,5 @@ Rust 侧与这四层最直接相关的文件是：
 正确方向通常是：
 
 - provider 变化，改 adapter / normalize
-- published artifact 变化，改 `storage_paths.rs` / `services/files/artifacts/*`
+- published artifact 变化，改 `storage_paths.rs` / 文件包的 `src/artifacts/*`
 - HTTP 暴露变化，改下载 route / facade

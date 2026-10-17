@@ -28,12 +28,12 @@
 
 - `ai_supervisor.rs`、`jobsd_supervisor.rs`：子进程启动、探活、退避重启和退出回收。
 - `app/server.rs` 持有 shutdown 通道并等待监督任务结束；`app/state.rs` 给 AI 网关注入状态读取函数。
-- 平台包 `retainpdf-platform` 的 `health_api.rs` 保留 HTTP 健康状态投影（监督器状态由 `routes/common/health.rs` 读好传进去）；任务控制接口 `services/jobs/runtime_gateway.rs` 不属于进程监督器，不随目录名搬迁。
+- 平台包 `retainpdf-platform` 的 `health_api.rs` 保留 HTTP 健康状态投影（监督器状态由 `routes/common/health.rs` 读好传进去）；任务控制接口（任务包 `retainpdf-jobs` 的 `runtime_gateway.rs`）不属于进程监督器，不随目录名搬迁。
 - 当前状态仍由进程级原子量持有；本批不改变默认启动方式和 in-process/remote 语义。
 
 ### `src/app`
 
-jobs 的依赖装配由 `app/jobs.rs` 完成；依赖定义在 `services/jobs/deps/`：
+jobs 的依赖装配由 `app/jobs.rs` 完成；依赖定义在任务包的 `deps/`（逻辑路径 `services/jobs/deps/`）：
 `command.rs` 管提交、快照与控制，`query.rs` 管查询/下载及 owned 快照，
 `replay.rs` 管重放所需路径和命令。查询模块不依赖 `creation` 的内部上下文。
 稳定 facade 位于 `services/jobs/facade.rs`（只放结构体），各个用例按 9 类写在
@@ -47,7 +47,10 @@ jobs 的依赖装配由 `app/jobs.rs` 完成；依赖定义在 `services/jobs/de
   - [`src/app/state.rs`](src/app/state.rs)
     `AppState` 和全局资源初始化。
   - [`src/app/router.rs`](src/app/router.rs)
-    axum 路由总挂载点。
+    axum 路由总挂载点；每个 `src/app/router/<领域>.rs`、`router/jobs/<类>.rs` 是一张接口登记表。
+  - [`src/app/endpoints.rs`](src/app/endpoints.rs)
+    接口登记表的定义（`crate::endpoints!`）：一条接口写方法、地址、处理函数、多用户下谁能用、一句话说明，
+    路由注册、接口清单快照和接口目录（`docs/api/00-接口目录.md`）都从表生成。
   - [`src/app/jobs.rs`](src/app/jobs.rs)
     jobs facade 组合根。这里负责把 `AppState` 装成 `JobsFacade`，`routes` 不再直接碰 `job_runner`。
 
@@ -89,22 +92,21 @@ jobs 的依赖装配由 `app/jobs.rs` 完成；依赖定义在 `services/jobs/de
 
 #### `src/routes/jobs`
 
-- `json_response/`
-  jobs JSON 查询 / detail / cancel / retry 的响应出口，只调用 `JobsFacade`
-  并封装 `ApiResponse`。
-- `create.rs` / `download.rs` / `query.rs` / `control.rs` / `translation_debug.rs`
-  真正的 axum route 入口。
+- `lifecycle.rs` / `actions.rs` / `progress.rs` / `files.rs` / `reports.rs` / `reader.rs` /
+  `translations.rs` / `data.rs` / `ai.rs`
+  真正的 axum route 入口，按 `/jobs` 的 9 类分文件，只调用 `JobsFacade` / `JobQueries`
+  并封装 `ApiResponse`（`routes/common/response.rs` 的 `ok_json`）。
 
 #### `src/routes` library 面
 
 - `library.rs`
-  books 投影 API；只调 `library_api`；cover/thumbnail 走 `download_response`。
+  books 投影 API；只调书库包的 `api.rs`；cover/thumbnail 走 `download_response`。
 - `library_data.rs`
-  documents / media / translate-from-library / favorites / search；只调 `library_api`。
+  documents / media / translate-from-library / favorites / search；只调书库包的 `api.rs`。
 - `library_extras.rs`
-  assets / conversations；multipart 解包留在 route，业务进 `library_api`。
+  assets / conversations；multipart 解包留在 route，业务进书库包的 `api.rs`。
 - `collections.rs`
-  合集 CRUD 与成员关系；只调 `library_api`。
+  合集 CRUD 与成员关系；只调书库包的 `api.rs`。
 - deps：`routes/common.rs::build_library_route_deps`（`LibraryDeps` + `JobsFacade`）。
 
 #### `src/routes` AI / Agent 面
@@ -128,9 +130,11 @@ jobs 的依赖装配由 `app/jobs.rs` 完成；依赖定义在 `services/jobs/de
 ### `src/services`
 
 - 作用：
-  application service 入口和内部业务实现，按 9 个领域分目录（`accounts`、`providers`、`ingest`、`files`、
-  `jobs`、`library`、`glossaries`、`ai`、`platform`，见 `src/services/mod.rs`）。
-- 每个领域的 `mod.rs` 是它唯一的门面：子模块私有，路由、装配和别的领域只用门面导出的东西
+  application service 入口和内部业务实现，按 9 个领域分成 9 个独立的包（`accounts`、`providers`、`ingest`、
+  `files`、`jobs`、`library`、`glossaries`、`ai`、`platform`，包在 `../packages/retainpdf-<领域>`）。
+  `src/services/` 下只剩 `mod.rs`，把包接成 `crate::services::<领域>`；本节以及下文的 `services/<领域>/...`
+  都是逻辑路径，真实代码在对应包的 `src/` 下。
+- 每个领域包的 `lib.rs` 是它唯一的门面：子模块私有，路由、装配和别的领域只用门面导出的东西
   （见 `BOUNDARIES.md` 的 "Domain Facades"）。
 
 #### 入口包的 `uploads` 与 AI 包（`retainpdf-ai`）
@@ -178,10 +182,10 @@ jobs 的依赖装配由 `app/jobs.rs` 完成；依赖定义在 `services/jobs/de
   - `collection_workspace.rs` — 文件夹级 agent 工作区（把一个合集的书物化成目录，给 AI 服务读）
   - `documents.rs` / `media.rs` — 文档 CRUD 与 source.pdf/cover/thumbnail
   - `translate.rs` — 绑定文档 upload 后调 `JobsFacade::create_submission`
-  - `favorites.rs` / `search.rs` — 锚点收藏与 blocks FTS
+  - `search.rs` — blocks FTS 全文检索
   - `assets.rs` / `conversations.rs` / `collections.rs` — 资产、会话、合集
 - 规则：
-  route 只 import `library_api::`；`derived_artifacts` 只允许在 service 内部使用。
+  route 只用 `api.rs` 导出的 view 函数（经 `services::library` 门面）；`derived_artifacts` 只允许在 service 内部使用。
 
 #### `src/services/jobs/lifecycle/creation`
 
@@ -351,7 +355,7 @@ jobs 的依赖装配由 `app/jobs.rs` 完成；依赖定义在 `services/jobs/de
 如果第一次进这个后端，建议按这个顺序看：
 
 1. [`src/app/router.rs`](src/app/router.rs)
-   先知道有哪些 HTTP 入口。
+   先知道有哪些 HTTP 入口（各领域的接口登记表；全部接口的清单见 `docs/api/00-接口目录.md`）。
 2. [`src/app/jobs.rs`](src/app/jobs.rs)
    再看 jobs 相关依赖是怎么装起来的。
 3. [`src/routes/jobs`](src/routes/jobs)

@@ -7,7 +7,9 @@
 ## 建议阅读顺序
 
 1. 对外 HTTP API、图书馆接口和前端接入：
-   [`../docs/core/api/index.md`](../../docs/core/api/index.md)
+   [`../docs/core/api/index.md`](../../docs/core/api/index.md)；
+   全部接口一张表（方法、地址、谁能用、旧地址，从接口登记表生成）：
+   [`docs/api/00-接口目录.md`](../../docs/api/00-接口目录.md)
 2. 当前系统到底怎么跑：
    [`CURRENT_API_MAP.md`](CURRENT_API_MAP.md)
 3. 先看目录，知道改哪里：
