@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from retainpdf_pipeline.services.pipeline_shared.io import save_json
+from retainpdf_base.io import save_json
 
 
 TRANSLATION_REVIEW_FILE_NAME = "translation_review.json"

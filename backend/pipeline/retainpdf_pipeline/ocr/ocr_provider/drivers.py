@@ -7,7 +7,7 @@ from retainpdf_pipeline.ocr.ocr_provider.local_command_driver import run_local_c
 from retainpdf_pipeline.ocr.ocr_provider.provider_config import configured_command_providers
 from retainpdf_pipeline.ocr.ocr_provider.types import OcrProviderDriver
 from retainpdf_pipeline.ocr.ocr_provider.types import OcrProviderResult
-from retainpdf_pipeline.services.pipeline_shared.events import emit_stage_transition
+from retainpdf_base.events import emit_stage_transition
 
 
 def normalize_provider_name(provider: str) -> str:

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from retainpdf_pipeline.services.pipeline_shared.io import save_json
+from retainpdf_base.io import save_json
 
 from .aggregator import TranslationRunDiagnostics
 from .item_summary import normalized_item_diagnostics

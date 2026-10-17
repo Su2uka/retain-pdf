@@ -4,9 +4,9 @@ import os
 import shutil
 from pathlib import Path
 
-from retainpdf_pipeline.foundation.config.output_layout import RENDERED_DIR_NAME
-from retainpdf_pipeline.foundation.config.output_layout import TYPST_DIR_NAME
-from retainpdf_pipeline.foundation.config import paths
+from retainpdf_base.output_layout import RENDERED_DIR_NAME
+from retainpdf_base.output_layout import TYPST_DIR_NAME
+from retainpdf_base import paths
 from retainpdf_math.normalize import aggressively_simplify_formula_for_latex_math
 from retainpdf_pipeline.render.layout.payload.shared import get_render_formula_map
 

@@ -80,6 +80,7 @@ WORKDIR /workspace
 
 COPY backend/pyproject.toml backend/uv.lock ./
 COPY backend/ai/pyproject.toml ai/pyproject.toml
+COPY backend/base/pyproject.toml base/pyproject.toml
 COPY backend/math/pyproject.toml math/pyproject.toml
 COPY backend/pipeline/pyproject.toml pipeline/pyproject.toml
 
@@ -290,9 +291,11 @@ COPY --from=docbuilder /build/backend/packages/retainpdf2doc/dist /app/services/
 COPY --from=docbuilder /build/backend/packages/retainpdf2doc/assets /app/services/retainpdf2doc/assets
 COPY --from=rprengine /build/rendering-engine /app/services/rendering-engine
 COPY backend/ai /app/services/ai
+# 底座包（阶段事件、JSON 落盘、路径、本地密钥）：pipeline 依赖它。
+COPY backend/base /app/services/base
 # 公式包（LaTeX 登记表、公式检查）：pipeline 依赖它；登记表 json 随包数据装进去。
 COPY backend/math /app/services/math
-RUN pip install --no-cache-dir --no-deps /app/services/math /app/services/pipeline /app/services/ai
+RUN pip install --no-cache-dir --no-deps /app/services/base /app/services/math /app/services/pipeline /app/services/ai
 COPY backend/api/auth.local.example.json /app/services/api/auth.local.example.json
 COPY ops/deployment/docker/backend/entrypoint-app.sh /entrypoint.sh
 

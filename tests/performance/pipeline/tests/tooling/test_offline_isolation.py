@@ -31,7 +31,7 @@ def test_child_drops_parent_settings_and_isolates_all_cache_roots(tmp_path, monk
     assert "synthetic-parent-only" not in env.values()
     script = tmp_path / "entry.py"
     script.write_text(
-        "import json\nfrom retainpdf_pipeline.foundation.config import paths\n"
+        "import json\nfrom retainpdf_base import paths\n"
         "print(json.dumps([str(paths.TRANSLATION_UNIT_CACHE_DIR), "
         "str(paths.DOMAIN_CONTEXT_CACHE_DIR), str(paths.RENDER_TYPOGRAPHY_MEMORY_DIR)]))\n"
     )

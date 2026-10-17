@@ -24,7 +24,7 @@ from devtools.tests.rendering.mitex_probe import compile_pipeline  # noqa: E402
 from retainpdf_math.source_repair import (  # noqa: E402
     collapse_doubled_command_backslashes,
 )
-from retainpdf_pipeline.services.pipeline_shared.direct_typst_math import (  # noqa: E402
+from retainpdf_math.direct_typst import (  # noqa: E402
     normalize_direct_typst_translation,
 )
 

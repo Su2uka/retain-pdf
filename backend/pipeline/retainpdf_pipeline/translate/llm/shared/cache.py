@@ -9,7 +9,7 @@ import threading
 import time
 from pathlib import Path
 
-from retainpdf_pipeline.foundation.config import paths
+from retainpdf_base import paths
 
 from retainpdf_pipeline.translate.core.context import build_item_context
 from retainpdf_pipeline.translate.core.engine_identity import _PROMPT_HASHES

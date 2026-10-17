@@ -9,7 +9,7 @@ from typing import Any
 
 import requests
 
-from retainpdf_pipeline.foundation.shared.local_env import get_secret
+from retainpdf_base.local_env import get_secret
 from retainpdf_pipeline.translate.artifacts import get_active_translation_run_diagnostics
 from retainpdf_pipeline.translate.artifacts import infer_stage_from_request_label
 from retainpdf_pipeline.translate.llm.shared import model_wire

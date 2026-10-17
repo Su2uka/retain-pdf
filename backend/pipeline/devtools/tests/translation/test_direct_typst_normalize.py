@@ -2,8 +2,8 @@
 import pytest
 
 
-from retainpdf_pipeline.services.pipeline_shared.direct_typst_math import has_balanced_unescaped_dollars
-from retainpdf_pipeline.services.pipeline_shared.direct_typst_math import normalize_direct_typst_translation
+from retainpdf_math.direct_typst import has_balanced_unescaped_dollars
+from retainpdf_math.direct_typst import normalize_direct_typst_translation
 from retainpdf_pipeline.translate.llm.result_canonicalizer import canonicalize_batch_result
 
 

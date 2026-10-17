@@ -8,7 +8,7 @@ from retainpdf_pipeline.foundation.shared.job_dirs import ensure_job_dirs
 from retainpdf_pipeline.foundation.shared.job_dirs import resolve_job_dirs
 from retainpdf_pipeline.foundation.shared.stage_specs import BookStageSpec
 from retainpdf_pipeline.foundation.shared.stage_specs import BOOK_STAGE_SCHEMA_VERSION
-from retainpdf_pipeline.foundation.shared.stage_specs import resolve_credential_ref
+from retainpdf_base.credentials import resolve_credential_ref
 
 def test_book_stage_spec_loads_and_resolves_credentials(tmp_path: Path, monkeypatch) -> None:
     job_root = tmp_path / "20260414-bookjob"

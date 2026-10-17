@@ -15,7 +15,7 @@ from pathlib import Path
 
 REPO_SCRIPTS_ROOT = Path(__file__).resolve().parents[3]
 
-from retainpdf_pipeline.services.pipeline_shared import contracts  # noqa: E402
+from retainpdf_base import contracts  # noqa: E402
 
 BACKEND_ROOT = REPO_SCRIPTS_ROOT.parent
 SCHEMA_ROOT = BACKEND_ROOT / "contracts"
@@ -121,8 +121,8 @@ def test_stage_observation_event_has_real_producer() -> None:
     stage_contract = SCHEMA["stage_observation_event"]
     assert stage_contract["schema"] == "pipeline_stage_observation_v1"
     events_source = (
-        REPO_SCRIPTS_ROOT
-        / "retainpdf_pipeline/services/pipeline_shared/events.py"
+        BACKEND_ROOT
+        / "base/retainpdf_base/events.py"
     ).read_text(encoding="utf-8")
     assert "PIPELINE_STAGE_OBSERVATION_SCHEMA" in events_source
     for event_type in stage_contract["event_types"]:

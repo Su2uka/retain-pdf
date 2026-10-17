@@ -83,3 +83,24 @@ def test_current_tree_passes_active_sublayer_boundaries():
     errors = []
     check_translation_internal_boundaries(errors)
     assert errors == []
+
+
+@pytest.mark.parametrize("path,module,accepted", [
+    ("services/memory/store.py", "retainpdf_base.events", True),
+    ("services/memory/store.py", "retainpdf_math.direct_typst", True),
+    ("services/memory/store.py", "retainpdf_pipeline.translate.core.terms", True),
+    ("services/memory/store.py", "retainpdf_pipeline.foundation.shared.stage_specs", False),
+    ("services/memory/store.py", "retainpdf_pipeline.render.workflow", False),
+    ("workflow/refine.py", "retainpdf_pipeline.translate.entrypoints.translate_only_pipeline", False),
+    ("workflow/refine.py", "retainpdf_pipeline.translate.translation_stage", False),
+    # worker 外壳留在流水线里，可以依赖流水线的其他部分。
+    ("entrypoints/translate_only_pipeline.py", "retainpdf_pipeline.foundation.shared.stage_specs", True),
+])
+def test_translation_library_must_not_depend_on_the_pipeline(monkeypatch, path, module, accepted):
+    from devtools.architecture_checks import translation_boundaries as checker
+    source = TRANSLATION_ROOT / path
+    monkeypatch.setattr(checker, "scan_py_files", lambda root: [source])
+    monkeypatch.setattr(checker, "imported_modules", lambda current: [module])
+    errors: list[str] = []
+    checker.check_translation_library_self_contained(errors)
+    assert (not errors) is accepted, errors

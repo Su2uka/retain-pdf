@@ -31,6 +31,7 @@ ocr/mineru_provider
 translate
 render
 services/pipeline_shared
+backend/base（retainpdf_base：阶段事件、stdout 标签、JSON IO、路径、密钥）
 runtime/pipeline
 ```
 

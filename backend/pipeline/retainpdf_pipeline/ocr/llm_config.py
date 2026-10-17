@@ -15,7 +15,7 @@ Duplicated from:
 
 from __future__ import annotations
 
-from retainpdf_pipeline.foundation.shared.local_env import get_secret
+from retainpdf_base.local_env import get_secret
 
 
 DEFAULT_BASE_URL = "https://api.deepseek.com/v1"

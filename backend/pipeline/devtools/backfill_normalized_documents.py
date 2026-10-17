@@ -33,7 +33,7 @@ from retainpdf_pipeline.ocr.document_schema.normalize_pipeline import build_norm
 from retainpdf_pipeline.ocr.document_schema.normalize_pipeline import normalized_artifact_paths
 from retainpdf_pipeline.ocr.document_schema.normalize_pipeline import write_normalized_artifacts
 from retainpdf_pipeline.ocr.document_schema.reporting import build_normalization_summary
-from retainpdf_pipeline.services.pipeline_shared.io import save_json_atomic
+from retainpdf_base.io import save_json_atomic
 from retainpdf_pipeline.ocr.ocr_provider.paddle_runner import apply_cli_normalization_report_semantics
 from retainpdf_pipeline.translate.public import load_translation_manifest
 

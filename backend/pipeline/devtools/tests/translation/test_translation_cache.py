@@ -149,7 +149,7 @@ def test_unit_cache_prunes_expired_entries_once(tmp_path, monkeypatch) -> None:
     import time as time_module
 
     from retainpdf_pipeline.translate.llm.shared import cache as cache_module
-    from retainpdf_pipeline.foundation.config import paths as paths_module
+    from retainpdf_base import paths as paths_module
 
     cache_root = tmp_path / "_translation_unit_cache"
     shard = cache_root / "ab"

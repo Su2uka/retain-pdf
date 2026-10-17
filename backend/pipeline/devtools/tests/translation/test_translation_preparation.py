@@ -674,7 +674,7 @@ def test_stage_spec_defaults_when_new_keys_are_absent(tmp_path: Path) -> None:
 
 def test_stage_spec_passes_reviewer_through_credential_reference(tmp_path: Path, monkeypatch) -> None:
     from retainpdf_pipeline.foundation.shared.stage_specs import TranslateStageSpec
-    from retainpdf_pipeline.foundation.shared.stage_specs import resolve_credential_ref
+    from retainpdf_base.credentials import resolve_credential_ref
     from retainpdf_pipeline.translate.entrypoints.translate_only_pipeline import _args_from_spec
 
     monkeypatch.setenv("RETAIN_REVIEWER_API_KEY", "sk-review-from-env")

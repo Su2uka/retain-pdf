@@ -7,7 +7,7 @@
 import pytest
 
 from retainpdf_pipeline.render.layout.inline_content.core.inline_math import surround_inline_math_with_spaces
-from retainpdf_pipeline.services.pipeline_shared.direct_typst_math import (
+from retainpdf_math.direct_typst import (
     is_fullwidth_punctuation,
     normalize_direct_typst_translation,
 )

@@ -44,8 +44,8 @@ from retainpdf_pipeline.render.visual_profile import merge_visual_profile_colors
 from retainpdf_pipeline.render.visual_profile import load_visual_profile_runtime
 from retainpdf_pipeline.render.visual_profile import VisualProfileRuntime
 from retainpdf_pipeline.render.visual_profile.contracts import VISUAL_PROFILE_ALGORITHM_VERSION
-from retainpdf_pipeline.services.pipeline_shared.events import emit_render_compile_progress
-from retainpdf_pipeline.services.pipeline_shared.events import emit_render_page_progress
+from retainpdf_base.events import emit_render_compile_progress
+from retainpdf_base.events import emit_render_page_progress
 
 
 _BACKGROUND_SANITIZE_ALL_THRESHOLD = 64

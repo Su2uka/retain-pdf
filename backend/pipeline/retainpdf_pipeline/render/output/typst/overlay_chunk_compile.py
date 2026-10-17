@@ -8,7 +8,7 @@ from pathlib import Path
 import time
 
 from retainpdf_pipeline.foundation.config import fonts
-from retainpdf_pipeline.services.pipeline_shared.events import emit_render_page_progress
+from retainpdf_base.events import emit_render_page_progress
 from retainpdf_pipeline.render.output.typst.compiler import compile_typst_book_overlay_pdf
 from retainpdf_pipeline.render.output.typst.compiler import is_typst_runtime_failure
 from retainpdf_pipeline.render.output.typst.shared import default_compile_workers

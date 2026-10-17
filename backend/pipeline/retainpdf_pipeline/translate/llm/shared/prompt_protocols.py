@@ -7,8 +7,8 @@ from typing import Any
 
 from retainpdf_pipeline.translate.prompt_loader import load_prompt
 from retainpdf_pipeline.translate.prompt_loader import render_prompt
-from retainpdf_pipeline.services.pipeline_shared.direct_typst_math import find_mitex_rewrites
-from retainpdf_pipeline.services.pipeline_shared.direct_typst_math import has_balanced_unescaped_dollars
+from retainpdf_math.direct_typst import find_mitex_rewrites
+from retainpdf_math.direct_typst import has_balanced_unescaped_dollars
 from retainpdf_pipeline.translate.core.context import TranslationItemContext
 
 

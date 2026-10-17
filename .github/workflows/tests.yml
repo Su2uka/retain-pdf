@@ -190,7 +190,10 @@ jobs:
       - name: Check installed command contracts
         run: |
           uv run --project "$RETAIN_PDF_SERVICES_ROOT" retainpdf-pipeline --help
-          uv run --project "$RETAIN_PDF_SERVICES_ROOT" python -c "import retainpdf_ai, retainpdf_math, retainpdf_pipeline"
+          uv run --project "$RETAIN_PDF_SERVICES_ROOT" python -c "import retainpdf_ai, retainpdf_base, retainpdf_math, retainpdf_pipeline"
+
+      - name: Base package tests
+        run: uv run --project "$RETAIN_PDF_SERVICES_ROOT" python -m pytest "$RETAIN_PDF_SERVICES_ROOT/base/tests" -q
 
       - name: Math package tests
         run: uv run --project "$RETAIN_PDF_SERVICES_ROOT" python -m pytest "$RETAIN_PDF_SERVICES_ROOT/math/tests" -q

@@ -5,7 +5,7 @@ import re
 from retainpdf_math.render_prep import normalize_angstrom_in_text
 from retainpdf_math.render_prep import prepare_formula_for_render
 
-from retainpdf_pipeline.services.pipeline_shared.direct_typst_math import is_fullwidth_punctuation
+from retainpdf_math.direct_typst import is_fullwidth_punctuation
 from retainpdf_pipeline.render.layout.text_analysis import analyze_text
 from retainpdf_pipeline.render.layout.text_analysis import math_token_body
 from retainpdf_pipeline.render.layout.text_analysis import normalize_direct_typst_math_boundaries

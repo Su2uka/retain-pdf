@@ -169,12 +169,14 @@ jobs:
           $pipelineSrc = Join-Path $env:RETAIN_PDF_SERVICES_ROOT "pipeline"
           # 注意：捆绑 python.exe 自身没有 pip（No module named pip），必须用
           # 系统 python 的 pip --target 装进 bundle，不能调 bundle python -m pip。
-          # 公式包（retainpdf-math）先装：pipeline 依赖它，--no-deps 不会替我们拉。
+          # 底座包（retainpdf-base）、公式包（retainpdf-math）先装：pipeline 依赖它们，--no-deps 不会替我们拉。
+          $baseSrc = Join-Path $env:RETAIN_PDF_SERVICES_ROOT "base"
+          python -m pip install --target $sitePackages --no-deps --no-build-isolation $baseSrc
           $mathSrc = Join-Path $env:RETAIN_PDF_SERVICES_ROOT "math"
           python -m pip install --target $sitePackages --no-deps --no-build-isolation $mathSrc
           python -m pip install --target $sitePackages --no-deps --no-build-isolation $pipelineSrc
           $env:PYTHONPATH = $sitePackages
-          & $pythonBundleExe -c "import requests, fitz, pikepdf, PIL, urllib3, retainpdf_math; print('python_bundle_import_check=ok')"
+          & $pythonBundleExe -c "import requests, fitz, pikepdf, PIL, urllib3, retainpdf_base, retainpdf_math; print('python_bundle_import_check=ok')"
           # console 入口探针（过渡期 warn-only，不阻断打包）
           try {
             & $pythonBundleExe -m retainpdf_pipeline.entrypoints.console --help
@@ -398,7 +400,8 @@ jobs:
           print("python_bundle_import_check=ok")
           PY
           # 打包 retainpdf-pipeline console 入口：--no-deps 避免重复拉原生轮子触发 ldd 门禁
-          # 公式包（retainpdf-math）先装：pipeline 依赖它，--no-deps 不会替我们拉。
+          # 底座包（retainpdf-base）、公式包（retainpdf-math）先装：pipeline 依赖它们，--no-deps 不会替我们拉。
+          "$bundle_root/bin/python3" -m pip install --target "$site_packages" --no-deps --no-build-isolation "$RETAIN_PDF_SERVICES_ROOT/base"
           "$bundle_root/bin/python3" -m pip install --target "$site_packages" --no-deps --no-build-isolation "$RETAIN_PDF_SERVICES_ROOT/math"
           "$bundle_root/bin/python3" -m pip install --target "$site_packages" --no-deps --no-build-isolation "$RETAIN_PDF_SERVICES_ROOT/pipeline"
           # 兜底：pip 生成脚本首行多为 runner 绝对路径，重写为可搬运 shebang
@@ -866,7 +869,8 @@ jobs:
           # 打包 retainpdf-pipeline console 入口：--no-deps 避免重复拉原生轮子触发门禁
           # 先装 wheel：venv 精简后缺 bdist_wheel，否则 metadata 生成失败
           "$bundle_python3" -m pip install wheel
-          # 公式包（retainpdf-math）先装：pipeline 依赖它，--no-deps 不会替我们拉。
+          # 底座包（retainpdf-base）、公式包（retainpdf-math）先装：pipeline 依赖它们，--no-deps 不会替我们拉。
+          "$bundle_python3" -m pip install --no-deps --no-build-isolation "$RETAIN_PDF_SERVICES_ROOT/base"
           "$bundle_python3" -m pip install --no-deps --no-build-isolation "$RETAIN_PDF_SERVICES_ROOT/math"
           "$bundle_python3" -m pip install --no-deps --no-build-isolation "$RETAIN_PDF_SERVICES_ROOT/pipeline"
           # 兜底：pip 生成脚本首行多为 runner 绝对路径，重写为可搬运 shebang（纯文本替换，不跑 install_name_tool）

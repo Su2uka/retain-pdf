@@ -20,8 +20,8 @@ import os
 from pathlib import Path
 from typing import Any
 
-from retainpdf_pipeline.foundation.config.output_layout import ARTIFACTS_DIR_NAME
-from retainpdf_pipeline.services.pipeline_shared.io import save_json_atomic
+from retainpdf_base.output_layout import ARTIFACTS_DIR_NAME
+from retainpdf_base.io import save_json_atomic
 from retainpdf_pipeline.translate.core.payload.manifest import load_translation_manifest
 from retainpdf_pipeline.translate.core.terms import GlossaryEntry
 from retainpdf_pipeline.translate.services.quality.qa.fit import CHECK_LAYOUT_FIT

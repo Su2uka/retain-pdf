@@ -63,7 +63,7 @@ def test_child_default_caches_use_isolated_output_root(tmp_path):
     runner = _runner()
     child = runner.subprocess.run(
         [runner.sys.executable, "-c",
-         "import json; from retainpdf_pipeline.foundation.config import paths; "
+         "import json; from retainpdf_base import paths; "
          "print(json.dumps([str(paths.TRANSLATION_UNIT_CACHE_DIR), "
          "str(paths.DOMAIN_CONTEXT_CACHE_DIR), str(paths.RENDER_TYPOGRAPHY_MEMORY_DIR)]))"],
         env=runner.test_environment(str(tmp_path)), capture_output=True, text=True,

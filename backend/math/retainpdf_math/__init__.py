@@ -3,6 +3,7 @@
 - registry      LaTeX 命令登记表（latex_commands.json）：哪些命令渲染器支持、哪些等价、哪些会被模型改写
 - spans         从文本里找公式（`$...$` / `$$...$$`）
 - checks        花括号配对、翻译时丢没丢 LaTeX 命令
+- direct_typst  direct_typst 译文里 `$...$` 的机械格式规整、`$` 是否成对、渲染不了的命令该换成什么
 - render_check  交给排版引擎同一套 MathJax 试渲染（常驻 Node 子进程；不可用时自动跳过）
 """
 

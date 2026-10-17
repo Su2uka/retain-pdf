@@ -5,6 +5,7 @@ description = "RetainPDF backend Python workspace"
 requires-python = ">=3.11,<3.12"
 dependencies = [
   "retainpdf-ai-service",
+  "retainpdf-base",
   "retainpdf-math",
   "retainpdf-pipeline",
 ]
@@ -12,18 +13,21 @@ dependencies = [
 [project.optional-dependencies]
 test = [
   "retainpdf-ai-service[test]",
+  "retainpdf-base[test]",
   "retainpdf-math[test]",
   "retainpdf-pipeline[test]",
 ]
 
 [tool.uv.sources]
 retainpdf-ai-service = { workspace = true }
+retainpdf-base = { workspace = true }
 retainpdf-math = { workspace = true }
 retainpdf-pipeline = { workspace = true }
 
 [tool.uv.workspace]
 members = [
   "ai",
+  "base",
   "math",
   "pipeline",
 ]

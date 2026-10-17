@@ -21,7 +21,7 @@ from typing import Any
 from typing import Callable
 from typing import Protocol
 
-from retainpdf_pipeline.services.pipeline_shared.events import emit_stage_progress
+from retainpdf_base.events import emit_stage_progress
 from retainpdf_pipeline.translate.core.terms import GlossaryEntry
 from retainpdf_pipeline.translate.core.terms import matched_glossary_entries
 from retainpdf_pipeline.translate.llm.shared.executor_context import unit_scope

@@ -15,7 +15,7 @@ from __future__ import annotations
 import time
 from pathlib import Path
 
-from retainpdf_pipeline.services.pipeline_shared.events import emit_stage_progress
+from retainpdf_base.events import emit_stage_progress
 from retainpdf_pipeline.render.prepare.page_analysis import page_analysis
 from retainpdf_pipeline.render.prepare.hooks import prepare_hooks
 from retainpdf_pipeline.render.prepare.store import PREPARE_DIR_NAME

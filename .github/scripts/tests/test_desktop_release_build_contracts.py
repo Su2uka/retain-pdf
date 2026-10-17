@@ -31,6 +31,10 @@ def test_macos_python_bundle_uses_prebuilt_wheels_without_homebrew_qpdf():
     math = next(line for line in mac.splitlines() if '"$RETAIN_PDF_SERVICES_ROOT/math"' in line)
     assert "--no-deps" in math and "--only-binary" not in math
     assert mac.index('"$RETAIN_PDF_SERVICES_ROOT/math"') < mac.index('"$RETAIN_PDF_SERVICES_ROOT/pipeline"')
+    # 底座包 retainpdf-base 同理：pipeline 依赖它（阶段事件、JSON 落盘、路径），也得先装。
+    base = next(line for line in mac.splitlines() if '"$RETAIN_PDF_SERVICES_ROOT/base"' in line)
+    assert "--no-deps" in base and "--only-binary" not in base
+    assert mac.index('"$RETAIN_PDF_SERVICES_ROOT/base"') < mac.index('"$RETAIN_PDF_SERVICES_ROOT/pipeline"')
 
 
 def test_each_desktop_build_smokes_frontend_bundle_once_before_manifest_validation():

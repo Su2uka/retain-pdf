@@ -26,7 +26,7 @@ from pathlib import Path
 from typing import Iterator
 
 from retainpdf_pipeline.foundation.config import fonts
-from retainpdf_pipeline.foundation.config import paths
+from retainpdf_base import paths
 from retainpdf_pipeline.render.layout.model.block_view import layout_block_to_render_block
 from retainpdf_pipeline.render.layout.model.models import RenderBlock
 from retainpdf_pipeline.render.layout.model.models import RenderPageSpec
@@ -36,7 +36,7 @@ from retainpdf_pipeline.render.output.typst.fit_probe import FIT_PROBE_HELPERS_R
 from retainpdf_pipeline.render.output.typst.fit_probe import FitProbeBlock
 from retainpdf_pipeline.render.output.typst.fit_probe import FitProbePage
 from retainpdf_pipeline.render.output.typst.fit_probe import run_fit_probe
-from retainpdf_pipeline.services.pipeline_shared.io import save_json_atomic
+from retainpdf_base.io import save_json_atomic
 
 FIT_REPORT_FILE_NAME = "fit_report.v1.json"
 FIT_REPORT_SCHEMA = "fit_report_v1"

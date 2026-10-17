@@ -9,7 +9,7 @@ from typing import Any
 import fitz
 
 from retainpdf_pipeline.foundation.config import layout
-from retainpdf_pipeline.services.pipeline_shared.events import emit_stage_progress
+from retainpdf_base.events import emit_stage_progress
 from retainpdf_pipeline.render.layout.payload.block_seed_metrics import collect_page_seed_metrics
 from retainpdf_pipeline.render.layout.payload.first_line_indent import MAX_INDENT_EM
 from retainpdf_pipeline.render.layout.payload.first_line_indent import detect_first_line_indent_pt_with_displaylist
