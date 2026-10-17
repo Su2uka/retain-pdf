@@ -43,6 +43,8 @@ pub use deps::{
     CommandJobsDeps, ControlDeps, JobSubmitDeps, QueryJobsDeps, ReplayDeps, SnapshotBuildDeps,
 };
 pub use facade::{build_jobs_facade, JobsFacade};
+// 书的编号（先看上传记录，再查任务表），任务视图和书库视图拼封面地址都用它。
+pub use presentation::book_document_id;
 pub use files::{
     job_readiness, Disposition, FileDownload, FileGroup, JobDownloads, JobFile, JobFilesView,
     JobScope,

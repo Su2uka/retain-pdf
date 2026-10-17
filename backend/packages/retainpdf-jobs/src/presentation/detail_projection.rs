@@ -145,7 +145,8 @@ pub(super) fn build_summary_projection(
     let mut summaries = SummaryCache::default();
     let titles = retainpdf_files::document_titles_for(db, upload);
     let display_name = display_title(upload, job, &titles);
-    let cover_url = super::helpers::cover_url(job, data_root, base_url);
+    let document_id = super::helpers::book_document_id(db, job, upload);
+    let cover_url = super::helpers::cover_url(job, document_id.as_deref(), data_root, base_url);
     DetailSummaryProjection {
         book: build_book_summary(
             upload,
@@ -154,6 +155,7 @@ pub(super) fn build_summary_projection(
             data_root,
             base_url,
             &display_name,
+            document_id.as_deref(),
         )
         .with_cover_url(cover_url),
         contracts: build_job_contracts_view(job, data_root),

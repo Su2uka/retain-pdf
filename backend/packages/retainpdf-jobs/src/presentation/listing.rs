@@ -4,7 +4,7 @@ use crate::progress::live_stage::{load_live_stage_snapshots, LiveStageSnapshot};
 use crate::query::list_jobs_filtered;
 use crate::progress::stage_view::build_job_stage_view;
 use crate::summary_loaders::SummaryCache;
-use super::helpers::{cover_url, job_path_prefix, thumbnail_url};
+use super::helpers::{book_document_id, cover_url, job_path_prefix, thumbnail_url};
 use retainpdf_core::config::limits::MAX_JOB_LIMIT;
 use retainpdf_data::db::Db;
 use retainpdf_core::job_failure::classify_job_failure;
@@ -85,11 +85,13 @@ fn build_job_list_items(
     jobs.iter()
         .map(|job| {
             let upload = job_upload_id(job).and_then(|id| uploads.get(id));
+            let document_id = book_document_id(db, job, upload);
             build_job_list_item_view(
                 data_root,
                 job,
                 base_url,
                 upload,
+                document_id.as_deref(),
                 &titles,
                 &mut summaries,
                 live_stages.get(&job.job_id),
@@ -103,6 +105,7 @@ fn build_job_list_item_view(
     job: &JobSnapshot,
     base_url: &str,
     upload: Option<&UploadRecord>,
+    document_id: Option<&str>,
     titles: &retainpdf_files::DocumentTitles,
     summaries: &mut SummaryCache,
     live_stage: Option<&LiveStageSnapshot>,
@@ -111,8 +114,8 @@ fn build_job_list_item_view(
     let stage = build_job_stage_view(job, live_stage);
     let (output_pdf_ready, markdown_ready, bundle_ready) =
         crate::job_readiness(job, data_root);
-    let cover_url = cover_url(job, data_root, base_url);
-    let thumbnail_url = thumbnail_url(job, data_root, base_url);
+    let cover_url = cover_url(job, document_id, data_root, base_url);
+    let thumbnail_url = thumbnail_url(job, document_id, data_root, base_url);
     JobListItemView {
         job_id: job.job_id.clone(),
         display_name: display_title(upload, job, titles),

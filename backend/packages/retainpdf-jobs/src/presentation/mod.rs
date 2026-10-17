@@ -2,6 +2,7 @@ mod contracts;
 mod detail;
 mod detail_projection;
 mod helpers;
+pub use helpers::book_document_id;
 mod listing;
 mod ocr_ambiguity;
 mod security;

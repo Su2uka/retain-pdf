@@ -2,9 +2,10 @@ use std::path::Path;
 
 use crate::summary_loaders::SummaryCache;
 use retainpdf_core::models::api::{
-    to_absolute_url, BookSummaryView, JobFailureDiagnosticView,
+    document_file_path, to_absolute_url, BookSummaryView, JobFailureDiagnosticView,
     OcrJobSummaryView,
 };
+use retainpdf_data::db::Db;
 use retainpdf_core::models::domain::{JobFailureInfo, JobSnapshot, UploadRecord};
 use retainpdf_files::source_file_name;
 use retainpdf_core::storage_paths::resolve_source_pdf;
@@ -16,6 +17,7 @@ pub(super) fn build_book_summary(
     data_root: &Path,
     base_url: &str,
     display_name: &str,
+    document_id: Option<&str>,
 ) -> BookSummaryView {
     BookSummaryView {
         title: display_name.to_string(),
@@ -25,25 +27,47 @@ pub(super) fn build_book_summary(
             .filter(|value| !value.trim().is_empty()),
         target_language: None,
         source_file_name: source_file_name(upload, job),
-        cover_url: cover_url(job, data_root, base_url),
-        thumbnail_url: thumbnail_url(job, data_root, base_url),
+        cover_url: cover_url(job, document_id, data_root, base_url),
+        thumbnail_url: thumbnail_url(job, document_id, data_root, base_url),
         file_size_bytes: upload.map(|record| record.bytes),
     }
 }
 
-pub(super) fn cover_url(job: &JobSnapshot, data_root: &Path, base_url: &str) -> Option<String> {
-    resolve_source_pdf(job, data_root).map(|_| job_image_url(job, base_url, "cover"))
+/// 书的编号：先看上传记录，没有上传记录的任务（复用别的任务产物建出来的重渲染、续跑）
+/// 再查任务表里补写的 document_id。任务视图和书库视图共用这一份。
+pub fn book_document_id(db: &Db, job: &JobSnapshot, upload: Option<&UploadRecord>) -> Option<String> {
+    upload
+        .map(|upload| upload.content_hash.trim().to_string())
+        .filter(|id| !id.is_empty())
+        .or_else(|| db.document_id_for_job(&job.job_id).ok().flatten())
 }
 
-pub(super) fn thumbnail_url(job: &JobSnapshot, data_root: &Path, base_url: &str) -> Option<String> {
-    resolve_source_pdf(job, data_root).map(|_| job_image_url(job, base_url, "thumbnail"))
+pub(super) fn cover_url(
+    job: &JobSnapshot,
+    document_id: Option<&str>,
+    data_root: &Path,
+    base_url: &str,
+) -> Option<String> {
+    resolve_source_pdf(job, data_root).map(|_| job_image_url(job, document_id, base_url, "cover"))
 }
 
-fn job_image_url(job: &JobSnapshot, base_url: &str, kind: &str) -> String {
-    to_absolute_url(
-        base_url,
-        &format!("{}/{}/{}", job.workflow.job_api_prefix(), job.job_id, kind),
-    )
+pub(super) fn thumbnail_url(
+    job: &JobSnapshot,
+    document_id: Option<&str>,
+    data_root: &Path,
+    base_url: &str,
+) -> Option<String> {
+    resolve_source_pdf(job, data_root).map(|_| job_image_url(job, document_id, base_url, "thumbnail"))
+}
+
+/// 封面、缩略图是书的属性：有书的编号就给 `/documents/:id/files/cover.jpg`，和书架、文档列表同一个地址；
+/// 查不到编号的旧任务只有按任务的旧地址。
+fn job_image_url(job: &JobSnapshot, document_id: Option<&str>, base_url: &str, kind: &str) -> String {
+    let path = match document_id.map(str::trim).filter(|id| !id.is_empty()) {
+        Some(document_id) => document_file_path(document_id, &format!("{kind}.jpg")),
+        None => format!("{}/{}/{}", job.workflow.job_api_prefix(), job.job_id, kind),
+    };
+    to_absolute_url(base_url, &path)
 }
 
 pub(super) fn job_path_prefix(job: &JobSnapshot) -> &'static str {
@@ -96,6 +120,27 @@ mod tests {
     use super::*;
     use retainpdf_core::models::domain::{CreateJobInput, JobArtifacts};
     use retainpdf_files::{display_title, source_url_file_name};
+
+    /// 任务列表、任务详情里的封面和书架同一个地址：有书的编号走 `/documents/:id/files/…`，没有才退回按任务的旧地址。
+    #[test]
+    fn cover_urls_use_the_document_files_when_the_book_is_known() {
+        let job = JobSnapshot::new("job-cover".into(), CreateJobInput::default(), vec![]);
+        assert_eq!(
+            job_image_url(&job, Some("doc-sha"), "https://api.example", "cover"),
+            "https://api.example/api/v1/documents/doc-sha/files/cover.jpg"
+        );
+        assert_eq!(
+            job_image_url(&job, Some("doc-sha"), "https://api.example", "thumbnail"),
+            "https://api.example/api/v1/documents/doc-sha/files/thumbnail.jpg"
+        );
+        for missing in [None, Some(""), Some("  ")] {
+            assert_eq!(
+                job_image_url(&job, missing, "https://api.example", "cover"),
+                "https://api.example/api/v1/jobs/job-cover/cover",
+                "查不到书的编号：退回按任务的地址"
+            );
+        }
+    }
 
     #[test]
     fn optional_upload_metadata_keeps_display_and_page_count_precedence() {

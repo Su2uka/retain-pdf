@@ -15,7 +15,7 @@ use retainpdf_files::{
     source_url_file_name, DocumentTitles,
 };
 use retainpdf_jobs::{
-    job_readiness, load_live_stage_snapshots, LiveStageSnapshot, SummaryCache,
+    book_document_id, job_readiness, load_live_stage_snapshots, LiveStageSnapshot, SummaryCache,
 };
 
 mod live;
@@ -138,15 +138,6 @@ fn build_library_book_list_item(
         created_at: job.created_at.clone(),
         updated_at: job.updated_at.clone(),
     }
-}
-
-/// 书的编号：先看上传记录，没有上传记录的任务（复用别的任务产物建出来的重渲染、续跑）
-/// 再查任务表里补写的 document_id。
-fn book_document_id(db: &Db, job: &JobSnapshot, upload: Option<&UploadRecord>) -> Option<String> {
-    upload
-        .map(|upload| upload.content_hash.trim().to_string())
-        .filter(|id| !id.is_empty())
-        .or_else(|| db.document_id_for_job(&job.job_id).ok().flatten())
 }
 
 /// 封面、缩略图从源 PDF 生成，是书（document）的属性：有书的编号就给 `/documents/:id/…`，
