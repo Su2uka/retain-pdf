@@ -14,7 +14,6 @@ pub use jobs::build_jobs_facade_from_state;
 #[cfg(test)]
 pub(crate) use jobs::build_jobs_facade_with_launcher;
 pub use router::{build_app, build_simple_app};
-#[cfg(test)]
 pub(crate) use router::registered_endpoints;
 pub use server::{run_servers, run_servers_with_shutdown, spawn_servers, RunningServers};
 pub use state::{build_state, AppState};

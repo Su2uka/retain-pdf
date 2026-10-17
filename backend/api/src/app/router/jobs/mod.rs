@@ -6,7 +6,6 @@
 
 use axum::Router;
 
-#[cfg(test)]
 use crate::app::endpoints::Endpoint;
 use crate::app::AppState;
 
@@ -34,7 +33,6 @@ pub(super) fn routes() -> Router<AppState> {
 }
 
 /// `/jobs` 下全部接口的登记表。
-#[cfg(test)]
 pub(super) fn endpoints() -> Vec<&'static [Endpoint]> {
     vec![
         lifecycle::ENDPOINTS,

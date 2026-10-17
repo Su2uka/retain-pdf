@@ -9,31 +9,13 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
-use crate::app::endpoints::Access;
-use crate::services::accounts::{route_policy, RoutePolicy};
-
-fn policy_label(method: &str, path: &str) -> &'static str {
-    match route_policy(&method.to_ascii_uppercase(), path) {
-        RoutePolicy::Signed => "signed",
-        RoutePolicy::AdminOnly => "admin",
-        RoutePolicy::Closed => "closed",
-    }
-}
+use crate::app::endpoints::route_policy;
+use crate::services::accounts::RoutePolicy;
 
 /// 接口清单：从登记表汇总，一行一个接口。
 fn manifest() -> String {
     let mut table: BTreeMap<String, Vec<(String, &'static str)>> = BTreeMap::new();
     for endpoint in crate::app::registered_endpoints() {
-        // 登记表里写的谁能用，要和账号包现在的判定一致（第 8 步第二个分支把判定改成直接查登记表）。
-        if endpoint.access != Access::Public {
-            assert_eq!(
-                endpoint.access.label(),
-                policy_label(endpoint.method, endpoint.path),
-                "{} {}: 登记表写的谁能用和 accounts::route_policy 不一致",
-                endpoint.method,
-                endpoint.path
-            );
-        }
         table
             .entry(endpoint.path.to_string())
             .or_default()
@@ -226,4 +208,34 @@ fn endpoint_directory_matches_registry() {
         saved == current,
         "docs/api/00-接口目录.md is out of date. Regenerate: UPDATE_ROUTES=1 cargo test -p retainpdf-api --lib route_manifest"
     );
+}
+
+/// 多用户下谁能用直接查登记表（2026-10-17 前是账号包按地址前缀判断，这组用例从那里搬过来，结果一条没变）。
+#[test]
+fn route_policies_come_from_the_registry() {
+    assert_eq!(route_policy("GET", "/api/v1/jobs"), RoutePolicy::Signed);
+    assert_eq!(route_policy("GET", "/api/v1/jobs/:job_id"), RoutePolicy::Signed);
+    assert_eq!(route_policy("GET", "/api/v1/providers/ocr"), RoutePolicy::Signed);
+    assert_eq!(route_policy("GET", "/api/v1/jobs/:job_id/files/output/*name"), RoutePolicy::Signed);
+    assert_eq!(route_policy("GET", "/api/v1/jobs/:job_id/files/pages/:page"), RoutePolicy::Signed);
+    assert_eq!(route_policy("GET", "/api/v1/jobs/:job_id/files/internal/*name"), RoutePolicy::AdminOnly);
+    assert_eq!(route_policy("GET", "/api/v1/fonts"), RoutePolicy::Signed);
+    assert_eq!(route_policy("POST", "/api/v1/providers/deepseek/balance"), RoutePolicy::AdminOnly);
+    assert_eq!(route_policy("POST", "/api/v1/fonts/upload"), RoutePolicy::AdminOnly);
+    // 这一期 AI 助手整体对网站账号关闭，运行设置也一样（管理员也不例外）。
+    assert_eq!(route_policy("GET", "/api/v1/ai/runtime-config"), RoutePolicy::Closed);
+    assert_eq!(route_policy("GET", "/api/v1/credentials/:credential_ref"), RoutePolicy::AdminOnly);
+    assert_eq!(route_policy("POST", "/api/v1/backups"), RoutePolicy::AdminOnly);
+    assert_eq!(route_policy("POST", "/api/v1/sync/run"), RoutePolicy::AdminOnly);
+    assert_eq!(route_policy("POST", "/api/v1/ai/ask"), RoutePolicy::Closed);
+    assert_eq!(route_policy("GET", "/api/v1/ai/conversations"), RoutePolicy::Closed);
+    assert_eq!(route_policy("GET", "/api/v1/documents/:document_id/agent-versions"), RoutePolicy::Closed);
+    assert_eq!(route_policy("POST", "/api/v1/internal/model/jobs/:job_id/requests"), RoutePolicy::Closed);
+    // 地址前缀像也不算。
+    assert_eq!(route_policy("GET", "/api/v1/jobsx"), RoutePolicy::Closed);
+    // 地址登记过、方法没登记：取这个地址最严的一种（让网站账号照旧拿到 405，而不是 404）。
+    assert_eq!(route_policy("DELETE", "/api/v1/jobs"), RoutePolicy::Signed);
+    assert_eq!(route_policy("GET", "/api/v1/fonts/upload"), RoutePolicy::AdminOnly);
+    // 没登记的接口默认关闭。
+    assert_eq!(route_policy("GET", "/api/v1/reports"), RoutePolicy::Closed);
 }

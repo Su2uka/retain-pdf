@@ -134,9 +134,9 @@ pub async fn enforce_access(
     };
     let params: Vec<(String, String)> =
         params.iter().map(|(name, value)| (name.to_string(), value.to_string())).collect();
-    state
-        .accounts
-        .authorize_route(&principal, request.method().as_str(), &template, &params)?;
+    // 谁能用写在接口登记表里（app/router/*.rs）。
+    let policy = crate::app::endpoints::route_policy(request.method().as_str(), &template);
+    state.accounts.authorize_route(&principal, policy, &template, &params)?;
 
     let mut references = query_references(&template, request.uri().query().unwrap_or(""));
     let is_json = request

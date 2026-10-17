@@ -28,8 +28,7 @@ mod public;
 mod simple;
 mod terminal;
 
-/// 登记表里的全部接口（`app/endpoints.rs`），接口目录和接口清单快照从这里汇总。
-#[cfg(test)]
+/// 登记表里的全部接口（`app/endpoints.rs`）：访问控制按它查谁能用，接口目录和接口清单快照也从这里汇总。
 pub(crate) fn registered_endpoints() -> Vec<crate::app::endpoints::Endpoint> {
     let mut tables = vec![
         public::ENDPOINTS,

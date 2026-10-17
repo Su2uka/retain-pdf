@@ -22,8 +22,8 @@ pub enum Access {
     Closed,
 }
 
-#[cfg_attr(not(test), allow(dead_code))]
 impl Access {
+    #[cfg_attr(not(test), allow(dead_code))]
     pub fn label(self) -> &'static str {
         match self {
             Access::Public => "public",
@@ -31,6 +31,55 @@ impl Access {
             Access::Admin => "admin",
             Access::Closed => "closed",
         }
+    }
+}
+
+/// 多用户模式下，这个方法、这个路由模板（axum 的 `MatchedPath`）归哪一种访问策略。
+///
+/// - 登记过的方法和地址：用登记表里写的；
+/// - 地址登记过、方法没登记（axum 会回 405，访问控制的中间件也会先跑一遍）：取这个地址各方法里最严的一种，
+///   和原来按地址判断时一样，网站账号照旧看到 405，不会因为方法写错就被判成"没有这个接口"；
+/// - 地址也没登记：当关闭，宁可错拒，不可错放。
+pub fn route_policy(method: &str, template: &str) -> crate::services::accounts::RoutePolicy {
+    use crate::services::accounts::RoutePolicy;
+    use std::collections::HashMap;
+    use std::sync::OnceLock;
+    struct Policies {
+        exact: HashMap<(&'static str, &'static str), Access>,
+        strictest_by_path: HashMap<&'static str, Access>,
+    }
+    fn strictness(access: Access) -> u8 {
+        match access {
+            Access::Public => 0,
+            Access::Signed => 1,
+            Access::Admin => 2,
+            Access::Closed => 3,
+        }
+    }
+    static POLICIES: OnceLock<Policies> = OnceLock::new();
+    let policies = POLICIES.get_or_init(|| {
+        let endpoints = crate::app::registered_endpoints();
+        let mut strictest_by_path: HashMap<&'static str, Access> = HashMap::new();
+        for endpoint in &endpoints {
+            let entry = strictest_by_path.entry(endpoint.path).or_insert(endpoint.access);
+            if strictness(endpoint.access) > strictness(*entry) {
+                *entry = endpoint.access;
+            }
+        }
+        Policies {
+            exact: endpoints.iter().map(|e| ((e.method, e.path), e.access)).collect(),
+            strictest_by_path,
+        }
+    });
+    let access = policies
+        .exact
+        .get(&(method, template))
+        .or_else(|| policies.strictest_by_path.get(template));
+    match access {
+        // 公开的接口挂在认证之外，走不到这里；真走到了也只是登录就能用。
+        Some(Access::Public | Access::Signed) => RoutePolicy::Signed,
+        Some(Access::Admin) => RoutePolicy::AdminOnly,
+        Some(Access::Closed) | None => RoutePolicy::Closed,
     }
 }
 
