@@ -801,6 +801,7 @@
         "devtools/tests/rendering/test_render_prepare_stage.py",
         "devtools/tests/rendering/test_rpr_engine_route.py",
         "devtools/tests/rendering/test_rpr_fit_route.py",
+        "devtools/tests/test_translation_recovery_boundary.py",
         "devtools/tests/translation/test_author_line_residue_exemption.py",
         "devtools/tests/translation/test_auto_preserve_terms.py",
         "devtools/tests/translation/test_batch_dispatch_plan.py",
