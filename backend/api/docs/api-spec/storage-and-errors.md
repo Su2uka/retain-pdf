@@ -168,42 +168,6 @@ new clients one uniform dispatch location:
 }
 ```
 
-Deleting a document or a library run that favorite anchors point at returns
-`DELETE_BLOCKED_BY_FAVORITES`. Document-level and run-level blocks share one
-code because the client's next move is the same for both — tell the user how
-many favorites exist, ask whether to drop them, clear, retry — and only the
-clear target differs. `error.details.scope` and `error.details.clear_favorites_path`
-carry that difference, so a client needs one branch, not two:
-
-```json
-{
-  "code": "DELETE_BLOCKED_BY_FAVORITES",
-  "message": "document is referenced by 2 favorite(s); remove the favorites first",
-  "error": {
-    "code": "DELETE_BLOCKED_BY_FAVORITES",
-    "http_status": 409,
-    "details": {
-      "scope": "document",
-      "document_id": "6f1c…",
-      "favorite_count": 2,
-      "clear_favorites_path": "/api/v1/documents/6f1c…/favorites"
-    }
-  }
-}
-```
-
-For `scope: "job"` the details carry `job_id` and
-`clear_favorites_path: "/api/v1/library/books/{job_id}/favorites"` instead.
-`force=true` does not bypass either block — it only bypasses "this run is
-queued or running".
-
-The path named by `clear_favorites_path` accepts `DELETE` and answers with
-`{"deleted_count": N}`. It is idempotent (a document with no favorites clears
-to `0`), but a document or job that does not exist is a `404` rather than a
-zero-count success. The run-level variant also clears favorites pointing at the
-`{job_id}-ocr` child, because the delete it unblocks removes that child too —
-clearing only the parent would leave the retry blocked a second time.
-
 Error messages and details must not contain credentials, signed URLs, raw
 provider requests, or absolute filesystem paths. Unknown detail keys must not
 be used as an authorization or retry signal unless the owning domain documents
