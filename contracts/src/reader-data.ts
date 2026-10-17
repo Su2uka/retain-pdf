@@ -8,6 +8,7 @@
  * Endpoint input, query, and output DTOs published by reader-data.v1.schema.json.
  */
 export type ReaderDataSchema =
+  | JobFilesView
   | LiveTranslationCommitEvent
   | LiveTranslationLayout
   | LiveTranslationPageSnapshot
@@ -17,6 +18,42 @@ export type ReaderDataSchema =
   | ReaderMetadataView
   | ReaderRegionsView;
 
+export interface JobFilesView {
+  job_id: string;
+  output: JobFileEntryView[];
+  pages: JobPagesView;
+  /**
+   * Intermediate artifacts. Present only for administrators (and in single-user mode); omitted otherwise.
+   */
+  internal?: JobFileEntryView[];
+}
+/**
+ * One downloadable file of a job. url is an absolute public URL of /api/v1/jobs/:job_id/files/<group>/<name>.
+ */
+export interface JobFileEntryView {
+  name: string;
+  url: string;
+  content_type: string;
+  /**
+   * Whether the file can be fetched now. For on-demand files it means everything needed to generate it exists.
+   */
+  ready: boolean;
+  /**
+   * Generated on first request, so the first fetch is slower.
+   */
+  on_demand: boolean;
+  /**
+   * Only files already on disk have a size.
+   */
+  size_bytes: number | null;
+}
+export interface JobPagesView {
+  /**
+   * Replace {page} with a one-based page number.
+   */
+  url_template: string;
+  page_count: number | null;
+}
 /**
  * SSE event data for event: translation_units_committed. It is a refresh hint: reconnect using the greater of after_seq and Last-Event-ID, then refetch the authoritative page snapshot.
  */

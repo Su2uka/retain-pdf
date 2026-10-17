@@ -10,14 +10,24 @@
       "path": "/api/v1/jobs/:job_id/artifacts",
       "output": "ReaderArtifactLinks",
       "rust_view": "ArtifactLinksView (Reader-safe consumer subset)",
-      "ts_consumer": "@retainpdf/contracts/reader-data :: ReaderArtifactLinks"
+      "ts_consumer": "@retainpdf/contracts/reader-data :: ReaderArtifactLinks",
+      "note": "已弃用的别名：产物列表现在是 GET /api/v1/jobs/:job_id/files（JobFilesView，形状不同，所以单列一项）。返回里的 manifest_path/manifest_url、links.artifacts_*、actions.open_artifacts 都已指向 /files。前端改完、路由计数归零后删除。"
     },
     {
       "method": "GET",
       "path": "/api/v1/jobs/:job_id/artifacts-manifest",
       "output": "ReaderArtifactManifestView",
       "rust_view": "JobArtifactManifestView (Reader-safe consumer subset)",
-      "ts_consumer": "@retainpdf/contracts/reader-data :: ReaderArtifactManifestView"
+      "ts_consumer": "@retainpdf/contracts/reader-data :: ReaderArtifactManifestView",
+      "note": "已弃用的别名：产物清单现在是 GET /api/v1/jobs/:job_id/files（JobFilesView，形状不同，所以单列一项）。前端改完、路由计数归零后删除。"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/jobs/:job_id/files",
+      "output": "JobFilesView",
+      "rust_view": "JobFilesView",
+      "ts_consumer": "@retainpdf/contracts/reader-data :: JobFilesView",
+      "note": "任务的文件清单：output 成品、pages 译文页预览、internal 中间产物（只有管理员和单机模式才有这个字段）。取代 /artifacts 和 /artifacts-manifest。"
     },
     {
       "method": "GET",
@@ -152,6 +162,44 @@
       "properties": {
         "job_id": { "type": "string" },
         "items": { "type": "array", "items": { "$ref": "#/definitions/ReaderArtifactManifestItem" } }
+      }
+    },
+    "JobFileEntryView": {
+      "type": "object",
+      "description": "One downloadable file of a job. url is an absolute public URL of /api/v1/jobs/:job_id/files/<group>/<name>.",
+      "additionalProperties": false,
+      "required": ["name", "url", "content_type", "ready", "on_demand", "size_bytes"],
+      "properties": {
+        "name": { "type": "string" },
+        "url": { "type": "string" },
+        "content_type": { "type": "string" },
+        "ready": { "type": "boolean", "description": "Whether the file can be fetched now. For on-demand files it means everything needed to generate it exists." },
+        "on_demand": { "type": "boolean", "description": "Generated on first request, so the first fetch is slower." },
+        "size_bytes": { "type": ["integer", "null"], "minimum": 0, "description": "Only files already on disk have a size." }
+      }
+    },
+    "JobPagesView": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["url_template", "page_count"],
+      "properties": {
+        "url_template": { "type": "string", "description": "Replace {page} with a one-based page number." },
+        "page_count": { "type": ["integer", "null"], "minimum": 0 }
+      }
+    },
+    "JobFilesView": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["job_id", "output", "pages"],
+      "properties": {
+        "job_id": { "type": "string" },
+        "output": { "type": "array", "items": { "$ref": "#/definitions/JobFileEntryView" } },
+        "pages": { "$ref": "#/definitions/JobPagesView" },
+        "internal": {
+          "type": "array",
+          "description": "Intermediate artifacts. Present only for administrators (and in single-user mode); omitted otherwise.",
+          "items": { "$ref": "#/definitions/JobFileEntryView" }
+        }
       }
     },
     "MarkdownImageView": {
