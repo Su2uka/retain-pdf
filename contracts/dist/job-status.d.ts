@@ -587,6 +587,40 @@ export interface JobListItemView {
     updated_at: string;
     detail_path: string;
     detail_url: string;
+    failure?: JobFailureBriefView;
+}
+/**
+ * backend/packages/retainpdf-jobs/src/views/job_types.rs :: JobFailureBriefView — 列表里那份精简失败信息。只有失败的任务才带（JobListItemView.failure），成功 / 进行中的任务整个键不出现，不是 null。只放「一眼能判断该怎么办」的几项，不带 raw_excerpt / traceback；要完整错误按需去打任务详情（那边的 failure 是 JobFailureInfo）。root_cause / suggestion / provider 为空时整个键不出现（不是 null）。
+ */
+export interface JobFailureBriefView {
+    /**
+     * 面向用户的分类：provider / translation / timeout / render / internal …
+     */
+    category: string;
+    /**
+     * 失败发生在哪一段：ocr / translation / render
+     */
+    stage: string;
+    /**
+     * 能不能重试。
+     */
+    retryable: boolean;
+    /**
+     * 一句话结论。
+     */
+    summary: string;
+    /**
+     * 根因；没有时键不出现。
+     */
+    root_cause?: string;
+    /**
+     * 建议的处理办法；没有时键不出现。
+     */
+    suggestion?: string;
+    /**
+     * 上游是谁（mineru / deepseek …），排查时第一眼要看的；没有时键不出现。
+     */
+    provider?: string;
 }
 export interface JobListInvocationSummaryView {
     stage_spec_count: number;

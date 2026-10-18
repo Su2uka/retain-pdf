@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "retainpdf/contracts/library-books/v1",
   "title": "图书馆书架契约（Library Books）",
-  "description": "Rust ↔ TS 重复的图书馆视图单一真值。生产者：services/api crates/retainpdf-core models/view/job_types.rs（LibraryBookListView / LibraryBookListItemView / LibraryBookDetailView / JobListView / JobListItemView）；消费者：@retainpdf/contracts/library-books 生成 DTO、packages/domain 的 job 归一化模型、apps/web 的 library API 与 apps/web-react 的 library 类型层。所有响应为 {code, message, data} 信封，本契约描述 data 部分。改契约先改本文件，再重新生成 DTO 并让 Rust 与 TS 契约测试变绿。",
+  "description": "Rust ↔ TS 重复的图书馆视图单一真值。生产者：backend/packages/retainpdf-library/src/views.rs（LibraryBookListView / LibraryBookListItemView / LibraryBookDetailView）与 backend/packages/retainpdf-jobs/src/views/job_types.rs（JobListView / JobListItemView / JobFailureBriefView）；消费者：@retainpdf/contracts/library-books 生成 DTO、packages/domain 的 job 归一化模型、apps/web 的 library API 与 apps/web-react 的 library 类型层。所有响应为 {code, message, data} 信封，本契约描述 data 部分。改契约先改本文件，再重新生成 DTO 并让 Rust 与 TS 契约测试变绿。",
   "base_path": "/api/v1/library",
   "endpoints": [
     {
@@ -342,6 +342,46 @@
         }
       }
     },
+    "JobFailureBriefView": {
+      "type": "object",
+      "description": "backend/packages/retainpdf-jobs/src/views/job_types.rs :: JobFailureBriefView — 列表里那份精简失败信息。只有失败的任务才带（JobListItemView.failure），成功 / 进行中的任务整个键不出现，不是 null。只放「一眼能判断该怎么办」的几项，不带 raw_excerpt / traceback；要完整错误按需去打任务详情（那边的 failure 是 JobFailureInfo）。root_cause / suggestion / provider 为空时整个键不出现（不是 null）。",
+      "required": [
+        "category",
+        "stage",
+        "retryable",
+        "summary"
+      ],
+      "properties": {
+        "category": {
+          "type": "string",
+          "description": "面向用户的分类：provider / translation / timeout / render / internal …"
+        },
+        "stage": {
+          "type": "string",
+          "description": "失败发生在哪一段：ocr / translation / render"
+        },
+        "retryable": {
+          "type": "boolean",
+          "description": "能不能重试。"
+        },
+        "summary": {
+          "type": "string",
+          "description": "一句话结论。"
+        },
+        "root_cause": {
+          "type": "string",
+          "description": "根因；没有时键不出现。"
+        },
+        "suggestion": {
+          "type": "string",
+          "description": "建议的处理办法；没有时键不出现。"
+        },
+        "provider": {
+          "type": "string",
+          "description": "上游是谁（mineru / deepseek …），排查时第一眼要看的；没有时键不出现。"
+        }
+      }
+    },
     "JobListItemView": {
       "type": "object",
       "description": "job_types.rs :: JobListItemView — /api/v1/jobs 列表项，含 stage_snapshot 与 cover/thumbnail 双图。",
@@ -484,6 +524,9 @@
         "source_artifact_job_id": {
           "type": ["string", "null"],
           "description": "复用了哪个任务的产物（OCR / 译文）；顺着它能找到真正持有译文的任务。没有复用时为 null。"
+        },
+        "failure": {
+          "$ref": "#/definitions/JobFailureBriefView"
         }
       }
     },
