@@ -19,12 +19,6 @@
       "output": "JobDetailView",
       "rust_view": "JobDetailView",
       "ts_consumer": "apps/web/src/js/job/types.ts :: JobPayload"
-    },
-    {
-      "method": "GET",
-      "path": "/api/v1/ocr/jobs/:job_id",
-      "output": "JobDetailView",
-      "note": "已弃用的别名：OCR 任务的链接现在也走 /api/v1/jobs/:job_id（view 形状一致）。前端改完、路由计数归零后删除。"
     }
   ],
   "definitions": {

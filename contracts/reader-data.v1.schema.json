@@ -7,22 +7,6 @@
   "endpoints": [
     {
       "method": "GET",
-      "path": "/api/v1/jobs/:job_id/artifacts",
-      "output": "ReaderArtifactLinks",
-      "rust_view": "ArtifactLinksView (Reader-safe consumer subset)",
-      "ts_consumer": "@retainpdf/contracts/reader-data :: ReaderArtifactLinks",
-      "note": "已弃用的别名：产物列表现在是 GET /api/v1/jobs/:job_id/files（JobFilesView，形状不同，所以单列一项）。返回里的 manifest_path/manifest_url、links.artifacts_*、actions.open_artifacts 都已指向 /files。前端改完、路由计数归零后删除。"
-    },
-    {
-      "method": "GET",
-      "path": "/api/v1/jobs/:job_id/artifacts-manifest",
-      "output": "ReaderArtifactManifestView",
-      "rust_view": "JobArtifactManifestView (Reader-safe consumer subset)",
-      "ts_consumer": "@retainpdf/contracts/reader-data :: ReaderArtifactManifestView",
-      "note": "已弃用的别名：产物清单现在是 GET /api/v1/jobs/:job_id/files（JobFilesView，形状不同，所以单列一项）。前端改完、路由计数归零后删除。"
-    },
-    {
-      "method": "GET",
       "path": "/api/v1/jobs/:job_id/files",
       "output": "JobFilesView",
       "rust_view": "JobFilesView",
@@ -32,7 +16,6 @@
     {
       "method": "GET",
       "path": "/api/v1/jobs/:job_id/reader/markdown",
-      "deprecated_aliases": ["/api/v1/jobs/:job_id/markdown/document"],
       "output": "MarkdownDocumentView",
       "rust_view": "MarkdownDocumentView",
       "ts_consumer": "@retainpdf/contracts/reader-data :: MarkdownDocumentView"
@@ -54,7 +37,6 @@
     {
       "method": "GET",
       "path": "/api/v1/jobs/:job_id/progress/layout",
-      "deprecated_aliases": ["/api/v1/jobs/:job_id/live-translation/layout"],
       "output": "LiveTranslationLayout",
       "rust_view": "LiveTranslationLayoutView",
       "ts_consumer": "@retainpdf/contracts/reader-data :: LiveTranslationLayout"
@@ -62,7 +44,6 @@
     {
       "method": "GET",
       "path": "/api/v1/jobs/:job_id/progress/pages/:page",
-      "deprecated_aliases": ["/api/v1/jobs/:job_id/live-translation/pages/:page_idx"],
       "output": "LiveTranslationPageSnapshot",
       "rust_view": "LiveTranslationPageView",
       "ts_consumer": "@retainpdf/contracts/reader-data :: LiveTranslationPageSnapshot"
@@ -70,100 +51,12 @@
     {
       "method": "GET",
       "path": "/api/v1/jobs/:job_id/progress/stream?after_seq=:seq",
-      "deprecated_aliases": ["/api/v1/jobs/:job_id/live-events?after_seq=:seq"],
       "output": "LiveTranslationCommitEvent",
       "rust_view": "LiveTranslationCommitEventView",
       "ts_consumer": "@retainpdf/contracts/reader-data :: LiveTranslationCommitEvent"
     }
   ],
   "definitions": {
-    "PublicResourceLink": {
-      "type": "object",
-      "description": "A publicly routable API resource. path is an API path and url may be absolute; neither is a filesystem path.",
-      "additionalProperties": false,
-      "required": ["ready", "path", "url", "method", "content_type", "file_name", "size_bytes"],
-      "properties": {
-        "ready": { "type": "boolean" },
-        "path": { "type": "string", "description": "Public API path, never a local filesystem path." },
-        "url": { "type": "string", "description": "Public absolute or API-relative URL." },
-        "method": { "type": "string", "const": "GET" },
-        "content_type": { "type": "string" },
-        "file_name": { "type": ["string", "null"] },
-        "size_bytes": { "type": ["integer", "null"], "minimum": 0 }
-      }
-    },
-    "ReaderArtifactLinks": {
-      "type": "object",
-      "description": "Reader-safe subset of ArtifactLinksView. The endpoint may carry compatibility fields outside this subset; hosts must ignore them and consume only public resource links/readiness values instead of artifact storage conventions.",
-      "additionalProperties": true,
-      "required": ["pdf_ready", "markdown_ready", "bundle_ready", "pdf_url", "markdown_url", "markdown_images_base_url", "bundle_url", "normalized_document_url", "normalization_report_url", "manifest_path", "manifest_url", "actions", "normalized_document", "normalization_report", "pdf", "markdown", "bundle"],
-      "properties": {
-        "pdf_ready": { "type": "boolean" },
-        "markdown_ready": { "type": "boolean" },
-        "bundle_ready": { "type": "boolean" },
-        "pdf_url": { "type": "string" },
-        "markdown_url": { "type": "string" },
-        "markdown_images_base_url": { "type": "string" },
-        "bundle_url": { "type": "string" },
-        "normalized_document_url": { "type": "string" },
-        "normalization_report_url": { "type": "string" },
-        "manifest_path": { "type": "string", "description": "Public API path for the artifact manifest." },
-        "manifest_url": { "type": "string", "description": "Public URL for the artifact manifest." },
-        "actions": { "type": "object", "description": "Existing job action links; this schema does not own their detailed control-plane shape." },
-        "normalized_document": { "$ref": "#/definitions/PublicResourceLink" },
-        "normalization_report": { "$ref": "#/definitions/PublicResourceLink" },
-        "pdf": { "$ref": "#/definitions/PublicResourceLink" },
-        "markdown": { "$ref": "#/definitions/MarkdownArtifactLink" },
-        "bundle": { "$ref": "#/definitions/PublicResourceLink" }
-      }
-    },
-    "MarkdownArtifactLink": {
-      "type": "object",
-      "description": "Published Markdown artifact links from ArtifactLinksView.",
-      "additionalProperties": false,
-      "required": ["ready", "json_path", "json_url", "raw_path", "raw_url", "images_base_path", "images_base_url", "file_name", "size_bytes"],
-      "properties": {
-        "ready": { "type": "boolean" },
-        "json_path": { "type": "string" },
-        "json_url": { "type": "string" },
-        "raw_path": { "type": "string" },
-        "raw_url": { "type": "string" },
-        "images_base_path": { "type": "string" },
-        "images_base_url": { "type": "string" },
-        "file_name": { "type": ["string", "null"] },
-        "size_bytes": { "type": ["integer", "null"], "minimum": 0 }
-      }
-    },
-    "ReaderArtifactManifestItem": {
-      "type": "object",
-      "description": "Reader-safe subset of a job artifact manifest entry. The endpoint may carry compatibility fields such as relative_path; hosts must discard those fields and use public resource links only.",
-      "additionalProperties": true,
-      "required": ["artifact_key", "artifact_group", "artifact_kind", "ready", "file_name", "content_type", "size_bytes", "checksum", "source_stage", "updated_at", "attempt", "resource_path", "resource_url"],
-      "properties": {
-        "artifact_key": { "type": "string" },
-        "artifact_group": { "type": "string" },
-        "artifact_kind": { "type": "string" },
-        "ready": { "type": "boolean" },
-        "file_name": { "type": ["string", "null"] },
-        "content_type": { "type": "string" },
-        "size_bytes": { "type": ["integer", "null"], "minimum": 0 },
-        "checksum": { "type": ["string", "null"] },
-        "source_stage": { "type": ["string", "null"] },
-        "updated_at": { "type": "string" },
-        "attempt": { "type": "integer", "minimum": 1, "description": "One-based durable pipeline attempt." },
-        "resource_path": { "type": ["string", "null"], "description": "Public API path when published." },
-        "resource_url": { "type": ["string", "null"], "description": "Public URL when published." }
-      }
-    },
-    "ReaderArtifactManifestView": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["job_id", "items"],
-      "properties": {
-        "job_id": { "type": "string" },
-        "items": { "type": "array", "items": { "$ref": "#/definitions/ReaderArtifactManifestItem" } }
-      }
-    },
     "JobFileEntryView": {
       "type": "object",
       "description": "One downloadable file of a job. url is an absolute public URL of /api/v1/jobs/:job_id/files/<group>/<name>.",
@@ -196,7 +89,7 @@
       "properties": {
         "job_id": { "type": "string" },
         "attempt": { "type": "integer", "minimum": 1, "description": "One-based durable pipeline attempt; increases after a rerun or stage retry. Same as the attempt of each manifest item." },
-        "source": { "$ref": "#/definitions/JobFileEntryView", "description": "The source PDF. It is a document file: with a document id the url is /api/v1/documents/:id/files/source.pdf, older jobs without one fall back to the per-job legacy address." },
+        "source": { "$ref": "#/definitions/JobFileEntryView", "description": "The source PDF. It is a document file: the url is /api/v1/documents/:id/files/source.pdf. When no document id is known there is no address: url is an empty string and ready is false." },
         "output": { "type": "array", "items": { "$ref": "#/definitions/JobFileEntryView" } },
         "pages": { "$ref": "#/definitions/JobPagesView" },
         "internal": {

@@ -11,12 +11,6 @@
       "input": "CreateJobInput",
       "rust_view": "routes/jobs.rs :: create_job",
       "ts_consumer": "frontend/web/src/features/ingest/domain/workflow/payload.ts"
-    },
-    {
-      "method": "POST",
-      "path": "/api/v1/ocr/jobs",
-      "input": "CreateJobInput",
-      "note": "WorkflowKind::Ocr 走 /api/v1/ocr/jobs 前缀，请求体形状与 book 一致"
     }
   ],
   "definitions": {
