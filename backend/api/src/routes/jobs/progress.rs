@@ -5,10 +5,11 @@ use std::convert::Infallible;
 use std::time::Duration;
 
 use axum::extract::State;
-use axum::http::HeaderMap;
+use axum::http::{HeaderMap, HeaderName, HeaderValue};
 use axum::response::sse::{Event, KeepAlive, Sse};
+use axum::response::IntoResponse;
 use axum::Json;
-use futures_util::stream::{self, Stream};
+use futures_util::stream;
 
 use crate::app::build_jobs_facade_from_state;
 use crate::error::AppError;
@@ -78,7 +79,7 @@ pub async fn get_live_translation_events(
     ApiPath(job_id): ApiPath<String>,
     ApiQuery(query): ApiQuery<LiveTranslationEventsQuery>,
     headers: HeaderMap,
-) -> Result<Sse<impl Stream<Item = Result<Event, Infallible>>>, AppError> {
+) -> Result<impl IntoResponse, AppError> {
     let last_event_id = headers
         .get("last-event-id")
         .and_then(|value| value.to_str().ok())
@@ -95,10 +96,16 @@ pub async fn get_live_translation_events(
         },
         next_live_event,
     );
-    Ok(Sse::new(stream).keep_alive(
+    let sse = Sse::new(stream).keep_alive(
         KeepAlive::new()
             .interval(Duration::from_secs(15))
             .text("keep-alive"),
+    );
+    // 告诉 nginx 这类反向代理不要缓冲：15 秒一次的保活和新译文要马上到浏览器，不能攒着。
+    // 带在响应里，就不依赖代理配置给这个地址单独关缓冲。
+    Ok((
+        [(HeaderName::from_static("x-accel-buffering"), HeaderValue::from_static("no"))],
+        sse,
     ))
 }
 

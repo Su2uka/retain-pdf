@@ -2,7 +2,7 @@
 // No frontend/web deps; browser-aware (reads window.__FRONT_RUNTIME_CONFIG__ for apiBase / X-API-Key if present).
 import { apiFetch } from "./internal/runtime.js";
 import { API_PREFIX, buildApiHeaders, buildApiUrl, unwrapEnvelope } from "./internal/runtime.js";
-// OCR 任务也走 /jobs（后端已统一）；/ocr/jobs 只剩创建 OCR 任务那一个入口（见 jobs-submit.ts）。
+// OCR 任务也走 /jobs（后端已统一），建任务也是（见 jobs-submit.ts），前端不再用 /ocr/jobs。
 function buildJobsEndpoint(apiPrefix) {
     return buildApiUrl(apiPrefix, "jobs");
 }

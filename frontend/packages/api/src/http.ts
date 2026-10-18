@@ -17,13 +17,13 @@ export function buildApiEndpoint(apiPrefix: string | undefined, relativePath = "
   return buildApiUrl(apiPrefix, relativePath);
 }
 
-// scope="ocr" 只用于创建 OCR 任务（POST /ocr/jobs）。读、取消 OCR 任务都走 /jobs/:id/…。
-export function buildJobsEndpoint(apiPrefix: string | undefined, scope = "jobs"): string {
-  return buildApiEndpoint(apiPrefix, scope === "ocr" ? "ocr/jobs" : "jobs");
+// 所有任务（含只做 OCR 的）都在 /jobs 下：建、读、取消都不再用 /ocr/jobs。
+export function buildJobsEndpoint(apiPrefix: string | undefined): string {
+  return buildApiEndpoint(apiPrefix, "jobs");
 }
 
 export function buildJobDetailEndpoint(jobId: string, apiPrefix: string | undefined): string {
-  return `${buildJobsEndpoint(apiPrefix, "jobs")}/${encodeURIComponent(jobId)}`;
+  return `${buildJobsEndpoint(apiPrefix)}/${encodeURIComponent(jobId)}`;
 }
 
 function isObject(value: unknown): boolean {

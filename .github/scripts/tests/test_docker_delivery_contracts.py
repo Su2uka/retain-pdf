@@ -129,7 +129,7 @@ def test_multi_user_env_template_ships_no_admin_password() -> None:
     "declaration",
     [
         "location = /api/v1/ai/ask {",
-        "location ~ ^/api/v1/jobs/[^/]+/live-events$ {",
+        "location ~ ^/api/v1/jobs/[^/]+/progress/stream$ {",
     ],
 )
 def test_nginx_sse_locations_disable_response_buffering(declaration: str) -> None:
@@ -165,7 +165,8 @@ def test_host_nginx_example_keeps_backend_private_and_sse_streaming() -> None:
     assert 'auth_basic "RetainPDF";' in nginx
     assert "client_max_body_size 256m;" in nginx
     assert "location = /api/v1/ai/ask {" in nginx
-    assert "location ~ ^/api/v1/jobs/[^/]+/live-events$ {" in nginx
+    assert "location ~ ^/api/v1/jobs/[^/]+/progress/stream$ {" in nginx
+    assert "live-events" not in nginx
     assert nginx.count("proxy_buffering off;") == 2
     assert nginx.count("add_header X-Accel-Buffering no always;") == 2
     assert "proxy_request_buffering off;" in nginx

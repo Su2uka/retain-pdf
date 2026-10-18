@@ -7,12 +7,12 @@ export { API_PREFIX } from "./internal/runtime.js";
 export function buildApiEndpoint(apiPrefix, relativePath = "") {
     return buildApiUrl(apiPrefix, relativePath);
 }
-// scope="ocr" 只用于创建 OCR 任务（POST /ocr/jobs）。读、取消 OCR 任务都走 /jobs/:id/…。
-export function buildJobsEndpoint(apiPrefix, scope = "jobs") {
-    return buildApiEndpoint(apiPrefix, scope === "ocr" ? "ocr/jobs" : "jobs");
+// 所有任务（含只做 OCR 的）都在 /jobs 下：建、读、取消都不再用 /ocr/jobs。
+export function buildJobsEndpoint(apiPrefix) {
+    return buildApiEndpoint(apiPrefix, "jobs");
 }
 export function buildJobDetailEndpoint(jobId, apiPrefix) {
-    return `${buildJobsEndpoint(apiPrefix, "jobs")}/${encodeURIComponent(jobId)}`;
+    return `${buildJobsEndpoint(apiPrefix)}/${encodeURIComponent(jobId)}`;
 }
 function isObject(value) {
     return !!value && typeof value === "object" && !Array.isArray(value);

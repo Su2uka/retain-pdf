@@ -73,7 +73,10 @@ Items without a non-empty committed translation are omitted.
 and `$$...$$` LaTeX delimiters; mathematical content is not converted to an
 image or stripped before delivery to the client.
 
-`live-events` is an SSE stream. Each committed event has an SSE `id` equal to
+`progress/stream` (old address `live-events`) is an SSE stream. The response
+carries `X-Accel-Buffering: no` so reverse proxies such as nginx pass the
+15-second keepalive and each commit through immediately instead of buffering
+them. Each committed event has an SSE `id` equal to
 the authoritative per-job database sequence and event name
 `translation_units_committed`; its JSON data contains `seq`, `attempt`,
 `generation`, `page_idx`, `page_hash`, and `changed_item_ids`. The event is a

@@ -541,9 +541,10 @@ provider、operation、`resolution_revision`、允许的解决方式和需要填
 
 - `GET /api/v1/jobs/{job_id}/live-translation/layout`
 - `GET /api/v1/jobs/{job_id}/live-translation/pages/{page_idx}`
-- `GET /api/v1/jobs/{job_id}/live-events?after_seq={seq}`
+- `GET /api/v1/jobs/{job_id}/progress/stream?after_seq={seq}`（旧地址 `live-events`）
 
-`live-events` 是可重放的 SSE 通知，不直接携带非持久化模型 token。客户端收到
+`progress/stream` 是可重放的 SSE 通知，响应带 `X-Accel-Buffering: no`，nginx 这类反向代理不会缓冲它。
+它不直接携带非持久化模型 token。客户端收到
 `translation_units_committed` 后，再读取对应页面的权威快照；断线后用最后确认的
 `seq` 重连。布局、页面快照和事件身份必须匹配同一 `attempt/generation/page_hash`。
 
