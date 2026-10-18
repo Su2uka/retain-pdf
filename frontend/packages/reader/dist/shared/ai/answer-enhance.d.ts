@@ -36,6 +36,7 @@ export declare function pickCitationsForAnswer(answerText: string, citations: Ai
 export declare function decorateCitationMarkdown(markdown: string, citationByRef: Map<string, AiCitationLike>): string;
 export declare function buildPagePreviewUrl(jobId: string, pageIdx0: number, kind?: "translated" | "source", adapters?: {
     resolveResourceUrl?: (v: unknown) => string;
+    documentId?: string;
 }): string;
 export declare function buildMarkdownImageApiUrl(jobId: string, relativePath: string, adapters?: {
     resolveResourceUrl?: (v: unknown) => string;
