@@ -5,7 +5,7 @@ import { join, relative } from "node:path";
 
 // 消费者契约测试: 任务状态 / 阶段进度 Rust 真值 ↔ TS 消费
 // 真值: contracts/job-status.v1.schema.json
-// 生产侧: backend/packages/retainpdf-core/src/models/view/{job_types.rs, common.rs}
+// 生产侧: backend/packages/retainpdf-jobs/src/views/{job_types.rs, common.rs}
 // 消费侧: frontend/packages/domain/src/job/{types,normalize}.ts
 //         & frontend/packages/domain/src/job-status/types.ts
 //         frontend/web-react src/features/status/types.ts & library/api/library-api-adapter.ts

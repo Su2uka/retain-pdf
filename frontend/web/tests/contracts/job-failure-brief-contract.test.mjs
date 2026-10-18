@@ -37,7 +37,7 @@ const tsFields = () => [
 
 const rustFields = () => {
   const rust = definitionBody(
-    read("../../../../backend/packages/retainpdf-core/src/models/view/job_types.rs"),
+    read("../../../../backend/packages/retainpdf-jobs/src/views/job_types.rs"),
     "pub struct JobFailureBriefView {",
     "\n}",
   );
