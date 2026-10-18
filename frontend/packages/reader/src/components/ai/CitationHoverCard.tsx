@@ -42,7 +42,7 @@ function clip(text: string, max: number): string {
 /**
  * 卡片有没有东西可显示。
  *
- * jobId 拿不到时 `buildPagePreviewUrl` 返回空串——主页的 citation 常常没有
+ * jobId 和书编号都拿不到时没有页面图——主页的 citation 常常没有
  * `job_id`。这种情况**不出破图也不出占位框**，只出文字 snippet：一个永远加载不出来
  * 的灰框比没有图更吵，而 snippet 本身就是用户悬停时最想看的东西。图和文字都没有
  * 就干脆不开卡片（调用方据此决定还要不要挂 hover）。
@@ -54,9 +54,9 @@ export function citationPreviewKinds(
   const pageIdx = resolveCitationPageIdx(citation);
   if (pageIdx === null) return [];
   const job = `${citation.job_id || jobId || ""}`.trim();
-  if (!job) return [];
-  // 译文 PDF 没产出的 job（只跑过 OCR）取 translated 会 404，退回取原文页。
-  return ["translated", "source"];
+  const doc = `${citation.document_id || ""}`.trim();
+  // 译文 PDF 没产出的 job（只跑过 OCR）取 translated 会 404，退回取原文页；原文页在书下面，要有书编号。
+  return [...(job ? ["translated"] : []), ...(doc ? ["source"] : [])];
 }
 
 export function citationHoverHasContent(
@@ -92,6 +92,7 @@ export function CitationHoverCard({
     const image = imageRef.current;
     if (!image || !kinds.length) return undefined;
     const job = `${citation.job_id || jobId || ""}`.trim();
+    const documentId = `${citation.document_id || ""}`.trim();
     const controller = new AbortController();
     void (async () => {
       for (const kind of kinds) {
@@ -99,7 +100,7 @@ export function CitationHoverCard({
           job,
           pageIdx ?? 0,
           kind as "translated" | "source",
-          {},
+          { documentId },
         );
         if (!url) break;
         image.setAttribute("data-ai-src", url);

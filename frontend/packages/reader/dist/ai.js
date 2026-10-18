@@ -1,6 +1,6 @@
-import { jsxs as y, jsx as i, Fragment as j } from "react/jsx-runtime";
-import { useId as O, useState as I, useCallback as E, useRef as k, useEffect as P, useLayoutEffect as tt, createContext as et, useContext as U, useMemo as B } from "react";
-import { a as X, b as nt, h as G, d as T, e as K, f as rt, g as at, j as ot, k as st, l as it, m as lt } from "./answer-enhance-d3OW6M6M.js";
+import { jsxs as y, jsx as i, Fragment as O } from "react/jsx-runtime";
+import { useId as j, useState as I, useCallback as P, useRef as C, useEffect as _, useLayoutEffect as tt, createContext as et, useContext as U, useMemo as B } from "react";
+import { a as X, b as nt, h as G, d as T, e as K, f as rt, g as at, j as ot, k as st, l as it, m as lt } from "./answer-enhance-Dxffc8s3.js";
 import ct, { setCustomComponents as dt, PreCodeNode as ut, MathInlineNode as ht } from "markstream-react";
 import { createPortal as ft } from "react-dom";
 const mt = "retainpdf-chart", pt = 6, gt = 40, bt = /* @__PURE__ */ new Set(["bar", "line", "pie"]);
@@ -12,7 +12,7 @@ function $t(t) {
   }
   return null;
 }
-function S(t, e = "") {
+function R(t, e = "") {
   return `${t ?? ""}`.trim() || e;
 }
 function wt(t) {
@@ -21,7 +21,7 @@ function wt(t) {
   for (const n of t) {
     if (!n || typeof n != "object") continue;
     const a = n, r = $t(a.value ?? a.y);
-    if (r !== null && (e.push({ label: S(a.label ?? a.x, `${e.length + 1}`), value: r }), e.length >= gt))
+    if (r !== null && (e.push({ label: R(a.label ?? a.x, `${e.length + 1}`), value: r }), e.length >= gt))
       break;
   }
   return e;
@@ -32,7 +32,7 @@ function yt(t) {
   for (const n of t) {
     if (!n || typeof n != "object") continue;
     const a = n, r = wt(a.points ?? a.data);
-    if (r.length && (e.push({ name: S(a.name, `系列 ${e.length + 1}`), points: r }), e.length >= pt))
+    if (r.length && (e.push({ name: R(a.name, `系列 ${e.length + 1}`), points: r }), e.length >= pt))
       break;
   }
   return e;
@@ -54,9 +54,9 @@ function xt(t) {
   const l = r === "pie" ? s.slice(0, 1) : s;
   return {
     kind: r,
-    title: S(a.title),
-    xLabel: S(a.xLabel ?? a.x_label),
-    yLabel: S(a.yLabel ?? a.y_label),
+    title: R(a.title),
+    xLabel: R(a.xLabel ?? a.x_label),
+    yLabel: R(a.yLabel ?? a.y_label),
     series: l
   };
 }
@@ -70,14 +70,14 @@ function D(t) {
     n.points.length > e.length && (e = n.points);
   return e.map((n) => n.label);
 }
-const V = 640, H = 300, $ = { top: 16, right: 16, bottom: 44, left: 52 }, L = V - $.left - $.right, v = H - $.top - $.bottom, F = [
+const V = 640, H = 300, $ = { top: 16, right: 16, bottom: 44, left: 52 }, k = V - $.left - $.right, A = H - $.top - $.bottom, F = [
   "var(--chart-1, #4c6ef5)",
   "var(--chart-2, #f08c00)",
   "var(--chart-3, #2f9e44)",
   "var(--chart-4, #e03131)",
   "var(--chart-5, #ae3ec9)",
   "var(--chart-6, #0c8599)"
-], _ = (t) => F[t % F.length];
+], S = (t) => F[t % F.length];
 function Nt(t, e) {
   return Array.from({ length: 5 }, (a, r) => t + (e - t) * r / 4);
 }
@@ -94,7 +94,7 @@ function Lt({
   max: n,
   labels: a
 }) {
-  const r = (o) => $.top + v - (o - e) / (n - e) * v, s = At(a.length), l = L / Math.max(1, a.length);
+  const r = (o) => $.top + A - (o - e) / (n - e) * A, s = At(a.length), l = k / Math.max(1, a.length);
   return /* @__PURE__ */ y("g", { className: "reader-answer-chart-axes", children: [
     Nt(e, n).map((o) => /* @__PURE__ */ y("g", { children: [
       /* @__PURE__ */ i(
@@ -102,7 +102,7 @@ function Lt({
         {
           className: "reader-answer-chart-grid",
           x1: $.left,
-          x2: $.left + L,
+          x2: $.left + k,
           y1: r(o),
           y2: r(o)
         }
@@ -114,7 +114,7 @@ function Lt({
       {
         className: "reader-answer-chart-tick",
         x: $.left + l * (u + 0.5),
-        y: $.top + v + 18,
+        y: $.top + A + 18,
         textAnchor: "middle",
         children: o.length > 10 ? `${o.slice(0, 9)}…` : o
       },
@@ -125,7 +125,7 @@ function Lt({
       "text",
       {
         className: "reader-answer-chart-axis-label",
-        x: $.left + L,
+        x: $.left + k,
         y: H - 6,
         textAnchor: "end",
         children: t.xLabel
@@ -134,8 +134,8 @@ function Lt({
   ] });
 }
 function kt({ spec: t, min: e, max: n }) {
-  const a = D(t), r = L / Math.max(1, a.length), s = r * 0.7, l = s / t.series.length, o = (d) => $.top + v - (d - e) / (n - e) * v, u = o(0);
-  return /* @__PURE__ */ i(j, { children: t.series.map((d, c) => /* @__PURE__ */ i("g", { fill: _(c), children: d.points.map((h, g) => {
+  const a = D(t), r = k / Math.max(1, a.length), s = r * 0.7, l = s / t.series.length, o = (d) => $.top + A - (d - e) / (n - e) * A, u = o(0);
+  return /* @__PURE__ */ i(O, { children: t.series.map((d, c) => /* @__PURE__ */ i("g", { fill: S(c), children: d.points.map((h, g) => {
     const m = o(h.value), p = $.left + r * g + (r - s) / 2 + l * c;
     return /* @__PURE__ */ i(
       "rect",
@@ -152,10 +152,10 @@ function kt({ spec: t, min: e, max: n }) {
   }) }, d.name)) });
 }
 function Ct({ spec: t, min: e, max: n }) {
-  const a = D(t), r = L / Math.max(1, a.length), s = (o) => $.top + v - (o - e) / (n - e) * v, l = (o) => $.left + r * (o + 0.5);
-  return /* @__PURE__ */ i(j, { children: t.series.map((o, u) => {
+  const a = D(t), r = k / Math.max(1, a.length), s = (o) => $.top + A - (o - e) / (n - e) * A, l = (o) => $.left + r * (o + 0.5);
+  return /* @__PURE__ */ i(O, { children: t.series.map((o, u) => {
     const d = o.points.map((c, h) => `${h === 0 ? "M" : "L"} ${l(h)} ${s(c.value)}`).join(" ");
-    return /* @__PURE__ */ y("g", { stroke: _(u), fill: _(u), children: [
+    return /* @__PURE__ */ y("g", { stroke: S(u), fill: S(u), children: [
       /* @__PURE__ */ i("path", { className: "reader-answer-chart-line", d, fill: "none" }),
       o.points.map((c, h) => /* @__PURE__ */ i(
         "circle",
@@ -175,23 +175,23 @@ function Et({ spec: t }) {
   var u;
   const e = ((u = t.series[0]) == null ? void 0 : u.points) ?? [], n = e.map((d) => Math.max(0, d.value)), a = n.reduce((d, c) => d + c, 0);
   if (a <= 0) return null;
-  const r = $.left + L / 2, s = $.top + v / 2, l = Math.min(L, v) / 2 - 8;
+  const r = $.left + k / 2, s = $.top + A / 2, l = Math.min(k, A) / 2 - 8;
   let o = -Math.PI / 2;
-  return /* @__PURE__ */ i(j, { children: e.map((d, c) => {
-    const h = n[c] / a, g = o + h * Math.PI * 2, m = r + l * Math.cos(o), p = s + l * Math.sin(o), w = r + l * Math.cos(g), M = s + l * Math.sin(g), N = h > 0.5 ? 1 : 0, f = h >= 1 ? `M ${r} ${s - l} A ${l} ${l} 0 1 1 ${r - 0.01} ${s - l} Z` : `M ${r} ${s} L ${m} ${p} A ${l} ${l} 0 ${N} 1 ${w} ${M} Z`;
-    return o = g, /* @__PURE__ */ i("path", { d: f, fill: _(c), children: /* @__PURE__ */ i("title", { children: `${d.label}: ${d.value}（${(h * 100).toFixed(1)}%）` }) }, `${d.label}-${c}`);
+  return /* @__PURE__ */ i(O, { children: e.map((d, c) => {
+    const h = n[c] / a, g = o + h * Math.PI * 2, m = r + l * Math.cos(o), p = s + l * Math.sin(o), w = r + l * Math.cos(g), x = s + l * Math.sin(g), M = h > 0.5 ? 1 : 0, f = h >= 1 ? `M ${r} ${s - l} A ${l} ${l} 0 1 1 ${r - 0.01} ${s - l} Z` : `M ${r} ${s} L ${m} ${p} A ${l} ${l} 0 ${M} 1 ${w} ${x} Z`;
+    return o = g, /* @__PURE__ */ i("path", { d: f, fill: S(c), children: /* @__PURE__ */ i("title", { children: `${d.label}: ${d.value}（${(h * 100).toFixed(1)}%）` }) }, `${d.label}-${c}`);
   }) });
 }
 function Pt({ spec: t }) {
   var n;
   const e = t.kind === "pie" ? (((n = t.series[0]) == null ? void 0 : n.points) ?? []).map((a) => a.label) : t.series.map((a) => a.name);
   return e.length < 2 ? null : /* @__PURE__ */ i("ul", { className: "reader-answer-chart-legend", children: e.map((a, r) => /* @__PURE__ */ y("li", { children: [
-    /* @__PURE__ */ i("span", { className: "reader-answer-chart-swatch", style: { background: _(r) }, "aria-hidden": !0 }),
+    /* @__PURE__ */ i("span", { className: "reader-answer-chart-swatch", style: { background: S(r) }, "aria-hidden": !0 }),
     a
   ] }, `${a}-${r}`)) });
 }
-function Rt({ spec: t }) {
-  const e = O(), { min: n, max: a } = Mt(t), r = D(t), s = t.title || `${t.series.length} 个系列的${t.kind === "pie" ? "占比" : "对比"}图`;
+function _t({ spec: t }) {
+  const e = j(), { min: n, max: a } = Mt(t), r = D(t), s = t.title || `${t.series.length} 个系列的${t.kind === "pie" ? "占比" : "对比"}图`;
   return /* @__PURE__ */ y("figure", { className: "reader-answer-chart", children: [
     /* @__PURE__ */ y(
       "svg",
@@ -214,8 +214,8 @@ function Rt({ spec: t }) {
     t.title ? /* @__PURE__ */ i("figcaption", { className: "reader-answer-chart-caption", children: t.title }) : null
   ] });
 }
-const St = 1600;
-function _t(t) {
+const Rt = 1600;
+function St(t) {
   const e = `${t || ""}`.trim().toLowerCase();
   return !e || e === "text" || e === "plain" ? "" : {
     js: "JavaScript",
@@ -244,13 +244,13 @@ function It({
   code: e,
   children: n
 }) {
-  const [a, r] = I(!1), s = _t(t), l = E(() => {
+  const [a, r] = I(!1), s = St(t), l = P(() => {
     var u;
     const o = `${e || ""}`;
     o.trim() && ((u = navigator.clipboard) == null || u.writeText(o).then(
       () => {
         var d;
-        r(!0), (d = globalThis.setTimeout) == null || d.call(globalThis, () => r(!1), St);
+        r(!0), (d = globalThis.setTimeout) == null || d.call(globalThis, () => r(!1), Rt);
       },
       () => {
       }
@@ -273,8 +273,8 @@ function It({
     n
   ] });
 }
-const Tt = 8, jt = 8;
-function Ot(t, e, n, { gap: a = Tt, margin: r = jt } = {}) {
+const Tt = 8, Ot = 8;
+function jt(t, e, n, { gap: a = Tt, margin: r = Ot } = {}) {
   const s = n.height - t.bottom, l = t.top, o = e.height + a + r, u = s >= o || s >= l ? "bottom" : "top", d = u === "bottom" ? t.bottom + a : t.top - a - e.height, c = Math.max(r, n.height - e.height - r), h = Math.min(Math.max(d, r), c), g = t.left + t.width / 2 - e.width / 2, m = Math.max(r, n.width - e.width - r);
   return { left: Math.min(Math.max(g, r), m), top: h, placement: u };
 }
@@ -284,7 +284,9 @@ function q(t, e) {
   return n.length <= e ? n : `${n.slice(0, e - 1)}…`;
 }
 function Q(t, e) {
-  return X(t) === null ? [] : `${t.job_id || e || ""}`.trim() ? ["translated", "source"] : [];
+  if (X(t) === null) return [];
+  const a = `${t.job_id || e || ""}`.trim(), r = `${t.document_id || ""}`.trim();
+  return [...a ? ["translated"] : [], ...r ? ["source"] : []];
 }
 function Ht(t, e) {
   return Q(t, e).length > 0 || q(`${t.snippet || ""}`, Z).length > 0;
@@ -297,51 +299,51 @@ function Wt({
   onPointerEnter: r,
   onPointerLeave: s
 }) {
-  const l = k(null), o = k(null), u = Q(t, e), d = X(t), c = d === null ? null : d + 1, h = q(`${t.snippet || ""}`, Z), [g, m] = I(
+  const l = C(null), o = C(null), u = Q(t, e), d = X(t), c = d === null ? null : d + 1, h = q(`${t.snippet || ""}`, Z), [g, m] = I(
     u.length ? "loading" : "none"
   ), [p, w] = I(null);
-  P(() => {
+  _(() => {
     const f = o.current;
     if (!f || !u.length) return;
-    const b = `${t.job_id || e || ""}`.trim(), x = new AbortController();
+    const b = `${t.job_id || e || ""}`.trim(), N = `${t.document_id || ""}`.trim(), v = new AbortController();
     return (async () => {
-      for (const C of u) {
-        const A = nt(
+      for (const E of u) {
+        const L = nt(
           b,
           d ?? 0,
-          C,
-          {}
+          E,
+          { documentId: N }
         );
-        if (!A) break;
-        if (f.setAttribute("data-ai-src", A), f.classList.remove("is-missing"), await G(f, { signal: x.signal }), x.signal.aborted) return;
+        if (!L) break;
+        if (f.setAttribute("data-ai-src", L), f.classList.remove("is-missing"), await G(f, { signal: v.signal }), v.signal.aborted) return;
         if (!f.classList.contains("is-missing")) {
           m("ready");
           return;
         }
       }
-      x.signal.aborted || m("failed");
+      v.signal.aborted || m("failed");
     })(), () => {
-      x.abort(), T(f);
+      v.abort(), T(f);
     };
   }, [t, e, d, u.length]), tt(() => {
     const f = l.current;
     if (!f || !n) return;
     const b = () => {
-      const x = n.getBoundingClientRect(), C = f.getBoundingClientRect(), A = Ot(
-        { top: x.top, left: x.left, bottom: x.bottom, width: x.width },
+      const N = n.getBoundingClientRect(), v = f.getBoundingClientRect(), E = jt(
+        { top: N.top, left: N.left, bottom: N.bottom, width: N.width },
         {
-          width: C.width || f.offsetWidth,
-          height: C.height || f.offsetHeight
+          width: v.width || f.offsetWidth,
+          height: v.height || f.offsetHeight
         },
         { width: window.innerWidth || 0, height: window.innerHeight || 0 }
       );
-      w((R) => R && R.left === A.left && R.top === A.top && R.placement === A.placement ? R : A);
+      w((L) => L && L.left === E.left && L.top === E.top && L.placement === E.placement ? L : E);
     };
     return b(), window.addEventListener("scroll", b, !0), window.addEventListener("resize", b), () => {
       window.removeEventListener("scroll", b, !0), window.removeEventListener("resize", b);
     };
   }, [n, g, h]);
-  const M = /* @__PURE__ */ y(
+  const x = /* @__PURE__ */ y(
     "div",
     {
       ref: l,
@@ -372,27 +374,27 @@ function Wt({
         ] })
       ]
     }
-  ), N = typeof document > "u" ? null : document.body;
-  return N ? ft(M, N) : M;
+  ), M = typeof document > "u" ? null : document.body;
+  return M ? ft(x, M) : x;
 }
 const Bt = 140, Y = 180;
 function Ft({ citation: t, label: e, jobId: n, onJump: a }) {
-  const [r, s] = I(!1), l = k(null), o = k(null), u = `reader-ai-citation-card-${O().replace(/[^a-zA-Z0-9_-]/g, "")}`, d = K(t), c = Ht(t, n), h = E(() => {
+  const [r, s] = I(!1), l = C(null), o = C(null), u = `reader-ai-citation-card-${j().replace(/[^a-zA-Z0-9_-]/g, "")}`, d = K(t), c = Ht(t, n), h = P(() => {
     o.current !== null && (clearTimeout(o.current), o.current = null);
-  }, []), g = E((w, M) => {
+  }, []), g = P((w, x) => {
     h(), o.current = setTimeout(() => {
       o.current = null, s(w);
-    }, M);
+    }, x);
   }, [h]);
-  P(() => () => h(), [h]), P(() => {
+  _(() => () => h(), [h]), _(() => {
     c || s(!1);
   }, [c]);
-  const m = E(() => {
+  const m = P(() => {
     h(), s(!0);
-  }, [h]), p = E(() => {
+  }, [h]), p = P(() => {
     h(), s(!1);
   }, [h]);
-  return /* @__PURE__ */ y(j, { children: [
+  return /* @__PURE__ */ y(O, { children: [
     /* @__PURE__ */ y(
       "button",
       {
@@ -450,21 +452,21 @@ function zt(t) {
     a.style.removeProperty("--reader-ai-image-width");
 }
 function Ut({ node: t }) {
-  const { final: e, jobId: n, citations: a, onJumpCitation: r } = U(W), s = k(null), l = k(null), o = `${t.alt || ""}`.trim(), u = rt(t.src, n, {}, at(a)), d = ot(t.src, a, n), c = K(d), h = E((m) => {
-    var M;
+  const { final: e, jobId: n, citations: a, onJumpCitation: r } = U(W), s = C(null), l = C(null), o = `${t.alt || ""}`.trim(), u = rt(t.src, n, {}, at(a)), d = ot(t.src, a, n), c = K(d), h = P((m) => {
+    var x;
     const p = s.current;
-    if (p === m || ((M = l.current) == null || M.abort(), l.current = null, p && T(p), s.current = m, !m || !u)) return;
+    if (p === m || ((x = l.current) == null || x.abort(), l.current = null, p && T(p), s.current = m, !m || !u)) return;
     const w = new AbortController();
     l.current = w, (async () => {
-      for (const N of [0, 250, 750, 1500]) {
-        if (N && await new Promise((b) => globalThis.setTimeout(b, N)), w.signal.aborted) return;
+      for (const M of [0, 250, 750, 1500]) {
+        if (M && await new Promise((b) => globalThis.setTimeout(b, M)), w.signal.aborted) return;
         const f = s.current;
         if (!f || f !== m || f.classList.contains("is-hydrated") && f.src.startsWith("blob:")) return;
         await G(f, { signal: w.signal });
       }
     })();
   }, [u]);
-  if (P(() => () => {
+  if (_(() => () => {
     var m;
     (m = l.current) == null || m.abort(), l.current = null, T(s.current), s.current = null;
   }, []), !u)
@@ -525,7 +527,7 @@ function Gt(t) {
   const e = t.node;
   if (`${(e == null ? void 0 : e.language) || ""}`.trim().toLowerCase() === mt) {
     const n = xt(`${(e == null ? void 0 : e.code) || ""}`);
-    if (n) return /* @__PURE__ */ i(Rt, { spec: n });
+    if (n) return /* @__PURE__ */ i(_t, { spec: n });
   }
   return /* @__PURE__ */ i(It, { language: `${(e == null ? void 0 : e.language) || ""}`, code: `${(e == null ? void 0 : e.code) || ""}`, children: /* @__PURE__ */ i(ut, { node: t.node }) });
 }
@@ -590,8 +592,8 @@ function ee({
   citationFooterMax: u = 5,
   onJumpCitation: d
 }) {
-  var N;
-  const c = k(null), h = O(), g = e ? `${t || ""}` : `${t || ""}`.trim(), m = `${a || ((N = n.find((f) => f.job_id)) == null ? void 0 : N.job_id) || ""}`.trim(), p = B(() => {
+  var M;
+  const c = C(null), h = j(), g = e ? `${t || ""}` : `${t || ""}`.trim(), m = `${a || ((M = n.find((f) => f.job_id)) == null ? void 0 : M.job_id) || ""}`.trim(), p = B(() => {
     const f = /* @__PURE__ */ new Map();
     for (const b of n)
       st(b) && f.set(`${b.ref}`, b);
@@ -600,23 +602,23 @@ function ee({
     () => it(g, p),
     [g, p]
   );
-  return P(() => {
-    var x;
+  return _(() => {
+    var N;
     const f = c.current;
     if (!f || !g) return;
     const b = f.parentElement;
     if (b instanceof HTMLElement) {
       if (e) {
-        (x = b.querySelector(".reader-ai-citations")) == null || x.remove();
+        (N = b.querySelector(".reader-ai-citations")) == null || N.remove();
         return;
       }
       lt(b, n, {
-        onJump: (C) => d == null ? void 0 : d(C),
+        onJump: (v) => d == null ? void 0 : d(v),
         answerText: g,
         max: u
       });
     }
-  }, [e, m, p, n, d, g, u]), P(() => () => T(c.current), []), g.trim() ? /* @__PURE__ */ i("div", { ref: c, className: `${r} ${e ? s : o || l}`.trim(), children: /* @__PURE__ */ i(
+  }, [e, m, p, n, d, g, u]), _(() => () => T(c.current), []), g.trim() ? /* @__PURE__ */ i("div", { ref: c, className: `${r} ${e ? s : o || l}`.trim(), children: /* @__PURE__ */ i(
     Vt,
     {
       content: w,

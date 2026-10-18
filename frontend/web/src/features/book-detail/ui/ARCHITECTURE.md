@@ -77,8 +77,8 @@ OCR/翻译提交响应必须立即 `upsert` 到 optimistic map，避免首次文
 的 workflow 身份不可变，runtime/list 刷新只能推进它的状态。
 
 已有翻译任务的重新处理不再走 `POST /documents/:id/translate` 猜测能力，而是读取
-`GET /jobs/:job_id/stage-actions`：翻译可重试时展示“重新翻译”，译文产物可用时展示
-“重新渲染”。点击后统一调用 `POST /jobs/:job_id/retry-stage`，新 job 立即写入
+`GET /jobs/:job_id/actions`：翻译可重试时展示“重新翻译”，译文产物可用时展示
+“重新渲染”。点击后统一调用 `POST /jobs/:job_id/actions/retry-stage`，新 job 立即写入
 `useDocumentJobs` 并交给共享 runtime。若后端标记 `danger=true`，前端必须二次确认后才可
 提交 `ambiguous_request_policy=accept_duplicate_risk`。
 
