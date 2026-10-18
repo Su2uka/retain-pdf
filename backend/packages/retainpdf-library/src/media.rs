@@ -1,7 +1,6 @@
 //! 书本身的文件：原文 PDF、封面、缩略图、原文单页预览图（`/documents/:id/files/…`）。
 //!
 //! 这一次加工产出的文件（译文、对照版、Word……）挂在任务下面，见 services::jobs 的 `open`。
-//! 旧地址 `/documents/:id/source.pdf|cover|thumbnail` 也走这里。
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;

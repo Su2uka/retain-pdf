@@ -1,6 +1,6 @@
 //! 任务本身：有哪些任务、建一个、看一个（`/jobs`、`/jobs/:id`）。
 //!
-//! 带文件的旧入口 `/ocr/jobs`、`/translate/bundle` 也在这里；建任务内部都走 services::jobs 的 `submit_job`。
+//! 带文件一步建翻译任务的 `/translate/bundle` 也在这里；建任务内部都走 services::jobs 的 `submit_job`。
 
 use crate::auth::Principal;
 use crate::error::AppError;

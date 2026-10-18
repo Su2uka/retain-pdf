@@ -1,6 +1,6 @@
 //! 建新任务的唯一入口 [`submit_job`]，和原地重跑已有任务的 [`relaunch_in_place`]。
 //!
-//! 所有"建一个新任务并开跑"的地方都走 `submit_job`：`POST /jobs`、`/ocr/jobs`、`/translate/bundle`、
+//! 所有"建一个新任务并开跑"的地方都走 `submit_job`：`POST /jobs`、`/translate/bundle`、
 //! 书库的翻译和 OCR、重试、续跑、OCR 歧义恢复。下面每一步只在这里写一次：
 //!
 //! 1. 翻译类的新提交补开发栈的默认值（OCR 歧义恢复沿用源任务的设置，不补）；
@@ -9,7 +9,7 @@
 //! 4. 明文 key 导入凭据库换成引用，加使用锁，锁到落库之后；
 //! 5. 落库（多用户模式按页预扣）、归到书下、发射。
 //!
-//! 带文件的入口（`/ocr/jobs`、`/translate/bundle`）先把文件存成上传，再把上传记录交给 [`NewJob::with_upload`]。
+//! 带文件的入口（`/translate/bundle`）先把文件存成上传，再把上传记录交给 [`NewJob::with_upload`]。
 //! 任务运行时内部派生的 `{id}-ocr` 子任务不经这里，所以不会重复计费。
 
 use serde_json::Value;

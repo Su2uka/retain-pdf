@@ -100,8 +100,8 @@ pub struct JobFilesView {
     pub job_id: String,
     /// 这是第几次跑（重跑、重试阶段以后加一），和产物清单每一项的 `attempt` 一样。
     pub attempt: u32,
-    /// 原文 PDF。它是书的文件：有书编号时 `url` 指向 `/documents/:id/files/source.pdf`，
-    /// 查不到书编号的旧任务退回按任务的旧地址。
+    /// 原文 PDF。它是书的文件：`url` 指向 `/documents/:id/files/source.pdf`；
+    /// 查不到书编号就没有地址，`url` 是空串、`ready` 是 false。
     pub source: JobFileEntryView,
     pub output: Vec<JobFileEntryView>,
     pub pages: JobPagesView,

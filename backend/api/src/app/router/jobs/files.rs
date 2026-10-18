@@ -1,6 +1,6 @@
 //! 文件：产出了哪些文件、取一个。按"给谁用"分三组：output 成品 / pages 译文页预览 /
-//! internal 中间产物（只给管理员）。旧地址和新文件名不是一一对应，单列在后面，
-//! 对照表见 docs/api/07-产物下载/01-下载总览.md。
+//! internal 中间产物（只给管理员）。旧地址（`/pdf`、`/artifacts/:key`……）2026-10-18 删了，
+//! 新旧对照见 docs/api/07-产物下载/01-下载总览.md。
 
 use crate::app::AppState;
 use crate::routes::jobs::files;

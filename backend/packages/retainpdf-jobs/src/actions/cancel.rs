@@ -54,7 +54,7 @@ pub(crate) async fn cancel_job(
     if let Some(pid) = job.pid {
         terminate_runtime_process(deps.runtime.job_runtime(), pid, deps.job_runner).await?;
     }
-    // 按任务类型、不按走的是哪条路由：/jobs/:id/cancel 取消 OCR 任务要和 /ocr/jobs/:id/cancel 一样。
+    // 按任务类型分支，不按走的是哪条路由。
     if matches!(job.workflow, WorkflowKind::Ocr) {
         if matches!(job.stage.as_deref(), Some("queued")) {
             job.status = JobStatusKind::Canceled;

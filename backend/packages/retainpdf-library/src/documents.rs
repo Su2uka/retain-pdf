@@ -18,7 +18,7 @@ use super::LibraryDeps;
 pub(crate) fn document_media_urls(base_url: &str, document_id: &str) -> (String, String, String) {
     let url = |name: &str| to_absolute_url(base_url, &document_file_path(document_id, name));
     (
-        // 旧地址 `/source.pdf` 默认下载，新链接带 `?download=1` 保持原样。
+        // 原文默认下载（以前的 `/source.pdf` 就是这样），所以带 `?download=1`。
         url("source.pdf?download=1"),
         url("cover.jpg"),
         url("thumbnail.jpg"),

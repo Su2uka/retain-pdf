@@ -1,4 +1,4 @@
-//! 上传，以及只做 OCR 的旧别名 `/ocr/jobs/*`（多用户下关闭，内容对应 `/jobs/*`）。
+//! 上传（`/uploads`）。只做 OCR 的旧别名 `/ocr/jobs/*` 2026-10-18 删了，OCR 任务也走 `/jobs/*`。
 
 use crate::app::AppState;
 use crate::routes::uploads;
