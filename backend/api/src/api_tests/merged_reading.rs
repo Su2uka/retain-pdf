@@ -215,7 +215,7 @@ async fn two_range_translations_open_as_one_full_length_book() {
     assert_eq!(read_json(detail).await["data"]["job_id"], job_id);
 
     // 阅读器：译文 PDF —— 整本长度，没翻的页是原文
-    let pdf = request(&app, "GET", &format!("/api/v1/jobs/{job_id}/pdf")).await;
+    let pdf = request(&app, "GET", &format!("/api/v1/jobs/{job_id}/files/output/translated.pdf")).await;
     assert_eq!(pdf.status(), StatusCode::OK);
     let bytes = to_bytes(pdf.into_body(), usize::MAX).await.unwrap();
     assert_eq!(pdf_texts(&bytes), "ZH 1|SRC 2|ZH 3|ZH 4");
@@ -239,7 +239,7 @@ async fn two_range_translations_open_as_one_full_length_book() {
     );
 
     // 阅读器：Markdown 原文 —— 两个子集 OCR 按起始页拼起来
-    let markdown = request(&app, "GET", &format!("/api/v1/jobs/{job_id}/markdown?raw=true")).await;
+    let markdown = request(&app, "GET", &format!("/api/v1/jobs/{job_id}/files/output/ocr.md")).await;
     assert_eq!(markdown.status(), StatusCode::OK);
     let markdown = String::from_utf8(to_bytes(markdown.into_body(), usize::MAX).await.unwrap().to_vec()).unwrap();
     let (a, mid) = (markdown.find("of job-a"), markdown.find("of job-mid"));
@@ -250,7 +250,7 @@ async fn two_range_translations_open_as_one_full_length_book() {
     assert_eq!(metadata.status(), StatusCode::OK);
 
     // AI 工作区：合并书接到这本书上次 agent 的产出，落在文档级的 ai/（不跟着指纹走）
-    let reading_path = request(&app, "GET", &format!("/api/v1/jobs/{job_id}/reading-path")).await;
+    let reading_path = request(&app, "GET", &format!("/api/v1/jobs/{job_id}/ai/reading-path")).await;
     assert_eq!(reading_path.status(), StatusCode::OK);
     let body = to_bytes(reading_path.into_body(), usize::MAX).await.unwrap();
     assert!(String::from_utf8_lossy(&body).contains("from job-a"), "{}", String::from_utf8_lossy(&body));
@@ -268,7 +268,7 @@ async fn two_range_translations_open_as_one_full_length_book() {
 
     // 写操作一律拒绝：虚拟 id 不在数据库里
     for action in ["cancel", "rerun"] {
-        let response = request(&app, "POST", &format!("/api/v1/jobs/{job_id}/{action}")).await;
+        let response = request(&app, "POST", &format!("/api/v1/jobs/{job_id}/actions/{action}")).await;
         assert!(
             response.status().is_client_error(),
             "{action} 对虚拟任务返回了 {}",
@@ -296,7 +296,7 @@ async fn a_newer_range_translation_takes_over_its_pages() {
     seed_range_job(&state, &document_id, "job-redo", "2026-10-02T00:00:00", &[2], &["NEW 2"]);
     let app = build_app(state);
     let job_id = reading(&app, &document_id).await["job_id"].as_str().unwrap().to_string();
-    let pdf = request(&app, "GET", &format!("/api/v1/jobs/{job_id}/pdf")).await;
+    let pdf = request(&app, "GET", &format!("/api/v1/jobs/{job_id}/files/output/translated.pdf")).await;
     let bytes = to_bytes(pdf.into_body(), usize::MAX).await.unwrap();
     assert_eq!(pdf_texts(&bytes), "OLD 1|NEW 2");
 }

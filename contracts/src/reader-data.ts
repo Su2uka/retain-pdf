@@ -13,8 +13,6 @@ export type ReaderDataSchema =
   | LiveTranslationLayout
   | LiveTranslationPageSnapshot
   | MarkdownDocumentView
-  | ReaderArtifactLinks
-  | ReaderArtifactManifestView
   | ReaderMetadataView
   | ReaderRegionsView;
 
@@ -33,7 +31,7 @@ export interface JobFilesView {
   internal?: JobFileEntryView1[];
 }
 /**
- * The source PDF. It is a document file: with a document id the url is /api/v1/documents/:id/files/source.pdf, older jobs without one fall back to the per-job legacy address.
+ * The source PDF. It is a document file: the url is /api/v1/documents/:id/files/source.pdf. When no document id is known there is no address: url is an empty string and ready is false.
  */
 export interface JobFileEntryView {
   name: string;
@@ -202,102 +200,6 @@ export interface MarkdownImageView {
   url: string;
   content_type: string;
   size_bytes: number | null;
-}
-/**
- * Reader-safe subset of ArtifactLinksView. The endpoint may carry compatibility fields outside this subset; hosts must ignore them and consume only public resource links/readiness values instead of artifact storage conventions.
- */
-export interface ReaderArtifactLinks {
-  pdf_ready: boolean;
-  markdown_ready: boolean;
-  bundle_ready: boolean;
-  pdf_url: string;
-  markdown_url: string;
-  markdown_images_base_url: string;
-  bundle_url: string;
-  normalized_document_url: string;
-  normalization_report_url: string;
-  /**
-   * Public API path for the artifact manifest.
-   */
-  manifest_path: string;
-  /**
-   * Public URL for the artifact manifest.
-   */
-  manifest_url: string;
-  /**
-   * Existing job action links; this schema does not own their detailed control-plane shape.
-   */
-  actions: {};
-  normalized_document: PublicResourceLink;
-  normalization_report: PublicResourceLink;
-  pdf: PublicResourceLink;
-  markdown: MarkdownArtifactLink;
-  bundle: PublicResourceLink;
-  [k: string]: any;
-}
-/**
- * A publicly routable API resource. path is an API path and url may be absolute; neither is a filesystem path.
- */
-export interface PublicResourceLink {
-  ready: boolean;
-  /**
-   * Public API path, never a local filesystem path.
-   */
-  path: string;
-  /**
-   * Public absolute or API-relative URL.
-   */
-  url: string;
-  method: "GET";
-  content_type: string;
-  file_name: string | null;
-  size_bytes: number | null;
-}
-/**
- * Published Markdown artifact links from ArtifactLinksView.
- */
-export interface MarkdownArtifactLink {
-  ready: boolean;
-  json_path: string;
-  json_url: string;
-  raw_path: string;
-  raw_url: string;
-  images_base_path: string;
-  images_base_url: string;
-  file_name: string | null;
-  size_bytes: number | null;
-}
-export interface ReaderArtifactManifestView {
-  job_id: string;
-  items: ReaderArtifactManifestItem[];
-}
-/**
- * Reader-safe subset of a job artifact manifest entry. The endpoint may carry compatibility fields such as relative_path; hosts must discard those fields and use public resource links only.
- */
-export interface ReaderArtifactManifestItem {
-  artifact_key: string;
-  artifact_group: string;
-  artifact_kind: string;
-  ready: boolean;
-  file_name: string | null;
-  content_type: string;
-  size_bytes: number | null;
-  checksum: string | null;
-  source_stage: string | null;
-  updated_at: string;
-  /**
-   * One-based durable pipeline attempt.
-   */
-  attempt: number;
-  /**
-   * Public API path when published.
-   */
-  resource_path: string | null;
-  /**
-   * Public URL when published.
-   */
-  resource_url: string | null;
-  [k: string]: any;
 }
 export interface ReaderMetadataView {
   source: ReaderDocumentMetadata | null;

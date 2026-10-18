@@ -1,6 +1,6 @@
 //! 返回给前端的文件链接（新地址）。任务详情、书籍详情、Markdown 视图里的链接都从这里拼，
 //! 和路由 `/jobs/:id/files/<组>/<文件名>`、`/documents/:id/files/<文件名>` 对得上。
-//! 旧地址（`/jobs/:id/pdf`、`/markdown?raw=true`……）照旧能用，只是不再返回。
+//! 旧地址（`/jobs/:id/pdf`、`/markdown?raw=true`……）2026-10-18 删了。
 //! 对照表见 docs/ops/planning/api-reorg/20261017-返回链接换新地址清单.md。
 
 /// `internal/` 组：新文件名 ↔ 产物清单里的名字。文件出口（任务包的 `files/downloads/catalog.rs`）和
@@ -24,14 +24,6 @@ pub const JOB_INTERNAL_FILES: &[(&str, &str)] = &[
     ("ocr-provider/result.json", "provider_result_json"),
     ("ocr-provider/raw.zip", "provider_bundle_zip"),
 ];
-
-/// 产物清单里的名字 → `internal/` 下的新文件名。
-pub fn job_internal_file_name(artifact_key: &str) -> Option<&'static str> {
-    JOB_INTERNAL_FILES
-        .iter()
-        .find(|(_, key)| *key == artifact_key)
-        .map(|(file_name, _)| *file_name)
-}
 
 /// 任务的一个文件：`/api/v1/jobs/{job_id}/files/{relative}`，`relative` 是 `<组>/<文件名>`。
 pub fn job_file_path(job_id: &str, relative: &str) -> String {
@@ -63,7 +55,7 @@ pub fn job_ocr_images_base_path(job_id: &str) -> String {
     job_file_path(job_id, "output/ocr/images/")
 }
 
-/// 全部成品打包。旧地址 `/download` 默认下载，新链接带 `?download=1` 保持原样。
+/// 全部成品打包。带 `?download=1`：直接下载（以前的 `/download` 就是这样）。
 pub fn job_bundle_path(job_id: &str) -> String {
     job_file_path(job_id, "output/all.zip?download=1")
 }

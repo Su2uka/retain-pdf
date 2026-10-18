@@ -126,11 +126,13 @@ fn directory() -> String {
         "<!-- 由 backend/api/src/api_tests/route_manifest.rs 从接口登记表（backend/api/src/app/endpoints.rs）生成，不要手改：".to_string(),
         "     UPDATE_ROUTES=1 cargo test -p retainpdf-api --lib route_manifest -->".to_string(),
         String::new(),
-        format!(
-            "共 {} 个接口，其中 {current} 个现用地址、{} 个旧地址（还能用，新代码不要再调）。地址前缀省略了 `/api/v1`。",
-            endpoints.len(),
-            endpoints.len() - current
-        ),
+        match endpoints.len() - current {
+            0 => format!("共 {} 个接口。地址前缀省略了 `/api/v1`。", endpoints.len()),
+            old => format!(
+                "共 {} 个接口，其中 {current} 个现用地址、{old} 个旧地址（还能用，新代码不要再调）。地址前缀省略了 `/api/v1`。",
+                endpoints.len()
+            ),
+        },
         String::new(),
         "「谁能用」只在多用户模式下起作用：`signed` 登录就能用（路径里的编号要是自己的）、`admin` 只给管理员、".to_string(),
         "`closed` 对网站账号关闭、`public` 不需要登录。单机版里所有接口都能用。".to_string(),

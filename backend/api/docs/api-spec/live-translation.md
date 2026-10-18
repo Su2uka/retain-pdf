@@ -2,7 +2,7 @@
 
 [API spec index](../../API_SPEC.md)
 
-> Address note: `/jobs/{job_id}/…` is grouped into nine categories (`actions`, `progress`, `files`, `reports`, `reader`, `translations`, `data`, `ai`). Some addresses on this page are the old ones; they are still served and return the same thing, but new code should use the new ones (`GET /jobs/{job_id}/progress/layout`, `/progress/pages/{page}`, `/progress/stream`, `PATCH /jobs/{job_id}/translations/{item_id}`). Old-to-new table: [`docs/api/01-任务/04-任务接口分类.md`](../../../../docs/api/01-任务/04-任务接口分类.md); every endpoint: [`docs/api/00-接口目录.md`](../../../../docs/api/00-接口目录.md).
+> Address note: `/jobs/{job_id}/…` is grouped into nine categories (`actions`, `progress`, `files`, `reports`, `reader`, `translations`, `data`, `ai`). The old addresses were removed on 2026-10-18 and now return 404; use the new ones (`GET /jobs/{job_id}/progress/layout`, `/progress/pages/{page}`, `/progress/stream`, `PATCH /jobs/{job_id}/translations/{item_id}`). Old-to-new table: [`docs/api/01-任务/04-任务接口分类.md`](../../../../docs/api/01-任务/04-任务接口分类.md); every endpoint: [`docs/api/00-接口目录.md`](../../../../docs/api/00-接口目录.md).
 
 ## Durable Overlay Contract
 
@@ -10,9 +10,9 @@ These authenticated endpoints let a reader display translated blocks while a
 job is still running:
 
 ```text
-GET /api/v1/jobs/{job_id}/live-translation/layout
-GET /api/v1/jobs/{job_id}/live-translation/pages/{page_idx}
-GET /api/v1/jobs/{job_id}/live-events?after_seq={seq}
+GET /api/v1/jobs/{job_id}/progress/layout
+GET /api/v1/jobs/{job_id}/progress/pages/{page}
+GET /api/v1/jobs/{job_id}/progress/stream?after_seq={seq}
 ```
 
 `layout` projects page dimensions and text-block `item_id`, PDF-coordinate
@@ -73,7 +73,7 @@ Items without a non-empty committed translation are omitted.
 and `$$...$$` LaTeX delimiters; mathematical content is not converted to an
 image or stripped before delivery to the client.
 
-`progress/stream` (old address `live-events`) is an SSE stream. The response
+`progress/stream` (removed: `live-events`) is an SSE stream. The response
 carries `X-Accel-Buffering: no` so reverse proxies such as nginx pass the
 15-second keepalive and each commit through immediately instead of buffering
 them. Each committed event has an SSE `id` equal to
@@ -86,7 +86,7 @@ are present the larger value wins. Authentication remains header-based, so a
 browser client that cannot attach the configured API-key header to native
 `EventSource` must use authenticated streaming `fetch`.
 
-A single-block revision (`PATCH /jobs/{job_id}/translation/items/{item_id}`,
+A single-block revision (`PATCH /jobs/{job_id}/translations/{item_id}`,
 see translation-diagnostics.md) emits the same event after it registers the
 revised page, also on succeeded, failed and canceled jobs. It reuses the page's
 current `attempt` with a higher `generation`, so a client already showing the

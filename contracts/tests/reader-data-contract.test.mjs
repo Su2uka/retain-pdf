@@ -16,8 +16,6 @@ test("reader data schema publishes the complete independent read surfaces", () =
   assert.deepEqual(
     contract.endpoints.map((endpoint) => endpoint.output),
     [
-      "ReaderArtifactLinks",
-      "ReaderArtifactManifestView",
       "JobFilesView",
       "MarkdownDocumentView",
       "ReaderRegionsView",
@@ -53,8 +51,9 @@ test("job files view matches the /files response and the old artifact endpoints 
 
   const byPath = Object.fromEntries(contract.endpoints.map((endpoint) => [endpoint.path, endpoint]));
   assert.equal(byPath["/api/v1/jobs/:job_id/files"].output, "JobFilesView");
+  // 旧的产物列表、产物清单 2026-10-18 删了。
   for (const path of ["/api/v1/jobs/:job_id/artifacts", "/api/v1/jobs/:job_id/artifacts-manifest"]) {
-    assert.match(byPath[path].note, /已弃用/, `${path} should be marked deprecated`);
+    assert.equal(byPath[path], undefined, `${path} should be gone`);
   }
 });
 
@@ -92,9 +91,7 @@ test("live translation contract retains durable ordering and immutable snapshot 
 test("reader contract exposes public resources but no internal path fields", () => {
   const forbidden = /(?:checkpoint|workspace|credential|provider_request|absolute_path)/i;
   for (const definitionName of [
-    "PublicResourceLink",
-    "ReaderArtifactLinks",
-    "ReaderArtifactManifestItem",
+    "JobFileEntryView",
     "MarkdownDocumentView",
     "MarkdownImageView",
     "ReaderRegionItem",
@@ -108,9 +105,8 @@ test("reader contract exposes public resources but no internal path fields", () 
     );
   }
 
-  assert.ok(propertyNames("PublicResourceLink").includes("path"));
-  assert.ok(propertyNames("PublicResourceLink").includes("url"));
-  assert.equal(Object.hasOwn(definitions.ReaderArtifactManifestItem.properties, "relative_path"), false);
+  assert.ok(propertyNames("JobFileEntryView").includes("url"));
+  assert.equal(Object.hasOwn(definitions.JobFileEntryView.properties, "relative_path"), false);
 });
 
 test("reader optional fields mirror serde omission or nullability", () => {

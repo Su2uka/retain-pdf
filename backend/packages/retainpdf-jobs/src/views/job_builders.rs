@@ -1,9 +1,9 @@
 #[cfg(test)]
 use std::path::Path;
 
-use retainpdf_core::models::{JobArtifactRecord, JobSnapshot, WorkflowKind};
+use retainpdf_core::models::WorkflowKind;
 #[cfg(test)]
-use retainpdf_core::models::JobStatusKind;
+use retainpdf_core::models::{JobSnapshot, JobStatusKind};
 
 use super::super::common::JobLinksView;
 #[cfg(test)]
@@ -17,10 +17,7 @@ use super::super::test_support::{
     build_ocr_job_summary, job_failure_to_legacy_view, load_glossary_summary,
     load_invocation_summary, load_normalization_summary,
 };
-use retainpdf_files::{
-    document_file_path, job_file_path, job_files_list_path, job_internal_file_name,
-    job_ocr_images_base_path, job_ocr_markdown_path, job_translated_pdf_path,
-};
+use retainpdf_files::job_files_list_path;
 use super::super::to_absolute_url;
 use super::types::*;
 #[cfg(test)]
@@ -62,77 +59,6 @@ pub fn build_job_links_with_workflow(
         cancel_path: cancel_path.clone(),
         cancel_url: to_absolute_url(base_url, &cancel_path),
     }
-}
-
-pub fn build_artifact_manifest(
-    job: &JobSnapshot,
-    base_url: &str,
-    items: &[JobArtifactRecord],
-    document_id: Option<&str>,
-) -> JobArtifactManifestView {
-    let attempt = job
-        .runtime
-        .as_ref()
-        .map(|runtime| runtime.retry_count.saturating_add(1))
-        .unwrap_or(1);
-    JobArtifactManifestView {
-        job_id: job.job_id.clone(),
-        items: items
-            .iter()
-            .map(|item| JobArtifactItemView {
-                artifact_key: item.artifact_key.clone(),
-                artifact_group: item.artifact_group.clone(),
-                artifact_kind: item.artifact_kind.clone(),
-                ready: item.ready,
-                file_name: item.file_name.clone(),
-                content_type: item.content_type.clone(),
-                size_bytes: item.size_bytes,
-                relative_path: item.relative_path.clone(),
-                checksum: item.checksum.clone(),
-                source_stage: item.source_stage.clone(),
-                updated_at: item.updated_at.clone(),
-                attempt,
-                resource_path: artifact_resource_path(job, &item.artifact_key, document_id),
-                resource_url: artifact_resource_path(job, &item.artifact_key, document_id)
-                    .map(|path| to_absolute_url(base_url, &path)),
-            })
-            .collect(),
-    }
-}
-
-/// 产物清单里一项的地址。旧的 `/artifacts/<名字>` 默认下载，换成新地址时带 `?download=1` 保持原样；
-/// 原来就是在浏览器里打开的（译文 PDF、Markdown、规范化文档）不带。
-///
-/// `source_pdf` 在书下面（`/documents/:id/files/source.pdf`）：知道书编号就给新地址，不知道还是旧地址。
-fn artifact_resource_path(
-    job: &JobSnapshot,
-    artifact_key: &str,
-    document_id: Option<&str>,
-) -> Option<String> {
-    let prefix = job.workflow.job_api_prefix();
-    let job_id = job.job_id.as_str();
-    let legacy = || format!("{prefix}/{job_id}/artifacts/{artifact_key}");
-    Some(match artifact_key {
-        "source_pdf" => match document_id.map(str::trim).filter(|id| !id.is_empty()) {
-            Some(document_id) => {
-                format!("{}?download=1", document_file_path(document_id, "source.pdf"))
-            }
-            // 任务不一定查得到书编号，查不到就还是旧地址。
-            None => legacy(),
-        },
-        "translated_pdf" => job_translated_pdf_path(job_id),
-        "markdown_raw" => job_ocr_markdown_path(job_id),
-        "markdown_images_dir" => job_ocr_images_base_path(job_id),
-        "markdown_bundle_zip" => job_file_path(job_id, "output/ocr.zip?download=1"),
-        "normalized_document_json" | "normalization_report_json" => {
-            job_file_path(job_id, &format!("internal/{}", job_internal_file_name(artifact_key)?))
-        }
-        // 其余中间产物有新文件名的走 `internal/`；没有的（目录、和别的重复的）还是旧地址。
-        _ => match job_internal_file_name(artifact_key) {
-            Some(name) => job_file_path(job_id, &format!("internal/{name}?download=1")),
-            None => legacy(),
-        },
-    })
 }
 
 #[cfg(test)]

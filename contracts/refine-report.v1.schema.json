@@ -8,7 +8,6 @@
     {
       "method": "GET",
       "path": "/api/v1/jobs/:job_id/reports/refine",
-      "deprecated_aliases": ["/api/v1/jobs/:job_id/translation/refine-report"],
       "output": "RefineReportView",
       "errors": {
         "404": "NOT_FOUND: job does not exist or the job has no refine report yet"

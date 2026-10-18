@@ -323,7 +323,7 @@ Rust API 生产主链入口。
 
 - Python worker 写 `DATA_ROOT/jobs/<job_id>/logs/pipeline_events.jsonl`
 - Rust 查询层合并 DB events 和 `pipeline_events.jsonl`
-- 对 `book` / `translate` 这类会创建 OCR child 的主任务，`GET /api/v1/jobs/<job_id>/progress/events`（旧地址 `/events`）还会合并 `{job_id}-ocr` 的 OCR 子任务事件
+- 对 `book` / `translate` 这类会创建 OCR child 的主任务，`GET /api/v1/jobs/<job_id>/progress/events`（2026-10-18 起旧地址 `/events` 已删除）还会合并 `{job_id}-ocr` 的 OCR 子任务事件
 - OCR 子任务事件会映射成主任务 `job_id`；原始来源放在 `payload.source_job_id` 和 `payload.source_event`
 - Rust detail/list 优先使用 live pipeline stage 快照，而不是陈旧的 DB `job.stage`
 

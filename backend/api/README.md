@@ -76,8 +76,8 @@
 - `JobQueries` 只接收数据库与数据根，不装配任务提交、执行或 replay 能力。
 - 同步查询通过独立 `QueryExecution` 限制阻塞工作；下载使用 `JobDownloads`
   和独立生成调度器，相同产物生成可共享执行。
-- 普通／OCR `/events` 已统一升级为 cursor v2，旧 `offset` 请求不再支持；
-  API、契约、SDK 与第一方客户端需一起发布。翻译 `/live-events` SSE 不变。
+- 普通／OCR 事件（`/jobs/:id/progress/events`）已统一升级为 cursor v2，旧 `offset` 请求不再支持；
+  API、契约、SDK 与第一方客户端需一起发布。翻译实时推送 SSE 不变（地址现为 `/jobs/:id/progress/stream`，原 `/live-events` 已于 2026-10-18 删除）。
   详见 [事件 v2 协议与迁移说明](../../docs/core/api/event-feed-v2.md)。
 
 ## 架构门禁

@@ -40,7 +40,7 @@ async fn job_events_route_classifies_new_pipeline_substages() {
     let response = build_app(state)
         .oneshot(
             Request::builder()
-                .uri("/api/v1/jobs/job-route-new-pipeline-substages/events")
+                .uri("/api/v1/jobs/job-route-new-pipeline-substages/progress/events")
                 .header("X-API-Key", "test-key")
                 .body(Body::empty())
                 .expect("events request"),

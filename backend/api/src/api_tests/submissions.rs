@@ -375,32 +375,6 @@ async fn single_user_cases(recorder: &mut Recorder) {
         .await;
 
     recorder
-        .case(&fixture, "POST /ocr/jobs  带文件", None, || async {
-            let request = input(json!({
-                "workflow": "ocr",
-                "ocr": { "provider": "mineru", "mineru_token": "mineru-user-token" }
-            }));
-            view(
-                jobs.create_ocr_submission(
-                    BASE_URL,
-                    &request,
-                    Some(("paper.pdf".to_string(), minimal_pdf_bytes(595, 842), false)),
-                )
-                .await,
-            )
-        })
-        .await;
-    recorder
-        .case(&fixture, "POST /ocr/jobs  不带文件、给上传编号", None, || async {
-            let request = input(json!({
-                "workflow": "ocr",
-                "source": { "upload_id": "up-book" },
-                "ocr": { "provider": "mineru", "mineru_token": "mineru-user-token" }
-            }));
-            view(jobs.create_ocr_submission(BASE_URL, &request, None).await)
-        })
-        .await;
-    recorder
         .case(&fixture, "POST /translate/bundle  book，带文件", None, || async {
             let mut request = book_with_keys("");
             request["source"] = json!({});

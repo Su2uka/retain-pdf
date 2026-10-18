@@ -1,8 +1,8 @@
 # Job events v2
 
 This is a coordinated, breaking upgrade of `GET /api/v1/jobs/:id/progress/events`
-(old address `/jobs/:id/events`) and `/api/v1/ocr/jobs/:id/events`. Ship the API, generated contracts, SDK and
-first-party web/desktop clients together. Translation `/live-events` SSE is
+(the old addresses `/jobs/:id/events` and `/api/v1/ocr/jobs/:id/events` were removed on 2026-10-18). Ship the API, generated contracts, SDK and
+first-party web/desktop clients together. Translation `progress/stream` SSE (formerly `/live-events`) is
 unchanged and its sequence numbers are not event-feed cursors.
 
 ## Requests and responses

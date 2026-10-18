@@ -263,7 +263,7 @@ async fn real_job_and_library_views_match_published_schemas() {
     let job_detail = get_data(app.clone(), &format!("/api/v1/jobs/{job_id}")).await;
     let job_events = get_data(
         app.clone(),
-        &format!("/api/v1/jobs/{job_id}/events?limit=20&start=head"),
+        &format!("/api/v1/jobs/{job_id}/progress/events?limit=20&start=head"),
     )
     .await;
     let library_list = get_data(app.clone(), "/api/v1/library/books").await;
@@ -299,10 +299,9 @@ async fn real_job_and_library_views_match_published_schemas() {
         "BookSummaryView",
         "job_detail.book_summary",
     );
-    assert_eq!(
-        job_detail["book_summary"]["thumbnail_url"],
-        format!("http://127.0.0.1:41000/api/v1/jobs/{job_id}/thumbnail")
-    );
+    // 没有书的任务没有封面地址（不再退回任务级的旧地址）。
+    assert!(job_detail["book_summary"]["thumbnail_url"].is_null());
+    assert!(job_detail["book_summary"]["cover_url"].is_null());
     // 这个任务查不到书（没有上传，也没归属过），书的编号是 null。
     assert!(job_detail["book_summary"]["document_id"].is_null());
     assert_eq!(job_events["limit"], 20);
@@ -363,10 +362,8 @@ async fn real_job_and_library_views_match_published_schemas() {
         "LibraryBookDetailView",
         "library_detail",
     );
-    assert_eq!(
-        library_detail["thumbnail_url"],
-        format!("http://127.0.0.1:41000/api/v1/library/books/{job_id}/thumbnail")
-    );
+    assert!(library_detail["thumbnail_url"].is_null());
+    assert!(library_detail["cover_url"].is_null());
 }
 
 /// `/files` 的返回对着契约核对。用文件出口快照那套夹具：有书、有登记过的产物，
@@ -377,8 +374,7 @@ async fn job_files_view_matches_published_schema() {
     let job_id = super::file_responses::JOB;
     let app = build_app(fixture.state.clone());
     let files = get_data(app.clone(), &format!("/api/v1/jobs/{job_id}/files")).await;
-    let detail = get_data(app.clone(), &format!("/api/v1/jobs/{job_id}")).await;
-    let manifest = get_data(app, &format!("/api/v1/jobs/{job_id}/artifacts-manifest")).await;
+    let detail = get_data(app, &format!("/api/v1/jobs/{job_id}")).await;
 
     let reader_contract = contract("reader-data.v1.schema.json");
     assert_definition(&files, &reader_contract, "JobFilesView", "job_files");
@@ -406,7 +402,7 @@ async fn job_files_view_matches_published_schema() {
         }
     }
 
-    // 任务详情里的产物列表、产物清单链接都指向这个接口。
+    // 任务详情里的产物列表链接都指向这个接口。
     let files_path = format!("/api/v1/jobs/{job_id}/files");
     assert_eq!(detail["links"]["artifacts_path"], files_path);
     assert_eq!(detail["links"]["artifacts_manifest_path"], files_path);
@@ -414,16 +410,4 @@ async fn job_files_view_matches_published_schema() {
     assert_eq!(detail["artifacts"]["manifest_path"], files_path);
     // 任务详情直接给出书的编号，前端拿到详情就能拼原文地址，不用先等文件清单。
     assert_eq!(detail["book_summary"]["document_id"], fixture.document_id.as_str());
-
-    // 产物清单里的原文也指向书的文件。
-    let source_item = manifest["items"]
-        .as_array()
-        .expect("manifest items")
-        .iter()
-        .find(|item| item["artifact_key"] == "source_pdf")
-        .expect("source_pdf item");
-    assert_eq!(
-        source_item["resource_path"],
-        format!("/api/v1/documents/{}/files/source.pdf?download=1", fixture.document_id)
-    );
 }

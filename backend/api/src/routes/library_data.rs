@@ -130,33 +130,6 @@ pub async fn document_page_file_route(
     document_file(&state, &headers, &document_id, file, Disposition::Inline).await
 }
 
-/// GET /api/v1/documents/:id/source.pdf —— 旧地址，下载原文。
-pub async fn download_document_source_pdf_route(
-    State(state): State<AppState>,
-    headers: HeaderMap,
-    ApiPath(document_id): ApiPath<String>,
-) -> Result<Response, AppError> {
-    document_file(&state, &headers, &document_id, DocumentFile::SourcePdf, Disposition::Attachment).await
-}
-
-/// GET /api/v1/documents/:id/cover —— 旧地址。
-pub async fn download_document_cover_route(
-    State(state): State<AppState>,
-    headers: HeaderMap,
-    ApiPath(document_id): ApiPath<String>,
-) -> Result<Response, AppError> {
-    document_file(&state, &headers, &document_id, DocumentFile::Cover, Disposition::Unnamed).await
-}
-
-/// GET /api/v1/documents/:id/thumbnail —— 旧地址。
-pub async fn download_document_thumbnail_route(
-    State(state): State<AppState>,
-    headers: HeaderMap,
-    ApiPath(document_id): ApiPath<String>,
-) -> Result<Response, AppError> {
-    document_file(&state, &headers, &document_id, DocumentFile::Thumbnail, Disposition::Unnamed).await
-}
-
 pub async fn patch_document_route(
     State(state): State<AppState>,
     headers: HeaderMap,

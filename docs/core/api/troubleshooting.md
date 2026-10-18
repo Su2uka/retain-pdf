@@ -53,7 +53,7 @@ curl -H "X-API-Key: your-key" \
 - `artifacts.pdf.ready`
 - `artifacts.markdown.ready`
 - `artifacts.bundle.ready`
-- `artifacts-manifest.items[].ready`
+- `GET /jobs/{job_id}/files` 里每一项的 `ready`
 
 如果 `ready=false` 或 `enabled=false`，不要自行拼接下载链接强行访问。
 

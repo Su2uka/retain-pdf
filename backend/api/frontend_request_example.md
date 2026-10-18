@@ -113,7 +113,7 @@ Content-Type: application/json
 
 - 这里的 `workflow: "book"` 才是当前完整主链路的正式协议值
 - OCR provider 选择看 `ocr.provider`，而不是看 `workflow`
-- 如果你只想跑 OCR-only，请走 `POST /api/v1/ocr/jobs`，不要向 `/api/v1/jobs` 传 `workflow="ocr"`
+- 如果你只想跑 OCR-only，先 `POST /api/v1/uploads` 拿 `upload_id`，再 `POST /api/v1/jobs` 传 `workflow="ocr"`、`source.upload_id`（原 `POST /api/v1/ocr/jobs` 已于 2026-10-18 删除）
 - 本地人工一次性调试时可以使用 legacy wrapper `retainpdf-pipeline provider-case`（`run_provider_case.py` script-mode，仅桌面兼容）；生产 API 主链由 Rust job_runner 编排
 - 如果只想跑 OCR-only，优先使用 `retainpdf-pipeline provider-ocr --spec <job_root>/specs/provider.spec.json`（`run_provider_ocr.py` 仅桌面兼容）
 
@@ -337,7 +337,7 @@ async function pollJobUntilDone(jobId: string, backendKey: string) {
 - Markdown(raw)：`GET /api/v1/jobs/{job_id}/files/output/ocr.md`
 - Bundle(zip)：`GET /api/v1/jobs/{job_id}/files/output/all.zip`
 
-旧地址（`/pdf`、`/markdown`、`/markdown?raw=true`、`/download`）还能用，对照见[下载总览](../../docs/api/07-产物下载/01-下载总览.md)。
+旧地址（`/pdf`、`/markdown`、`/markdown?raw=true`、`/download`）已于 2026-10-18 删除，返回 404；对照见[下载总览](../../docs/api/07-产物下载/01-下载总览.md)。
 
 更推荐前端先取任务详情或产物详情，再使用服务端返回的 `actions`：
 

@@ -156,7 +156,7 @@ async fn live_translation_reads_layout_and_only_hash_matched_checkpoint_page() {
         .oneshot(
             Request::builder()
                 .uri(format!(
-                    "/api/v1/jobs/{}/live-translation/layout",
+                    "/api/v1/jobs/{}/progress/layout",
                     job.job_id
                 ))
                 .header("X-API-Key", "test-key")
@@ -198,7 +198,7 @@ async fn live_translation_reads_layout_and_only_hash_matched_checkpoint_page() {
         .oneshot(
             Request::builder()
                 .uri(format!(
-                    "/api/v1/jobs/{}/live-translation/pages/0",
+                    "/api/v1/jobs/{}/progress/pages/0",
                     job.job_id
                 ))
                 .header("X-API-Key", "test-key")
@@ -240,7 +240,7 @@ async fn live_translation_omits_typography_when_structured_prewarm_is_missing() 
         .oneshot(
             Request::builder()
                 .uri(format!(
-                    "/api/v1/jobs/{}/live-translation/layout",
+                    "/api/v1/jobs/{}/progress/layout",
                     job.job_id
                 ))
                 .header("X-API-Key", "test-key")
@@ -275,7 +275,7 @@ async fn live_translation_refuses_snapshot_when_committed_hash_has_no_match() {
         .oneshot(
             Request::builder()
                 .uri(format!(
-                    "/api/v1/jobs/{}/live-translation/pages/0",
+                    "/api/v1/jobs/{}/progress/pages/0",
                     job.job_id
                 ))
                 .header("X-API-Key", "test-key")

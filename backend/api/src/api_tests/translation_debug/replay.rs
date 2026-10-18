@@ -17,7 +17,7 @@ async fn translation_replay_route_redacts_secrets() {
             Request::builder()
                 .method("POST")
                 .uri(format!(
-                    "/api/v1/jobs/{JOB_ID}/translation/items/{ITEM_ID}/replay"
+                    "/api/v1/jobs/{JOB_ID}/translations/{ITEM_ID}/replay"
                 ))
                 .header("X-API-Key", "test-key")
                 .body(Body::empty())

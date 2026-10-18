@@ -32,7 +32,7 @@ async fn rust_model_retry_cannot_bypass_receipt_recovery_with_risk_acceptance() 
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri(format!("/api/v1/jobs/{id}/retry-stage"))
+                    .uri(format!("/api/v1/jobs/{id}/actions/retry-stage"))
                     .header("X-API-Key", "test-key")
                     .header("Content-Type", "application/json")
                     .body(Body::from(
@@ -69,7 +69,7 @@ async fn ambiguous_ocr_requires_explicit_resolution_and_can_bind_existing_receip
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri(format!("/api/v1/jobs/{source_job_id}/diagnostics"))
+                .uri(format!("/api/v1/jobs/{source_job_id}/reports/failure"))
                 .header("X-API-Key", "test-key")
                 .body(Body::empty())
                 .expect("OCR ambiguity diagnostics request"),
@@ -123,7 +123,7 @@ async fn ambiguous_ocr_requires_explicit_resolution_and_can_bind_existing_receip
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri(format!("/api/v1/jobs/{source_job_id}/retry-stage"))
+                .uri(format!("/api/v1/jobs/{source_job_id}/actions/retry-stage"))
                 .header("X-API-Key", "test-key")
                 .header("Content-Type", "application/json")
                 .body(Body::from(json!({ "stage": "ocr" }).to_string()))
@@ -139,7 +139,7 @@ async fn ambiguous_ocr_requires_explicit_resolution_and_can_bind_existing_receip
             Request::builder()
                 .method("POST")
                 .uri(format!(
-                    "/api/v1/jobs/{source_job_id}/ocr/resolve-ambiguity"
+                    "/api/v1/jobs/{source_job_id}/actions/resolve-ocr-ambiguity"
                 ))
                 .header("X-API-Key", "test-key")
                 .header("Content-Type", "application/json")
@@ -166,7 +166,7 @@ async fn ambiguous_ocr_requires_explicit_resolution_and_can_bind_existing_receip
             Request::builder()
                 .method("POST")
                 .uri(format!(
-                    "/api/v1/jobs/{source_job_id}/ocr/resolve-ambiguity"
+                    "/api/v1/jobs/{source_job_id}/actions/resolve-ocr-ambiguity"
                 ))
                 .header("X-API-Key", "test-key")
                 .header("Content-Type", "application/json")
@@ -244,7 +244,7 @@ async fn ambiguous_ocr_requires_explicit_resolution_and_can_bind_existing_receip
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri(format!("/api/v1/jobs/{source_job_id}/diagnostics"))
+                .uri(format!("/api/v1/jobs/{source_job_id}/reports/failure"))
                 .header("X-API-Key", "test-key")
                 .body(Body::empty())
                 .expect("resolved diagnostics request"),
@@ -276,7 +276,7 @@ async fn ambiguous_ocr_duplicate_risk_is_explicit_audited_and_single_use() {
             Request::builder()
                 .method("POST")
                 .uri(format!(
-                    "/api/v1/jobs/{source_job_id}/ocr/resolve-ambiguity"
+                    "/api/v1/jobs/{source_job_id}/actions/resolve-ocr-ambiguity"
                 ))
                 .header("X-API-Key", "test-key")
                 .header("Content-Type", "application/json")
@@ -299,7 +299,7 @@ async fn ambiguous_ocr_duplicate_risk_is_explicit_audited_and_single_use() {
             Request::builder()
                 .method("POST")
                 .uri(format!(
-                    "/api/v1/jobs/{source_job_id}/ocr/resolve-ambiguity"
+                    "/api/v1/jobs/{source_job_id}/actions/resolve-ocr-ambiguity"
                 ))
                 .header("X-API-Key", "test-key")
                 .header("Content-Type", "application/json")
@@ -358,7 +358,7 @@ async fn ambiguous_ocr_duplicate_risk_is_explicit_audited_and_single_use() {
             Request::builder()
                 .method("POST")
                 .uri(format!(
-                    "/api/v1/jobs/{source_job_id}/ocr/resolve-ambiguity"
+                    "/api/v1/jobs/{source_job_id}/actions/resolve-ocr-ambiguity"
                 ))
                 .header("X-API-Key", "test-key")
                 .header("Content-Type", "application/json")
@@ -398,7 +398,7 @@ async fn translation_retry_requires_explicit_duplicate_risk_acceptance() {
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri(format!("/api/v1/jobs/{source_job_id}/diagnostics"))
+                .uri(format!("/api/v1/jobs/{source_job_id}/reports/failure"))
                 .header("X-API-Key", "test-key")
                 .body(Body::empty())
                 .expect("diagnostics request"),
@@ -435,7 +435,7 @@ async fn translation_retry_requires_explicit_duplicate_risk_acceptance() {
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri(format!("/api/v1/jobs/{source_job_id}/stage-actions"))
+                .uri(format!("/api/v1/jobs/{source_job_id}/actions"))
                 .header("X-API-Key", "test-key")
                 .body(Body::empty())
                 .expect("stage actions request"),
@@ -459,7 +459,7 @@ async fn translation_retry_requires_explicit_duplicate_risk_acceptance() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri(format!("/api/v1/jobs/{source_job_id}/retry-stage"))
+                .uri(format!("/api/v1/jobs/{source_job_id}/actions/retry-stage"))
                 .header("X-API-Key", "test-key")
                 .header("Content-Type", "application/json")
                 .body(Body::from(json!({ "stage": "translation" }).to_string()))
@@ -478,7 +478,7 @@ async fn translation_retry_requires_explicit_duplicate_risk_acceptance() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri(format!("/api/v1/jobs/{source_job_id}/rerun"))
+                .uri(format!("/api/v1/jobs/{source_job_id}/actions/rerun"))
                 .header("X-API-Key", "test-key")
                 .body(Body::empty())
                 .expect("generic rerun request"),
@@ -491,7 +491,7 @@ async fn translation_retry_requires_explicit_duplicate_risk_acceptance() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri(format!("/api/v1/jobs/{source_job_id}/retry-stage"))
+                .uri(format!("/api/v1/jobs/{source_job_id}/actions/retry-stage"))
                 .header("X-API-Key", "test-key")
                 .header("Content-Type", "application/json")
                 .body(Body::from(
@@ -537,7 +537,7 @@ async fn translation_retry_requires_explicit_duplicate_risk_acceptance() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri(format!("/api/v1/jobs/{source_job_id}/retry-stage"))
+                .uri(format!("/api/v1/jobs/{source_job_id}/actions/retry-stage"))
                 .header("X-API-Key", "test-key")
                 .header("Content-Type", "application/json")
                 .body(Body::from(
@@ -573,7 +573,7 @@ async fn retry_stage_route_creates_translation_recovery_job_with_overrides() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/jobs/job-retry-stage-translation-source/retry-stage")
+                .uri("/api/v1/jobs/job-retry-stage-translation-source/actions/retry-stage")
                 .header("X-API-Key", "test-key")
                 .header("Content-Type", "application/json")
                 .body(Body::from(
@@ -645,7 +645,7 @@ async fn retry_stage_route_creates_render_job_by_default() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/jobs/job-retry-stage-render-source/retry-stage")
+                .uri("/api/v1/jobs/job-retry-stage-render-source/actions/retry-stage")
                 .header("X-API-Key", "test-key")
                 .header("Content-Type", "application/json")
                 .body(Body::from(json!({ "stage": "render" }).to_string()))
@@ -698,7 +698,7 @@ async fn retry_stage_render_jobs_inherit_the_source_document() {
                 .oneshot(
                     Request::builder()
                         .method("POST")
-                        .uri(format!("/api/v1/jobs/{source}/retry-stage"))
+                        .uri(format!("/api/v1/jobs/{source}/actions/retry-stage"))
                         .header("X-API-Key", "test-key")
                         .header("Content-Type", "application/json")
                         .body(Body::from(json!({ "stage": "render" }).to_string()))
@@ -759,7 +759,7 @@ async fn retry_stage_route_allows_in_place_render_when_requested() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/jobs/job-retry-stage-render-in-place/retry-stage")
+                .uri("/api/v1/jobs/job-retry-stage-render-in-place/actions/retry-stage")
                 .header("X-API-Key", "test-key")
                 .header("Content-Type", "application/json")
                 .body(Body::from(
@@ -816,7 +816,7 @@ async fn retry_stage_route_applies_overrides_for_in_place_render() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/jobs/job-retry-stage-render-in-place-overrides/retry-stage")
+                .uri("/api/v1/jobs/job-retry-stage-render-in-place-overrides/actions/retry-stage")
                 .header("X-API-Key", "test-key")
                 .header("Content-Type", "application/json")
                 .body(Body::from(

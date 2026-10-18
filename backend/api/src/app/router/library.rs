@@ -11,8 +11,4 @@ crate::endpoints! {
     GET "/api/v1/library/books/:job_id" => library::get_book, signed;
     /// 从书架删除一本书
     DELETE "/api/v1/library/books/:job_id" => library::delete_book, signed;
-    /// 封面（没有书编号的旧书还在用）
-    GET "/api/v1/library/books/:job_id/cover" => library::download_book_cover, signed old "/api/v1/documents/:document_id/files/:name";
-    /// 缩略图（没有书编号的旧书还在用）
-    GET "/api/v1/library/books/:job_id/thumbnail" => library::download_book_thumbnail, signed old "/api/v1/documents/:document_id/files/:name";
 }

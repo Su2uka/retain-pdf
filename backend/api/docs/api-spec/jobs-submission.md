@@ -42,7 +42,7 @@ Upload limit policy:
 - `RUST_API_UPLOAD_MAX_PAGES`: a positive value is the page limit; `0` disables
   only the page-count limit
 - the same byte limit applies while streaming PDF fields for
-  `/api/v1/uploads`, `/api/v1/ocr/jobs`, and `/api/v1/translate/bundle`
+  `/api/v1/uploads` and `/api/v1/translate/bundle`
 - a field that exceeds the byte limit is rejected with HTTP `413` and stable
   code `PAYLOAD_TOO_LARGE` before the complete field is buffered or persisted
 
@@ -183,7 +183,7 @@ Security note:
 
 Diagnostics note:
 
-- `GET /api/v1/jobs/{job_id}/reports/failure` (old address `/diagnostics`) returns failure-oriented fields plus optional `render_diagnostics`
+- `GET /api/v1/jobs/{job_id}/reports/failure` returns failure-oriented fields plus optional `render_diagnostics`
 - `render_diagnostics` is copied from `artifacts/pipeline_summary.json` when present
 - current render diagnostics include fallback summaries such as `typst_cover_fallback_pages` and `typst_cover_fallback_items`; these are operational diagnostics, not failure classification fields
 
@@ -207,8 +207,8 @@ Workflow contract:
   `can_fallback_to_ocr=true`; callers must explicitly resubmit without
   `source.artifact_job_id` to authorize a new OCR run.
 - `workflow=render`: reuse `source.artifact_job_id`; rerun render only
-- `POST /api/v1/jobs/{job_id}/actions/rerun` (old address `/rerun`): if the source job already has committed `translations_dir + source_pdf`, the backend reuses the same `job_id`, resets render runtime state, and replaces render artifacts in place. If only `normalized_document_json + source_pdf` is available, it creates a new `book` recovery job. A failed/canceled source job with `translation_checkpoint_json` seeds the new job by copy-on-write; the worker reuses it only when the translation input fingerprint matches.
-- `GET /api/v1/jobs/{job_id}/actions` and `POST /api/v1/jobs/{job_id}/actions/retry-stage` (old addresses `/stage-actions` and `/retry-stage`) are the explicit stage-level retry contract for frontend stage cards. The backend decides reusable artifacts, rerun stages, and whether a request can run.
+- `POST /api/v1/jobs/{job_id}/actions/rerun` (removed: `/rerun`): if the source job already has committed `translations_dir + source_pdf`, the backend reuses the same `job_id`, resets render runtime state, and replaces render artifacts in place. If only `normalized_document_json + source_pdf` is available, it creates a new `book` recovery job. A failed/canceled source job with `translation_checkpoint_json` seeds the new job by copy-on-write; the worker reuses it only when the translation input fingerprint matches.
+- `GET /api/v1/jobs/{job_id}/actions` and `POST /api/v1/jobs/{job_id}/actions/retry-stage` (removed: `/stage-actions` and `/retry-stage`) are the explicit stage-level retry contract for frontend stage cards. The backend decides reusable artifacts, rerun stages, and whether a request can run.
 
 OCR artifact reuse owns these error codes:
 
@@ -250,8 +250,7 @@ shared generic error codes.
 
 Endpoint boundary:
 
-- `/api/v1/jobs` is for `book`, `translate`, and `render`
-- `/api/v1/ocr/jobs` is for OCR-only jobs
+- `/api/v1/jobs` is for `book`, `translate`, `render`, and OCR-only (`workflow=ocr`) jobs. An OCR-only job is created by uploading the PDF first (`POST /api/v1/uploads`) and then sending `POST /api/v1/jobs` with `workflow: "ocr"` and `source.upload_id` (or `source.source_url`). The former multipart `POST /api/v1/ocr/jobs` was removed on 2026-10-18; `/api/v1/translate/bundle` rejects `workflow=ocr` and points to `/uploads` + `/jobs`
 - `/api/v1/translate/bundle` is the synchronous multipart helper for the same full flow; flat multipart fields remain supported here, including `provider=paddle|mineru`, `ocr_credential_ref`, and the translation field `credential_ref`
 - `GET /api/v1/providers/ocr` returns discoverable OCR provider metadata, credentials, options, capabilities, and artifact layout
 
@@ -282,7 +281,7 @@ OCR provider options:
 - For multipart helper requests, send the same object as JSON string field `ocr_options`.
 - Multipart helper requests accept `timeout_seconds` and `no_output_timeout_seconds` as flat fields, same semantics as the JSON `runtime` block.
 - Paddle `ocr.options.transport` accepts `official_http` (default) or `official_cli`.
-- `official_cli` uses the externally installed official `paddleocr api` client and is only accepted by `/api/v1/ocr/jobs`. It is a Markdown/coarse document extraction path; its result does not provide the `bbox`/`prunedResult` contract required by translation and render, so `book` and `translate` requests must use `official_http`.
+- `official_cli` uses the externally installed official `paddleocr api` client and is only accepted by OCR-only jobs (`workflow=ocr`). It is a Markdown/coarse document extraction path; its result does not provide the `bbox`/`prunedResult` contract required by translation and render, so `book` and `translate` requests must use `official_http`.
 - Selecting `official_cli` does not install PaddleOCR or add it to the server base image. A missing executable is reported as a provider worker failure.
 - Legacy fields such as `paddle_model` and `paddle_api_url` remain accepted for current built-in providers; new command providers should prefer `ocr.options`.
 - Dynamic providers declared in `backend/config/ocr_providers.json` with
@@ -389,7 +388,7 @@ Validation:
 - a supplied `translation.credential_ref` must exist and have kind
   `translation_api_key`; invalid, missing, wrong-kind, or unavailable-vault
   references return structured `CREDENTIAL_*` errors
-- render enum-like options are validated in Rust; unknown `render_mode`, `font_unify_mode`, `source_cleanup_strategy`, or `engine` values return `400` (also for `retry-stage` `overrides.render.engine`)
+- render enum-like options are validated in Rust; unknown `render_mode`, `font_unify_mode`, `source_cleanup_strategy`, or `engine` values return `400` (also for `actions/retry-stage` `overrides.render.engine`)
 - provider-specific upstream limits apply only to the selected OCR provider, not to the shared `workflow=book` protocol itself
 - Rust API no longer supplies default OCR provider / LLM credentials for `create_job`
 - legacy flat JSON fields such as `upload_id`, `model`, and `api_key` are rejected by `/api/v1/jobs`; flat field mapping only remains in selected multipart helper endpoints

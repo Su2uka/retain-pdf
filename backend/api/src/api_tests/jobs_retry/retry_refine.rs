@@ -73,7 +73,7 @@ async fn retry(state: &crate::AppState, job_id: &str, body: Value) -> axum::resp
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri(format!("/api/v1/jobs/{job_id}/retry-stage"))
+                .uri(format!("/api/v1/jobs/{job_id}/actions/retry-stage"))
                 .header("X-API-Key", "test-key")
                 .header("Content-Type", "application/json")
                 .body(Body::from(body.to_string()))
@@ -242,7 +242,7 @@ async fn refine_retry_requires_committed_translations() {
     let actions = build_app(state.clone())
         .oneshot(
             Request::builder()
-                .uri(format!("/api/v1/jobs/{id}/stage-actions"))
+                .uri(format!("/api/v1/jobs/{id}/actions"))
                 .header("X-API-Key", "test-key")
                 .body(Body::empty())
                 .expect("stage actions request"),
@@ -407,7 +407,7 @@ async fn refine_action(state: &crate::AppState, id: &str) -> Value {
     let actions = build_app(state.clone())
         .oneshot(
             Request::builder()
-                .uri(format!("/api/v1/jobs/{id}/stage-actions"))
+                .uri(format!("/api/v1/jobs/{id}/actions"))
                 .header("X-API-Key", "test-key")
                 .body(Body::empty())
                 .expect("stage actions request"),

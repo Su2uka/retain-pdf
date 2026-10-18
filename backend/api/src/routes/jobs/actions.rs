@@ -118,14 +118,6 @@ pub async fn get_resume_plan(
     Ok(ok_json(deps.jobs.resume_plan_view(&job_id)?))
 }
 
-pub async fn cancel_ocr_job(
-    State(state): State<AppState>,
-    ApiPath(job_id): ApiPath<String>,
-    headers: HeaderMap,
-) -> Result<Json<ApiResponse<JobSubmissionView>>, AppError> {
-    cancel_job_response(build_jobs_route_deps(&state), &headers, &job_id, true).await
-}
-
 pub async fn cancel_job(
     State(state): State<AppState>,
     ApiPath(job_id): ApiPath<String>,

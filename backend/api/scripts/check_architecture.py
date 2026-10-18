@@ -270,24 +270,17 @@ ROUTE_SERVICE_IMPORT_ALLOWLIST = {
     Path("src/routes/common/library.rs"): (
         "crate::services::library::LibraryDeps",
     ),
-    # 下载类路由只说"要哪个文件（JobFile）、按哪种任务找（JobScope）、在浏览器里打开还是下载
-    # （Disposition）"，怎么找都在 services::jobs 的 open 里。
+    # 下载类路由只把 services::jobs 给的 FileDownload 组成响应，怎么找文件都在 services::jobs 的 open 里。
     Path("src/routes/download_response/files.rs"): (
-        "crate::services::jobs::{Disposition, DocumentDownloadKind, FileDownload, JobFile, JobScope}",
+        "crate::services::jobs::{DocumentDownloadKind, FileDownload}",
     ),
-    # /jobs/:id/files/<组>/<文件名>：路由只说组，文件名的翻译在 services::jobs；旧地址只说要哪个文件。
+    # /jobs/:id/files/<组>/<文件名>：路由只说组，文件名的翻译在 services::jobs。
     Path("src/routes/jobs/files.rs"): (
-        "crate::services::jobs::{Disposition, FileGroup, JobFile}",
+        "crate::services::jobs::FileGroup",
     ),
     # AI 写的文件只按固定名字读，不走 files 的出口。
     Path("src/routes/jobs/ai.rs"): (
         "crate::services::jobs::DocumentDownloadKind",
-    ),
-    Path("src/routes/download_response/markdown.rs"): (
-        "crate::services::jobs::{Disposition, JobFile, JobScope, MarkdownDownload}",
-    ),
-    Path("src/routes/download_response.rs"): (
-        "crate::services::jobs::{FileDownload, MarkdownDownload}",
     ),
     Path("src/routes/providers.rs"): (
         "crate::services::providers",

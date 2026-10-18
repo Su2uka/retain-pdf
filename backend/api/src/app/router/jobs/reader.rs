@@ -11,5 +11,4 @@ crate::endpoints! {
     GET "/api/v1/jobs/:job_id/reader/metadata" => reader::get_reader_metadata, signed;
     /// 原文 Markdown 的 JSON 视图（图片链接已换成绝对地址）
     GET "/api/v1/jobs/:job_id/reader/markdown" => reader::get_markdown_document, signed;
-    GET "/api/v1/jobs/:job_id/markdown/document" => reader::get_markdown_document, signed old "/api/v1/jobs/:job_id/reader/markdown";
 }

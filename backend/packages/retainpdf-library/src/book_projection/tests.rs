@@ -70,9 +70,9 @@ fn library_projection_uses_library_media_urls() {
         ..JobArtifacts::default()
     });
     assert_eq!(
-        library_image_url(&job, None, &data_root, "https://api.example", "cover").as_deref(),
-        Some("https://api.example/api/v1/library/books/job-library-projection/cover"),
-        "查不到书的编号：退回按任务的地址"
+        library_image_url(&job, None, &data_root, "https://api.example", "cover"),
+        None,
+        "查不到书的编号：没有封面（按任务取封面的旧地址已经删了）"
     );
     assert_eq!(
         library_image_url(&job, Some("doc-sha"), &data_root, "https://api.example", "thumbnail").as_deref(),

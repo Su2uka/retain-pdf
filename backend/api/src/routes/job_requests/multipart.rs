@@ -20,13 +20,6 @@ pub struct ParsedTranslateBundle {
     pub request: CreateJobInput,
 }
 
-pub struct ParsedOcrJob {
-    pub filename: Option<String>,
-    pub file_bytes: Option<Vec<u8>>,
-    pub developer_mode: bool,
-    pub request: CreateJobInput,
-}
-
 pub async fn parse_translate_bundle_request(
     multipart: &mut Multipart,
     upload_max_bytes: NonZeroU64,
@@ -68,45 +61,6 @@ pub async fn parse_translate_bundle_request(
     })
 }
 
-pub async fn parse_ocr_job_request(
-    multipart: &mut Multipart,
-    upload_max_bytes: NonZeroU64,
-) -> Result<ParsedOcrJob, AppError> {
-    let mut file_name: Option<String> = None;
-    let mut file_bytes: Option<Vec<u8>> = None;
-    let mut developer_mode = false;
-    let mut request = CreateJobInput::default();
-
-    while let Some(field) = multipart.next_field().await.map_err(safe_multipart_error)? {
-        let name = field.name().unwrap_or_default().trim().to_string();
-        if name.is_empty() {
-            continue;
-        }
-        if name == "file" {
-            if file_bytes.is_some() {
-                return Err(AppError::bad_request("duplicate multipart field: file"));
-            }
-            let filename = field
-                .file_name()
-                .map(|s| s.to_string())
-                .unwrap_or_else(|| "upload.pdf".to_string());
-            let data = read_multipart_field_limited(field, upload_max_bytes).await?;
-            file_name = Some(filename);
-            file_bytes = Some(data.to_vec());
-            continue;
-        }
-        let value = read_multipart_text_limited(field, MULTIPART_TEXT_FIELD_MAX_BYTES).await?;
-        apply_multipart_request_field(&mut request, &mut developer_mode, &name, value.trim())?;
-    }
-
-    Ok(ParsedOcrJob {
-        filename: file_name,
-        file_bytes,
-        developer_mode,
-        request,
-    })
-}
-
 #[cfg(test)]
 mod tests {
     use axum::body::{to_bytes, Body};
@@ -125,12 +79,6 @@ mod tests {
 
     async fn parse_translate(ApiMultipart(mut multipart): ApiMultipart) -> Result<(), AppError> {
         parse_translate_bundle_request(&mut multipart, TEST_LIMIT)
-            .await
-            .map(|_| ())
-    }
-
-    async fn parse_ocr(ApiMultipart(mut multipart): ApiMultipart) -> Result<(), AppError> {
-        parse_ocr_job_request(&mut multipart, TEST_LIMIT)
             .await
             .map(|_| ())
     }
@@ -169,7 +117,6 @@ mod tests {
 
         for router in [
             Router::new().route("/parse", post(parse_translate)),
-            Router::new().route("/parse", post(parse_ocr)),
         ] {
             let response = router
                 .oneshot(multipart_request(body.clone()))
@@ -193,7 +140,6 @@ mod tests {
 
         for router in [
             Router::new().route("/parse", post(parse_translate)),
-            Router::new().route("/parse", post(parse_ocr)),
         ] {
             let response = router
                 .oneshot(multipart_request(body.clone()))

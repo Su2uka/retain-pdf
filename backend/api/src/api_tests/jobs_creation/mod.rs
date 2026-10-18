@@ -468,7 +468,10 @@ async fn bundle_job_failure_preserves_published_upload() {
         )
         .await
         .expect_err("bundle rejects OCR workflow after publication");
-    assert_eq!(error.to_string(), "use /api/v1/ocr/jobs for workflow=ocr");
+    assert_eq!(
+        error.to_string(),
+        "workflow=ocr: upload the PDF with POST /api/v1/uploads, then POST /api/v1/jobs with workflow \"ocr\""
+    );
     let entries = std::fs::read_dir(&state.config.uploads_dir)
         .unwrap()
         .collect::<Result<Vec<_>, _>>()

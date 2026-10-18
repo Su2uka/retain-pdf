@@ -19,7 +19,7 @@
 - [创建任务](01-任务/01-创建任务.md)
 - [查询任务详情](01-任务/02-查询任务详情.md)
 - [任务列表](01-任务/03-任务列表.md)
-- [任务接口分类](01-任务/04-任务接口分类.md)：`/jobs/{job_id}` 下 9 类接口的新地址和旧地址对照
+- [任务接口分类](01-任务/04-任务接口分类.md)：`/jobs/{job_id}` 下 9 类接口的新地址，以及已删除的旧地址对照
 - [事件总览](02-进度事件/01-事件总览.md)
 - [display_stage 与 lane](02-进度事件/02-display-stage与lane.md)
 - [OCR Provider 列表](03-OCR/01-provider列表.md)
@@ -90,16 +90,12 @@ SSE 只负责通知；会话、operation 和文档版本查询才是刷新或断
 
 ### OCR
 
-`/ocr/jobs/…` 是只做 OCR 的任务的旧别名，原样保留；新代码用 `POST /jobs`（`workflow` 选 OCR）和 `/jobs/{job_id}` 下的新地址。
+`/ocr/jobs/…` 这组别名已于 2026-10-18 删除。只做 OCR 的任务和别的任务走同一组 `/jobs` 地址，细节见 [OCR-only 任务](03-OCR/02-OCR-only任务.md)：
 
-- `POST /api/v1/ocr/jobs`
-- `GET /api/v1/ocr/jobs/{job_id}`
-- `GET /api/v1/ocr/jobs/{job_id}/events`
-- `GET /api/v1/ocr/jobs/{job_id}/artifacts`
-- `GET /api/v1/ocr/jobs/{job_id}/artifacts-manifest`
-- `GET /api/v1/ocr/jobs/{job_id}/normalized-document`
-- `GET /api/v1/ocr/jobs/{job_id}/normalization-report`
-- `POST /api/v1/ocr/jobs/{job_id}/cancel`
+- `POST /api/v1/uploads`（先上传 PDF 拿 `upload_id`）
+- `POST /api/v1/jobs`（`workflow: "ocr"`，`source.upload_id`）
+- `GET /api/v1/jobs/{job_id}`、`GET /api/v1/jobs/{job_id}/progress/events`、`POST /api/v1/jobs/{job_id}/actions/cancel`
+- `GET /api/v1/jobs/{job_id}/files`、`GET /api/v1/jobs/{job_id}/files/internal/normalized-document.json`、`.../normalization-report.json`
 - `GET /api/v1/providers/ocr`
 
 ### 事件与诊断
@@ -128,7 +124,7 @@ SSE 只负责通知；会话、operation 和文档版本查询才是刷新或断
 - `GET /api/v1/documents/{document_id}/files`
 - `GET /api/v1/documents/{document_id}/files/{name}`（原文 `source.pdf`、封面、缩略图）
 
-旧地址（`/pdf`、`/download`、`/markdown`、`/cover`、`/artifacts` 等）还能用，对照见[下载总览](07-产物下载/01-下载总览.md)。
+旧地址（`/pdf`、`/download`、`/markdown`、`/cover`、`/artifacts` 等）已于 2026-10-18 删除，对照见[下载总览](07-产物下载/01-下载总览.md)。
 
 ## 前端读取原则
 

@@ -30,7 +30,7 @@ async fn rerun_route_prefers_render_when_translations_are_available() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/jobs/job-rerun-render-source/rerun")
+                .uri("/api/v1/jobs/job-rerun-render-source/actions/rerun")
                 .header("X-API-Key", "test-key")
                 .body(Body::empty())
                 .expect("rerun request"),
@@ -75,7 +75,7 @@ async fn rerun_route_uses_book_when_only_ocr_checkpoint_is_available() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/jobs/job-rerun-book-source/rerun")
+                .uri("/api/v1/jobs/job-rerun-book-source/actions/rerun")
                 .header("X-API-Key", "test-key")
                 .body(Body::empty())
                 .expect("rerun request"),
@@ -100,7 +100,7 @@ async fn rerun_with_body(state: &crate::AppState, job_id: &str, body: serde_json
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri(format!("/api/v1/jobs/{job_id}/rerun"))
+                .uri(format!("/api/v1/jobs/{job_id}/actions/rerun"))
                 .header("X-API-Key", "test-key")
                 .header("content-type", "application/json")
                 .body(Body::from(body.to_string()))

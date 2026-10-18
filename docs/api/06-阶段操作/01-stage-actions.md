@@ -1,11 +1,11 @@
-# stage-actions
+# 阶段操作列表（actions）
 
-> 地址已按 9 类整理（新地址如 `/jobs/{job_id}/actions`），旧地址还能用。新旧对照见 [任务接口分类](../01-任务/04-任务接口分类.md)。
+> 地址已按 9 类整理（新地址如 `/jobs/{job_id}/actions`）。对应的旧地址已于 2026-10-18 删除（返回 404）。新旧对照见 [任务接口分类](../01-任务/04-任务接口分类.md)。
 
 ## 接口
 
 ```http
-GET /api/v1/jobs/{job_id}/stage-actions
+GET /api/v1/jobs/{job_id}/actions
 ```
 
 用于查询每个阶段是否可以主动重试，以及重试会复用和重跑哪些产物。

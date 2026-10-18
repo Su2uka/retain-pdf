@@ -8,7 +8,6 @@
     {
       "method": "PATCH",
       "path": "/api/v1/jobs/:job_id/translations/:item_id",
-      "deprecated_aliases": ["/api/v1/jobs/:job_id/translation/items/:item_id"],
       "input": "ReviseTranslationItemRequest",
       "output": "TranslationRevisionView",
       "errors": {
@@ -23,7 +22,6 @@
     {
       "method": "GET",
       "path": "/api/v1/jobs/:job_id/translations/:item_id/revisions",
-      "deprecated_aliases": ["/api/v1/jobs/:job_id/translation/items/:item_id/revisions"],
       "output": "TranslationRevisionHistoryView",
       "rust_view": "TranslationRevisionHistoryView",
       "ts_consumer": "@retainpdf/contracts/translation-revisions :: TranslationRevisionHistoryView"

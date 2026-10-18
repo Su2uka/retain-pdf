@@ -3,50 +3,9 @@ use axum::response::Response;
 
 use crate::error::AppError;
 use crate::routes::job_helpers::stream_file;
-use crate::services::jobs::{Disposition, DocumentDownloadKind, FileDownload, JobFile, JobScope};
+use crate::services::jobs::{DocumentDownloadKind, FileDownload};
 
-use crate::routes::common::{build_jobs_download_route_deps, JobsDownloadRouteDeps};
-use crate::AppState;
-
-/// 任务文件：所有下载接口都走这一个。
-pub(super) async fn job_file_response(
-    deps: &JobsDownloadRouteDeps<'_>,
-    headers: &HeaderMap,
-    job_id: &str,
-    scope: JobScope,
-    file: JobFile,
-    disposition: Disposition,
-) -> Result<Response, AppError> {
-    file_download_response(
-        deps.downloads.open(job_id, scope, file, disposition).await?,
-        headers,
-    )
-    .await
-}
-
-/// 路由处理函数用的简写：按任务编号取文件。
-pub async fn job_file(
-    state: &AppState,
-    headers: &HeaderMap,
-    job_id: &str,
-    file: JobFile,
-    disposition: Disposition,
-) -> Result<Response, AppError> {
-    let deps = build_jobs_download_route_deps(state);
-    job_file_response(&deps, headers, job_id, JobScope::Any, file, disposition).await
-}
-
-/// `/ocr/jobs/*` 旧别名：只认 OCR 任务。
-pub async fn ocr_job_file(
-    state: &AppState,
-    headers: &HeaderMap,
-    job_id: &str,
-    file: JobFile,
-    disposition: Disposition,
-) -> Result<Response, AppError> {
-    let deps = build_jobs_download_route_deps(state);
-    job_file_response(&deps, headers, job_id, JobScope::OcrOnly, file, disposition).await
-}
+use crate::routes::common::JobsDownloadRouteDeps;
 
 /// AI 助手写的阅读路径、概念图。
 pub async fn ai_document_response(

@@ -1,4 +1,4 @@
-//! /api/v1/jobs/:id/quality-summary 与 /quality-items 经真实路由。
+//! /api/v1/jobs/:id/reports/quality 与 /quality-items 经真实路由。
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
@@ -36,17 +36,17 @@ async fn quality_routes_summarize_reports_and_list_blocks() {
     )
     .unwrap();
 
-    let summary = read_json(get(&state, "/api/v1/jobs/job-quality/quality-summary").await).await["data"].clone();
+    let summary = read_json(get(&state, "/api/v1/jobs/job-quality/reports/quality").await).await["data"].clone();
     assert_eq!(summary["layout"]["overflow_pages"], serde_json::json!([3]));
     assert!(summary["qa"].is_null() && summary["refine"].is_null());
 
-    let items = read_json(get(&state, "/api/v1/jobs/job-quality/quality-items?kind=layout&page=4").await).await["data"].clone();
+    let items = read_json(get(&state, "/api/v1/jobs/job-quality/reports/quality/items?kind=layout&page=4").await).await["data"].clone();
     assert_eq!(items["total"], 1);
     assert_eq!((items["items"][0]["item_id"].as_str(), items["items"][0]["reason"].as_str()), (Some("p004-b0001"), Some("small_scale")));
 
     for bad in ["kind=everything", "kind=qa&limit=0", "kind=qa&limit=5000", "kind=qa&unknown=1"] {
-        let response = get(&state, &format!("/api/v1/jobs/job-quality/quality-items?{bad}")).await;
+        let response = get(&state, &format!("/api/v1/jobs/job-quality/reports/quality/items?{bad}")).await;
         assert!(response.status().is_client_error(), "{bad}");
     }
-    assert_eq!(get(&state, "/api/v1/jobs/job-missing/quality-summary").await.status(), StatusCode::NOT_FOUND);
+    assert_eq!(get(&state, "/api/v1/jobs/job-missing/reports/quality").await.status(), StatusCode::NOT_FOUND);
 }

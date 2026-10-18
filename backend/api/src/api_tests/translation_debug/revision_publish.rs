@@ -124,7 +124,7 @@ async fn get(state: &crate::AppState, uri: String) -> (StatusCode, Value) {
 
 /// 实时译文页快照:(attempt, generation, page_hash, item_id -> 文本)。
 async fn live_page(state: &crate::AppState, job_id: &str) -> Value {
-    let (status, payload) = get(state, format!("/api/v1/jobs/{job_id}/live-translation/pages/0")).await;
+    let (status, payload) = get(state, format!("/api/v1/jobs/{job_id}/progress/pages/0")).await;
     assert_eq!(status, StatusCode::OK, "{payload}");
     payload["data"].clone()
 }
@@ -447,7 +447,7 @@ async fn failed_registration_heals_when_live_translation_is_opened() {
     let events_before = commit_events(&state, job_id).len();
 
     // 阅读页打开实时译文先取版面:这一步补登记,随后的事件回放与页快照都是新文本。
-    let (status, layout) = get(&state, format!("/api/v1/jobs/{job_id}/live-translation/layout")).await;
+    let (status, layout) = get(&state, format!("/api/v1/jobs/{job_id}/progress/layout")).await;
     assert_eq!(status, StatusCode::OK, "{layout}");
 
     let events = commit_events(&state, job_id);
@@ -457,7 +457,7 @@ async fn failed_registration_heals_when_live_translation_is_opened() {
     assert_eq!(page["page_hash"], current_page_hash(&translated));
     assert_eq!(events.last().expect("event")["generation"], page["generation"]);
     // 再打开一次不会重复登记。
-    get(&state, format!("/api/v1/jobs/{job_id}/live-translation/layout")).await;
+    get(&state, format!("/api/v1/jobs/{job_id}/progress/layout")).await;
     assert_eq!(commit_events(&state, job_id).len(), events_before + 1);
 }
 

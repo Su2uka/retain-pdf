@@ -1,7 +1,7 @@
 //! 任务文件的唯一出口：按名字（[`JobFile`]）找到文件，交给路由层发出去。
 //!
-//! 每种文件到哪找、什么类型、下载时叫什么，都只在这里写一次。下载接口不管是哪个地址
-//! （`/pdf`、`/artifacts/:key`、`/ocr/jobs/*` 旧别名……），一律调 `JobDownloads::open`。
+//! 每种文件到哪找、什么类型、下载时叫什么，都只在这里写一次。下载接口（`/jobs/:id/files/…`、
+//! 书的文件、AI 写的东西……）一律调 `JobDownloads::open`。
 //! 加一种文件 = 在 `JobFile` 里加一个名字、在 `locate` 里加一个分支，不要再单开下载函数。
 //!
 //! AI 助手写的文件（阅读路径、概念图、画板）不在这里：`<job>/ai/` 是 AI 可写的目录，
@@ -20,8 +20,8 @@ use retainpdf_files::{
 };
 use retainpdf_core::storage_paths::{
     resolve_job_root, resolve_markdown_images_dir, resolve_markdown_path, resolve_output_pdf,
-    resolve_source_pdf, ARTIFACT_KEY_MARKDOWN_BUNDLE_ZIP, ARTIFACT_KEY_MARKDOWN_RAW,
-    ARTIFACT_KEY_SOURCE_PDF, ARTIFACT_KEY_TRANSLATED_PDF,
+    resolve_source_pdf,
+    ARTIFACT_KEY_SOURCE_PDF,
 };
 
 use crate::files::downloads::artifact_deps::derived_artifact_deps;
@@ -66,16 +66,6 @@ pub enum JobFile {
 }
 
 impl JobFile {
-    /// 旧接口 `/artifacts/:key` 的产物名 → 文件。给用户的几种有自己的名字，其余按清单查。
-    pub fn from_artifact_key(key: &str, include_job_dir: bool) -> Self {
-        match key {
-            ARTIFACT_KEY_SOURCE_PDF => Self::SourcePdf,
-            ARTIFACT_KEY_TRANSLATED_PDF => Self::TranslatedPdf,
-            ARTIFACT_KEY_MARKDOWN_RAW => Self::OcrMarkdown,
-            ARTIFACT_KEY_MARKDOWN_BUNDLE_ZIP => Self::OcrMarkdownZip { include_job_dir },
-            other => Self::Registered(other.to_string()),
-        }
-    }
 
     /// 清晰度夹在可用区间里：太低看不清背景，太高单页几十 MB，整本能把浏览器拖垮。
     pub fn translated_docx(query: &LayoutDocxQuery) -> Self {
@@ -153,7 +143,7 @@ impl PageSpec {
     }
 }
 
-/// 按哪种任务去找：`/ocr/jobs/*` 旧别名只认 OCR 任务。
+/// 按哪种任务去找。`OcrOnly` 原来给 `/ocr/jobs/*` 旧别名用，2026-10-18 旧别名删了以后没人再传，留到以后清。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum JobScope {
     Any,

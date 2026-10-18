@@ -65,7 +65,6 @@ pub use progress::live_stage::{
 pub use progress::stage_view::{build_job_stage_view, terminal_completion_note};
 pub use query::JobQueries;
 pub use query_execution::QueryExecution;
-pub use reader::MarkdownDownload;
 pub use reports::quality::api::{
     quality_items_view, quality_summary_view, QualityApiDeps, QualityItemsParams, QualityItemsView,
     QualitySummaryView,
@@ -76,9 +75,8 @@ pub use reports::usage::api::{
 pub use runtime_gateway::{JobDriverRegistry, JobRuntime, JobRuntimeLauncher};
 pub use summary_loaders::SummaryCache;
 pub use views::{
-    AmbiguousRequestPolicy, ArtifactDownloadQuery, BookSummaryView, DocumentJobListView,
-    EscalatedItemView, GlossaryUsageSummaryView, InvocationSummaryView, JobArtifactItemView,
-    JobArtifactManifestView, JobContractsView, JobDetailView, JobDiagnosticsView, JobEventFeedItem,
+    AmbiguousRequestPolicy, BookSummaryView, DocumentJobListView,
+    EscalatedItemView, GlossaryUsageSummaryView, InvocationSummaryView, JobContractsView, JobDetailView, JobDiagnosticsView, JobEventFeedItem,
     JobEventListView, JobFailureBriefView,
     JobFailureDiagnosticView, JobFilesQuery, JobLinksView, JobListInvocationSummaryView,
     JobListItemView, JobListView, JobProgressView, JobReportView, JobResumePlanView,
@@ -89,7 +87,7 @@ pub use views::{
     LiveTranslationCommitEventView, LiveTranslationEventsQuery, LiveTranslationItemView,
     LiveTranslationLayoutBlockView, LiveTranslationLayoutPageView, LiveTranslationLayoutView,
     LiveTranslationPageView, LiveTranslationTypographyView, MarkdownDocumentView,
-    MarkdownImageView, MarkdownQuery, MarkdownView, NormalizationSummaryView,
+    MarkdownImageView, NormalizationSummaryView,
     OcrAmbiguityReceiptFieldView, OcrAmbiguityResolutionKind, OcrAmbiguityResolutionRequest,
     OcrAmbiguityResolutionView, OcrAmbiguityView, OcrJobSummaryView, PagePreviewQuery,
     ReaderDocumentMetadataView, ReaderMetadataView, ReaderPageMetadataView, ReaderRegionBoxView,
@@ -100,7 +98,7 @@ pub use views::{
     TranslationDiagnosticsView, TranslationReplayView, TranslationRequestRecoveryView,
     TranslationRevisionHistoryView, TranslationRevisionLivePageView,
     TranslationRevisionLivePublicationView, TranslationRevisionSource, TranslationRevisionView,
-    build_artifact_manifest, build_job_links, build_job_links_with_workflow,
+    build_job_links, build_job_links_with_workflow,
     summarize_list_invocation,
 };
 // 只给测试用的。

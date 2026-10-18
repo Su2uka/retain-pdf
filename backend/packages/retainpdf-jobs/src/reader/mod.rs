@@ -4,4 +4,3 @@ mod markdown;
 mod queries;
 pub(crate) mod reader_regions;
 
-pub use markdown::MarkdownDownload;

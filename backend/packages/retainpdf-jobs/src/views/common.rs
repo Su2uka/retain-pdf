@@ -151,18 +151,6 @@ pub struct ListTranslationItemsQuery {
     pub q: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
-pub struct MarkdownQuery {
-    #[serde(default)]
-    pub raw: bool,
-}
-
-#[derive(Debug, Deserialize, Default)]
-pub struct ArtifactDownloadQuery {
-    #[serde(default)]
-    pub include_job_dir: bool,
-}
-
 /// `/jobs/:id/files/…`、`/documents/:id/files/…` 的查询参数。
 #[derive(Debug, Deserialize, Default)]
 pub struct JobFilesQuery {
@@ -181,16 +169,6 @@ impl JobFilesQuery {
     pub fn wants_download(&self) -> bool {
         matches!(self.download.as_deref().map(str::trim), Some("1" | "true"))
     }
-}
-
-#[derive(Debug, Serialize)]
-pub struct MarkdownView {
-    pub job_id: String,
-    pub content: String,
-    pub raw_path: String,
-    pub raw_url: String,
-    pub images_base_path: String,
-    pub images_base_url: String,
 }
 
 #[derive(Debug, Serialize)]

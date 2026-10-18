@@ -124,7 +124,7 @@ impl TranslationRevisionSource {
     }
 }
 
-/// `PATCH /api/v1/jobs/:job_id/translation/items/:item_id` 的请求体。
+/// `PATCH /api/v1/jobs/:job_id/translations/:item_id` 的请求体。
 ///
 /// `translated_text` 与该块的 `protected_translated_text` 同形态(direct_typst 模式下
 /// 就是展示文本,行内公式写成 `$...$`)。`rerender=true` 时写回成功后原地重渲染;

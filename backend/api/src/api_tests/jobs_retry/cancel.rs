@@ -69,13 +69,13 @@ async fn canceling_a_freshly_submitted_job_hands_the_card_back_to_the_last_succe
 
     seed_job(&state, "job-cancel-retry", WorkflowKind::Book, JobStatusKind::Queued);
     state.db.set_document_active_job(DOCUMENT_ID, "job-cancel-retry", None).expect("card");
-    cancel(&state, "/api/v1/jobs/job-cancel-retry/cancel".to_string()).await;
+    cancel(&state, "/api/v1/jobs/job-cancel-retry/actions/cancel".to_string()).await;
     assert_eq!(state.db.get_job("job-cancel-retry").unwrap().status, JobStatusKind::Canceled);
     assert_eq!(card(&state).as_deref(), Some("job-cancel-ok"), "取消后书卡停在了被取消的任务上");
 
     seed_job(&state, "job-cancel-ocr", WorkflowKind::Ocr, JobStatusKind::Queued);
     state.db.set_document_active_job(DOCUMENT_ID, "job-cancel-ocr", None).expect("card");
-    cancel(&state, "/api/v1/ocr/jobs/job-cancel-ocr/cancel".to_string()).await;
+    cancel(&state, "/api/v1/jobs/job-cancel-ocr/actions/cancel".to_string()).await;
     assert_eq!(state.db.get_job("job-cancel-ocr").unwrap().status, JobStatusKind::Canceled);
     assert_eq!(card(&state).as_deref(), Some("job-cancel-ok"), "OCR 排队中取消后书卡停在了被取消的任务上");
 
@@ -83,7 +83,7 @@ async fn canceling_a_freshly_submitted_job_hands_the_card_back_to_the_last_succe
     seed_job(&state, "job-cancel-other", WorkflowKind::Book, JobStatusKind::Queued);
     seed_job(&state, "job-cancel-newer", WorkflowKind::Book, JobStatusKind::Queued);
     state.db.set_document_active_job(DOCUMENT_ID, "job-cancel-newer", None).expect("card");
-    cancel(&state, "/api/v1/jobs/job-cancel-other/cancel".to_string()).await;
+    cancel(&state, "/api/v1/jobs/job-cancel-other/actions/cancel".to_string()).await;
     assert_eq!(card(&state).as_deref(), Some("job-cancel-newer"));
 }
 
@@ -95,7 +95,7 @@ async fn canceling_without_any_success_leaves_the_card_alone() {
     seed_job(&state, "job-cancel-first", WorkflowKind::Book, JobStatusKind::Queued);
     state.db.set_document_active_job(DOCUMENT_ID, "job-cancel-first", None).expect("card");
 
-    cancel(&state, "/api/v1/jobs/job-cancel-first/cancel".to_string()).await;
+    cancel(&state, "/api/v1/jobs/job-cancel-first/actions/cancel".to_string()).await;
 
     assert_eq!(state.db.get_job("job-cancel-first").unwrap().status, JobStatusKind::Canceled);
     assert_eq!(card(&state).as_deref(), Some("job-cancel-first"));

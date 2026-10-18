@@ -1,13 +1,13 @@
 # Translation Debug API
 
-> 地址已按 9 类整理（新地址如 `/jobs/{job_id}/translations`），旧地址还能用。新旧对照见 [任务接口分类](../01-任务/04-任务接口分类.md)。
+> 地址已按 9 类整理（新地址如 `/jobs/{job_id}/translations`）。对应的旧地址已于 2026-10-18 删除（返回 404）。新旧对照见 [任务接口分类](../01-任务/04-任务接口分类.md)。
 
 这些接口用于排查翻译缺失、错误输出、模型异常和 replay。
 
 ## Diagnostics
 
 ```http
-GET /api/v1/jobs/{job_id}/translation/diagnostics
+GET /api/v1/jobs/{job_id}/reports/translation
 ```
 
 读取 `artifacts/translation_diagnostics.json`，返回翻译运行统计、provider 统计、重试统计等信息。
@@ -15,7 +15,7 @@ GET /api/v1/jobs/{job_id}/translation/diagnostics
 ## Item 列表
 
 ```http
-GET /api/v1/jobs/{job_id}/translation/items
+GET /api/v1/jobs/{job_id}/translations
 ```
 
 常用查询参数：
@@ -33,7 +33,7 @@ GET /api/v1/jobs/{job_id}/translation/items
 ## 单 item
 
 ```http
-GET /api/v1/jobs/{job_id}/translation/items/{item_id}
+GET /api/v1/jobs/{job_id}/translations/{item_id}
 ```
 
 从 translation manifest 指向的 page payload 里查原始 item。
@@ -41,7 +41,7 @@ GET /api/v1/jobs/{job_id}/translation/items/{item_id}
 ## Replay
 
 ```http
-POST /api/v1/jobs/{job_id}/translation/items/{item_id}/replay
+POST /api/v1/jobs/{job_id}/translations/{item_id}/replay
 ```
 
 Replay 是一次即时调试调用：

@@ -32,7 +32,7 @@ async fn resume_plan_route_reports_render_checkpoint() {
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/jobs/job-resume-plan-render/resume-plan")
+                .uri("/api/v1/jobs/job-resume-plan-render/actions/resume")
                 .header("X-API-Key", "test-key")
                 .body(Body::empty())
                 .expect("resume plan request"),
@@ -70,7 +70,7 @@ async fn resume_plan_reports_partial_translation_checkpoint() {
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/jobs/job-resume-plan-translation-checkpoint/resume-plan")
+                .uri("/api/v1/jobs/job-resume-plan-translation-checkpoint/actions/resume")
                 .header("X-API-Key", "test-key")
                 .body(Body::empty())
                 .expect("resume plan request"),
@@ -125,7 +125,7 @@ async fn resume_plan_does_not_advertise_missing_checkpoint_pages() {
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/jobs/job-resume-plan-invalid-translation-checkpoint/resume-plan")
+                .uri("/api/v1/jobs/job-resume-plan-invalid-translation-checkpoint/actions/resume")
                 .header("X-API-Key", "test-key")
                 .body(Body::empty())
                 .expect("resume plan request"),
@@ -165,7 +165,7 @@ async fn resume_plan_requires_terminal_source_job() {
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/jobs/job-resume-plan-running-source/resume-plan")
+                .uri("/api/v1/jobs/job-resume-plan-running-source/actions/resume")
                 .header("X-API-Key", "test-key")
                 .body(Body::empty())
                 .expect("resume plan request"),
@@ -202,7 +202,7 @@ async fn resume_route_reuses_rerun_submission_contract() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/jobs/job-resume-render-source/resume")
+                .uri("/api/v1/jobs/job-resume-render-source/actions/resume")
                 .header("X-API-Key", "test-key")
                 .body(Body::empty())
                 .expect("resume request"),
@@ -263,7 +263,7 @@ async fn resume_jobs_created_from_a_checkpoint_inherit_the_source_document() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/jobs/job-resume-doc-source/resume")
+                .uri("/api/v1/jobs/job-resume-doc-source/actions/resume")
                 .header("X-API-Key", "test-key")
                 .body(Body::empty())
                 .expect("resume request"),
