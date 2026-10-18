@@ -59,6 +59,28 @@ fn assert_exact_object_keys(value: &Value, contract: &Value, name: &str, path: &
     );
 }
 
+/// 键集合要和契约一致，只有 `absent_ok` 里的键允许不出现（契约里是可选键，
+/// 序列化时 `skip_serializing_if` 会整个省掉）。多出契约没有的键永远不行。
+fn assert_object_keys_allowing_absent(
+    value: &Value,
+    contract: &Value,
+    name: &str,
+    path: &str,
+    absent_ok: &[&str],
+) {
+    let actual = object_keys(value, path);
+    let declared = schema_keys(contract, name);
+    let expected: BTreeSet<String> = declared
+        .iter()
+        .filter(|key| !absent_ok.contains(&key.as_str()))
+        .cloned()
+        .collect();
+    assert!(
+        actual.is_subset(&declared) && expected.is_subset(&actual),
+        "{path} serde keys drifted from {name}: actual {actual:?}, declared {declared:?}, may be absent {absent_ok:?}"
+    );
+}
+
 fn matches_type(value: &Value, expected: &str) -> bool {
     match expected {
         "null" => value.is_null(),
@@ -286,11 +308,14 @@ async fn real_job_and_library_views_match_published_schemas() {
         "job_events",
     );
     assert_exact_object_keys(&job_list, &job_contract, "JobListView", "job_list");
-    assert_exact_object_keys(
+    // 这个夹具是跑着的任务，没有 `failure`（只有失败的任务才带，见下面的失败任务测试）。
+    assert!(job_list["items"][0].get("failure").is_none());
+    assert_object_keys_allowing_absent(
         &job_list["items"][0],
         &job_contract,
         "JobListItemView",
         "job_list.items[0]",
+        &["failure"],
     );
     assert_exact_object_keys(&job_detail, &job_contract, "JobDetailView", "job_detail");
     assert_exact_object_keys(
@@ -338,11 +363,12 @@ async fn real_job_and_library_views_match_published_schemas() {
         "JobListView",
         "job_list (library contract)",
     );
-    assert_exact_object_keys(
+    assert_object_keys_allowing_absent(
         &job_list["items"][0],
         &library_contract,
         "JobListItemView",
         "job_list.items[0] (library contract)",
+        &["failure"],
     );
     assert_exact_object_keys(
         &library_list,
@@ -410,4 +436,114 @@ async fn job_files_view_matches_published_schema() {
     assert_eq!(detail["artifacts"]["manifest_path"], files_path);
     // 任务详情直接给出书的编号，前端拿到详情就能拼原文地址，不用先等文件清单。
     assert_eq!(detail["book_summary"]["document_id"], fixture.document_id.as_str());
+}
+
+/// 失败任务的列表项：`failure` 对着契约里的 `JobFailureBriefView` 核对。
+///
+/// 两个夹具：一个把简报的 7 个字段全填满（键集合必须等于契约的全部属性），一个只有
+/// 必填项（root_cause / suggestion / provider 整个键不出现，不是 null）。
+/// 两份契约（job-status、library-books）里的 JobListItemView 都要认得这个键。
+#[tokio::test]
+async fn failed_job_list_item_failure_matches_published_schema() {
+    use crate::models::JobFailureInfo;
+
+    let state = test_state("job-failure-brief-contract");
+    let save_failed = |job_id: &str, failure: JobFailureInfo| {
+        let mut job = JobSnapshot::new(
+            job_id.to_string(),
+            CreateJobInput::default(),
+            vec!["python".to_string()],
+        );
+        job.status = JobStatusKind::Failed;
+        job.error = Some("fixture failure".to_string());
+        job.failure = Some(failure);
+        job.sync_runtime_state();
+        state.db.save_job(&job).expect("save failed fixture job");
+    };
+    save_failed(
+        "job-brief-full",
+        JobFailureInfo {
+            stage: "ocr".to_string(),
+            category: "unknown".to_string(),
+            failed_stage: Some("ocr".to_string()),
+            failure_category: Some("provider".to_string()),
+            summary: "MinerU 解析失败".to_string(),
+            root_cause: Some("parsing failed".to_string()),
+            retryable: true,
+            provider: Some("mineru".to_string()),
+            suggestion: Some("稍后重试".to_string()),
+            // 重字段不该出现在列表简报里：契约没有它们，键集合比较会抓到。
+            raw_excerpt: Some("Traceback (most recent call last): ...".to_string()),
+            ..JobFailureInfo::default()
+        },
+    );
+    save_failed(
+        "job-brief-minimal",
+        JobFailureInfo {
+            stage: "render".to_string(),
+            category: "render".to_string(),
+            summary: "渲染失败".to_string(),
+            retryable: false,
+            ..JobFailureInfo::default()
+        },
+    );
+
+    let app = build_app(state);
+    let job_list = get_data(app, "/api/v1/jobs").await;
+    let item = |job_id: &str| -> Value {
+        job_list["items"]
+            .as_array()
+            .expect("items")
+            .iter()
+            .find(|item| item["job_id"] == job_id)
+            .unwrap_or_else(|| panic!("{job_id} missing from job list"))
+            .clone()
+    };
+    let full = item("job-brief-full");
+    let minimal = item("job-brief-minimal");
+
+    for file_name in ["library-books.v1.schema.json", "job-status.v1.schema.json"] {
+        let contract = contract(file_name);
+        assert_definition(&job_list, &contract, "JobListView", file_name);
+        for (label, list_item) in [("full", &full), ("minimal", &minimal)] {
+            let path = format!("job_list[{label}] ({file_name})");
+            assert_object_keys_allowing_absent(
+                list_item,
+                &contract,
+                "JobListItemView",
+                &path,
+                &["failure"],
+            );
+            assert!(list_item["failure"].is_object(), "{path}: failure missing");
+        }
+
+        // 填满的简报：键集合 == 契约的全部属性，各字段类型也对得上。
+        assert_exact_object_keys(
+            &full["failure"],
+            &contract,
+            "JobFailureBriefView",
+            &format!("job_list[full].failure ({file_name})"),
+        );
+        assert_definition(&full["failure"], &contract, "JobFailureBriefView", "full.failure");
+
+        // 只有必填项：键集合 == 契约的 required，可选键整个不出现。
+        let required: BTreeSet<String> = definition(&contract, "JobFailureBriefView")["required"]
+            .as_array()
+            .expect("JobFailureBriefView.required")
+            .iter()
+            .filter_map(Value::as_str)
+            .map(str::to_string)
+            .collect();
+        assert_eq!(
+            object_keys(&minimal["failure"], "job_list[minimal].failure"),
+            required,
+            "{file_name}: 没有可选信息时，可选键应整个不出现"
+        );
+        assert_definition(
+            &minimal["failure"],
+            &contract,
+            "JobFailureBriefView",
+            "minimal.failure",
+        );
+    }
 }
