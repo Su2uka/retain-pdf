@@ -187,8 +187,11 @@ export function resolveJobMarkdownBundleAction(job, manifestPayload = null) {
 export function resolveJobSourcePdfAction(job, manifestPayload = null) {
   const artifacts = job?.artifacts || {};
   const manifestUrl = resolveManifestArtifactUrl(manifestPayload, "source_pdf");
-  const fallbackUrl = job?.job_id
-    ? `${API_PREFIX}/jobs/${encodeURIComponent(job.job_id)}/artifacts/source_pdf`
+  // 原文 PDF 存在书上：知道书编号就走 /documents/{书}/files/source.pdf；不知道就当没有原文，
+  // 不再拼旧地址 /jobs/{id}/artifacts/source_pdf。
+  const documentId = firstNonEmpty(job?.document_id, job?.book_summary?.document_id);
+  const fallbackUrl = documentId
+    ? `${API_PREFIX}/documents/${encodeURIComponent(documentId)}/files/source.pdf`
     : "";
   const url = resolveResourceUrl(firstNonEmpty(
     manifestUrl,
