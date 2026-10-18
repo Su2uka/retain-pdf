@@ -1,9 +1,4 @@
 pub use super::common::{ApiResponse, UploadView};
-pub use super::glossary::{
-    glossary_to_csv_export, glossary_to_detail, glossary_to_summary, GlossaryCsvExportView,
-    GlossaryCsvParseInput, GlossaryCsvParseView, GlossaryDetailView, GlossaryListView,
-    GlossarySummaryView, GlossaryUpsertInput,
-};
 pub use super::library::{
     AddCollectionDocumentsInput, AppendMessageInput, ApplyDocumentMetadataSuggestionInput,
     AssetRecord, BlockSearchHit, CollectionListView, CollectionMutationResult, CollectionRecord,
@@ -39,7 +34,7 @@ pub use super::view::{
     JobStageContractView, JobStageRuntimeView, JobStageSnapshotView, JobStageStateView,
     JobStagesView, JobSubmissionView, JobTimestampsView, LibraryBookDetailView, LibraryBookListItemView,
     LibraryBookListView, LibraryDeleteQuery, LibraryDeleteResultView, ListDocumentJobsQuery,
-    ListGlossariesQuery, ListJobEventsQuery, ListJobEventsStart, ListJobsQuery,
+    ListJobEventsQuery, ListJobEventsStart, ListJobsQuery,
     ListTranslationItemsQuery, LiveTranslationCommitEventView, LiveTranslationEventsQuery,
     LiveTranslationItemView, LiveTranslationLayoutBlockView, LiveTranslationLayoutPageView,
     LiveTranslationLayoutView, LiveTranslationPageView, LiveTranslationTypographyView,

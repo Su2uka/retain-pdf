@@ -1,7 +1,7 @@
 use super::*;
-use retainpdf_core::models::api::{glossary_to_csv_export, ListGlossariesQuery};
+use super::views::{glossary_to_csv_export, GlossaryUpsertInput, ListGlossariesQuery};
 use retainpdf_core::models::domain::{now_iso, GlossaryRecord};
-use retainpdf_core::models::request::{CreateJobInput, GlossaryEntryInput, GlossaryUpsertInput};
+use retainpdf_core::models::request::{CreateJobInput, GlossaryEntryInput};
 use retainpdf_data::db::Db;
 
 fn test_db() -> Db {

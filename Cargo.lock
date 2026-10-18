@@ -1764,6 +1764,7 @@ dependencies = [
  "retainpdf-api-base",
  "retainpdf-core",
  "retainpdf-data",
+ "serde",
 ]
 
 [[package]]

@@ -136,18 +136,6 @@ pub struct ListDocumentJobsQuery {
     pub offset: u32,
 }
 
-#[derive(Debug, Deserialize, Clone)]
-pub struct ListGlossariesQuery {
-    #[serde(default)]
-    pub enabled: Option<bool>,
-    #[serde(default)]
-    pub source_lang: Option<String>,
-    #[serde(default)]
-    pub target_lang: Option<String>,
-    #[serde(default)]
-    pub q: Option<String>,
-}
-
 #[derive(Debug, Deserialize, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum ListJobEventsStart {

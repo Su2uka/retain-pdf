@@ -39,11 +39,7 @@ pub use document_operation::{
     DOCUMENT_OPERATION_MANIFEST_SCHEMA, DOCUMENT_OPERATION_SCHEMA_VERSION,
     DOCUMENT_OPERATION_STATE_SCHEMA,
 };
-pub use glossary::{
-    build_glossary_id, glossary_to_csv_export, glossary_to_detail, glossary_to_summary,
-    GlossaryCsvExportView, GlossaryCsvParseInput, GlossaryCsvParseView, GlossaryDetailView,
-    GlossaryListView, GlossaryRecord, GlossarySummaryView, GlossaryUpsertInput,
-};
+pub use glossary::{build_glossary_id, GlossaryRecord};
 pub use input::{
     normalize_translation_refine_mode, CreateJobInput, GlossaryEntryInput, JobSourceInput,
     RefineOverride, OcrInput, RenderInput, ResolvedJobSpec,
@@ -90,7 +86,7 @@ pub use view::{
     JobStageStateView, JobStagesView, JobSubmissionView, JobTimestampsView,
     LibraryBookDetailView,
     LibraryBookListItemView, LibraryBookListView, LibraryDeleteQuery, LibraryDeleteResultView,
-    ListDocumentJobsQuery, ListGlossariesQuery, ListJobEventsQuery, ListJobsQuery,
+    ListDocumentJobsQuery, ListJobEventsQuery, ListJobsQuery,
     ListTranslationItemsQuery, LiveTranslationCommitEventView, LiveTranslationEventsQuery,
     LiveTranslationItemView, LiveTranslationLayoutBlockView, LiveTranslationLayoutPageView,
     LiveTranslationLayoutView, LiveTranslationPageView, LiveTranslationTypographyView,

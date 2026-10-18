@@ -1,5 +1,6 @@
 use retainpdf_api_base::error::AppError;
-use retainpdf_core::models::request::{GlossaryCsvParseInput, GlossaryEntryInput};
+use super::views::GlossaryCsvParseInput;
+use retainpdf_core::models::request::GlossaryEntryInput;
 
 use super::entries::{
     normalize_glossary_entries, normalize_glossary_level, normalize_glossary_match_mode,

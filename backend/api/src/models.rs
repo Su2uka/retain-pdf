@@ -7,5 +7,9 @@ pub use retainpdf_core::models::*;
 
 pub mod api {
     pub use retainpdf_core::models::api::*;
+    pub use retainpdf_glossaries::{
+        GlossaryCsvExportView, GlossaryCsvParseInput, GlossaryCsvParseView, GlossaryDetailView,
+        GlossaryListView, GlossarySummaryView, GlossaryUpsertInput, ListGlossariesQuery,
+    };
     pub use retainpdf_platform::{BackupItemView, BackupRestoreView, BackupStatusView};
 }

@@ -1,8 +1,7 @@
 use retainpdf_data::db::Db;
 use retainpdf_api_base::error::AppError;
-use retainpdf_core::models::api::ListGlossariesQuery;
+use super::views::{GlossaryUpsertInput, ListGlossariesQuery};
 use retainpdf_core::models::domain::{build_glossary_id, now_iso, GlossaryRecord};
-use retainpdf_core::models::request::GlossaryUpsertInput;
 
 use super::entries::normalize_glossary_entries;
 
