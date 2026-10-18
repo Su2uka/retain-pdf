@@ -19,7 +19,7 @@ pub(super) fn build_ocr_job_summary(
 ) -> Option<OcrJobSummaryView> {
     let artifacts = job.artifacts.as_ref()?;
     let ocr_job_id = artifacts.ocr_job_id.as_ref()?;
-    let detail_path = format!("/api/v1/ocr/jobs/{ocr_job_id}");
+    let detail_path = format!("/api/v1/jobs/{ocr_job_id}");
     Some(OcrJobSummaryView {
         job_id: ocr_job_id.clone(),
         status: artifacts.ocr_status.clone(),

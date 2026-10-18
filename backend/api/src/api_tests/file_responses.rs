@@ -20,12 +20,11 @@ use super::jobs_common::{minimal_pdf_bytes, test_state};
 use crate::app::build_app;
 use crate::db::documents::sha256_hex;
 use crate::models::domain::{
-    now_iso, CreateJobInput, JobArtifacts, JobSnapshot, JobStatusKind, UploadRecord, WorkflowKind,
+    now_iso, CreateJobInput, JobArtifacts, JobSnapshot, JobStatusKind, UploadRecord,
 };
 use crate::services::files::LayoutDocxOptions;
 
 pub(super) const JOB: &str = "files-contract-job";
-const OCR_JOB: &str = "files-contract-job-ocr";
 const RUNNING_JOB: &str = "files-contract-running";
 
 /// 只记这些响应头；ETag、Last-Modified、Content-Length 随文件时间和线性化变化，不记。
@@ -123,26 +122,6 @@ pub(super) fn seed() -> Fixture {
     job.sync_runtime_state();
     state.db.save_job(&job).expect("save job");
 
-    // OCR 子任务（`/ocr/jobs/*` 旧别名要它），产物和翻译任务共用同一份目录内容。
-    let ocr_root = data_root.join("jobs").join(OCR_JOB);
-    for relative in [
-        "source/input.pdf",
-        "ocr/normalized/document.v1.json",
-        "ocr/normalization_report.json",
-        "ocr/paddle_result.json",
-        "pipeline_summary.json",
-    ] {
-        write(&ocr_root.join(relative), &fs::read(root.join(relative)).expect("copy fixture"));
-    }
-    let mut ocr_input = CreateJobInput::default();
-    ocr_input.runtime.job_id = OCR_JOB.to_string();
-    ocr_input.workflow = WorkflowKind::Ocr;
-    let mut ocr_job = JobSnapshot::new(OCR_JOB.to_string(), ocr_input, vec!["python".to_string()]);
-    ocr_job.status = JobStatusKind::Succeeded;
-    ocr_job.artifacts = Some(artifacts(OCR_JOB));
-    ocr_job.sync_runtime_state();
-    state.db.save_job(&ocr_job).expect("save ocr job");
-
     // 还在跑的任务：什么产物都没有，用来钉"没就绪"的报错。
     let mut running_input = CreateJobInput::default();
     running_input.runtime.job_id = RUNNING_JOB.to_string();
@@ -169,36 +148,8 @@ pub(super) fn seed() -> Fixture {
 /// 每个请求：`(说明, 地址, 额外请求头)`。地址里的 `{doc}` 换成书的编号。
 fn requests() -> Vec<(&'static str, String, Option<(&'static str, &'static str)>)> {
     let j = format!("/api/v1/jobs/{JOB}");
-    let o = format!("/api/v1/ocr/jobs/{OCR_JOB}");
     let r = format!("/api/v1/jobs/{RUNNING_JOB}");
-    let mut list = vec![
-        ("译文 PDF", format!("{j}/pdf"), None),
-        ("译文 PDF，断点续传", format!("{j}/pdf"), Some(("range", "bytes=0-3"))),
-        ("对照 PDF", format!("{j}/pdf/side-by-side"), None),
-        ("Word（默认清晰度）", format!("{j}/docx"), None),
-        ("Word（dpi=150）", format!("{j}/docx?dpi=150"), None),
-        ("任务封面", format!("{j}/cover"), None),
-        ("任务缩略图", format!("{j}/thumbnail"), None),
-        ("原文第 1 页预览", format!("{j}/preview/pages/1?kind=source"), None),
-        ("译文第 1 页预览", format!("{j}/preview/pages/1?kind=translated"), None),
-        ("规范化文档", format!("{j}/normalized-document"), None),
-        ("规范化报告", format!("{j}/normalization-report"), None),
-        ("原文 Markdown（JSON）", format!("{j}/markdown"), None),
-        ("原文 Markdown（原样）", format!("{j}/markdown?raw=true"), None),
-        ("Markdown 图片", format!("{j}/markdown/images/page-1/fig.png"), None),
-        ("全部打包", format!("{j}/download"), None),
-        ("产物列表", format!("{j}/artifacts"), None),
-        ("产物清单", format!("{j}/artifacts-manifest"), None),
-        ("书的原文", "/api/v1/documents/{doc}/source.pdf".to_string(), None),
-        ("书的封面", "/api/v1/documents/{doc}/cover".to_string(), None),
-        ("书的缩略图", "/api/v1/documents/{doc}/thumbnail".to_string(), None),
-        ("书架封面（按任务编号）", format!("/api/v1/library/books/{JOB}/cover"), None),
-        ("书架缩略图（按任务编号）", format!("/api/v1/library/books/{JOB}/thumbnail"), None),
-        ("旧别名：OCR 产物列表", format!("{o}/artifacts"), None),
-        ("旧别名：OCR 产物清单", format!("{o}/artifacts-manifest"), None),
-        ("旧别名：OCR 规范化文档", format!("{o}/normalized-document"), None),
-        ("旧别名：OCR 规范化报告", format!("{o}/normalization-report"), None),
-        ("旧别名：OCR 按名字取产物", format!("{o}/artifacts/normalized_document_json"), None),
+    let list = vec![
         // 新地址：任务的文件按 output / pages / internal 分组，书的文件挂在书下面。
         ("新：任务的文件清单", format!("{j}/files"), None),
         ("新：译文 PDF（浏览器里打开）", format!("{j}/files/output/translated.pdf"), None),
@@ -212,6 +163,7 @@ fn requests() -> Vec<(&'static str, String, Option<(&'static str, &'static str)>
         ("新：全部打包", format!("{j}/files/output/all.zip?download=1"), None),
         ("新：译文第 1 页预览", format!("{j}/files/pages/1.jpg"), None),
         ("新：中间产物 规范化文档", format!("{j}/files/internal/normalized-document.json"), None),
+        ("新：中间产物 规范化报告", format!("{j}/files/internal/normalization-report.json"), None),
         ("新：中间产物 OCR 原始返回", format!("{j}/files/internal/ocr-provider/result.json"), None),
         ("新：中间产物 流水线摘要", format!("{j}/files/internal/pipeline-summary.json"), None),
         ("新：书的文件清单", "/api/v1/documents/{doc}/files".to_string(), None),
@@ -226,29 +178,10 @@ fn requests() -> Vec<(&'static str, String, Option<(&'static str, &'static str)>
         ("新报错：书没有这个文件", "/api/v1/documents/{doc}/files/cover.png".to_string(), None),
         ("新报错：还在跑，不能打包", format!("{r}/files/output/all.zip"), None),
         // 出错的情况：前端按这些状态码和提示走分支。
-        ("报错：产物名不存在", format!("{j}/artifacts/no_such_artifact"), None),
-        ("报错：目录类产物不能直接下载", format!("{j}/artifacts/job_root"), None),
-        ("报错：预览类型不对", format!("{j}/preview/pages/1?kind=bogus"), None),
-        ("报错：页码从 1 开始", format!("{j}/preview/pages/0?kind=source"), None),
-        ("报错：Markdown 图片路径越界", format!("{j}/markdown/images/..%2F..%2Fsecret"), None),
-        ("报错：任务不存在", "/api/v1/jobs/no-such-job/pdf".to_string(), None),
-        ("报错：还在跑，译文 PDF 没就绪", format!("{r}/pdf"), None),
-        ("报错：还在跑，不能打包", format!("{r}/download"), None),
+        ("新报错：任务不存在", "/api/v1/jobs/no-such-job/files/output/translated.pdf".to_string(), None),
+        ("新报错：还在跑，译文 PDF 没就绪", format!("{r}/files/output/translated.pdf"), None),
+        ("新报错：Markdown 图片路径越界", format!("{j}/files/output/ocr/images/..%2F..%2Fsecret"), None),
     ];
-    // 按名字取产物：清单里每个能直接下载的名字都请求一遍。
-    for key in [
-        "source_pdf",
-        "translated_pdf",
-        "markdown_raw",
-        "markdown_bundle_zip",
-        "normalized_document_json",
-        "normalization_report_json",
-        "layout_json",
-        "provider_result_json",
-        "pipeline_summary",
-    ] {
-        list.push(("按名字取产物", format!("{j}/artifacts/{key}"), None));
-    }
     list
 }
 

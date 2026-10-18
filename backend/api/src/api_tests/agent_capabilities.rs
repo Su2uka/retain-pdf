@@ -308,8 +308,8 @@ async fn job_capability_reaches_only_its_own_translation_endpoints() {
         .expect("issued capability")
         .to_string();
 
-    // 自己的任务：鉴权放行，交给路由（任务不存在时是 404，不是 401/403）。新旧地址一样。
-    for uri in ["/api/v1/jobs/job-a/translation/qa", "/api/v1/jobs/job-a/reports/translation-qa"] {
+    // 自己的任务：鉴权放行，交给路由（任务不存在时是 404，不是 401/403）。
+    for uri in ["/api/v1/jobs/job-a/reports/translation-qa"] {
         let own = request_json(app.clone(), "GET", uri, None, Some(&capability), None).await;
         assert!(
             own.status() != StatusCode::UNAUTHORIZED && own.status() != StatusCode::FORBIDDEN,
@@ -329,9 +329,9 @@ async fn job_capability_reaches_only_its_own_translation_endpoints() {
     assert_eq!(glossaries.status(), StatusCode::OK);
 
     for (method, uri) in [
-        ("GET", "/api/v1/jobs/job-b/translation/qa".to_string()),
-        ("PATCH", "/api/v1/jobs/job-a/translation/items/p1-b1".to_string()),
-        ("POST", "/api/v1/jobs/job-a/retry-stage".to_string()),
+        ("GET", "/api/v1/jobs/job-b/reports/translation-qa".to_string()),
+        ("PATCH", "/api/v1/jobs/job-a/translations/p1-b1".to_string()),
+        ("POST", "/api/v1/jobs/job-a/actions/retry-stage".to_string()),
         ("GET", "/api/v1/jobs/job-b/reports/translation-qa".to_string()),
         ("PATCH", "/api/v1/jobs/job-a/translations/p1-b1".to_string()),
         ("POST", "/api/v1/jobs/job-a/actions/retry-stage".to_string()),

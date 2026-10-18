@@ -52,7 +52,7 @@ async fn main_job_events_include_ocr_child_page_progress() {
     let events_response = app
         .oneshot(
             Request::builder()
-                .uri(format!("/api/v1/jobs/{}/events", parent.job_id))
+                .uri(format!("/api/v1/jobs/{}/progress/events", parent.job_id))
                 .header("X-API-Key", "test-key")
                 .body(Body::empty())
                 .expect("events request"),
@@ -203,7 +203,7 @@ async fn ocr_child_terminal_events_stay_out_of_parent_feed_but_progress_stays() 
     append(&state, parent_id, "info", "ocr_submitting", "ocr_child_finished", "OCR 子任务结束，状态=Succeeded", None);
     append(&state, parent_id, "info", "translating", "stage_transition", "OCR 完成，开始翻译", None);
 
-    let body = get_json(&state, &format!("/api/v1/jobs/{parent_id}/events")).await;
+    let body = get_json(&state, &format!("/api/v1/jobs/{parent_id}/progress/events")).await;
     let items = body["data"]["items"].as_array().expect("events items");
 
     let child_events: Vec<&str> = from_child(items, child)
@@ -270,7 +270,7 @@ async fn failed_ocr_child_is_explained_by_the_parents_own_failure_events() {
     append(&state, parent_id, "error", "failed", "failure_classified", "OCR 服务暂时不可用", None);
     append(&state, parent_id, "error", "failed", "job_terminal", "任务进入终态 failed", None);
 
-    let body = get_json(&state, &format!("/api/v1/jobs/{parent_id}/events")).await;
+    let body = get_json(&state, &format!("/api/v1/jobs/{parent_id}/progress/events")).await;
     let items = body["data"]["items"].as_array().expect("events items");
     let child_items = from_child(items, child);
     assert_eq!(child_items.len(), 1, "{child_items:?}");

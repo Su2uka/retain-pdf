@@ -15,7 +15,7 @@ async fn translation_item_route_redacts_secrets() {
     let response = build_app(state)
         .oneshot(
             Request::builder()
-                .uri(format!("/api/v1/jobs/{JOB_ID}/translation/items/{ITEM_ID}"))
+                .uri(format!("/api/v1/jobs/{JOB_ID}/translations/{ITEM_ID}"))
                 .header("X-API-Key", "test-key")
                 .body(Body::empty())
                 .expect("item request"),

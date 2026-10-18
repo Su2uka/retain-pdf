@@ -199,7 +199,7 @@ fn workflow_contract_uses_expected_route_prefixes() {
         (WorkflowKind::Book, "/api/v1/jobs"),
         (WorkflowKind::Translate, "/api/v1/jobs"),
         (WorkflowKind::Render, "/api/v1/jobs"),
-        // OCR 任务的链接也走 /api/v1/jobs（/api/v1/ocr/jobs/* 只是给旧前端留的别名）。
+        // OCR 任务的链接也走 /api/v1/jobs。
         (WorkflowKind::Ocr, "/api/v1/jobs"),
     ];
 

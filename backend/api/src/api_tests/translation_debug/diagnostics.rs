@@ -15,7 +15,7 @@ async fn translation_diagnostics_route_redacts_secrets() {
     let response = build_app(state)
         .oneshot(
             Request::builder()
-                .uri(format!("/api/v1/jobs/{JOB_ID}/translation/diagnostics"))
+                .uri(format!("/api/v1/jobs/{JOB_ID}/reports/translation"))
                 .header("X-API-Key", "test-key")
                 .body(Body::empty())
                 .expect("diagnostics request"),
@@ -59,7 +59,7 @@ async fn translation_qa_and_fit_report_routes_return_reports_redacted() {
     )
     .expect("fit report");
 
-    let qa = get_report(state.clone(), "translation/qa").await;
+    let qa = get_report(state.clone(), "reports/translation-qa").await;
     assert_eq!(qa.status(), StatusCode::OK);
     let qa = read_json(qa).await;
     assert_eq!(qa["data"]["job_id"], JOB_ID);
@@ -69,7 +69,7 @@ async fn translation_qa_and_fit_report_routes_return_reports_redacted() {
         "leaks [REDACTED]"
     );
 
-    let fit = get_report(state, "render/fit-report").await;
+    let fit = get_report(state, "reports/layout-fit").await;
     assert_eq!(fit.status(), StatusCode::OK);
     let fit = read_json(fit).await;
     assert_eq!(fit["data"]["report"]["status"], "ok");
@@ -82,11 +82,11 @@ async fn translation_qa_and_fit_report_routes_are_404_when_missing() {
     seed_translation_debug_job(&state);
 
     assert_eq!(
-        get_report(state.clone(), "translation/qa").await.status(),
+        get_report(state.clone(), "reports/translation-qa").await.status(),
         StatusCode::NOT_FOUND
     );
     assert_eq!(
-        get_report(state, "render/fit-report").await.status(),
+        get_report(state, "reports/layout-fit").await.status(),
         StatusCode::NOT_FOUND
     );
 }
@@ -104,7 +104,7 @@ async fn refine_report_route_returns_report_redacted() {
     )
     .expect("refine report");
 
-    let response = get_report(state, "translation/refine-report").await;
+    let response = get_report(state, "reports/refine").await;
     assert_eq!(response.status(), StatusCode::OK);
     let payload = read_json(response).await;
     assert_eq!(payload["data"]["job_id"], JOB_ID);
@@ -122,7 +122,7 @@ async fn refine_report_route_is_404_when_missing() {
     seed_translation_debug_job(&state);
 
     assert_eq!(
-        get_report(state, "translation/refine-report").await.status(),
+        get_report(state, "reports/refine").await.status(),
         StatusCode::NOT_FOUND
     );
 }

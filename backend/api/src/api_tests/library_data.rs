@@ -1299,7 +1299,7 @@ async fn document_source_pdf_and_media_urls_work_without_job() {
         .clone()
         .oneshot(
             Request::builder()
-                .uri(format!("/api/v1/documents/{document_id}/source.pdf"))
+                .uri(format!("/api/v1/documents/{document_id}/files/source.pdf"))
                 .header("X-API-Key", "test-key")
                 .body(Body::empty())
                 .expect("request"),
@@ -1322,7 +1322,7 @@ async fn document_source_pdf_and_media_urls_work_without_job() {
         .clone()
         .oneshot(
             Request::builder()
-                .uri(format!("/api/v1/documents/{document_id}/cover"))
+                .uri(format!("/api/v1/documents/{document_id}/files/cover.jpg"))
                 .header("X-API-Key", "test-key")
                 .body(Body::empty())
                 .expect("request"),

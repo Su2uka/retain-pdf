@@ -42,7 +42,7 @@ async fn markdown_document_route_returns_content_and_direct_image_links() {
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/jobs/markdown-document-job/markdown/document")
+                .uri("/api/v1/jobs/markdown-document-job/reader/markdown")
                 .header("X-API-Key", "test-key")
                 .body(Body::empty())
                 .expect("markdown document request"),
@@ -128,7 +128,7 @@ async fn markdown_document_rewrites_html_img_and_titled_markdown_links() {
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/jobs/markdown-html-img-job/markdown/document")
+                .uri("/api/v1/jobs/markdown-html-img-job/reader/markdown")
                 .header("X-API-Key", "test-key")
                 .body(Body::empty())
                 .expect("markdown document request"),
@@ -187,7 +187,7 @@ async fn raw_markdown_serves_byte_ranges_so_readers_can_page_through_it() {
     });
     state.db.save_job(&job).expect("save job");
     let app = build_app(state);
-    let uri = "/api/v1/jobs/markdown-range-job/markdown?raw=true";
+    let uri = "/api/v1/jobs/markdown-range-job/files/output/ocr.md";
     let total = full.as_bytes().len();
 
     // 不带 Range:整篇 + 声明支持 Range

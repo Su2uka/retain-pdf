@@ -55,7 +55,7 @@ async fn rerun_in_place_render_keeps_rpr_engine() {
     let id = "job-render-engine-rerun";
     seed_rpr_job(&state, id);
 
-    let response = post(&state, format!("/api/v1/jobs/{id}/rerun"), None).await;
+    let response = post(&state, format!("/api/v1/jobs/{id}/actions/rerun"), None).await;
     assert_eq!(response.status(), StatusCode::OK);
     let job = state.db.get_job(id).expect("rerun job");
     assert_eq!(job.workflow, WorkflowKind::Render);
@@ -70,7 +70,7 @@ async fn retry_stage_in_place_render_keeps_rpr_engine() {
 
     let response = post(
         &state,
-        format!("/api/v1/jobs/{id}/retry-stage"),
+        format!("/api/v1/jobs/{id}/actions/retry-stage"),
         Some(json!({"stage": "render", "create_new_job": false})),
     )
     .await;
@@ -88,7 +88,7 @@ async fn retry_stage_render_override_can_switch_engine_but_rejects_unknown() {
 
     let response = post(
         &state,
-        format!("/api/v1/jobs/{id}/retry-stage"),
+        format!("/api/v1/jobs/{id}/actions/retry-stage"),
         Some(json!({
             "stage": "render",
             "create_new_job": false,
@@ -110,7 +110,7 @@ async fn retry_stage_render_override_can_switch_engine_but_rejects_unknown() {
 
     let response = post(
         &state,
-        format!("/api/v1/jobs/{id}/retry-stage"),
+        format!("/api/v1/jobs/{id}/actions/retry-stage"),
         Some(json!({
             "stage": "render",
             "create_new_job": false,

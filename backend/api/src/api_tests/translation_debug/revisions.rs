@@ -183,7 +183,7 @@ pub(super) async fn patch_item(
         .oneshot(
             Request::builder()
                 .method("PATCH")
-                .uri(format!("/api/v1/jobs/{job_id}/translation/items/{item_id}"))
+                .uri(format!("/api/v1/jobs/{job_id}/translations/{item_id}"))
                 .header("X-API-Key", "test-key")
                 .header("Content-Type", "application/json")
                 .body(Body::from(body.to_string()))
@@ -203,7 +203,7 @@ async fn get_revisions(
     let response = build_app(state.clone())
         .oneshot(
             Request::builder()
-                .uri(format!("/api/v1/jobs/{job_id}/translation/items/{item_id}/revisions"))
+                .uri(format!("/api/v1/jobs/{job_id}/translations/{item_id}/revisions"))
                 .header("X-API-Key", "test-key")
                 .body(Body::empty())
                 .expect("revisions request"),

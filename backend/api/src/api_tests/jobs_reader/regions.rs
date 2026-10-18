@@ -158,7 +158,7 @@ async fn reader_regions_route_maps_translated_items_to_source_blocks() {
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/jobs/reader-region-job/markdown/images/page-8/imgs/chart%20a.png")
+                .uri("/api/v1/jobs/reader-region-job/files/output/ocr/images/page-8/imgs/chart%20a.png")
                 .header("X-API-Key", "test-key")
                 .body(Body::empty())
                 .expect("asset request"),

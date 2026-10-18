@@ -143,9 +143,7 @@ async fn parent_import_does_not_advance_the_ocr_childs_independent_checkpoint() 
     append_events(&state, "child-feed", 1, 10_001);
     let app = build_app(state);
     let parent_page = page(&app, "parent-feed", "").await;
-    let (status, child_response) = response(&app, "/api/v1/ocr/jobs/child-feed/events").await;
-    assert_eq!(status, StatusCode::OK, "{child_response}");
-    let child_page = &child_response["data"];
+    let child_page = &page(&app, "child-feed", "").await;
     assert_eq!(items(&parent_page).len(), 500);
     assert_eq!(items(child_page).len(), 500);
     assert_eq!(items(child_page).last().unwrap()["message"], "event-10001");
@@ -177,7 +175,7 @@ async fn limit_is_clamped_and_legacy_or_ambiguous_queries_are_rejected() {
         "start=head&cursor=invalid",
     ] {
         let (status, body) =
-            response(&app, &format!("/api/v1/jobs/query-feed/events?{query}")).await;
+            response(&app, &format!("/api/v1/jobs/query-feed/progress/events?{query}")).await;
         assert_eq!(status, StatusCode::BAD_REQUEST, "{query}: {body}");
         assert_eq!(body["error"]["code"], "BAD_REQUEST");
         assert!(body.get("data").is_none());
@@ -185,26 +183,24 @@ async fn limit_is_clamped_and_legacy_or_ambiguous_queries_are_rejected() {
 }
 
 #[tokio::test]
-async fn cursor_scope_cannot_cross_jobs_or_ocr_routes() {
+async fn cursor_scope_cannot_cross_jobs() {
     let state = test_state("events-v2-cursor-scope");
     seed_job(&state, "scope-a", WorkflowKind::Ocr);
     seed_job(&state, "scope-b", WorkflowKind::Ocr);
     let app = build_app(state);
     let first = page(&app, "scope-a", "").await;
-    for path in [
-        "/api/v1/jobs/scope-b/events",
-        "/api/v1/ocr/jobs/scope-a/events",
-    ] {
-        let (status, payload) = response(&app, &format!("{path}?cursor={}", cursor(&first))).await;
-        assert_eq!(status, StatusCode::BAD_REQUEST, "{payload}");
-        assert_eq!(payload["error"]["code"], "BAD_REQUEST");
-    }
+    let (status, payload) = response(
+        &app,
+        &format!("/api/v1/jobs/scope-b/progress/events?cursor={}", cursor(&first)),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{payload}");
+    assert_eq!(payload["error"]["code"], "BAD_REQUEST");
 }
 
 #[tokio::test]
 async fn job_scope_and_legacy_layout_are_checked_before_cursor_decoding() {
     let state = test_state("events-v2-query-guard-order");
-    seed_job(&state, "scope-book", WorkflowKind::Book);
     seed_job(&state, "scope-legacy", WorkflowKind::Ocr);
     std::fs::create_dir(
         state
@@ -217,22 +213,12 @@ async fn job_scope_and_legacy_layout_are_checked_before_cursor_decoding() {
     let app = build_app(state);
     for (path, expected, code) in [
         (
-            "/api/v1/ocr/jobs/scope-book/events",
+            "/api/v1/jobs/missing/progress/events",
             StatusCode::NOT_FOUND,
             "NOT_FOUND",
         ),
         (
-            "/api/v1/jobs/missing/events",
-            StatusCode::NOT_FOUND,
-            "NOT_FOUND",
-        ),
-        (
-            "/api/v1/jobs/scope-legacy/events",
-            StatusCode::CONFLICT,
-            "CONFLICT",
-        ),
-        (
-            "/api/v1/ocr/jobs/scope-legacy/events",
+            "/api/v1/jobs/scope-legacy/progress/events",
             StatusCode::CONFLICT,
             "CONFLICT",
         ),

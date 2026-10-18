@@ -64,21 +64,8 @@ print(f"normalization report json: {report}", flush=True)
 print("schema version: 1.1", flush=True)
 "##;
 
-fn multipart_ocr_request(boundary: &str, pdf_bytes: &[u8]) -> Vec<u8> {
+fn multipart_upload_request(boundary: &str, pdf_bytes: &[u8]) -> Vec<u8> {
     let mut body = Vec::new();
-    for (name, value) in [
-        ("workflow", "ocr"),
-        ("provider", "local"),
-        ("ocr_options", r#"{"command":"fake-local-ocr"}"#),
-        ("timeout_seconds", "10"),
-    ] {
-        body.extend_from_slice(
-            format!(
-                "--{boundary}\r\nContent-Disposition: form-data; name=\"{name}\"\r\n\r\n{value}\r\n"
-            )
-            .as_bytes(),
-        );
-    }
     body.extend_from_slice(
         format!(
             "--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"ocr-only.pdf\"\r\nContent-Type: application/pdf\r\n\r\n"
@@ -143,21 +130,50 @@ async fn ocr_only_submission_reaches_reader_and_document_outputs() {
     let app = build_app(state.clone());
     let boundary = "retainpdf-ocr-lifecycle-boundary";
 
-    let create_response = app
+    // 只做 OCR 的任务：先 POST /uploads 上传 PDF，再 POST /jobs 用 JSON 建任务。
+    let upload_response = app
         .clone()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/ocr/jobs")
+                .uri("/api/v1/uploads")
                 .header("X-API-Key", "test-key")
                 .header(
                     header::CONTENT_TYPE,
                     format!("multipart/form-data; boundary={boundary}"),
                 )
-                .body(Body::from(multipart_ocr_request(
+                .body(Body::from(multipart_upload_request(
                     boundary,
                     &minimal_pdf_bytes(595, 842),
                 )))
+                .expect("upload request"),
+        )
+        .await
+        .expect("upload response");
+    assert_eq!(upload_response.status(), StatusCode::OK);
+    let upload_payload = read_json(upload_response).await;
+    let upload_id = upload_payload["data"]["upload_id"]
+        .as_str()
+        .expect("upload id")
+        .to_string();
+
+    let create_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/jobs")
+                .header("X-API-Key", "test-key")
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "workflow": "ocr",
+                        "source": { "upload_id": upload_id },
+                        "ocr": { "provider": "local", "options": { "command": "fake-local-ocr" } },
+                        "runtime": { "timeout_seconds": 10 }
+                    })
+                    .to_string(),
+                ))
                 .expect("OCR create request"),
         )
         .await
@@ -221,7 +237,7 @@ async fn ocr_only_submission_reaches_reader_and_document_outputs() {
         .clone()
         .oneshot(
             Request::builder()
-                .uri(format!("/api/v1/jobs/{job_id}/normalized-document"))
+                .uri(format!("/api/v1/jobs/{job_id}/files/internal/normalized-document.json"))
                 .header("X-API-Key", "test-key")
                 .body(Body::empty())
                 .expect("normalized document request"),
@@ -263,7 +279,7 @@ async fn ocr_only_submission_reaches_reader_and_document_outputs() {
     let markdown_response = app
         .oneshot(
             Request::builder()
-                .uri(format!("/api/v1/jobs/{job_id}/markdown?raw=true"))
+                .uri(format!("/api/v1/jobs/{job_id}/files/output/ocr.md"))
                 .header("X-API-Key", "test-key")
                 .body(Body::empty())
                 .expect("markdown request"),
@@ -329,7 +345,7 @@ async fn canceling_a_normalizing_ocr_job_kills_the_worker_process() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri(format!("/api/v1/ocr/jobs/{job_id}/cancel"))
+                .uri(format!("/api/v1/jobs/{job_id}/actions/cancel"))
                 .header("X-API-Key", "test-key")
                 .header(header::CONTENT_TYPE, "application/json")
                 .body(Body::empty())

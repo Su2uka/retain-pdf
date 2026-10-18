@@ -142,9 +142,10 @@ async fn the_same_pdf_is_two_private_books_for_two_accounts() {
     assert_eq!(ids(&bob_docs["data"]["documents"], "document_id"), vec![b_doc.to_string()]);
 
     assert_eq!(fx.get(&fx.alice, &format!("/api/v1/documents/{a_doc}")).await.status(), StatusCode::OK);
+    assert_eq!(fx.get(&fx.alice, &format!("/api/v1/documents/{a_doc}/files/source.pdf")).await.status(), StatusCode::OK);
     for uri in [
         format!("/api/v1/documents/{a_doc}"),
-        format!("/api/v1/documents/{a_doc}/source.pdf"),
+        format!("/api/v1/documents/{a_doc}/files/source.pdf"),
         format!("/api/v1/documents/{a_doc}/jobs"),
         format!("/api/v1/search?q=anything&document_id={a_doc}"),
     ] {
@@ -254,7 +255,7 @@ async fn admin_only_and_closed_routes() {
     for uri in ["/api/v1/credentials", "/api/v1/sync", "/api/v1/backups"] {
         assert_eq!(fx.get(&fx.alice, uri).await.status(), StatusCode::FORBIDDEN, "{uri}");
     }
-    for uri in ["/api/v1/ai/conversations", "/api/v1/ai/runtime-config", "/api/v1/ocr/jobs"] {
+    for uri in ["/api/v1/ai/conversations", "/api/v1/ai/runtime-config"] {
         assert_eq!(fx.get(&fx.alice, uri).await.status(), StatusCode::NOT_FOUND, "{uri}");
     }
     assert_eq!(fx.get(&fx.alice, "/api/v1/providers/ocr").await.status(), StatusCode::OK);
@@ -294,7 +295,7 @@ async fn owner_of(fx: &Fixture, cookie: &str) -> String {
 async fn ocr_only_jobs_go_through_the_jobs_endpoint() {
     let fx = Fixture::new("ocr-json").await;
     let a = fx.upload(&fx.alice).await;
-    // 平台没配 OCR：走到了 OCR 的建任务路径（而不是「use /api/v1/ocr/jobs」的 400）。
+    // 平台没配 OCR：走到了 OCR 的建任务路径（而不是 400 让客户端去别处建任务）。
     let response = send(
         &fx.state,
         Method::POST,

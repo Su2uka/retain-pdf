@@ -30,7 +30,7 @@ async fn stage_actions_route_reports_retryable_stages() {
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/jobs/job-stage-actions/stage-actions")
+                .uri("/api/v1/jobs/job-stage-actions/actions")
                 .header("X-API-Key", "test-key")
                 .body(Body::empty())
                 .expect("stage actions request"),

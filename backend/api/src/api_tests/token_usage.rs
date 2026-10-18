@@ -39,7 +39,7 @@ async fn usage_routes_summarize_the_job_ledgers() {
     )
     .unwrap();
 
-    let response = get(&state, "/api/v1/jobs/job-usage/usage").await;
+    let response = get(&state, "/api/v1/jobs/job-usage/reports/usage").await;
     assert_eq!(response.status(), StatusCode::OK);
     let data = read_json(response).await["data"].clone();
     assert_eq!(data["scope"], "job");
@@ -55,5 +55,5 @@ async fn usage_routes_summarize_the_job_ledgers() {
     let document = read_json(get(&state, "/api/v1/documents/doc-without-jobs/usage").await).await["data"].clone();
     assert_eq!((document["scope"].as_str(), document["totals"]["requests"].as_u64()), (Some("document"), Some(0)));
 
-    assert_eq!(get(&state, "/api/v1/jobs/job-missing/usage").await.status(), StatusCode::NOT_FOUND);
+    assert_eq!(get(&state, "/api/v1/jobs/job-missing/reports/usage").await.status(), StatusCode::NOT_FOUND);
 }

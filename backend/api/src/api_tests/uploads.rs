@@ -89,7 +89,6 @@ async fn all_upload_consumers_use_the_injected_processing_budget() {
     let simple = crate::app::build_simple_app(state);
     for (app, uri) in [
         (main.clone(), "/api/v1/uploads"),
-        (main, "/api/v1/ocr/jobs"),
         (simple, "/api/v1/translate/bundle"),
     ] {
         let mut body = Vec::new();
