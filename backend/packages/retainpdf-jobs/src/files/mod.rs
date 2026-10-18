@@ -5,7 +5,7 @@ mod queries;
 mod readiness;
 
 pub use downloads::{
-    Disposition, FileDownload, FileGroup, JobDownloads, JobFile, JobFilesView, JobScope,
+    Disposition, FileDownload, FileGroup, JobDownloads, JobFile, JobFilesView,
     stored_path, StoredFile,
 };
 pub use readiness::job_readiness;

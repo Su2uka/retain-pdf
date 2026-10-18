@@ -180,7 +180,6 @@ pub async fn open_document_file(
     // 原文默认带文件名在浏览器里打开；按调用方要的方式改。
     match disposition {
         Disposition::Inline => {}
-        Disposition::Unnamed => download.inline_name = None,
         Disposition::Attachment => download.download_name = download.inline_name.take(),
     }
     Ok(download)

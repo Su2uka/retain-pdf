@@ -24,8 +24,7 @@ impl JobQueries<'_> {
         &self,
         job_id: &str,
         query: &ListJobEventsQuery,
-        ocr_only: bool,
     ) -> Result<JobEventListView, AppError> {
-        crate::progress::event_feed::read_events(self.db, self.data_root, job_id, query, ocr_only)
+        crate::progress::event_feed::read_events(self.db, self.data_root, job_id, query)
     }
 }

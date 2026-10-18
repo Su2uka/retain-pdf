@@ -193,7 +193,7 @@ pub async fn delete_user_route(
         // 尽力而为：任务可能刚好自己结束了，或者是父任务取消时连带结束的 OCR 子任务。
         match build_jobs_route_deps(&state)
             .jobs
-            .cancel_submission("", &job_id, false)
+            .cancel_submission("", &job_id)
             .await
         {
             Ok(_) => canceled.push(job_id),

@@ -76,7 +76,7 @@ pub async fn get_job(
     let deps = build_jobs_query_route_deps(&state);
     let base_url = request_base_url(&headers, deps.default_port, &deps.bind_host);
     let view = run_job_query_once(&state, format!("jobs:detail:{job_id}"), move |jobs| {
-        jobs.job_detail_view(&base_url, &job_id, false)
+        jobs.job_detail_view(&base_url, &job_id)
     })
     .await?;
     Ok(ok_json(view))

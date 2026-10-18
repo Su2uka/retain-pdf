@@ -2,17 +2,32 @@ use super::*;
 
 #[test]
 fn cursor_rejects_foreign_scope_and_unbounded_values() {
-    let token = cursor::Cursor::new("a", false, "epoch".into(), 3, 5)
+    let token = cursor::Cursor::new("a", "epoch".into(), 3, 5)
         .encode()
         .unwrap();
-    assert!(cursor::Cursor::decode(&token, "a", false).is_ok());
-    assert!(cursor::Cursor::decode(&token, "b", false).is_err());
-    assert!(cursor::Cursor::decode(&token, "a", true).is_err());
-    assert!(cursor::Cursor::decode(&"a".repeat(4097), "a", false).is_err());
-    let invalid = cursor::Cursor::new("a", false, "epoch".into(), 6, 5)
+    assert!(cursor::Cursor::decode(&token, "a").is_ok());
+    assert!(cursor::Cursor::decode(&token, "b").is_err());
+    assert!(cursor::Cursor::decode(&"a".repeat(4097), "a").is_err());
+    let invalid = cursor::Cursor::new("a", "epoch".into(), 6, 5)
         .encode()
         .unwrap();
-    assert!(cursor::Cursor::decode(&invalid, "a", false).is_err());
+    assert!(cursor::Cursor::decode(&invalid, "a").is_err());
+}
+
+/// 客户端手里的游标是去掉 `ocr_only` 参数以前发的，编码要一个字节都不变。
+#[test]
+fn cursor_encoding_is_unchanged_after_ocr_only_scope_removal() {
+    use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
+    let issued = |ocr_only: bool| {
+        URL_SAFE_NO_PAD.encode(format!(
+            r#"{{"version":2,"owner":"a","ocr_only":{ocr_only},"epoch":"epoch","position":3,"upper":5}}"#
+        ))
+    };
+    let token = cursor::Cursor::new("a", "epoch".into(), 3, 5).encode().unwrap();
+    assert_eq!(token, issued(false));
+    assert!(cursor::Cursor::decode(&issued(false), "a").is_ok());
+    // 只有删掉的 `/ocr/jobs/:id/events` 发过 true 的游标。
+    assert!(cursor::Cursor::decode(&issued(true), "a").is_err());
 }
 
 #[test]

@@ -3,7 +3,7 @@ use crate::views::JobFilesQuery;
 use crate::files::downloads::FileDownload;
 
 use crate::files::downloads::catalog::{named_file, FileGroup};
-use crate::files::downloads::files::{generation_key, open_job_file, Disposition, JobFile, JobScope};
+use crate::files::downloads::files::{generation_key, open_job_file, Disposition, JobFile};
 use crate::files::downloads::JobDownloads;
 
 impl<'a> JobDownloads<'a> {
@@ -12,17 +12,16 @@ impl<'a> JobDownloads<'a> {
     pub async fn open(
         &self,
         job_id: &str,
-        scope: JobScope,
         file: JobFile,
         disposition: Disposition,
     ) -> Result<FileDownload, AppError> {
         let deps = self.deps.owned();
-        let key = generation_key(job_id, scope, &file);
+        let key = generation_key(job_id, &file);
         let job_id = job_id.to_owned();
         self.deps
             .download_generation
             .run(key, move || {
-                open_job_file(&deps.borrowed(), &job_id, scope, &file, disposition)
+                open_job_file(&deps.borrowed(), &job_id, &file, disposition)
             })
             .await
     }
@@ -41,7 +40,7 @@ impl<'a> JobDownloads<'a> {
         } else {
             Disposition::Inline
         };
-        let mut download = self.open(job_id, JobScope::Any, file, disposition).await?;
+        let mut download = self.open(job_id, file, disposition).await?;
         // 中间产物下载时叫地址里的名字（`ocr-provider/result.json` → `ocr-provider-result.json`），
         // 不叫磁盘上的原名（`paddle_result.json`）。给用户的成品用带书名的名字，不在这里改。
         if group == FileGroup::Internal {

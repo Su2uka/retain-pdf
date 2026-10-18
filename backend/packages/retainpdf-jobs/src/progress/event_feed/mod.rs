@@ -20,21 +20,16 @@ pub(crate) fn read_events(
     data_root: &Path,
     job_id: &str,
     query: &ListJobEventsQuery,
-    ocr_only: bool,
 ) -> Result<JobEventListView, AppError> {
-    // Scope/layout errors precede cursor validation, including OCR-only 404.
-    let job = if ocr_only {
-        retainpdf_api_base::job_loading::load_ocr_job_with_supported_layout(db, data_root, job_id)?
-    } else {
-        retainpdf_api_base::job_loading::load_supported_job(db, data_root, job_id)?
-    };
+    // Scope/layout errors precede cursor validation.
+    let job = retainpdf_api_base::job_loading::load_supported_job(db, data_root, job_id)?;
     if query.cursor.is_some() && query.start.is_some() {
         return Err(AppError::bad_request("cursor and start cannot be combined"));
     }
     let cursor = query
         .cursor
         .as_deref()
-        .map(|raw| cursor::Cursor::decode(raw, job_id, ocr_only))
+        .map(|raw| cursor::Cursor::decode(raw, job_id))
         .transpose()?;
     let state = synchronize(db, data_root, &job)?;
     let limit = query.limit.clamp(1, 500);
@@ -112,7 +107,7 @@ pub(crate) fn read_events(
         items,
         limit,
         has_more,
-        next_cursor: cursor::Cursor::new(job_id, ocr_only, state.epoch, next_position, upper)
+        next_cursor: cursor::Cursor::new(job_id, state.epoch, next_position, upper)
             .encode()?,
     })
 }

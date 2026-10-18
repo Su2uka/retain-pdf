@@ -165,7 +165,7 @@ fn persist_failed_job(
 ///
 /// `wait_for_execution_slot` 命中取消标记时会**清掉标记并返回 None**,driver 随即
 /// 退出——它不写任何状态。正常取消路径没事:`cancel_job` 紧接着就会 CAS 写
-/// Canceled。但 `cancel_job(ocr_only = true)` 在 `stage != "queued"` 时**完全不写
+/// Canceled。但取消 OCR 任务(`workflow = ocr`)时 `cancel_job` 在 `stage != "queued"` 时**完全不写
 /// DB**(它把落终态的责任交给 runner 的取消检查点,好让 runner 先做 provider 清理),
 /// 于是出现一个没人收尾的空洞:标记没了、driver 走了、DB 行还停在 queued/running,
 /// 而且再没有 driver 会来驱动它。用户看到的是永久转圈,连重跑都点不了——
@@ -321,7 +321,7 @@ fn maintain_document_after_terminal(
 
 /// 终态不是 driver 写的(CAS 没更新)时的书卡收尾。
 ///
-/// 经 API 取消 OCR 任务且已过排队阶段时(`cancel_job(ocr_only = true)`),API 不写 DB,
+/// 经 API 取消 OCR 任务且已过排队阶段时(`cancel_job` 遇到 `workflow = ocr`),API 不写 DB,
 /// 由 runner 的取消检查点(`save_ocr_job`)落 Canceled;runner 内部别的检查点也可能自己
 /// 落 Failed。这些写法都不走任何书卡回退,driver 是最后一个知道任务结束了的地方。
 /// 只做「没成功 → 退回」这一半:`release_document_active_job` 只在书卡仍指着它时生效,

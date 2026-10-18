@@ -33,9 +33,8 @@ impl JobQueries<'_> {
         &self,
         base_url: &str,
         job_id: &str,
-        ocr_only: bool,
     ) -> Result<JobDetailView, AppError> {
-        let job = self.load_supported_job_snapshot(job_id, ocr_only)?;
+        let job = self.load_supported_job_snapshot(job_id)?;
         Ok(build_job_detail_view(
             self.db,
             self.data_root,
