@@ -11,7 +11,6 @@ export function reportSubmitError({
   apiPrefix,
   uploadId,
   currentRenderSourceJobId,
-  collectRunPayload,
   setText,
 }: {
   err: unknown;
@@ -19,19 +18,15 @@ export function reportSubmitError({
   apiPrefix?: string;
   uploadId?: string;
   currentRenderSourceJobId?: RunSubmitFlowOptions["currentRenderSourceJobId"];
-  collectRunPayload?: RunSubmitFlowOptions["collectRunPayload"];
   setText: SetTextFn;
 }) {
   if (isPageQuotaError(err)) {
     setText("error-box", err.message);
     return;
   }
-  // collectRunPayload 返回 unknown（RunSubmitFlowOptions），这里只读取 workflow 字段。
-  const payloadWorkflow = (collectRunPayload?.() as { workflow?: unknown } | undefined)?.workflow;
-  const isOcr = `${workflow || payloadWorkflow || ""}`.trim() === "ocr";
   setText("error-box", buildErrorDiagnostic(err, {
     operation: "提交 PDF 任务",
-    url: `${apiPrefix || ""}${isOcr ? "/ocr/jobs" : "/jobs"}`,
+    url: `${apiPrefix || ""}/jobs`,
     details: {
       workflow,
       upload_id: uploadId,

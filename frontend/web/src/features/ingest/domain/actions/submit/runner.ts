@@ -133,7 +133,6 @@ export async function runSubmitFlow({
       apiPrefix,
       uploadId,
       currentRenderSourceJobId,
-      collectRunPayload,
       setText,
     });
     return { status: "error", error: err };
