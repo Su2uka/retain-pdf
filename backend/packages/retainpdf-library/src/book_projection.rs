@@ -75,7 +75,8 @@ pub(crate) fn build_library_book_detail_view(
     let display_name = display_title(upload, job, &titles);
     let summary = build_book_summary(upload, &mut summaries, job, data_root, &display_name)
         .with_cover_url(library_image_url(job, document_id.as_deref(), data_root, base_url, "cover"))
-        .with_thumbnail_url(library_image_url(job, document_id.as_deref(), data_root, base_url, "thumbnail"));
+        .with_thumbnail_url(library_image_url(job, document_id.as_deref(), data_root, base_url, "thumbnail"))
+        .with_document_id(document_id.as_deref());
     let live = build_live_projection(db, job, data_root);
     let (pdf_ready, markdown_ready, bundle_ready) = job_readiness(job, data_root);
     let artifacts = build_artifact_links(

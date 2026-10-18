@@ -156,7 +156,8 @@ contract, diagnostics, runtime, failure, and log projections described below):
       "target_language": null,
       "source_file_name": "paper.pdf",
       "cover_url": "http://127.0.0.1:41000/api/v1/documents/<document_id>/files/cover.jpg",
-      "file_size_bytes": 3481120
+      "file_size_bytes": 3481120,
+      "document_id": "<document_id>"
     },
     "artifacts": {
       "pdf_ready": false,
