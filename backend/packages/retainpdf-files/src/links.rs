@@ -25,14 +25,6 @@ pub const JOB_INTERNAL_FILES: &[(&str, &str)] = &[
     ("ocr-provider/raw.zip", "provider_bundle_zip"),
 ];
 
-/// 产物清单里的名字 → `internal/` 下的新文件名。
-pub fn job_internal_file_name(artifact_key: &str) -> Option<&'static str> {
-    JOB_INTERNAL_FILES
-        .iter()
-        .find(|(_, key)| *key == artifact_key)
-        .map(|(file_name, _)| *file_name)
-}
-
 /// 任务的一个文件：`/api/v1/jobs/{job_id}/files/{relative}`，`relative` 是 `<组>/<文件名>`。
 pub fn job_file_path(job_id: &str, relative: &str) -> String {
     format!("/api/v1/jobs/{job_id}/files/{relative}")

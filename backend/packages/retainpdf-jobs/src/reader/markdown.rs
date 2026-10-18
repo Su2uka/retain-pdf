@@ -16,16 +16,7 @@ const MARKDOWN_IMAGE_LINK_RE: &str =
 const HTML_IMAGE_SRC_DQ_RE: &str = r#"(?i)(<img\b[^>]*?\bsrc\s*=\s*")((?:\./)?images/[^"]+)(")"#;
 const HTML_IMAGE_SRC_SQ_RE: &str = r#"(?i)(<img\b[^>]*?\bsrc\s*=\s*')((?:\./)?images/[^']+)(')"#;
 
-#[derive(Debug)]
-pub struct MarkdownDownload {
-    pub job_id: String,
-    pub content: String,
-}
-
 impl<'a> JobDownloads<'a> {
-    pub async fn markdown_document(&self, job_id: String) -> Result<MarkdownDownload, AppError> {
-        markdown_download(&self.deps, job_id).await
-    }
 
     pub async fn markdown_document_view(
         &self,
@@ -34,20 +25,6 @@ impl<'a> JobDownloads<'a> {
     ) -> Result<MarkdownDocumentView, AppError> {
         markdown_document_view(&self.deps, job_id, base_url).await
     }
-}
-
-async fn markdown_download(
-    deps: &DownloadJobsDeps<'_>,
-    job_id: String,
-) -> Result<MarkdownDownload, AppError> {
-    let job = load_supported_job(deps.db, deps.data_root, &job_id)?;
-    let markdown_path = resolve_markdown_path(&job, deps.data_root)
-        .ok_or_else(|| AppError::not_found(format!("markdown not found: {job_id}")))?;
-    let content = tokio::fs::read_to_string(&markdown_path).await?;
-    Ok(MarkdownDownload {
-        job_id: job.job_id.clone(),
-        content,
-    })
 }
 
 async fn markdown_document_view(

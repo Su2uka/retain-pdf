@@ -20,8 +20,8 @@ use retainpdf_files::{
 };
 use retainpdf_core::storage_paths::{
     resolve_job_root, resolve_markdown_images_dir, resolve_markdown_path, resolve_output_pdf,
-    resolve_source_pdf, ARTIFACT_KEY_MARKDOWN_BUNDLE_ZIP, ARTIFACT_KEY_MARKDOWN_RAW,
-    ARTIFACT_KEY_SOURCE_PDF, ARTIFACT_KEY_TRANSLATED_PDF,
+    resolve_source_pdf,
+    ARTIFACT_KEY_SOURCE_PDF,
 };
 
 use crate::files::downloads::artifact_deps::derived_artifact_deps;
@@ -66,16 +66,6 @@ pub enum JobFile {
 }
 
 impl JobFile {
-    /// 旧接口 `/artifacts/:key` 的产物名 → 文件。给用户的几种有自己的名字，其余按清单查。
-    pub fn from_artifact_key(key: &str, include_job_dir: bool) -> Self {
-        match key {
-            ARTIFACT_KEY_SOURCE_PDF => Self::SourcePdf,
-            ARTIFACT_KEY_TRANSLATED_PDF => Self::TranslatedPdf,
-            ARTIFACT_KEY_MARKDOWN_RAW => Self::OcrMarkdown,
-            ARTIFACT_KEY_MARKDOWN_BUNDLE_ZIP => Self::OcrMarkdownZip { include_job_dir },
-            other => Self::Registered(other.to_string()),
-        }
-    }
 
     /// 清晰度夹在可用区间里：太低看不清背景，太高单页几十 MB，整本能把浏览器拖垮。
     pub fn translated_docx(query: &LayoutDocxQuery) -> Self {

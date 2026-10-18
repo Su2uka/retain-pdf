@@ -77,7 +77,7 @@ def benchmark(root):
               "p95_method": "nearest rank", "event_queries": {}}
     for label, count in [("1k", 1000), ("10k", 10_000), ("100k", 100_000)]:
         job = f"acceptance-{label}"
-        endpoint = f"/api/v1/jobs/{job}/events"
+        endpoint = f"/api/v1/jobs/{job}/progress/events"
         health = []
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
             pending = executor.submit(data, endpoint + "?start=tail&limit=500")
@@ -110,7 +110,7 @@ def benchmark(root):
         }
     report["lists"] = benchmark_lists()
     with concurrent.futures.ThreadPoolExecutor(max_workers=16) as executor:
-        results = list(executor.map(lambda n: request(f"/api/v1/jobs/acceptance-concurrent/events?start=tail&limit={n+1}"), range(32)))
+        results = list(executor.map(lambda n: request(f"/api/v1/jobs/acceptance-concurrent/progress/events?start=tail&limit={n+1}"), range(32)))
     assert all(result[0] == 200 for result in results), [result[0] for result in results]
     report["concurrent_32_distinct_queries"] = summarize([(x[2], x[3]) for x in results])
     return report

@@ -1,6 +1,5 @@
 use axum::extract::State;
 use axum::http::HeaderMap;
-use axum::response::Response;
 use axum::Json;
 
 use crate::auth::Principal;
@@ -13,8 +12,6 @@ use crate::routes::common::request_base_url;
 use crate::routes::common::{
     build_library_route_deps, ok_json, run_read_query_once, ApiPath, ApiQuery,
 };
-use crate::routes::download_response::job_file;
-use crate::services::jobs::{Disposition, JobFile};
 use crate::services::library::{
     delete_library_book_view, get_library_book_view, list_library_books_view,
 };
@@ -63,20 +60,4 @@ pub async fn delete_book(
         &job_id,
         query.force,
     )?))
-}
-
-pub async fn download_book_cover(
-    State(state): State<AppState>,
-    ApiPath(job_id): ApiPath<String>,
-    headers: HeaderMap,
-) -> Result<Response, AppError> {
-    job_file(&state, &headers, &job_id, JobFile::Cover, Disposition::Unnamed).await
-}
-
-pub async fn download_book_thumbnail(
-    State(state): State<AppState>,
-    ApiPath(job_id): ApiPath<String>,
-    headers: HeaderMap,
-) -> Result<Response, AppError> {
-    job_file(&state, &headers, &job_id, JobFile::Thumbnail, Disposition::Unnamed).await
 }

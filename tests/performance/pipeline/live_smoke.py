@@ -226,7 +226,7 @@ def _main(resources):
     finally:
         if submitted:
             try:
-                api(session, base, "POST", f"/api/v1/jobs/{job_id}/cancel")
+                api(session, base, "POST", f"/api/v1/jobs/{job_id}/actions/cancel")
             except Exception:
                 pass
         if process is not None and process.poll() is None:

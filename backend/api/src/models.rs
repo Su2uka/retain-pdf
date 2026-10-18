@@ -15,14 +15,13 @@ pub mod api {
         ActionLinkView, ArtifactDisplayItemView, ArtifactLinksView, JOB_INTERNAL_FILES, JobActionsView,
         MarkdownArtifactView, ResourceLinkView, build_artifact_links, build_job_actions,
         document_file_path, job_bundle_path, job_file_path, job_files_list_path,
-        job_internal_file_name, job_markdown_view_path, job_ocr_images_base_path,
+        job_markdown_view_path, job_ocr_images_base_path,
         job_ocr_markdown_path, job_translated_pdf_path,
     };
     pub use retainpdf_ingest::{UploadView, upload_to_response};
     pub use retainpdf_jobs::{
-        AmbiguousRequestPolicy, ArtifactDownloadQuery, BookSummaryView, DocumentJobListView,
-        EscalatedItemView, GlossaryUsageSummaryView, InvocationSummaryView, JobArtifactItemView,
-        JobArtifactManifestView, JobContractsView, JobDetailView, JobDiagnosticsView, JobEventFeedItem,
+        AmbiguousRequestPolicy, BookSummaryView, DocumentJobListView,
+        EscalatedItemView, GlossaryUsageSummaryView, InvocationSummaryView, JobContractsView, JobDetailView, JobDiagnosticsView, JobEventFeedItem,
         JobEventListView, JobFailureBriefView,
         JobFailureDiagnosticView, JobFilesQuery, JobLinksView, JobListInvocationSummaryView,
         JobListItemView, JobListView, JobProgressView, JobReportView, JobResumePlanView,
@@ -33,7 +32,7 @@ pub mod api {
         LiveTranslationCommitEventView, LiveTranslationEventsQuery, LiveTranslationItemView,
         LiveTranslationLayoutBlockView, LiveTranslationLayoutPageView, LiveTranslationLayoutView,
         LiveTranslationPageView, LiveTranslationTypographyView, MarkdownDocumentView,
-        MarkdownImageView, MarkdownQuery, MarkdownView, NormalizationSummaryView,
+        MarkdownImageView, NormalizationSummaryView,
         OcrAmbiguityReceiptFieldView, OcrAmbiguityResolutionKind, OcrAmbiguityResolutionRequest,
         OcrAmbiguityResolutionView, OcrAmbiguityView, OcrJobSummaryView, PagePreviewQuery,
         ReaderDocumentMetadataView, ReaderMetadataView, ReaderPageMetadataView, ReaderRegionBoxView,
@@ -44,7 +43,7 @@ pub mod api {
         TranslationDiagnosticsView, TranslationReplayView, TranslationRequestRecoveryView,
         TranslationRevisionHistoryView, TranslationRevisionLivePageView,
         TranslationRevisionLivePublicationView, TranslationRevisionSource, TranslationRevisionView,
-        build_artifact_manifest, build_job_links, build_job_links_with_workflow,
+        build_job_links, build_job_links_with_workflow,
         summarize_list_invocation,
     };
     pub use retainpdf_library::{

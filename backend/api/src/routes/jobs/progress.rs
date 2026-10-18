@@ -39,23 +39,6 @@ pub async fn get_job_events(
     ))
 }
 
-pub async fn get_ocr_job_events(
-    State(state): State<AppState>,
-    ApiPath(job_id): ApiPath<String>,
-    ApiQuery(query): ApiQuery<ListJobEventsQuery>,
-) -> Result<Json<ApiResponse<JobEventListView>>, AppError> {
-    let key = format!(
-        "events:ocr:{job_id}:{:?}:{}:{:?}",
-        query.start, query.limit, query.cursor
-    );
-    Ok(ok_json(
-        run_job_query(&state, key, move |jobs| {
-            jobs.job_events_view(&job_id, &query, true)
-        })
-        .await?,
-    ))
-}
-
 pub async fn get_live_translation_layout(
     State(state): State<AppState>,
     ApiPath(job_id): ApiPath<String>,

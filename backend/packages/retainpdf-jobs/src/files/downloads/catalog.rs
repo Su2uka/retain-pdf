@@ -194,16 +194,17 @@ pub fn job_files_view(
     let upload = job_upload_id(job).and_then(|id| db.get_upload(id).ok());
     let source_entry = {
         let (updated_at, stage) = provenance(Some(ARTIFACT_KEY_SOURCE_PDF));
-        let path = match book_document_id(db, job, upload.as_ref()) {
-            Some(document_id) => document_file_path(&document_id, "source.pdf"),
-            // 没有书编号的旧任务只能按任务取原文。
-            None => format!("/api/v1/jobs/{}/artifacts/{ARTIFACT_KEY_SOURCE_PDF}", job.job_id),
-        };
+        // 原文是书的文件。查不到书编号就没有地址可给（按任务取原文的旧地址 2026-10-18 删了）：
+        // `url` 留空、`ready` 是 false。有原文的任务都会登记成书，实际只有原文文件不在的任务查不到。
+        let document_id = book_document_id(db, job, upload.as_ref());
         JobFileEntryView {
             name: "source.pdf".to_string(),
-            url: to_absolute_url(base_url, &path),
+            url: document_id
+                .as_deref()
+                .map(|document_id| to_absolute_url(base_url, &document_file_path(document_id, "source.pdf")))
+                .unwrap_or_default(),
             content_type: "application/pdf".to_string(),
-            ready: source.is_some(),
+            ready: source.is_some() && document_id.is_some(),
             on_demand: false,
             size_bytes: source.as_deref().and_then(file_size),
             updated_at,

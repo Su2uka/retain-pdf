@@ -11,6 +11,6 @@ mod views;
 
 pub(super) use ocr_ambiguity::build_ocr_ambiguity_view;
 pub use views::{
-    build_document_job_list_view, build_job_artifact_links_view, build_job_artifact_manifest_view,
+    build_document_job_list_view,
     build_job_detail_view, build_job_list_view,
 };

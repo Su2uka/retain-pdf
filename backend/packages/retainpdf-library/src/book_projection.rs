@@ -151,15 +151,10 @@ fn library_image_url(
     base_url: &str,
     kind: &str,
 ) -> Option<String> {
-    let document_id = document_id.map(str::trim).filter(|id| !id.is_empty());
-    stored_path(job, data_root, StoredFile::SourcePdf).map(|_| {
-        let path = match document_id {
-            Some(document_id) => document_file_path(document_id, &format!("{kind}.jpg")),
-            // 没有书编号的旧书只有按任务的旧地址。
-            None => format!("/api/v1/library/books/{}/{kind}", job.job_id),
-        };
-        to_absolute_url(base_url, &path)
-    })
+    // 查不到书编号就没有封面（按书架编号取封面的旧地址 2026-10-18 删了）。
+    let document_id = document_id.map(str::trim).filter(|id| !id.is_empty())?;
+    stored_path(job, data_root, StoredFile::SourcePdf)
+        .map(|_| to_absolute_url(base_url, &document_file_path(document_id, &format!("{kind}.jpg"))))
 }
 
 fn list_books_filtered(db: &Db, query: &ListJobsQuery) -> Result<Vec<JobSnapshot>, AppError> {

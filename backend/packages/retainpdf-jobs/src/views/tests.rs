@@ -2,41 +2,19 @@ use std::fs;
 
 use retainpdf_files::build_job_actions;
 use super::job::{
-    build_artifact_manifest, build_job_links_with_workflow, job_to_detail,
+    build_job_links_with_workflow, job_to_detail,
     job_to_list_item, summarize_list_invocation, InvocationSummaryView, JobListItemView,
 };
 use retainpdf_core::models::{
-    redact_json_value, redact_text, sensitive_values, CreateJobInput, JobArtifactRecord,
+    redact_json_value, redact_text, sensitive_values, CreateJobInput,
     JobArtifacts, JobFailureInfo, JobSnapshot, JobStatusKind, WorkflowKind,
 };
 use crate::views::{JobStageRuntimeView, JobStageStateView, JobStagesView};
-use retainpdf_core::storage_paths::{
-    ARTIFACT_KEY_MARKDOWN_RAW, ARTIFACT_KEY_NORMALIZED_DOCUMENT_JSON, ARTIFACT_KEY_TRANSLATED_PDF,
-    ARTIFACT_KEY_TRANSLATION_MANIFEST_JSON,
-};
 
 fn build_job(job_id: &str, workflow: WorkflowKind) -> JobSnapshot {
     let mut input = CreateJobInput::default();
     input.workflow = workflow;
     JobSnapshot::new(job_id.to_string(), input, vec!["python".to_string()])
-}
-
-fn artifact_record(job_id: &str, artifact_key: &str) -> JobArtifactRecord {
-    JobArtifactRecord {
-        job_id: job_id.to_string(),
-        artifact_key: artifact_key.to_string(),
-        artifact_group: "test".to_string(),
-        artifact_kind: "file".to_string(),
-        relative_path: format!("jobs/{job_id}/{artifact_key}"),
-        file_name: Some(format!("{artifact_key}.bin")),
-        content_type: "application/octet-stream".to_string(),
-        ready: true,
-        size_bytes: Some(42),
-        checksum: None,
-        source_stage: Some("test".to_string()),
-        created_at: "2026-04-11T00:00:00Z".to_string(),
-        updated_at: "2026-04-11T00:00:00Z".to_string(),
-    }
 }
 
 fn empty_progress() -> crate::views::JobProgressView {
@@ -354,96 +332,6 @@ fn summarize_list_invocation_counts_stage_spec_and_unknown() {
 
     assert_eq!(summary.stage_spec_count, 1);
     assert_eq!(summary.unknown_count, 1);
-}
-
-#[test]
-fn artifact_manifest_maps_canonical_resource_paths() {
-    let job = build_job("job-artifacts", WorkflowKind::Translate);
-    let manifest = build_artifact_manifest(
-        &job,
-        "https://api.example",
-        &[
-            artifact_record("job-artifacts", ARTIFACT_KEY_TRANSLATED_PDF),
-            artifact_record("job-artifacts", ARTIFACT_KEY_MARKDOWN_RAW),
-            artifact_record("job-artifacts", ARTIFACT_KEY_TRANSLATION_MANIFEST_JSON),
-            artifact_record("job-artifacts", "source_pdf"),
-        ],
-        Some("doc-1"),
-    );
-
-    let source_pdf = manifest
-        .items
-        .iter()
-        .find(|item| item.artifact_key == "source_pdf")
-        .expect("source pdf item");
-    assert_eq!(
-        source_pdf.resource_path.as_deref(),
-        Some("/api/v1/documents/doc-1/files/source.pdf?download=1")
-    );
-    let without_document = build_artifact_manifest(
-        &job,
-        "https://api.example",
-        &[artifact_record("job-artifacts", "source_pdf")],
-        None,
-    );
-    assert_eq!(
-        without_document.items[0].resource_path.as_deref(),
-        Some("/api/v1/jobs/job-artifacts/artifacts/source_pdf")
-    );
-
-    let translated_pdf = manifest
-        .items
-        .iter()
-        .find(|item| item.artifact_key == ARTIFACT_KEY_TRANSLATED_PDF)
-        .expect("translated pdf item");
-    assert_eq!(
-        translated_pdf.resource_path.as_deref(),
-        Some("/api/v1/jobs/job-artifacts/files/output/translated.pdf")
-    );
-    assert_eq!(
-        translated_pdf.resource_url.as_deref(),
-        Some("https://api.example/api/v1/jobs/job-artifacts/files/output/translated.pdf")
-    );
-
-    let markdown_raw = manifest
-        .items
-        .iter()
-        .find(|item| item.artifact_key == ARTIFACT_KEY_MARKDOWN_RAW)
-        .expect("markdown raw item");
-    assert_eq!(
-        markdown_raw.resource_path.as_deref(),
-        Some("/api/v1/jobs/job-artifacts/files/output/ocr.md")
-    );
-
-    let translation_manifest = manifest
-        .items
-        .iter()
-        .find(|item| item.artifact_key == ARTIFACT_KEY_TRANSLATION_MANIFEST_JSON)
-        .expect("translation manifest item");
-    assert_eq!(
-        translation_manifest.resource_path.as_deref(),
-        Some("/api/v1/jobs/job-artifacts/files/internal/translation-manifest.json?download=1")
-    );
-}
-
-#[test]
-fn ocr_artifact_manifest_uses_the_generic_job_routes() {
-    let job = build_job("ocr-artifacts", WorkflowKind::Ocr);
-    let manifest = build_artifact_manifest(
-        &job,
-        "https://api.example",
-        &[artifact_record(
-            "ocr-artifacts",
-            ARTIFACT_KEY_NORMALIZED_DOCUMENT_JSON,
-        )],
-        None,
-    );
-
-    let document = manifest.items.first().expect("normalized document item");
-    assert_eq!(
-        document.resource_path.as_deref(),
-        Some("/api/v1/jobs/ocr-artifacts/files/internal/normalized-document.json")
-    );
 }
 
 #[test]

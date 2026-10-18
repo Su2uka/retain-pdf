@@ -192,7 +192,7 @@ def main() -> int:
         report.update(status="interrupted" if isinstance(exc, KeyboardInterrupt) else "error", error_type=type(exc).__name__)
         if submitted:
             try:
-                api(session, args.api, "POST", f"/api/v1/jobs/{job_id}/cancel")
+                api(session, args.api, "POST", f"/api/v1/jobs/{job_id}/actions/cancel")
                 report["cancel_requested"] = True
             except Exception:
                 report["cancel_requested"] = False

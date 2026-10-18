@@ -23,12 +23,6 @@ crate::endpoints! {
     GET "/api/v1/documents/:document_id/files/:name" => library_data::document_file_route, signed;
     /// 原文某一页的预览图
     GET "/api/v1/documents/:document_id/files/pages/:page" => library_data::document_page_file_route, signed;
-    /// 原文 PDF
-    GET "/api/v1/documents/:document_id/source.pdf" => library_data::download_document_source_pdf_route, signed old "/api/v1/documents/:document_id/files/:name";
-    /// 封面
-    GET "/api/v1/documents/:document_id/cover" => library_data::download_document_cover_route, signed old "/api/v1/documents/:document_id/files/:name";
-    /// 缩略图
-    GET "/api/v1/documents/:document_id/thumbnail" => library_data::download_document_thumbnail_route, signed old "/api/v1/documents/:document_id/files/:name";
     /// 翻译这本书（建翻译任务，能复用已有的 OCR）
     POST "/api/v1/documents/:document_id/translate" => library_data::translate_document_route, signed;
     /// 给这本书做 OCR

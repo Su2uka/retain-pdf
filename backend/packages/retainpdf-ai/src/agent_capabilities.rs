@@ -475,29 +475,23 @@ fn requested_action<'a>(
         ("POST", ["api", "v1", "internal", "agent", "operations", _, "cancel"]) => {
             document(Action::OperationCancel)
         }
-        // 任务接口的新地址（按类分前缀）和旧地址给同一档权限；旧版命令行还在用旧地址。
+        // 任务接口按类分前缀的地址（旧地址 2026-10-18 删了，命令行早已改用新地址）。
         (
             "GET",
             ["api", "v1", "jobs", job_id, "reports", "translation-qa" | "refine" | "layout-fit"]
-            | ["api", "v1", "jobs", job_id, "translation", "qa" | "refine-report"]
-            | ["api", "v1", "jobs", job_id, "render", "fit-report"]
             // 通用取数（只读，限这本书）。
             | ["api", "v1", "jobs", job_id, "data"]
             | ["api", "v1", "jobs", job_id, "data", _]
             | ["api", "v1", "jobs", job_id, "translations", _]
-            | ["api", "v1", "jobs", job_id, "translations", _, "revisions"]
-            | ["api", "v1", "jobs", job_id, "translation", "items", _]
-            | ["api", "v1", "jobs", job_id, "translation", "items", _, "revisions"],
+            | ["api", "v1", "jobs", job_id, "translations", _, "revisions"],
         ) => Some((Action::TranslationRead, RequestScope::Job(*job_id))),
         (
             "PATCH",
-            ["api", "v1", "jobs", job_id, "translations", _]
-            | ["api", "v1", "jobs", job_id, "translation", "items", _],
+            ["api", "v1", "jobs", job_id, "translations", _],
         ) => Some((Action::TranslationRevise, RequestScope::Job(*job_id))),
         (
             "POST",
-            ["api", "v1", "jobs", job_id, "actions", "retry-stage"]
-            | ["api", "v1", "jobs", job_id, "retry-stage"],
+            ["api", "v1", "jobs", job_id, "actions", "retry-stage"],
         ) => Some((Action::TranslationRetry, RequestScope::Job(*job_id))),
         ("GET", ["api", "v1", "glossaries"] | ["api", "v1", "glossaries", _]) => {
             Some((Action::GlossaryRead, RequestScope::AnyJob))
@@ -663,18 +657,6 @@ mod tests {
     fn translation_requests_map_to_job_scoped_actions() {
         use AgentCapabilityAction as Action;
         for (method, path, action) in [
-            ("GET", "/api/v1/jobs/job-a/translation/qa", Action::TranslationRead),
-            ("GET", "/api/v1/jobs/job-a/translation/refine-report", Action::TranslationRead),
-            ("GET", "/api/v1/jobs/job-a/render/fit-report", Action::TranslationRead),
-            ("GET", "/api/v1/jobs/job-a/translation/items/p1-b2", Action::TranslationRead),
-            (
-                "GET",
-                "/api/v1/jobs/job-a/translation/items/p1-b2/revisions",
-                Action::TranslationRead,
-            ),
-            ("PATCH", "/api/v1/jobs/job-a/translation/items/p1-b2", Action::TranslationRevise),
-            ("POST", "/api/v1/jobs/job-a/retry-stage", Action::TranslationRetry),
-            // 新地址，同一档权限。
             ("GET", "/api/v1/jobs/job-a/reports/translation-qa", Action::TranslationRead),
             ("GET", "/api/v1/jobs/job-a/reports/refine", Action::TranslationRead),
             ("GET", "/api/v1/jobs/job-a/reports/layout-fit", Action::TranslationRead),
@@ -706,6 +688,18 @@ mod tests {
             assert!(requested_action("POST", path).is_none(), "{path}");
         }
         assert!(requested_action("DELETE", "/api/v1/glossaries/g-1").is_none());
+        // 旧地址 2026-10-18 删了，白名单里也不再放行。
+        for (method, path) in [
+            ("GET", "/api/v1/jobs/job-a/translation/qa"),
+            ("GET", "/api/v1/jobs/job-a/translation/refine-report"),
+            ("GET", "/api/v1/jobs/job-a/render/fit-report"),
+            ("GET", "/api/v1/jobs/job-a/translation/items/p1-b2"),
+            ("GET", "/api/v1/jobs/job-a/translation/items/p1-b2/revisions"),
+            ("PATCH", "/api/v1/jobs/job-a/translation/items/p1-b2"),
+            ("POST", "/api/v1/jobs/job-a/retry-stage"),
+        ] {
+            assert!(requested_action(method, path).is_none(), "{method} {path}");
+        }
     }
 
     #[test]
@@ -726,18 +720,18 @@ mod tests {
             .authenticate_request(
                 &issued.capability,
                 "PATCH",
-                "/api/v1/jobs/job-a/translation/items/p1",
+                "/api/v1/jobs/job-a/translations/p1",
             )
             .expect("same job");
         assert!(authority
             .authenticate_request(
                 &issued.capability,
                 "PATCH",
-                "/api/v1/jobs/job-b/translation/items/p1",
+                "/api/v1/jobs/job-b/translations/p1",
             )
             .is_err());
         assert!(authority
-            .authenticate_request(&issued.capability, "POST", "/api/v1/jobs/job-a/retry-stage")
+            .authenticate_request(&issued.capability, "POST", "/api/v1/jobs/job-a/actions/retry-stage")
             .is_err());
         // 任务级动作不能混进文档级 capability，反之亦然。
         assert!(authority
@@ -767,7 +761,7 @@ mod tests {
             )
             .expect("document capability");
         assert!(authority
-            .authenticate_request(&document.capability, "GET", "/api/v1/jobs/job-a/translation/qa")
+            .authenticate_request(&document.capability, "GET", "/api/v1/jobs/job-a/reports/translation-qa")
             .is_err());
     }
 }

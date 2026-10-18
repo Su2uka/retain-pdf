@@ -20,7 +20,7 @@ pub fn build_translation_job_snapshot(
     match input.workflow {
         WorkflowKind::Ocr => {
             return Err(AppError::bad_request(
-                "use /api/v1/ocr/jobs for workflow=ocr",
+                "workflow=ocr: upload the PDF with POST /api/v1/uploads, then POST /api/v1/jobs with workflow \"ocr\"",
             ));
         }
         WorkflowKind::Render => return build_render_job_snapshot(ctx, input),

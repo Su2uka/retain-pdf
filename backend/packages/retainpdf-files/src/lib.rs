@@ -34,6 +34,6 @@ pub use artifacts::{
 };
 pub use links::{
     JOB_INTERNAL_FILES, document_file_path, job_bundle_path, job_file_path, job_files_list_path,
-    job_internal_file_name, job_markdown_view_path, job_ocr_images_base_path, job_ocr_markdown_path,
+    job_markdown_view_path, job_ocr_images_base_path, job_ocr_markdown_path,
     job_translated_pdf_path,
 };

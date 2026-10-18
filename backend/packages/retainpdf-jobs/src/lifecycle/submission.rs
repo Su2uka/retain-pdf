@@ -74,7 +74,7 @@ impl<'a> JobsFacade<'a> {
             })
             .await?;
         if matches!(request.workflow, WorkflowKind::Ocr) {
-            return Err(AppError::bad_request("use /api/v1/ocr/jobs for workflow=ocr"));
+            return Err(AppError::bad_request("workflow=ocr: upload the PDF with POST /api/v1/uploads, then POST /api/v1/jobs with workflow \"ocr\""));
         }
         let workflow = request.workflow.clone();
         let job = submit_job(&self.command.submit, NewJob::new(request).with_upload(upload))?;

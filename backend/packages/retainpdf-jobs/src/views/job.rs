@@ -4,14 +4,14 @@ mod builders;
 mod types;
 
 pub use builders::{
-    build_artifact_manifest, build_job_links,
+    build_job_links,
     build_job_links_with_workflow, summarize_list_invocation, };
 #[cfg(test)]
 pub use builders::{job_to_detail, job_to_list_item};
 pub use types::{
     AmbiguousRequestPolicy, BookSummaryView,
     DocumentJobListView, GlossaryUsageSummaryView, InvocationSummaryView,
-    JobArtifactItemView, JobArtifactManifestView, JobContractsView, JobDetailView,
+    JobContractsView, JobDetailView,
     JobDiagnosticsView, JobFailureBriefView, JobFailureDiagnosticView, JobListInvocationSummaryView,
     JobListItemView,
     JobListView, JobResumePlanView, JobStageContractArtifactView, JobStageContractView,

@@ -49,7 +49,7 @@ pub(super) fn cover_url(
     data_root: &Path,
     base_url: &str,
 ) -> Option<String> {
-    stored_path(job, data_root, StoredFile::SourcePdf).map(|_| job_image_url(job, document_id, base_url, "cover"))
+    stored_path(job, data_root, StoredFile::SourcePdf).and_then(|_| book_image_url(document_id, base_url, "cover"))
 }
 
 pub(super) fn thumbnail_url(
@@ -58,17 +58,15 @@ pub(super) fn thumbnail_url(
     data_root: &Path,
     base_url: &str,
 ) -> Option<String> {
-    stored_path(job, data_root, StoredFile::SourcePdf).map(|_| job_image_url(job, document_id, base_url, "thumbnail"))
+    stored_path(job, data_root, StoredFile::SourcePdf).and_then(|_| book_image_url(document_id, base_url, "thumbnail"))
 }
 
-/// 封面、缩略图是书的属性：有书的编号就给 `/documents/:id/files/cover.jpg`，和书架、文档列表同一个地址；
-/// 查不到编号的旧任务只有按任务的旧地址。
-fn job_image_url(job: &JobSnapshot, document_id: Option<&str>, base_url: &str, kind: &str) -> String {
-    let path = match document_id.map(str::trim).filter(|id| !id.is_empty()) {
-        Some(document_id) => document_file_path(document_id, &format!("{kind}.jpg")),
-        None => format!("{}/{}/{}", job.workflow.job_api_prefix(), job.job_id, kind),
-    };
-    to_absolute_url(base_url, &path)
+/// 封面、缩略图是书的属性：`/documents/:id/files/cover.jpg`，和书架、文档列表同一个地址。
+/// 查不到书编号就没有封面（按任务取封面的旧地址 2026-10-18 删了）；有原文的任务都会登记成书，
+/// 实际只有原文文件不在的任务查不到。
+fn book_image_url(document_id: Option<&str>, base_url: &str, kind: &str) -> Option<String> {
+    let document_id = document_id.map(str::trim).filter(|id| !id.is_empty())?;
+    Some(to_absolute_url(base_url, &document_file_path(document_id, &format!("{kind}.jpg"))))
 }
 
 pub(super) fn job_path_prefix(job: &JobSnapshot) -> &'static str {
@@ -122,23 +120,22 @@ mod tests {
     use retainpdf_core::models::domain::{CreateJobInput, JobArtifacts};
     use retainpdf_files::{display_title, source_url_file_name};
 
-    /// 任务列表、任务详情里的封面和书架同一个地址：有书的编号走 `/documents/:id/files/…`，没有才退回按任务的旧地址。
+    /// 任务列表、任务详情里的封面和书架同一个地址：`/documents/:id/files/…`；查不到书的编号就没有封面。
     #[test]
     fn cover_urls_use_the_document_files_when_the_book_is_known() {
-        let job = JobSnapshot::new("job-cover".into(), CreateJobInput::default(), vec![]);
         assert_eq!(
-            job_image_url(&job, Some("doc-sha"), "https://api.example", "cover"),
-            "https://api.example/api/v1/documents/doc-sha/files/cover.jpg"
+            book_image_url(Some("doc-sha"), "https://api.example", "cover").as_deref(),
+            Some("https://api.example/api/v1/documents/doc-sha/files/cover.jpg")
         );
         assert_eq!(
-            job_image_url(&job, Some("doc-sha"), "https://api.example", "thumbnail"),
-            "https://api.example/api/v1/documents/doc-sha/files/thumbnail.jpg"
+            book_image_url(Some("doc-sha"), "https://api.example", "thumbnail").as_deref(),
+            Some("https://api.example/api/v1/documents/doc-sha/files/thumbnail.jpg")
         );
         for missing in [None, Some(""), Some("  ")] {
             assert_eq!(
-                job_image_url(&job, missing, "https://api.example", "cover"),
-                "https://api.example/api/v1/jobs/job-cover/cover",
-                "查不到书的编号：退回按任务的地址"
+                book_image_url(missing, "https://api.example", "cover"),
+                None,
+                "查不到书的编号：没有封面（按任务取封面的旧地址已经删了）"
             );
         }
     }

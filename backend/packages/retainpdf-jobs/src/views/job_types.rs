@@ -12,31 +12,6 @@ use super::super::common::{
     JobLinksView, JobProgressView, JobStagesView, JobTimestampsView,
 };
 
-#[derive(Debug, Serialize)]
-pub struct JobArtifactItemView {
-    pub artifact_key: String,
-    pub artifact_group: String,
-    pub artifact_kind: String,
-    pub ready: bool,
-    pub file_name: Option<String>,
-    pub content_type: String,
-    pub size_bytes: Option<u64>,
-    pub relative_path: String,
-    pub checksum: Option<String>,
-    pub source_stage: Option<String>,
-    pub updated_at: String,
-    /// One-based durable pipeline attempt which produced this projection.
-    pub attempt: u32,
-    pub resource_path: Option<String>,
-    pub resource_url: Option<String>,
-}
-
-#[derive(Debug, Serialize)]
-pub struct JobArtifactManifestView {
-    pub job_id: String,
-    pub items: Vec<JobArtifactItemView>,
-}
-
 #[derive(Debug, Serialize, Clone, PartialEq)]
 pub struct ReaderRegionBoxView {
     pub page: i64,
