@@ -17,7 +17,6 @@ pub use super::library::{
     PatchConversationInput, PatchDocumentInput, SearchQuery, SearchResultView,
 };
 pub use super::public_contract::{public_request_payload, PublicResolvedJobSpec};
-pub use super::backup::{BackupItemView, BackupRestoreView, BackupStatusView};
 pub use super::sync::{
     SyncMaintenanceView, SyncPeerView, SyncPendingItemView, SyncRunView, SyncSettingsInput, SyncStatusView,
     SyncTestView,
