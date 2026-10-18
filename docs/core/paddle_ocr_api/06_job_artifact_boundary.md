@@ -226,16 +226,16 @@ artifact 层不应该反向变成 provider 语义层。
 
 ### 稳定资源接口
 
-这些接口暴露的是“稳定资源类型”，不是 provider 私有字段。下表写的是旧地址（还能用），文件类的新地址在 `/jobs/{job_id}/files/…` 下，对照见 [下载总览](../../api/07-产物下载/01-下载总览.md)：
+这些接口暴露的是“稳定资源类型”，不是 provider 私有字段。旧地址（`/normalized-document`、`/markdown`、`/artifacts/{artifact_key}` 等）已于 2026-10-18 删除，现在的地址如下，对照见 [下载总览](../../api/07-产物下载/01-下载总览.md)：
 
 | 接口 | 对应资源 | 说明 |
 | --- | --- | --- |
-| `/api/v1/jobs/{job_id}/normalized-document` | `normalized_document_json` | OCR 到下游正式交接物 |
-| `/api/v1/jobs/{job_id}/normalization-report` | `normalization_report_json` | normalize 校验/摘要 |
-| `/api/v1/jobs/{job_id}/markdown` | `markdown_raw` 的读取视图 | 可返回 JSON 包装或 raw markdown |
-| `/api/v1/jobs/{job_id}/markdown/document` | `markdown_raw` + `markdown_images_dir` 的结构化读取视图 | 返回 Markdown 内容、绝对图片链接版 Markdown、图片直链清单 |
-| `/api/v1/jobs/{job_id}/markdown/images/{path}` | `markdown_images_dir` 下的文件 | 图片直链 |
-| `/api/v1/jobs/{job_id}/artifacts/{artifact_key}` | artifact registry 项 | 通用 artifact 下载 |
+| `/api/v1/jobs/{job_id}/files/internal/normalized-document.json` | `normalized_document_json` | OCR 到下游正式交接物 |
+| `/api/v1/jobs/{job_id}/files/internal/normalization-report.json` | `normalization_report_json` | normalize 校验/摘要 |
+| `/api/v1/jobs/{job_id}/files/output/ocr.md` | `markdown_raw` 的原文件 | raw Markdown |
+| `/api/v1/jobs/{job_id}/reader/markdown` | `markdown_raw` + `markdown_images_dir` 的结构化读取视图 | 返回 Markdown 内容、绝对图片链接版 Markdown、图片直链清单 |
+| `/api/v1/jobs/{job_id}/files/output/ocr/images/{path}` | `markdown_images_dir` 下的文件 | 图片直链 |
+| `/api/v1/jobs/{job_id}/files/internal/{name}` | artifact registry 项 | 中间产物下载，名字对应表是 `JOB_INTERNAL_FILES` |
 
 ### Bundle 接口
 
@@ -333,10 +333,10 @@ artifact 层不应该反向变成 provider 语义层。
 
 典型例子：
 
-- `/normalized-document`
-- `/normalization-report`
-- `/markdown`
-- `/artifacts/{artifact_key}`
+- `/files/internal/normalized-document.json`
+- `/files/internal/normalization-report.json`
+- `/files/output/ocr.md`
+- `/files/internal/{name}`
 
 处理规则：
 

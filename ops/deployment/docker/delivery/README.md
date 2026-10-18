@@ -455,23 +455,23 @@ curl -H "X-API-Key: $X_API_KEY" \
 
 ```bash
 curl -L -H "X-API-Key: $X_API_KEY" \
-  "$HOST/api/v1/jobs/your-job-id/pdf" \
+  "$HOST/api/v1/jobs/your-job-id/files/output/translated.pdf" \
   -o translated.pdf
 ```
 
-下载 Markdown：
+下载原文 Markdown（OCR 识别结果，不是译文）：
 
 ```bash
 curl -L -H "X-API-Key: $X_API_KEY" \
-  "$HOST/api/v1/jobs/your-job-id/markdown?raw=true" \
-  -o translated.md
+  "$HOST/api/v1/jobs/your-job-id/files/output/ocr.md" \
+  -o ocr.md
 ```
 
-下载 ZIP：
+下载全部成品 ZIP（任务成功后才能下）：
 
 ```bash
 curl -L -H "X-API-Key: $X_API_KEY" \
-  "$HOST/api/v1/jobs/your-job-id/download" \
+  "$HOST/api/v1/jobs/your-job-id/files/output/all.zip" \
   -o result.zip
 ```
 
@@ -479,7 +479,7 @@ curl -L -H "X-API-Key: $X_API_KEY" \
 
 ```bash
 curl -X POST -H "X-API-Key: $X_API_KEY" \
-  "$HOST/api/v1/jobs/your-job-id/cancel"
+  "$HOST/api/v1/jobs/your-job-id/actions/cancel"
 ```
 
 ## multipart 扁平提交接口
@@ -492,7 +492,7 @@ curl -X POST -H "X-API-Key: $X_API_KEY" \
 - 默认路径是 `/api/v1/translate/bundle`
 - 请求返回 `ApiResponse<JobSubmissionView>`，其中包含 `job_id` 和初始 `status`
 - 接口不会等待 OCR / 翻译 / 渲染完成，也不会直接返回 ZIP
-- 后续仍需轮询 `GET /api/v1/jobs/{job_id}`，完成后再下载 `/api/v1/jobs/{job_id}/download`
+- 后续仍需轮询 `GET /api/v1/jobs/{job_id}`，完成后再下载 `/api/v1/jobs/{job_id}/files/output/all.zip`
 
 ```bash
 curl -X POST "$HOST/api/v1/translate/bundle" \

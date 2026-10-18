@@ -54,8 +54,8 @@
 - `GET /api/v1/library/books`
 - `GET /api/v1/library/books/{job_id}`
 - `DELETE /api/v1/library/books/{job_id}`
-- `GET /api/v1/library/books/{job_id}/cover`（旧地址，新代码用 `/documents/{document_id}/files/cover.jpg`）
-- `GET /api/v1/library/books/{job_id}/thumbnail`（旧地址，新代码用 `/documents/{document_id}/files/thumbnail.jpg`）
+
+封面和缩略图用 `/documents/{document_id}/files/cover.jpg`、`thumbnail.jpg`（原 `/library/books/{job_id}/cover`、`/thumbnail` 已于 2026-10-18 删除，书架返回的 `cover_url`、`thumbnail_url` 已是新地址；查不到书编号时为 `null`）。
 
 所有文件下载统一走 `/jobs/{job_id}/files/…`（任务产出的文件）和 `/documents/{document_id}/files/…`
 （书本身的原文、封面、缩略图、原文页），见 [下载总览](../../api/07-产物下载/01-下载总览.md)。
@@ -160,9 +160,9 @@ Reader 宿主接入 job/artifact、Markdown、区域、页面元数据和实时�
 
 - `GET /api/v1/documents`
 - `GET|PATCH|DELETE /api/v1/documents/{document_id}`
-- `GET /api/v1/documents/{document_id}/source.pdf`
-- `GET /api/v1/documents/{document_id}/cover`
-- `GET /api/v1/documents/{document_id}/thumbnail`
+- `GET /api/v1/documents/{document_id}/files/source.pdf`
+- `GET /api/v1/documents/{document_id}/files/cover.jpg`
+- `GET /api/v1/documents/{document_id}/files/thumbnail.jpg`
 - `POST /api/v1/documents/{document_id}/ocr`
 - `POST /api/v1/documents/{document_id}/translate`
 - `GET /api/v1/documents/{document_id}/jobs`
@@ -275,7 +275,7 @@ Reader 宿主接入 job/artifact、Markdown、区域、页面元数据和实时�
 - `GET /api/v1/jobs/{job_id}/actions/resume`
 - `POST /api/v1/jobs/{job_id}/actions/resume`
 
-（旧地址 `/cancel`、`/rerun`、`/stage-actions`、`/retry-stage`、`/resume-plan`、`/resume` 还能用，对照见
+（旧地址 `/cancel`、`/rerun`、`/stage-actions`、`/retry-stage`、`/resume-plan`、`/resume` 已于 2026-10-18 删除，对照见
 [任务接口分类](../../api/01-任务/04-任务接口分类.md)。）
 
 - 有 `translations_dir + source_pdf` 时，复用原 `job_id` 原地重渲染并替换渲染产物
@@ -339,7 +339,7 @@ Reader 宿主接入 job/artifact、Markdown、区域、页面元数据和实时�
 ## 6. 任务查询与事件
 
 > `/jobs/{job_id}` 下的接口已按 9 类分前缀（`actions`、`progress`、`files`、`reports`、`reader`、
-> `translations`、`data`、`ai`），本节写的是旧地址，仍然可用。新旧对照见
+> `translations`、`data`、`ai`），旧地址已于 2026-10-18 删除，本节已改成新地址。新旧对照见
 > [任务接口分类](../../api/01-任务/04-任务接口分类.md)。
 
 任务查询：
@@ -377,7 +377,7 @@ Reader 宿主接入 job/artifact、Markdown、区域、页面元数据和实时�
 
 事件：
 
-`GET /api/v1/jobs/{job_id}/events?limit=200&offset=0`
+`GET /api/v1/jobs/{job_id}/progress/events?limit=200&offset=0`
 
 前端应消费的稳定字段：
 
@@ -474,7 +474,7 @@ Reader 宿主接入 job/artifact、Markdown、区域、页面元数据和实时�
 
 失败诊断：
 
-`GET /api/v1/jobs/{job_id}/diagnostics`
+`GET /api/v1/jobs/{job_id}/reports/failure`
 
 返回稳定字段：
 
@@ -510,14 +510,14 @@ OCR dispatch 结果不确定时，诊断响应会带脱敏的 `ocr_ambiguity` �
 provider、operation、`resolution_revision`、允许的解决方式和需要填写的字段定义。
 提交回执或接受重复风险使用：
 
-`POST /api/v1/jobs/{job_id}/ocr/resolve-ambiguity`
+`POST /api/v1/jobs/{job_id}/actions/resolve-ocr-ambiguity`
 
 请求必须带诊断接口返回的 `resolution_revision`。状态已被其他请求解决或 revision
 变化时返回 `409`；响应、日志和审计事件均不得回显 `upload_url` 等敏感字段值。
 
 断点恢复计划：
 
-`GET /api/v1/jobs/{job_id}/resume-plan`
+`GET /api/v1/jobs/{job_id}/actions/resume`
 
 ```json
 {
@@ -533,15 +533,15 @@ provider、operation、`resolution_revision`、允许的解决方式和需要填
 
 执行恢复：
 
-`POST /api/v1/jobs/{job_id}/resume`
+`POST /api/v1/jobs/{job_id}/actions/resume`
 
-响应同 `POST /api/v1/jobs/{job_id}/rerun`，返回 `JobSubmissionView`。
+响应同 `POST /api/v1/jobs/{job_id}/actions/rerun`，返回 `JobSubmissionView`。
 
 实时翻译覆盖层只读取已经 durable commit 的页面快照：
 
-- `GET /api/v1/jobs/{job_id}/live-translation/layout`
-- `GET /api/v1/jobs/{job_id}/live-translation/pages/{page_idx}`
-- `GET /api/v1/jobs/{job_id}/progress/stream?after_seq={seq}`（旧地址 `live-events`）
+- `GET /api/v1/jobs/{job_id}/progress/layout`
+- `GET /api/v1/jobs/{job_id}/progress/pages/{page}`
+- `GET /api/v1/jobs/{job_id}/progress/stream?after_seq={seq}`
 
 `progress/stream` 是可重放的 SSE 通知，响应带 `X-Accel-Buffering: no`，nginx 这类反向代理不会缓冲它。
 它不直接携带非持久化模型 token。客户端收到
@@ -550,44 +550,40 @@ provider、operation、`resolution_revision`、允许的解决方式和需要填
 
 ## 7. 产物与下载
 
-> 文件下载已统一到 `/jobs/{job_id}/files/…`（任务产出的文件）和 `/documents/{document_id}/files/…`（书本身的文件），
-> 新地址和旧地址对照见 [下载总览](../../api/07-产物下载/01-下载总览.md)。本节写的是旧地址，仍然可用。
+> 文件下载统一在 `/jobs/{job_id}/files/…`（任务产出的文件）和 `/documents/{document_id}/files/…`（书本身的文件），
+> 旧地址（`/pdf`、`/download`、`/markdown`、`/artifacts*` 等）已于 2026-10-18 删除，对照见 [下载总览](../../api/07-产物下载/01-下载总览.md)。
 
 产物接口：
 
-- `GET /api/v1/jobs/{job_id}/artifacts`
-- `GET /api/v1/jobs/{job_id}/artifacts-manifest`
-- `GET /api/v1/jobs/{job_id}/artifacts/{artifact_key}`
-- `GET /api/v1/jobs/{job_id}/pdf`
-- `GET /api/v1/jobs/{job_id}/pdf/side-by-side`
-- `GET /api/v1/jobs/{job_id}/cover`
-- `GET /api/v1/jobs/{job_id}/thumbnail`
-- `GET /api/v1/jobs/{job_id}/markdown`
-- `GET /api/v1/jobs/{job_id}/markdown/document`
-- `GET /api/v1/jobs/{job_id}/markdown?raw=true`
-- `GET /api/v1/jobs/{job_id}/markdown/images/*path`
-- `GET /api/v1/jobs/{job_id}/download`
-- `GET /api/v1/jobs/{job_id}/normalized-document`
-- `GET /api/v1/jobs/{job_id}/normalization-report`
+- `GET /api/v1/jobs/{job_id}/files`：文件清单（output、pages、internal 三组）
+- `GET /api/v1/jobs/{job_id}/files/output/translated.pdf`
+- `GET /api/v1/jobs/{job_id}/files/output/side-by-side.pdf`
+- `GET /api/v1/jobs/{job_id}/files/output/translated.docx`
+- `GET /api/v1/jobs/{job_id}/files/output/ocr.md`：原文 Markdown（OCR 识别结果，不是译文）
+- `GET /api/v1/jobs/{job_id}/files/output/ocr/images/*path`
+- `GET /api/v1/jobs/{job_id}/files/output/all.zip`
+- `GET /api/v1/jobs/{job_id}/files/pages/{page}.jpg`：译文某一页的预览图
+- `GET /api/v1/jobs/{job_id}/files/internal/normalized-document.json`、`normalization-report.json` 等中间产物（多用户下只给管理员）
+- `GET /api/v1/jobs/{job_id}/reader/markdown`：Markdown 的 JSON 视图
+- `GET /api/v1/documents/{document_id}/files/cover.jpg`、`thumbnail.jpg`、`source.pdf`
 
 前端按钮状态优先读：
 
 - `actions.*.enabled`
 - `artifacts.*.ready`
 - `artifacts_display[].ready`
-- `artifacts-manifest.items[].ready`
+- `GET /jobs/{job_id}/files` 里每一项的 `ready`
 
 Markdown 注意：
 
-- `/markdown` 默认返回 JSON 包装
-- `/markdown/document` 返回结构化文档视图，包含 `content`、`content_with_absolute_image_urls`、`images[]` 图片直链清单，适合前端预览和 AI 问答
-- `/markdown?raw=true` 返回原始 Markdown
-- 图片通过 `/markdown/images/*path` 读取
+- `reader/markdown` 返回结构化文档视图，包含 `content`、`content_with_absolute_image_urls`、`images[]` 图片直链清单，适合前端预览和 AI 问答
+- `files/output/ocr.md` 返回原始 Markdown
+- 图片通过 `files/output/ocr/images/*path` 读取
 
 PDF 按需加载：
 
-- `GET /api/v1/jobs/{job_id}/pdf`
-- `GET /api/v1/jobs/{job_id}/artifacts/source_pdf`
+- `GET /api/v1/jobs/{job_id}/files/output/translated.pdf`
+- `GET /api/v1/documents/{document_id}/files/source.pdf`
 
 这两个接口支持 HTTP Range Requests。前端 PDF.js 应优先使用 URL 模式，而不是先 fetch 整个 PDF 到 `ArrayBuffer`。
 
@@ -600,7 +596,7 @@ PDF 按需加载：
 请求示例：
 
 ```http
-GET /api/v1/jobs/{job_id}/pdf
+GET /api/v1/jobs/{job_id}/files/output/translated.pdf
 X-API-Key: your-rust-api-key
 Range: bytes=0-65535
 ```
@@ -624,12 +620,13 @@ Content-Type: application/pdf
 
 页级预览：
 
-`GET /api/v1/jobs/{job_id}/preview/pages/{page}?kind=translated`
+`GET /api/v1/jobs/{job_id}/files/pages/{page}.jpg`（译文页）
+
+`GET /api/v1/documents/{document_id}/files/pages/{page}.jpg`（原文页）
 
 参数：
 
-- `page`：1-based 页码
-- `kind`：`source | translated`，默认 `translated`
+- `page`：1-based 页码，地址里写成 `3.jpg`
 - `width`：可选，默认 `1200`，范围 `240..2400`
 - `dpi`：可选，优先级高于 `width`，最大 `300`
 
@@ -726,20 +723,14 @@ PDF 元数据：
 
 ## 9. OCR-only 接口
 
-> 除创建（`POST /api/v1/ocr/jobs`）外，下面这些都是已弃用的别名：OCR 任务的链接现在也走
-> `/api/v1/jobs/{job_id}/…`（详情、事件、产物、取消对 OCR 任务一样能用，取消按任务类型分支）。
-> 前端改完、路由计数归零后删除。
+`/api/v1/ocr/jobs` 这一组别名已于 2026-10-18 删除（返回 404）。只做 OCR 的任务走 `/jobs`：
 
-- `POST /api/v1/ocr/jobs`
-- `GET /api/v1/ocr/jobs?limit=20&offset=0&status=&provider=`
-- `GET /api/v1/ocr/jobs/{job_id}`
-- `GET /api/v1/ocr/jobs/{job_id}/events`
-- `GET /api/v1/ocr/jobs/{job_id}/artifacts`
-- `GET /api/v1/ocr/jobs/{job_id}/artifacts-manifest`
-- `GET /api/v1/ocr/jobs/{job_id}/artifacts/{artifact_key}`
-- `GET /api/v1/ocr/jobs/{job_id}/normalized-document`
-- `GET /api/v1/ocr/jobs/{job_id}/normalization-report`
-- `POST /api/v1/ocr/jobs/{job_id}/cancel`
+- 创建：先 `POST /api/v1/uploads` 上传 PDF，再 `POST /api/v1/jobs`（JSON，`workflow: "ocr"`，`source.upload_id`）
+- 列表：`GET /api/v1/jobs?workflow=ocr&limit=20&offset=0&status=&provider=`
+- 详情、事件、文件、取消：`GET /api/v1/jobs/{job_id}`、`/progress/events`、`/files`、`POST /actions/cancel`（取消按任务类型分支）
+- 规范化文档和报告：`/files/internal/normalized-document.json`、`/files/internal/normalization-report.json`
+
+细节见 [OCR-only 任务](../../api/03-OCR/02-OCR-only任务.md)。
 
 ## 10. 术语表接口
 
@@ -919,7 +910,7 @@ operation 列表响应包含 `operations`、`total`、`limit`、`offset` 和 `ha
   不在这里面的接口对网站账号**一律关闭**（回 404，看起来就是没有这个接口），新加的接口也默认关闭。
 - **只给管理员**（普通账号 403）：`credentials`、`sync`、`backups`、`admin`、其余 `providers`、
   `POST /api/v1/fonts/upload`。
-- **这一期对网站账号关闭**（管理员也一样）：`ai`、`assets`、`internal`、`translate/bundle`、旧别名 `ocr`、
+- **这一期对网站账号关闭**（管理员也一样）：`ai`、`assets`、`internal`、`translate/bundle`、
   `.../agent-versions`、`.../agent-workspace`。
 - **数据只看自己的**：路径、查询串、JSON 请求体里出现的任务 / 书 / 术语表 / 文件夹 / 上传编号必须是自己的，
   别人的一律当不存在（404）；列表和搜索只返回自己的。管理员的网站会话也一样（见 13.6）。

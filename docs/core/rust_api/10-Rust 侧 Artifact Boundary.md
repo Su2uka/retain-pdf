@@ -58,8 +58,8 @@ Rust 侧不应把 provider raw 和 normalized 混成一个概念。
 
 尤其是：
 
-- `normalized-document` 下载口只对应 `normalized_document_json`
-- `normalization-report` 下载口只对应 `normalization_report_json`
+- `files/internal/normalized-document.json` 下载口只对应 `normalized_document_json`
+- `files/internal/normalization-report.json` 下载口只对应 `normalization_report_json`
 
 ## 4. Published Artifact
 
@@ -103,10 +103,10 @@ Rust 侧不应把 provider raw 和 normalized 混成一个概念。
 
 因此：
 
-- `/normalized-document` 暴露的是 normalized 边界
-- `/normalization-report` 暴露的是 normalized 辅助物
-- `/artifacts/{artifact_key}` 暴露的是 published artifact 边界
-- provider raw 只有在显式下载对应 artifact key 时才暴露为“原始文件”，不是“统一语义接口”
+- `files/internal/normalized-document.json` 暴露的是 normalized 边界
+- `files/internal/normalization-report.json` 暴露的是 normalized 辅助物
+- `files/output/…` 暴露的是 published artifact 边界
+- provider raw 只有在显式下载 `files/internal/ocr-provider/result.json`、`ocr-provider/raw.zip` 时才暴露为“原始文件”，不是“统一语义接口”
 
 ## 6. 当前 Rust 侧落点
 

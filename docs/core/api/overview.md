@@ -36,8 +36,9 @@ Docker Web 默认 `FRONT_API_BASE=` 为空，前端走同源 `/api/` 代理到�
 - `book`：OCR -> Normalize -> Translate -> Render。
 - `translate`：OCR -> Normalize -> Translate，不进入渲染。
 - `render`：基于已有任务 artifact 重跑渲染。
+- `ocr`：只做 OCR 和 normalize，不翻译、不渲染。
 
-OCR-only 使用独立入口 `POST /api/v1/ocr/jobs`，支持 multipart 上传文件，也支持按请求体字段复用已有 source / artifact。
+OCR-only 和其他任务一样走 `POST /api/v1/jobs`：先 `POST /api/v1/uploads` 上传 PDF，再用 `workflow: "ocr"`、`source.upload_id` 建任务（原 `POST /api/v1/ocr/jobs` 已于 2026-10-18 删除）。
 
 ## 返回包裹
 
@@ -80,7 +81,7 @@ OCR-only 使用独立入口 `POST /api/v1/ocr/jobs`，支持 multipart 上传文
 - `artifacts.pdf` / `artifacts.markdown` / `artifacts.bundle`
 - `failure` / `failure_diagnostic` / `log_tail`
 
-下载和按钮状态应以 `actions.*.enabled`、`artifacts.*.ready`、`artifacts-manifest.items[].ready` 为准。
+下载和按钮状态应以 `actions.*.enabled`、`artifacts.*.ready`、`GET /jobs/{job_id}/files` 里每一项的 `ready` 为准。
 
 ## Provider
 
