@@ -215,7 +215,8 @@ sudo systemctl reload nginx
 宿主机代理必须同时保留：
 
 - `client_max_body_size 256m`；
-- `/api/v1/ai/ask` 和 `/api/v1/jobs/:job_id/live-events` 的 SSE 禁止缓冲；
+- `/api/v1/ai/ask` 和 `/api/v1/jobs/:job_id/progress/stream` 的 SSE 禁止缓冲（后者 Rust API 自己也带
+  `X-Accel-Buffering: no`，代理没配也不会被缓冲）；
 - 长请求超时；
 - `Host` / `X-Forwarded-*` 头；
 - Basic Auth、OAuth2 Proxy 或 Cloudflare Access 之一。

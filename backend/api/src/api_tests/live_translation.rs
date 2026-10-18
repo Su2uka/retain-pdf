@@ -297,7 +297,7 @@ async fn live_events_streams_authoritative_commit_with_database_sequence() {
         .oneshot(
             Request::builder()
                 .uri(format!(
-                    "/api/v1/jobs/{}/live-events?after_seq=0",
+                    "/api/v1/jobs/{}/progress/stream?after_seq=0",
                     job.job_id
                 ))
                 .header("X-API-Key", "test-key")
@@ -307,6 +307,9 @@ async fn live_events_streams_authoritative_commit_with_database_sequence() {
         .await
         .expect("events response");
     assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response.headers()["content-type"], "text/event-stream");
+    // 反向代理（nginx）看到这个头就不缓冲，保活和新译文马上能到浏览器。
+    assert_eq!(response.headers()["x-accel-buffering"], "no");
     let mut stream = response.into_body().into_data_stream();
     let chunk = tokio::time::timeout(Duration::from_secs(1), stream.next())
         .await
@@ -357,7 +360,7 @@ async fn live_events_use_the_greater_of_after_seq_and_last_event_id() {
     let response = app
         .oneshot(
             Request::builder()
-                .uri(format!("/api/v1/jobs/{}/live-events?after_seq=0", job.job_id))
+                .uri(format!("/api/v1/jobs/{}/progress/stream?after_seq=0", job.job_id))
                 .header("X-API-Key", "test-key")
                 .header(HeaderName::from_static("last-event-id"), committed_seq.to_string())
                 .body(Body::empty())
