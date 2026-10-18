@@ -110,7 +110,7 @@ Current scope:
 
 - Upload PDF
 - Create `book` / `translate` / `render` jobs under `/api/v1/jobs`
-- Create `ocr` jobs under `/api/v1/ocr/jobs`
+- Create OCR-only jobs (`workflow=ocr`) under `/api/v1/jobs`, after `/api/v1/uploads`
 - Internally create an OCR child first for `book` and `translate` only when the
   request does not reuse a validated `source.artifact_job_id`
 - Poll job status
@@ -325,8 +325,7 @@ Queue semantics:
 
 Read-only structured event APIs:
 
-- `GET /api/v1/jobs/{job_id}/progress/events` (old address `/api/v1/jobs/{job_id}/events` still works)
-- `GET /api/v1/ocr/jobs/{job_id}/events` (alias kept for OCR-only jobs)
+- `GET /api/v1/jobs/{job_id}/progress/events` (the old `/api/v1/jobs/{job_id}/events` and `/api/v1/ocr/jobs/{job_id}/events` were removed on 2026-10-18)
 
 Query parameters:
 
@@ -342,7 +341,7 @@ Behavior:
 - runtime merges DB events, `DATA_ROOT/jobs/<job_id>/logs/pipeline_events.jsonl`, and OCR child events from `{job_id}-ocr`
 - OCR child events are mapped back to the parent `job_id`
 - when an event came from the OCR child job, `payload.source_job_id` contains the child job ID and `payload.source_event` contains the original child event payload
-- `GET /api/v1/ocr/jobs/{job_id}/events` remains available for OCR-only debugging and direct OCR jobs
+- OCR-only jobs use the same `progress/events` address
 - each public event includes:
   - `job_id`, `seq`, `created_at`, `ts`, `level`
   - `display_stage`: `ocr`, `translation`, `render`, or `null`; `done` is never emitted

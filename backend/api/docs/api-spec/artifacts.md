@@ -2,7 +2,7 @@
 
 [API spec index](../../API_SPEC.md) · [Reader read model](reader-read-model.md)
 
-> Address note: `/jobs/{job_id}/…` is grouped into nine categories (`actions`, `progress`, `files`, `reports`, `reader`, `translations`, `data`, `ai`). Some addresses on this page are the old ones; they are still served and return the same thing, but new code should use the new ones (`GET /jobs/{job_id}/files`, `/files/output/{name}`, `/files/pages/{page}`, `/reader/markdown`; a book's cover and thumbnail live under `GET /documents/{document_id}/files/…`). Old-to-new table: [`docs/api/01-任务/04-任务接口分类.md`](../../../../docs/api/01-任务/04-任务接口分类.md); every endpoint: [`docs/api/00-接口目录.md`](../../../../docs/api/00-接口目录.md).
+> Address note: `/jobs/{job_id}/…` is grouped into nine categories (`actions`, `progress`, `files`, `reports`, `reader`, `translations`, `data`, `ai`). The old addresses were removed on 2026-10-18 and now return 404; use the new ones (`GET /jobs/{job_id}/files`, `/files/output/{name}`, `/files/pages/{page}`, `/reader/markdown`; a book's cover and thumbnail live under `GET /documents/{document_id}/files/…`). Old-to-new table: [`docs/api/01-任务/04-任务接口分类.md`](../../../../docs/api/01-任务/04-任务接口分类.md); every endpoint: [`docs/api/00-接口目录.md`](../../../../docs/api/00-接口目录.md).
 
 ## Reader Regions
 
@@ -32,20 +32,21 @@ All downloads have two address families (2026-10-15):
   source page previews).
 
 File names, groups, query parameters and the old-to-new address table are in
-[下载总览](../../../../docs/api/07-产物下载/01-下载总览.md). Every download, new or
-legacy, resolves through `JobDownloads::open` (job files) or
+[下载总览](../../../../docs/api/07-产物下载/01-下载总览.md). Every download resolves through `JobDownloads::open` (job files) or
 `library::open_document_file` (book files); the response contract is pinned in
-`backend/api/docs/file-responses.txt`. The `/artifacts*` endpoints below remain
-for existing callers. Since 2026-10-17 the links the API returns for them
+`backend/api/docs/file-responses.txt`. The old `/artifacts` and `/artifacts-manifest`
+endpoints were removed on 2026-10-18; the links the API returns for them
 (`manifest_path` / `manifest_url`, `links.artifacts_*`, `links.artifacts_manifest_*`,
-`actions.open_artifacts`) point at `GET /api/v1/jobs/{job_id}/files` instead, whose
-response (`JobFilesView`, see `contracts/reader-data.v1.schema.json`) has a different shape;
-in the manifest, `source_pdf` is `/api/v1/documents/{document_id}/files/source.pdf?download=1`
-when the document id is known.
+`actions.open_artifacts`) point at `GET /api/v1/jobs/{job_id}/files`, whose
+response (`JobFilesView`, see `contracts/reader-data.v1.schema.json`) has a different shape
+from the removed manifest. `source.url` is
+`/api/v1/documents/{document_id}/files/source.pdf` when the document id is known;
+when the job has no document id, `source.url` is `""` and `ready` is `false`, and the
+job's `cover_url` / `thumbnail_url` are `null`.
 
-## Artifact JSON
+## Reader Artifact Links
 
-`GET /api/v1/jobs/{job_id}/artifacts`
+The `artifacts` field of `GET /api/v1/jobs/{job_id}` carries these links. The standalone `GET /api/v1/jobs/{job_id}/artifacts` that used to return the same object was removed on 2026-10-18; use `GET /api/v1/jobs/{job_id}/files` for the file list.
 
 Purpose:
 
@@ -111,7 +112,7 @@ Response:
 
 ## Final PDF
 
-`GET /api/v1/jobs/{job_id}/pdf`
+`GET /api/v1/jobs/{job_id}/files/output/translated.pdf` (removed: `/pdf`)
 
 Response:
 
@@ -119,7 +120,7 @@ Response:
 
 ## Side-by-side PDF
 
-`GET /api/v1/jobs/{job_id}/pdf/side-by-side`
+`GET /api/v1/jobs/{job_id}/files/output/side-by-side.pdf` (removed: `/pdf/side-by-side`)
 
 Response:
 
@@ -136,40 +137,28 @@ Behavior:
 
 ## Cover and Thumbnail
 
-`GET /api/v1/jobs/{job_id}/cover`
+`GET /api/v1/documents/{document_id}/files/cover.jpg`
 
-`GET /api/v1/jobs/{job_id}/thumbnail`
+`GET /api/v1/documents/{document_id}/files/thumbnail.jpg`
+
+The job-level `/jobs/{job_id}/cover` and `/thumbnail` were removed on 2026-10-18. A job's
+`cover_url` / `thumbnail_url` already point at the book's address; they are `null`
+when the job has no document id.
 
 Behavior:
 
-- returns raw image bytes when a cached or discoverable image exists
-- returns the same authorization behavior as other job artifact endpoints
-- returns `cover not ready` or `thumbnail not ready` when no published image is available
-- current selection policy is conservative: first supported image under published markdown images
-  is cached as both cover and thumbnail unless a later pipeline stage publishes more specific paths
+- returns raw image bytes (generated from the first page on first request, then cached)
+- returns the same authorization behavior as other document file endpoints
+- see [下载总览](../../../../docs/api/07-产物下载/01-下载总览.md) for sizes and cache headers
 
 ## Markdown
 
-`GET /api/v1/jobs/{job_id}/markdown`
+The JSON Markdown view is `GET /api/v1/jobs/{job_id}/reader/markdown` (see
+[Structured Markdown](#structured-markdown) below); the raw file is
+`GET /api/v1/jobs/{job_id}/files/output/ocr.md`. The old `GET /jobs/{job_id}/markdown`
+(JSON by default, `?raw=1` for the file) was removed on 2026-10-18.
 
-Default response:
-
-```json
-{
-  "code": 0,
-  "message": "ok",
-  "data": {
-    "job_id": "20260327190500-ef3456",
-    "content": "# title",
-    "raw_path": "/api/v1/jobs/20260327190500-ef3456/files/output/ocr.md",
-    "raw_url": "http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456/files/output/ocr.md",
-    "images_base_path": "/api/v1/jobs/20260327190500-ef3456/files/output/ocr/images/",
-    "images_base_url": "http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456/files/output/ocr/images/"
-  }
-}
-```
-
-`GET /api/v1/jobs/{job_id}/markdown?raw=1`
+`GET /api/v1/jobs/{job_id}/files/output/ocr.md`
 
 Response:
 
@@ -203,7 +192,9 @@ this endpoint makes. If the `ETag` changes mid-read, the offsets belong to a
 different revision and the fetch should restart at zero; otherwise the pieces
 silently splice two versions together. `If-Range` works here too.
 
-`GET /api/v1/jobs/{job_id}/markdown/document`
+### Structured Markdown
+
+`GET /api/v1/jobs/{job_id}/reader/markdown` (removed: `/markdown/document`)
 
 Structured response for readers, document preview, and AI Q&A surfaces. It returns
 the published Markdown, a Markdown variant whose local `images/...` links are
@@ -217,7 +208,7 @@ rewritten to absolute API URLs, and a direct image manifest.
     "job_id": "20260327190500-ef3456",
     "ready": true,
     "content": "# title\n\n![Image](images/page-1/imgs/chart.png)\n",
-    "content_with_absolute_image_urls": "# title\n\n![Image](http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456/markdown/images/page-1/imgs/chart.png)\n",
+    "content_with_absolute_image_urls": "# title\n\n![Image](http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456/files/output/ocr/images/page-1/imgs/chart.png)\n",
     "markdown_path": "/api/v1/jobs/20260327190500-ef3456/reader/markdown",
     "markdown_url": "http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456/reader/markdown",
     "raw_path": "/api/v1/jobs/20260327190500-ef3456/files/output/ocr.md",
@@ -227,7 +218,7 @@ rewritten to absolute API URLs, and a direct image manifest.
     "images": [
       {
         "path": "images/page-1/imgs/chart.png",
-        "url": "http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456/markdown/images/page-1/imgs/chart.png",
+        "url": "http://127.0.0.1:41000/api/v1/jobs/20260327190500-ef3456/files/output/ocr/images/page-1/imgs/chart.png",
         "content_type": "image/png",
         "size_bytes": 12345
       }
@@ -238,7 +229,7 @@ rewritten to absolute API URLs, and a direct image manifest.
 
 ## Markdown Images
 
-`GET /api/v1/jobs/{job_id}/markdown/images/{path}`
+`GET /api/v1/jobs/{job_id}/files/output/ocr/images/{path}` (removed: `/markdown/images/{path}`)
 
 Response:
 
@@ -246,7 +237,7 @@ Response:
 
 ## Download Bundle
 
-`GET /api/v1/jobs/{job_id}/download`
+`GET /api/v1/jobs/{job_id}/files/output/all.zip` (removed: `/download`)
 
 Bundle contents:
 

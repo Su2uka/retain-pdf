@@ -73,9 +73,9 @@ document actions can never be mixed in one token (400).
 
 | action | admitted request |
 |---|---|
-| `translation.read` | `GET /api/v1/jobs/{job_id}/reports/translation-qa`, `/reports/refine`, `/reports/layout-fit`, `/translations/{item_id}`, `/translations/{item_id}/revisions` (old addresses `/translation/qa`, `/translation/refine-report`, `/render/fit-report`, `/translation/items/{item_id}`, `/translation/items/{item_id}/revisions` are admitted too) |
-| `translation.revise` | `PATCH /api/v1/jobs/{job_id}/translations/{item_id}` (old address `/translation/items/{item_id}` is admitted too) |
-| `translation.retry` | `POST /api/v1/jobs/{job_id}/actions/retry-stage` (old address `/retry-stage` is admitted too) |
+| `translation.read` | `GET /api/v1/jobs/{job_id}/reports/translation-qa`, `/reports/refine`, `/reports/layout-fit`, `/translations/{item_id}`, `/translations/{item_id}/revisions` |
+| `translation.revise` | `PATCH /api/v1/jobs/{job_id}/translations/{item_id}` |
+| `translation.retry` | `POST /api/v1/jobs/{job_id}/actions/retry-stage` |
 | `glossary.read` | `GET /api/v1/glossaries`, `GET /api/v1/glossaries/{glossary_id}` |
 | `glossary.write` | `POST /api/v1/glossaries`, `PUT /api/v1/glossaries/{glossary_id}` |
 

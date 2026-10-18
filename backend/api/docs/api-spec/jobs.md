@@ -8,8 +8,7 @@ and document-history rules are maintained in the pages below.
 
 ## Shared Job Conventions
 
-- `/api/v1/jobs` owns `book`, `translate`, and `render` workflows.
-- `/api/v1/ocr/jobs` owns OCR-only workflows.
+- `/api/v1/jobs` owns the `book`, `translate`, `render`, and OCR-only (`ocr`) workflows. The former `/api/v1/ocr/jobs` family was removed on 2026-10-18.
 - A job's detail/list `stage_snapshot` is authoritative for current progress;
   historical events must not be used to infer the active stage.
 - Reusing OCR, translations, or render inputs is always validated against
@@ -34,7 +33,7 @@ and document-history rules are maintained in the pages below.
 
 The `/jobs/{job_id}/…` addresses below are the new ones (nine categories). The old addresses
 (`/events`, `/diagnostics`, `/stage-actions`, `/resume-plan`, `/resume`, `/rerun`, `/retry-stage`,
-`/ocr/resolve-ambiguity`, `/cancel`) are still served; see
+`/ocr/resolve-ambiguity`, `/cancel`, and the whole `/ocr/jobs` family) were removed on 2026-10-18 and return 404; see
 [`docs/api/01-任务/04-任务接口分类.md`](../../../../docs/api/01-任务/04-任务接口分类.md) and [`docs/api/00-接口目录.md`](../../../../docs/api/00-接口目录.md).
 
 ```text
@@ -52,11 +51,6 @@ POST /api/v1/jobs/{job_id}/actions/rerun
 POST /api/v1/jobs/{job_id}/actions/retry-stage
 POST /api/v1/jobs/{job_id}/actions/resolve-ocr-ambiguity
 POST /api/v1/jobs/{job_id}/actions/cancel
-POST /api/v1/ocr/jobs
-GET  /api/v1/ocr/jobs
-GET  /api/v1/ocr/jobs/{job_id}
-GET  /api/v1/ocr/jobs/{job_id}/events
-POST /api/v1/ocr/jobs/{job_id}/cancel
 POST /api/v1/documents/:document_id/translate
 POST /api/v1/documents/:document_id/ocr
 GET  /api/v1/documents

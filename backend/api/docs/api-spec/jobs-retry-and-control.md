@@ -2,14 +2,14 @@
 
 [Jobs API index](jobs.md) · [API spec index](../../API_SPEC.md)
 
-> Address note: `/jobs/{job_id}/…` is grouped into nine categories (`actions`, `progress`, `files`, `reports`, `reader`, `translations`, `data`, `ai`). Some addresses on this page are the old ones; they are still served and return the same thing, but new code should use the new ones (for example `GET /jobs/{job_id}/actions`, `POST /jobs/{job_id}/actions/retry-stage`, `/actions/resume`, `/actions/rerun`, `/actions/cancel`, `/actions/resolve-ocr-ambiguity`, `GET /jobs/{job_id}/reports/failure`, `/reports/refine`). Old-to-new table: [`docs/api/01-任务/04-任务接口分类.md`](../../../../docs/api/01-任务/04-任务接口分类.md); every endpoint: [`docs/api/00-接口目录.md`](../../../../docs/api/00-接口目录.md).
+> Address note: `/jobs/{job_id}/…` is grouped into nine categories (`actions`, `progress`, `files`, `reports`, `reader`, `translations`, `data`, `ai`). The old addresses were removed on 2026-10-18 and now return 404; use the new ones (for example `GET /jobs/{job_id}/actions`, `POST /jobs/{job_id}/actions/retry-stage`, `/actions/resume`, `/actions/rerun`, `/actions/cancel`, `/actions/resolve-ocr-ambiguity`, `GET /jobs/{job_id}/reports/failure`, `/reports/refine`). Old-to-new table: [`docs/api/01-任务/04-任务接口分类.md`](../../../../docs/api/01-任务/04-任务接口分类.md); every endpoint: [`docs/api/00-接口目录.md`](../../../../docs/api/00-接口目录.md).
 
 ## Stage Retry Actions
 
-`GET /api/v1/jobs/{job_id}/stage-actions`
+`GET /api/v1/jobs/{job_id}/actions`
 
 Returns frontend-ready stage buttons. This endpoint is for user-initiated stage
-reruns and is separate from failure-oriented `resume-plan`.
+reruns and is separate from failure-oriented `GET /api/v1/jobs/{job_id}/actions/resume`.
 
 Response:
 
@@ -100,7 +100,7 @@ Rules:
   `execution_connection`. Progress shows up as `stage=rendering`,
   `substage=refining` (display stage `render`, unit `step`).
 
-`POST /api/v1/jobs/{job_id}/retry-stage`
+`POST /api/v1/jobs/{job_id}/actions/retry-stage`
 
 Request:
 
@@ -157,7 +157,7 @@ Request fields:
 - `ambiguous_request_policy`: optional; defaults to `block`. When the request
   journal contains an active ambiguous dispatch, translation retry returns
   `409` until the caller explicitly sends `accept_duplicate_risk`. Generic
-  `/rerun` is also blocked in that state.
+  `/actions/rerun` is also blocked in that state.
 - `overrides`: optional object with `ocr`, `translation`, `render`, and
   `runtime` sections. Unknown sections are rejected. Each section is validated
   against the same input structs as normal job creation.
@@ -182,7 +182,7 @@ Execution semantics:
   render stage right before rendering, and renders once. Accepted fixes go
   through the translation revision history (`source=refine`), so the original
   text stays revertible; the report is
-  `GET /api/v1/jobs/{job_id}/translation/refine-report`. When the workflow
+  `GET /api/v1/jobs/{job_id}/reports/refine`. When the workflow
   finishes (succeeded, failed or canceled) the revised pages are registered for
   live translation (`pipeline_unit_committed`, `source=translation_revision`).
   The refine options are a one-shot override stored in
@@ -197,16 +197,16 @@ Execution semantics:
 ## Resume Plan, Resume, and Generic Rerun
 
 ```text
-GET  /api/v1/jobs/{job_id}/resume-plan
-POST /api/v1/jobs/{job_id}/resume
-POST /api/v1/jobs/{job_id}/rerun
+GET  /api/v1/jobs/{job_id}/actions/resume
+POST /api/v1/jobs/{job_id}/actions/resume
+POST /api/v1/jobs/{job_id}/actions/rerun
 ```
 
-`resume-plan` is read-only and returns `can_resume`, `from_stage`,
+`GET .../actions/resume` is read-only and returns `can_resume`, `from_stage`,
 `resume_workflow`, `reuses_artifacts`, `reruns_stages`, and a disabling
 `reason`. `resume` is currently an alias of `rerun`; both execute the
 server-selected plan rather than accepting client overrides. Use
-`retry-stage` when the caller needs to select a stage, change allowed options,
+`actions/retry-stage` when the caller needs to select a stage, change allowed options,
 or explicitly accept an ambiguous translation-request risk.
 
 If committed translations are available, generic rerun performs an in-place
@@ -214,12 +214,12 @@ render using the same job id. If only reusable OCR artifacts are available, it
 creates a new recovery job and can seed a compatible translation checkpoint.
 Queued/running jobs cannot be resumed. A durable ambiguous OCR dispatch or
 translation request blocks generic rerun with `409`; the caller must use the
-explicit recovery route described below or `retry-stage` with the documented
+explicit recovery route described below or `actions/retry-stage` with the documented
 duplicate-risk policy.
 
 ## OCR Dispatch Ambiguity
 
-`GET /api/v1/jobs/{job_id}/diagnostics` returns `ocr_ambiguity` only while the
+`GET /api/v1/jobs/{job_id}/reports/failure` returns `ocr_ambiguity` only while the
 job is failed and its latest `ocr-submit` dispatch is still ambiguous. The
 projection contains the authoritative `provider`, `operation`,
 `resolution_revision`, `allowed_resolutions`, and backend-derived
@@ -233,7 +233,7 @@ Supported receipt shapes are:
 - MinerU `apply_upload_url`: required `batch_id` and secret `upload_url`,
   optional `trace_id`.
 
-Resolve through `POST /api/v1/jobs/{job_id}/ocr/resolve-ambiguity`:
+Resolve through `POST /api/v1/jobs/{job_id}/actions/resolve-ocr-ambiguity`:
 
 ```json
 {
@@ -262,7 +262,7 @@ values.
 
 ## Cancel Job
 
-`POST /api/v1/jobs/{job_id}/cancel`
+`POST /api/v1/jobs/{job_id}/actions/cancel`
 
 Current intent:
 
@@ -283,7 +283,7 @@ cost was real: the process kept running while the job sat in the database
 neither killed nor marked terminal, so a user who pressed cancel had to wait
 for the stage to end on its own.
 
-The OCR-specific cancel (`POST /api/v1/ocr/jobs/{job_id}/cancel`) still only
+For an OCR-workflow job (`workflow=ocr`), cancel only
 writes the terminal `canceled` row itself when the job is still `queued`. Past
 that point the process is killed and the runner records the terminal state
 when it observes the exit — so a client that polls right after cancelling may

@@ -131,7 +131,7 @@ Callers outside `services/jobs/**` should not call presentation internals.
 
 Every new job goes through one entry point,
 `submit_job(deps, NewJob)` (`src/services/jobs/lifecycle/creation/submit.rs`): `POST /jobs`,
-`/ocr/jobs`, `/translate/bundle`, library translate/OCR, stage retry, rerun and
+`/translate/bundle`, library translate/OCR, stage retry, rerun and
 OCR-ambiguity recovery. The steps are written once, in this order: dev-stack
 translation defaults, platform models (multi-user, before validation and before
 any key reaches the credential vault), validation and snapshot by workflow,
@@ -163,7 +163,7 @@ Every job file download goes through one entry point,
   Markdown, cover, page preview, bundle, or any other registry key). Where to
   find it, its content type and its user-facing download name are written once,
   in `locate`.
-- `JobScope::OcrOnly` is for the `/ocr/jobs/*` legacy aliases.
+- `JobScope::OcrOnly` was for the `/ocr/jobs/*` aliases, removed on 2026-10-18; nothing passes it now and it is left to be cleaned up later.
 - `Disposition` says whether the browser opens the file (`Inline`), downloads it
   (`Attachment`), or gets no `Content-Disposition` (`Unnamed`, legacy endpoints
   only).

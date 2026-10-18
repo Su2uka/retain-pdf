@@ -2,7 +2,7 @@
 
 [Jobs API index](jobs.md) · [API spec index](../../API_SPEC.md)
 
-> Address note: `/jobs/{job_id}/…` is grouped into nine categories (`actions`, `progress`, `files`, `reports`, `reader`, `translations`, `data`, `ai`). Some addresses on this page are the old ones; they are still served and return the same thing, but new code should use the new ones (a book's cover and thumbnail are `GET /documents/{document_id}/files/cover.jpg` and `/files/thumbnail.jpg`). Old-to-new table: [`docs/api/01-任务/04-任务接口分类.md`](../../../../docs/api/01-任务/04-任务接口分类.md); every endpoint: [`docs/api/00-接口目录.md`](../../../../docs/api/00-接口目录.md).
+> Address note: `/jobs/{job_id}/…` is grouped into nine categories (`actions`, `progress`, `files`, `reports`, `reader`, `translations`, `data`, `ai`). The old addresses were removed on 2026-10-18 and now return 404; use the new ones (a book's cover and thumbnail are `GET /documents/{document_id}/files/cover.jpg` and `/files/thumbnail.jpg`). Old-to-new table: [`docs/api/01-任务/04-任务接口分类.md`](../../../../docs/api/01-任务/04-任务接口分类.md); every endpoint: [`docs/api/00-接口目录.md`](../../../../docs/api/00-接口目录.md).
 
 ## Frontend Library Contract
 
@@ -77,7 +77,7 @@ Book media endpoints:
 - `GET /api/v1/documents/{document_id}/files/cover.jpg`
 - `GET /api/v1/documents/{document_id}/files/thumbnail.jpg`
 
-The old per-job addresses `GET /api/v1/jobs/{job_id}/cover` and `/thumbnail` still work.
+The old per-job addresses `GET /api/v1/jobs/{job_id}/cover` and `/thumbnail` were removed on 2026-10-18. A job's `cover_url` / `thumbnail_url` already point at the book's address, and are `null` when the job has no document id.
 
 ## Document-scoped task and Agent version history
 
