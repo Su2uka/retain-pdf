@@ -127,18 +127,9 @@ export type DeleteCardTarget = {
   jobId?: string;
 };
 
-/** 批量删除里被收藏锚点挡住的一篇（DELETE_BLOCKED_BY_FAVORITES）。 */
-export type DeleteBlockedDocument = {
-  documentId: string;
-  favoriteCount: number;
-  clearFavoritesPath: string;
-};
-
 export type DeleteDocumentsResult = {
   confirmed: number;
   failed: number;
-  /** 被收藏挡住、需要用户确认清空收藏后重试的条目。 */
-  blocked: DeleteBlockedDocument[];
 };
 
 export type ReloadRecentJobsOptions = {
@@ -230,10 +221,6 @@ export type LibraryController = {
   /** 取消文档下的任务（workflow==="ocr" 走 OCR cancel 端点，其余走通用 cancel）。 */
   cancelJob: (jobId?: string | null, workflow?: string | null) => Promise<unknown>;
   deleteDocument: (documentId?: string | null) => Promise<void>;
-  /**
-   * DELETE clear_favorites_path（DELETE_BLOCKED_BY_FAVORITES 的
-   * error.details 里给好的路径），返回实际删除的收藏条数。
-   */
   deleteDocuments: (
     documentIds?: Array<string | null | undefined>,
   ) => Promise<DeleteDocumentsResult>;

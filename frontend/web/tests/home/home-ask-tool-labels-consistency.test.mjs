@@ -17,7 +17,6 @@ const INPUTS = [
   { event: "read_markdown_chunk" },
   { type: "list_documents" },
   { tool: "read_blocks" },
-  { tool: "search_favorites" },
   { tool: "search_fulltext" },
   { tool: "unknown_tool" },
   { name: "read_block" },

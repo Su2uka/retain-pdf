@@ -70,7 +70,6 @@ test("describeToolEvent: 精确 tool 映射,未知回退执行文案", () => {
   assert.equal(describeToolEvent({ tool: "search_fulltext" }), "检索文档内容");
   assert.equal(describeToolEvent({ tool: "read_blocks" }), "阅读相关段落");
   assert.equal(describeToolEvent({ tool: "list_documents" }), "确认文档信息");
-  assert.equal(describeToolEvent({ tool: "search_favorites" }), "查找收藏");
   assert.equal(describeToolEvent({ tool: "custom_op" }), "执行 custom_op");
   assert.equal(describeToolEvent({}), "处理中");
 });

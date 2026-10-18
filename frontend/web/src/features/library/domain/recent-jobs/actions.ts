@@ -1,3 +1,4 @@
+import { friendlyDocumentDeleteError, type ErrorLike } from "../documents/error-messages.js";
 import { resolveRecoverableJobId } from "./active-job-recovery.js";
 import { createRecentJobsRuntimePort } from "./job-runtime-port.js";
 import { createRecentJobsReaderPort } from "./reader-port.js";
@@ -60,22 +61,9 @@ export function createRecentJobActions({
     navigationPort.openJob(normalizedJobId);
   }
 
-  // 409 = 删除保护:该 job 被收藏引用,不能自动 force,必须让用户先处理收藏
+  // 409 = 任务还在排队或运行中，不自动 force，让用户先取消。
   function friendlyDeleteError(error: unknown) {
-    // 删除接口抛的错误可能带 HTTP 状态和收藏数（见 platform/api 的删除封装）。
-    const err = error as { message?: string; status?: number; favoriteCount?: number } | null;
-    const message = `${err?.message || error || ""}`;
-    if (err?.status === 409 || message.includes("(409)")) {
-      // 结构化 favorite_count 优先；message 正则仅为旧错误源兜底。
-      const structured = Number(err?.favoriteCount);
-      const count = Number.isFinite(structured) && structured > 0
-        ? structured
-        : message.match(/\d+/)?.[0];
-      return count
-        ? `该文档有 ${count} 条收藏，请先删除收藏后再删除文档。`
-        : "该文档存在收藏引用，请先删除相关收藏后再删除文档。";
-    }
-    return message || "删除失败";
+    return friendlyDocumentDeleteError(error as ErrorLike);
   }
 
   async function deleteJob(jobId: string) {

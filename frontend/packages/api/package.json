@@ -78,10 +78,6 @@
       "types": "./dist/collections.d.ts",
       "import": "./dist/collections.js"
     },
-    "./favorites": {
-      "types": "./dist/favorites.d.ts",
-      "import": "./dist/favorites.js"
-    },
     "./glossaries": {
       "types": "./dist/glossaries.d.ts",
       "import": "./dist/glossaries.js"

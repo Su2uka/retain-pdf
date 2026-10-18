@@ -2,18 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import type { CollectionRecord, CollectionsController } from "@/features/collections/index.js";
 import type {
-  DeleteBlockedDocument,
   LibraryActions,
   LibraryCardItem,
 } from "../../domain/types.js";
 import { libraryItemDocumentId } from "./recent-jobs-library-helpers.js";
-
-// 「先清收藏再删除」是收藏功能（2026-09-26 已整体删除，ba3dffa7）的遗留：后端已不再返回
-// DELETE_BLOCKED_BY_FAVORITES，这条分支走不到，LibraryActions 上也早没有 clearFavorites。
-// 待连同确认弹窗、mock 和后端那个没人用的错误类型一起删掉；在那之前只保留原调用形态。
-type ActionsWithClearFavorites = LibraryActions & {
-  clearFavorites: (clearFavoritesPath: string) => Promise<unknown>;
-};
 
 type RecentJobsBatchSelectionOptions = {
   visibleItems: LibraryCardItem[];
@@ -37,7 +29,6 @@ export function useRecentJobsBatchSelection({
   const [selectedIds, setSelectedIds] = useState(() => new Set<string>());
   const [batchBusy, setBatchBusy] = useState(false);
   const [pendingDeleteIds, setPendingDeleteIds] = useState<string[] | null>(null);
-  const [pendingBlockedDelete, setPendingBlockedDelete] = useState<DeleteBlockedDocument[] | null>(null);
   const [collections, setCollections] = useState<CollectionRecord[]>([]);
 
   function setBatchMode(next: boolean) {
@@ -121,56 +112,12 @@ export function useRecentJobsBatchSelection({
       const result = await actions.deleteDocuments(ids);
       const confirmed = result?.confirmed || 0;
       const failed = result?.failed || 0;
-      const blocked = result?.blocked || [];
-      if (blocked.length > 0) {
-        // 已删除的报告完，剩下的被收藏挡住：弹第二步让用户决定是否清空收藏。
-        if (confirmed > 0) toast.success(`已删除 ${confirmed} 篇`);
-        setPendingDeleteIds(null);
-        setPendingBlockedDelete(blocked);
-        return;
-      }
       reportBatchDeleteResult(confirmed, failed);
       setBatchMode(false);
       setPendingDeleteIds(null);
     } catch (err) {
       toast.error((err as { message?: string } | null)?.message || "删除失败，请稍后重试");
       setPendingDeleteIds(null);
-    } finally {
-      setBatchBusy(false);
-    }
-  }
-
-  // 第二步：清空被引用文档的收藏，再重试删除这些文档。
-  async function confirmClearFavoritesBatchDelete() {
-    const blocked = pendingBlockedDelete || [];
-    if (!blocked.length || batchBusy) return;
-    setBatchBusy(true);
-    try {
-      const clearedPaths = new Set<string>();
-      for (const entry of blocked) {
-        if (!entry.clearFavoritesPath || clearedPaths.has(entry.clearFavoritesPath)) continue;
-        clearedPaths.add(entry.clearFavoritesPath);
-        await (actions as ActionsWithClearFavorites).clearFavorites(entry.clearFavoritesPath);
-      }
-      const ids = blocked.map((entry) => entry.documentId);
-      const result = await actions.deleteDocuments(ids);
-      const confirmed = result?.confirmed || 0;
-      const failed = result?.failed || 0;
-      const stillBlocked = result?.blocked || [];
-      if (stillBlocked.length > 0) {
-        // 清空后又被并发收藏回来：保留确认态，更新计数让用户重试。
-        if (confirmed > 0 || failed > 0) {
-          reportBatchDeleteResult(confirmed, failed);
-        }
-        setPendingBlockedDelete(stillBlocked);
-        return;
-      }
-      reportBatchDeleteResult(confirmed, failed);
-      setPendingBlockedDelete(null);
-      setBatchMode(false);
-    } catch (err) {
-      toast.error((err as { message?: string } | null)?.message || "删除失败，请稍后重试");
-      setPendingBlockedDelete(null);
     } finally {
       setBatchBusy(false);
     }
@@ -191,9 +138,6 @@ export function useRecentJobsBatchSelection({
     }
   }
 
-  const blockedFavoriteTotal = (pendingBlockedDelete || [])
-    .reduce((sum, entry) => sum + (Number(entry.favoriteCount) || 0), 0);
-
   return {
     batchMode,
     setBatchMode,
@@ -203,15 +147,11 @@ export function useRecentJobsBatchSelection({
     batchBusy,
     pendingDeleteIds,
     setPendingDeleteIds,
-    pendingBlockedDelete,
-    setPendingBlockedDelete,
     collections,
     toggleSelect,
     handleSelectAllToggle,
     handleBatchDelete,
     confirmBatchDelete,
-    confirmClearFavoritesBatchDelete,
     handleBatchAddToCollection,
-    blockedFavoriteTotal,
   };
 }

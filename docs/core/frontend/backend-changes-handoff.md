@@ -187,6 +187,10 @@ const etag = res.headers.get("ETag");
 
 ## 1. 收藏挡住删除 → 结构化 409 + 清空收藏端点
 
+> 已撤销：收藏功能 2026-09 整体删除，`DELETE_BLOCKED_BY_FAVORITES` 和清空收藏的端点后端都已删掉（`chore/drop-favorites-errors`），
+> 前端处理它的代码、批量删除的「一并删除收藏」二次确认也已删（`refactor/drop-favorites-leftovers`）。删除现在只在还有排队或运行中的任务时返回 409，见
+> [图书馆数据层 API](library-api.md) 的「删除保护」。下面保留原记录。
+
 后端提交：`feat(library): 收藏挡住删除时返回结构化 409，并给出清空收藏的端点`
 
 ### 变了什么

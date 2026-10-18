@@ -1,5 +1,5 @@
-// mock 文档的“API 行为”层：列表查询、删除保护、翻译/OCR 提交、名下 job 列表。
-// 依赖 document-seed / collections / favorites / live-jobs，但自身不再持有状态。
+// mock 文档的“API 行为”层：列表查询、删除、翻译/OCR 提交、名下 job 列表。
+// 依赖 document-seed / collections / live-jobs，但自身不再持有状态。
 
 import {
   MOCK_HISTORICAL_JOB_TO_DOCUMENT,
@@ -18,13 +18,6 @@ import type {
   MockDocumentListResult,
 } from "./documents.types.js";
 import type { JobSubmissionView } from "@/platform/contracts/library-payloads.js";
-
-type HttpStatusError = Error & {
-  status?: number;
-  favoriteCount?: number;
-  clearFavoritesPath?: string;
-  favoriteScope?: "document" | "job";
-};
 
 export function getMockDocumentList({
   limit = 50,
@@ -57,7 +50,6 @@ export function getMockDocumentList({
 }
 
 // mock 版 DELETE /documents/:id:从 mock 文档表移除该文档(连同其合集成员关系)。
-// 被收藏引用时抛 409(镜像后端收藏保护)。
 export function deleteMockDocument(documentId: string): {
   deleted: boolean;
   document_id: string;

@@ -61,7 +61,6 @@ app  ──►  features  ──►  platform
 | `credentials` | 凭据配置与校验 |
 | `glossaries` | 术语表 |
 | `collections` | 合集 |
-| `favorites` | 收藏 |
 | `artifacts` | 受保护产物下载 |
 | `task-center` | 任务中心 |
 | `settings` | 设置外壳、主题外观、开发者选项 |

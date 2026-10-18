@@ -35,6 +35,8 @@ PATCH /api/v1/documents/:document_id
 
 ### 2. 收藏
 
+> 已删除：收藏功能 2026-09 整体删除，下面的 `/api/v1/favorites` 接口都已不存在（返回 404），只保留原记录。
+
 ```
 POST /api/v1/favorites
      body: {
@@ -193,36 +195,10 @@ GET /api/v1/library/books?job_ids=job-a,job-b,job-c
 ## 两个必须处理的边界
 
 1. **删除保护**:删除书籍(`DELETE /api/v1/library/books/:job_id`)或文档
-   (`DELETE /api/v1/documents/:document_id`)时,如果被收藏锚点引用,后端返回
-   **409**,`error.code` 为 `DELETE_BLOCKED_BY_FAVORITES`。
-
-   条数和"清空收藏"的目标路径都在 `error.details` 里,**不要从 message 里正则
-   抠数字**——那句话会随文案改动和多语言而变:
-
-   ```json
-   {
-     "error": {
-       "code": "DELETE_BLOCKED_BY_FAVORITES",
-       "http_status": 409,
-       "details": {
-         "scope": "document",
-         "document_id": "6f1c…",
-         "favorite_count": 2,
-         "clear_favorites_path": "/api/v1/documents/6f1c…/favorites"
-       }
-     }
-   }
-   ```
-
-   `scope` 为 `"job"` 时 details 里换成 `job_id`,`clear_favorites_path` 换成
-   `/api/v1/library/books/{job_id}/favorites`。两种情况前端只需一个分支:
-
-   > 该文档有 `favorite_count` 条收藏 → 询问用户 → `DELETE clear_favorites_path`
-   > → 重试原来的删除
-
-   `DELETE clear_favorites_path` 返回 `{"data": {"deleted_count": N}}`,幂等
-   (没有收藏就是 `0`);但文档/任务不存在是 **404**,不要和"存在但没有收藏"
-   混为一谈。`force=true` 不绕过收藏保护,它只绕过"运行中的任务不可删"。
+   (`DELETE /api/v1/documents/:document_id`)时,如果名下还有排队或运行中的任务,后端返回
+   **409**(`error.code` 为 `CONFLICT`)。带 `?force=true` 才会连运行中的任务一起删;前端不自动
+   force,提示用户先取消任务再删除。以前被收藏锚点挡住时的 `DELETE_BLOCKED_BY_FAVORITES` 和
+   `clear_favorites_path` 已随收藏功能一起删掉。
 2. **重复上传**:同一 PDF 再次上传不会产生新文档(documents 列表数量不变),
    前端不要假设"上传成功 = 列表多一条"。
 

@@ -32,6 +32,10 @@ test("错误文案：凭据缺失、OCR 复用失败", () => {
   assert.equal(friendlyTranslateError(""), "发起翻译失败，请稍后重试。");
 
   assert.equal(friendlyDocumentDeleteError(new Error("boom")), "boom");
+  // 409 只剩"还有排队或运行中的任务"这一种（收藏挡删除的 409 后端已删）。
+  const conflict = Object.assign(new Error("book is Running; pass force=true to delete it(409)"), { status: 409 });
+  assert.equal(friendlyDocumentDeleteError(conflict), "还有排队或运行中的任务，请先取消再删除。");
+  assert.equal(friendlyDocumentDeleteError(new Error("x(409)")), "还有排队或运行中的任务，请先取消再删除。");
 });
 
 test("提交载荷：凭据基座 + overrides 叠加；复用 OCR 时删掉 ocr 字段", () => {
