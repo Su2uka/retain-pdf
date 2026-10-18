@@ -81,7 +81,7 @@ export async function patchDocument(
 }
 
 // 文档级删除:删掉 document + 名下所有 job/upload/文件(后端 DELETE /documents/:id)。
-// 被收藏引用时后端返回 409(force 可覆盖运行中的 job,不覆盖收藏保护)。
+// 文档下还有排队或运行中的任务时后端返回 409(force=true 才删);mock 不模拟这一条。
 export async function deleteDocument(apiPrefix: string, documentId: string, { force = false }: { force?: boolean } = {}) {
   void apiPrefix;
   void force;
@@ -91,9 +91,6 @@ export async function deleteDocument(apiPrefix: string, documentId: string, { fo
   }
   return deleteMockDocument(normalized);
 }
-
-// DELETE clear_favorites_path（后端在 DELETE_BLOCKED_BY_FAVORITES.details 里给的
-// 路径；文档级/run 级共用）。返回实际删除的收藏条数。
 
 // 对馆藏文档发起"以后再翻":复用文档已存的 upload 起 book 翻译 job。
 // 后端 translate_document 会注入该文档的 upload_id 并把 workflow 归一到 book/translate,

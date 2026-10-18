@@ -68,16 +68,12 @@ export function RecentJobsLibrary({ onBatchModeChange }: { onBatchModeChange?: (
     batchBusy,
     pendingDeleteIds,
     setPendingDeleteIds,
-    pendingBlockedDelete,
-    setPendingBlockedDelete,
     collections,
     toggleSelect,
     handleSelectAllToggle,
     handleBatchDelete,
     confirmBatchDelete,
-    confirmClearFavoritesBatchDelete,
     handleBatchAddToCollection,
-    blockedFavoriteTotal,
   } = useRecentJobsBatchSelection({
     visibleItems,
     onBatchModeChange,
@@ -183,13 +179,9 @@ export function RecentJobsLibrary({ onBatchModeChange }: { onBatchModeChange?: (
       ) : null}
       <RecentJobsLibraryBatchDialogs
         pendingDeleteIds={pendingDeleteIds}
-        pendingBlockedDelete={pendingBlockedDelete}
-        blockedFavoriteTotal={blockedFavoriteTotal}
         batchBusy={batchBusy}
         onCancelDelete={() => setPendingDeleteIds(null)}
         onConfirmDelete={confirmBatchDelete}
-        onCancelBlocked={() => setPendingBlockedDelete(null)}
-        onConfirmBlocked={confirmClearFavoritesBatchDelete}
       />
     </section>
   );

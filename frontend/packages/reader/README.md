@@ -24,7 +24,6 @@ RetainPDF 的独立 react-pdf 阅读器包。组件、hooks、PDF 加载、批�
 - 受保护 PDF/资源请求；
 - Markdown 资源解析；
 - 下载文件名与下载执行；
-- 服务端收藏；
 - 模型凭据状态；
 - 文档 AI 请求。
 

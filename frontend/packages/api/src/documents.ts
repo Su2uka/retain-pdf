@@ -123,12 +123,6 @@ export interface DocumentRequestError extends Error {
   errorCode?: string;
   reason?: string;
   canFallbackToOcr?: boolean;
-  /** DELETE_BLOCKED_BY_FAVORITES: 引用该文档/run 的收藏条数 */
-  favoriteCount?: number;
-  /** DELETE_BLOCKED_BY_FAVORITES: 清空这些收藏的端点路径（后端给好，前端不要自己拼） */
-  clearFavoritesPath?: string;
-  /** "document" | "job"，仅用于展示与日志 */
-  favoriteScope?: "document" | "job" | "";
 }
 
 function documentRequestError(
@@ -154,14 +148,6 @@ function documentRequestError(
   if (reason) error.reason = reason;
   const canFallback = payload?.can_fallback_to_ocr ?? details?.can_fallback_to_ocr;
   if (typeof canFallback === "boolean") error.canFallbackToOcr = canFallback;
-  const favoriteCount = Number(details?.favorite_count);
-  if (Number.isFinite(favoriteCount) && favoriteCount > 0) {
-    error.favoriteCount = favoriteCount;
-  }
-  const clearPath = `${details?.clear_favorites_path || ""}`.trim();
-  if (clearPath) error.clearFavoritesPath = clearPath;
-  const scope = `${details?.scope || ""}`.trim();
-  if (scope === "document" || scope === "job") error.favoriteScope = scope;
   return error;
 }
 
@@ -357,35 +343,10 @@ export async function deleteDocument(apiPrefix: string, documentId: string, { fo
   const resp = await apiFetch(buildApiEndpoint(apiPrefix, `documents/${encodeURIComponent(normalized)}`) + params, { method: "DELETE", headers: buildApiHeaders() });
   if (!resp.ok) {
     const envelope: any = await resp.json().catch(() => null);
-    // 保留结构化 error.code / error.details（收藏保护 409 靠它拿条数和清空路径）
+    // 保留 HTTP 状态：409 是文档下还有排队或运行中的任务（force=true 才删）
     throw documentRequestError("删除文档失败，请稍后重试。", resp.status, envelope);
   }
   return unwrapEnvelope(await resp.json());
-}
-
-/**
- * DELETE `clear_favorites_path`（后端在 DELETE_BLOCKED_BY_FAVORITES 的
- * error.details 里给好的路径，文档级/run 级共用）。幂等：没有收藏返回 0；
- * 目标不存在是 404。返回实际删除的收藏条数。
- */
-export async function clearFavorites(
-  apiPrefix: string,
-  clearFavoritesPath: string,
-): Promise<number> {
-  const raw = `${clearFavoritesPath || ""}`.trim();
-  if (!raw) return 0;
-  const prefix = `${apiPrefix || ""}`.replace(/\/+$/, "");
-  const relative = prefix && raw.startsWith(prefix) ? raw.slice(prefix.length) : raw;
-  const resp = await apiFetch(buildApiEndpoint(apiPrefix, relative.replace(/^\/+/, "")), {
-    method: "DELETE",
-    headers: buildApiHeaders(),
-  });
-  if (!resp.ok) {
-    const envelope: any = await resp.json().catch(() => null);
-    throw documentRequestError("清空收藏失败，请稍后重试。", resp.status, envelope);
-  }
-  const payload: any = unwrapEnvelope(await resp.json());
-  return Number(payload?.deleted_count) || 0;
 }
 
 export async function translateDocument(

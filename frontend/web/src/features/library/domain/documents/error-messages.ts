@@ -32,8 +32,14 @@ export function friendlyTranslateError(error: ErrorLike, { reusingOcr = false } 
   return message || "发起翻译失败，请稍后重试。";
 }
 
+// 删除只在文档下还有排队或运行中的任务时被拒（409，后端原文是英文的 "pass force=true"）。
+export const DELETE_BLOCKED_BY_ACTIVE_JOB_MESSAGE = "还有排队或运行中的任务，请先取消再删除。";
+
 export function friendlyDocumentDeleteError(error: ErrorLike): string {
   const message = typeof error === "string" ? error : `${error?.message || error || ""}`;
   const status = typeof error === "object" && error ? error.status : undefined;
+  if (status === 409 || message.includes("(409)")) {
+    return DELETE_BLOCKED_BY_ACTIVE_JOB_MESSAGE;
+  }
   return message || "删除文档失败";
 }

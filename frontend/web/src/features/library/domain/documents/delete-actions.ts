@@ -1,11 +1,10 @@
-// 文档删除：单篇 / 批量 / 卡片入口 + 收藏清空。
+// 文档删除：单篇 / 批量 / 卡片入口。
 
 import { API_PREFIX } from "@/platform/config/api-constants.js";
 import {
   deleteDocument as defaultDeleteDocument,
 } from "@/platform/api/index.js";
 import type {
-  DeleteBlockedDocument,
   DeleteCardTarget,
   DeleteDocumentsResult,
   LibraryControllerDeps,
@@ -26,7 +25,7 @@ export function createDocumentDeleteActions({
   deleteDocumentApi?: typeof defaultDeleteDocument;
 }) {
   // 文档级删除:删掉 document + 名下所有 job/upload/文件。
-  // 由调用方提示用户 → 清空收藏 → 重试；其余错误转成友好文案。
+  // 文档下还有排队或运行中的任务时后端返回 409，错误都转成友好文案。
   async function deleteDocument(documentId?: string | null): Promise<void> {
     const normalizedId = `${documentId || ""}`.trim();
     if (!normalizedId) {
@@ -41,21 +40,16 @@ export function createDocumentDeleteActions({
     void reload({ reset: true, silent: true });
   }
 
-  // 清空 clear_favorites_path 指向的收藏（文档级/run 级共用）。返回删除条数。
-
-
   // 批量删除：API 仍逐个 delete；网格乐观一次移除 + 单次 silent soft reload。
-  // 被收藏挡住的条目单独收集（不并入 failed），交 UI 汇总提示后清空重试。
   async function deleteDocuments(
     documentIds: Array<string | null | undefined> = [],
   ): Promise<DeleteDocumentsResult> {
     const ids = [...new Set((documentIds || []).map((id) => `${id || ""}`.trim()).filter(Boolean))];
     if (!ids.length) {
-      return { confirmed: 0, failed: 0, blocked: [] };
+      return { confirmed: 0, failed: 0 };
     }
     const results = await Promise.allSettled(ids.map((id) => deleteDocumentApi(API_PREFIX, id)));
     const confirmedIds: string[] = [];
-    const blocked: DeleteBlockedDocument[] = [];
     let failed = 0;
     results.forEach((result, index) => {
       if (result.status === "fulfilled") {
@@ -68,7 +62,7 @@ export function createDocumentDeleteActions({
       removeLibraryDocuments?.(confirmedIds);
     }
     void reload({ reset: true, silent: true });
-    return { confirmed: confirmedIds.length, failed, blocked };
+    return { confirmed: confirmedIds.length, failed };
   }
 
   // 卡片删除入口:有 document_id 走文档级删除,无则退回老的 job 删除。
