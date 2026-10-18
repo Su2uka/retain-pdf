@@ -1,7 +1,8 @@
 import { firstJobIdFromPayload, firstNonEmpty as firstNonEmptyText } from "@retainpdf/domain/job";
 import { buildDetailPageUrl } from "./routing.js";
-import { isPageQuotaError, retryJobStage } from "@/platform/api/index.js";
+import { retryJobStage } from "@/platform/api/index.js";
 import { API_PREFIX } from "@/platform/config/api-constants.js";
+import { isAmbiguousTranslationRerunError } from "../dialog/resume-actions.js";
 import type { JobDetailPageState } from "./page-state.js";
 import type { DetailSetText } from "./page-ports.js";
 import type { createJobDetailResumePort } from "./resume-port.js";
@@ -51,8 +52,8 @@ export function bindRerunButton({
       const message = (error as { message?: string } | null)?.message || String(error);
       // 409 翻译歧义：通用重跑被后端暂停，直接报死用户就卡住了。
       // 给出路：二次确认重复风险后，用 retry-stage(translation) 显式重跑。
-      // 额度不够的原话里可能带「1409 页」这种数字，别误判成 409。
-      if (!isPageQuotaError(error) && /409|ambiguous/i.test(message)) {
+      // 只认歧义那一种 409（和弹窗同一个判断）：「任务在跑」也是 409，把它当歧义会引导用户去接受重复计费。
+      if (isAmbiguousTranslationRerunError(error)) {
         setText("detail-rerun-status", "检测到重复翻译风险：重跑可能产生重复费用/产物。再点一次按钮确认仍要从翻译阶段重试。");
         if (button.dataset) button.dataset.confirmRisk = "1";
         button.disabled = false;
