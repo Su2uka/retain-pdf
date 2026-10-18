@@ -51,31 +51,6 @@ fn default_document_title_source() -> String {
     "filename".to_string()
 }
 
-/// 收藏:锚点 = (document_id, job_id, page_idx, block_id[, 选区]) + 引文快照。
-/// job_id 标记锚点所在的块空间版本;被引用的 job 不允许单独删除。
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct FavoriteRecord {
-    pub favorite_id: String,
-    pub document_id: String,
-    pub job_id: String,
-    pub page_idx: i64,
-    pub block_id: String,
-    pub char_start: Option<i64>,
-    pub char_end: Option<i64>,
-    pub kind: String,
-    pub quote_text: String,
-    pub translated_quote_text: String,
-    pub note: String,
-    /// 图片附件(assets.asset_id,内容寻址);空串 = 纯文字收藏
-    #[serde(default)]
-    pub asset_id: String,
-    /// 截图剪裁矩形几何(前端坐标系,整存整取)
-    #[serde(default)]
-    pub rect_json: String,
-    pub created_at: String,
-    pub updated_at: String,
-}
-
 /// 内容寻址的二进制资产(收藏截图等);文件本体在 data/assets/<2>/<hash>。
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AssetRecord {
@@ -280,63 +255,6 @@ pub struct DocumentMetadataSuggestionListView {
 pub struct DocumentMetadataSuggestionApplyView {
     pub suggestion: DocumentMetadataSuggestionView,
     pub document: DocumentRecord,
-}
-
-/// POST /api/v1/favorites
-#[derive(Debug, Deserialize)]
-pub struct CreateFavoriteInput {
-    /// 可缺省:给了 job_id 时后端自动解析所属文档(历史 run 也能收藏)
-    #[serde(default)]
-    pub document_id: String,
-    /// 锚点所在块空间;缺省用文档当前 active_job_id
-    pub job_id: Option<String>,
-    pub page_idx: i64,
-    pub block_id: String,
-    pub char_start: Option<i64>,
-    pub char_end: Option<i64>,
-    #[serde(default)]
-    pub kind: Option<String>,
-    pub quote_text: String,
-    #[serde(default)]
-    pub translated_quote_text: Option<String>,
-    #[serde(default)]
-    pub note: Option<String>,
-    /// 图片附件:先 POST /api/v1/assets 拿 asset_id 再挂上(kind 建议 figure)
-    #[serde(default)]
-    pub asset_id: Option<String>,
-    /// 截图剪裁矩形几何(前端坐标系原样存)
-    #[serde(default)]
-    pub rect_json: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct ListFavoritesQuery {
-    pub document_id: Option<String>,
-}
-
-#[derive(Debug, Serialize)]
-pub struct FavoriteListView {
-    pub favorites: Vec<FavoriteRecord>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct PatchFavoriteInput {
-    pub note: Option<String>,
-}
-
-#[derive(Debug, Serialize)]
-pub struct FavoriteMutationResult {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub updated: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub deleted: Option<bool>,
-}
-
-/// 批量清空收藏的结果。返回条数而不只是 `deleted: true`,因为调用方刚刚
-/// 在 409 里读到过一个 `favorite_count`,需要能核对自己删掉的是不是那一批。
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FavoritesClearedResult {
-    pub deleted_count: u64,
 }
 
 fn default_search_limit() -> u32 {

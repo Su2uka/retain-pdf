@@ -9,13 +9,12 @@ pub use super::library::{
     AssetRecord, BlockSearchHit, CollectionListView, CollectionMutationResult, CollectionRecord,
     ConversationDetailView, ConversationListView, ConversationMutationResult, ConversationRecord,
     CreateCollectionInput, CreateConversationInput, CreateDocumentMetadataSuggestionInput,
-    CreateFavoriteInput, DocumentListView, DocumentMetadataEvidenceView,
+    DocumentListView, DocumentMetadataEvidenceView,
     DocumentMetadataSuggestionApplyView, DocumentMetadataSuggestionListView,
-    DocumentMetadataSuggestionView, DocumentRecord, DocumentTitleCandidateView, FavoriteListView,
-    FavoriteMutationResult, FavoriteRecord, FavoritesClearedResult, ForkConversationInput,
+    DocumentMetadataSuggestionView, DocumentRecord, DocumentTitleCandidateView, ForkConversationInput,
     ForkMessageInput, FtsBlockRow, ListConversationsQuery, ListDocumentMetadataSuggestionsQuery,
-    ListDocumentsQuery, ListFavoritesQuery, MessageRecord, PatchCollectionInput,
-    PatchConversationInput, PatchDocumentInput, PatchFavoriteInput, SearchQuery, SearchResultView,
+    ListDocumentsQuery, MessageRecord, PatchCollectionInput,
+    PatchConversationInput, PatchDocumentInput, SearchQuery, SearchResultView,
 };
 pub use super::public_contract::{public_request_payload, PublicResolvedJobSpec};
 pub use super::backup::{BackupItemView, BackupRestoreView, BackupStatusView};
@@ -48,8 +47,6 @@ pub use super::view::{
     MarkdownDocumentView, MarkdownImageView, MarkdownQuery, MarkdownView, NormalizationSummaryView,
     OcrAmbiguityReceiptFieldView, OcrAmbiguityResolutionKind, OcrAmbiguityResolutionRequest,
     OcrAmbiguityResolutionView, OcrAmbiguityView, OcrJobSummaryView, LayoutDocxQuery, PagePreviewQuery,
-    ReaderAiChatRequest, ReaderAiChatView, ReaderAiCitationView, ReaderAiContextView,
-    ReaderAiHistoryMessageView, ReaderAiRectView, ReaderAiSelectionView, ReaderAiUsedContextView,
     ReaderDocumentMetadataView, ReaderMetadataView, ReaderPageMetadataView, ReaderRegionBoxView,
     ReaderRegionItemView, ReaderRegionsView, RefineRetryRequest, RetryStageKind, RetryStageRequest,
     RetryStageSubmissionView, LastRefineView, EscalatedItemView, LAST_REFINE_ESCALATED_LIMIT, StageActionsView, StageRetryActionLinkView, StageRetryActionView,
