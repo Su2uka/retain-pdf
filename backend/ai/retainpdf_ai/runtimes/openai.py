@@ -45,7 +45,7 @@ from .openai_operations import (
 OPENAI_AGENT_RUNTIME_ID = "openai-compatible-agent-v1"
 _MAX_ANSWER_CHARS = 1024 * 1024
 _LIBRARY_READING_TOOL_NAMES = frozenset(
-    {"list_documents", "search_fulltext", "read_blocks", "search_favorites"}
+    {"list_documents", "search_fulltext", "read_blocks"}
 )
 
 class OpenAICompatibleAgentRuntime:

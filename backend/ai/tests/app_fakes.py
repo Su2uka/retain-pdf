@@ -86,21 +86,6 @@ class FakeRust:
                 return doc
         return None
 
-    def list_favorites(self, document_id=""):
-        return [
-            {
-                "favorite_id": "fav-1",
-                "document_id": "doc-a",
-                "job_id": "job-1",
-                "page_idx": 4,
-                "block_id": "p005-b0008",
-                "kind": "sentence",
-                "quote_text": "reaction rate",
-                "translated_quote_text": "反应速率相关引文",
-                "note": "重要",
-            }
-        ]
-
     def create_conversation(self, *, title="", document_id=""):
         self._conv_seq += 1
         conversation_id = f"conv-{self._conv_seq}"

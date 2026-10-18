@@ -97,8 +97,7 @@ def list_skills() -> list[SkillMeta]: ...
 - 工具层注入 document_id / job_id  
 - 只暴露 `search_markdown` / `read_markdown_chunk`
 - 引用 `[n]`，只允许当前 Markdown artifact 产生的受控资源 URL
-- 不暴露 `list_documents`、`search_fulltext`、`read_blocks` 或
-  `search_favorites`
+- 不暴露 `list_documents`、`search_fulltext` 或 `read_blocks`
 
 验收：与现网回答质量同级；仅配置/提示外置，无功能回退。
 

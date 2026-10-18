@@ -630,34 +630,6 @@ def build_default_registry(settings: Settings, rust: RustApiClient) -> ToolRegis
             "image_urls": exact_image_urls,
         }
 
-    def search_favorites(arguments: dict[str, Any]) -> dict[str, Any]:
-        keyword = str(arguments.get("keyword") or "").strip().lower()
-        favorites = rust.list_favorites(str(arguments.get("document_id") or ""))
-        if keyword:
-            favorites = [
-                favorite
-                for favorite in favorites
-                if keyword in str(favorite.get("quote_text", "")).lower()
-                or keyword in str(favorite.get("translated_quote_text", "")).lower()
-                or keyword in str(favorite.get("note", "")).lower()
-            ]
-        return {
-            "favorites": [
-                {
-                    "favorite_id": favorite.get("favorite_id"),
-                    "document_id": favorite.get("document_id"),
-                    "job_id": favorite.get("job_id"),
-                    "page_idx": favorite.get("page_idx"),
-                    "block_id": favorite.get("block_id"),
-                    "kind": favorite.get("kind"),
-                    "quote_text": favorite.get("quote_text"),
-                    "translated_quote_text": favorite.get("translated_quote_text"),
-                    "note": favorite.get("note"),
-                }
-                for favorite in favorites[:30]
-            ]
-        }
-
     return ToolRegistry(
         [
             Tool(
@@ -769,18 +741,6 @@ def build_default_registry(settings: Settings, rust: RustApiClient) -> ToolRegis
                     "required": ["document_id", "page_idx"],
                 },
                 handler=read_blocks,
-            ),
-            Tool(
-                name="search_favorites",
-                description="检索用户收藏过的句子/数据(可按关键词与文档过滤)。问题涉及'我收藏的/我标记过的'内容时使用。",
-                parameters={
-                    "type": "object",
-                    "properties": {
-                        "keyword": {"type": "string", "description": "在引文与备注里做关键词过滤,可选"},
-                        "document_id": {"type": "string", "description": "限定某文档,可选"},
-                    },
-                },
-                handler=search_favorites,
             ),
             *calculation_tools(settings, rust),
             *chart_tools(),

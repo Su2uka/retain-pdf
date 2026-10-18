@@ -127,10 +127,6 @@ def test_default_registry_tools_return_anchored_results(tmp_path):
     assert paged["blocks"][0]["source_text"] == "ond block"
     assert paged["blocks"][0]["char_start"] == 3
 
-    favorites = registry.invoke("search_favorites", {"keyword": "速率"})["favorites"]
-    assert favorites[0]["favorite_id"] == "fav-1"
-    assert registry.invoke("search_favorites", {"keyword": "不存在"})["favorites"] == []
-
     assert "query must not be empty" in registry.invoke("search_fulltext", {})["error"]
 
     # 旧任务若缺 normalized block 关系，不能退化成同页图片枚举。
