@@ -5,7 +5,7 @@ use std::path::Path;
 use retainpdf_data::db::Db;
 use retainpdf_api_base::error::AppError;
 use retainpdf_api_base::job_loading::{load_ocr_job_with_supported_layout, load_supported_job};
-use retainpdf_core::models::api::ListJobsQuery;
+use crate::views::ListJobsQuery;
 use retainpdf_core::models::domain::JobSnapshot;
 
 /// Read-only job views require only persisted state and its artifacts, never a

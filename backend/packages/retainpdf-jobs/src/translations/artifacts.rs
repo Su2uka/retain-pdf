@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use serde_json::Value;
 
 use retainpdf_api_base::error::AppError;
-use retainpdf_core::models::api::TranslationDebugIndexView;
+use crate::views::TranslationDebugIndexView;
 use retainpdf_core::models::domain::JobSnapshot;
 
 use crate::translations::common::{read_json_value, value_string};

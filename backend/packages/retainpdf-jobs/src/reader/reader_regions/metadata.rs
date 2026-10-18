@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use retainpdf_api_base::error::AppError;
-use retainpdf_core::models::api::{ReaderDocumentMetadataView, ReaderMetadataView, ReaderPageMetadataView};
+use crate::views::{ReaderDocumentMetadataView, ReaderMetadataView, ReaderPageMetadataView};
 use retainpdf_core::models::domain::JobSnapshot;
 use crate::{stored_path, StoredFile};
 

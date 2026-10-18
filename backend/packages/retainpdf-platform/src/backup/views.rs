@@ -1,4 +1,4 @@
-//! 数据库备份的接口视图(/api/v1/backups)。
+//! 数据库备份的接口视图(/api/v1/backups)。2026-10-18 从核心包挪到平台包。
 
 use serde::Serialize;
 

@@ -3,7 +3,7 @@ use std::path::Path;
 use serde_json::json;
 
 use super::build_artifacts_display;
-use retainpdf_core::models::api::{build_artifact_links, ArtifactLinksView};
+use crate::{build_artifact_links, ArtifactLinksView};
 use retainpdf_core::models::domain::JobSnapshot;
 use retainpdf_core::models::request::CreateJobInput;
 

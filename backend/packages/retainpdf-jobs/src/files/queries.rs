@@ -1,5 +1,6 @@
 use retainpdf_api_base::error::AppError;
-use retainpdf_core::models::api::{ArtifactLinksView, JobArtifactManifestView};
+use retainpdf_files::ArtifactLinksView;
+use crate::views::JobArtifactManifestView;
 
 use crate::presentation::{
     build_job_artifact_links_view, build_job_artifact_manifest_view,

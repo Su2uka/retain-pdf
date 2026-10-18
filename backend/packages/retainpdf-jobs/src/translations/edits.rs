@@ -2,7 +2,7 @@ use axum::http::StatusCode;
 use serde_json::{json, Value};
 
 use retainpdf_api_base::error::AppError;
-use retainpdf_core::models::api::{
+use crate::views::{
     AmbiguousRequestPolicy, ReviseTranslationItemRequest, RetryStageKind, RetryStageRequest,
     TranslationReplayView, TranslationRevisionView,
 };

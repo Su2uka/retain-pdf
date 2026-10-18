@@ -2,7 +2,7 @@
 
 use retainpdf_core::config::limits::MAX_SEARCH_LIMIT;
 use retainpdf_api_base::error::AppError;
-use retainpdf_core::models::api::{SearchQuery, SearchResultView};
+use crate::views::{SearchQuery, SearchResultView};
 
 use super::LibraryDeps;
 

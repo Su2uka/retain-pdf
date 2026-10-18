@@ -9,7 +9,7 @@ use rusqlite::Connection;
 use serde_json::json;
 
 use retainpdf_core::config::AssetConfig;
-use retainpdf_core::models::api::{ListDocumentJobsQuery, ListJobsQuery};
+use retainpdf_jobs::{ListDocumentJobsQuery, ListJobsQuery};
 use retainpdf_core::models::domain::{now_iso, JobStatusKind, UploadRecord};
 use retainpdf_jobs::{
     build_document_job_list_view, build_job_list_view, event_line as line, jsonl_bytes_read,

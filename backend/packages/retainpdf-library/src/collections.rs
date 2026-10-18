@@ -1,8 +1,9 @@
 //! Collection folders and document membership.
 
 use retainpdf_api_base::error::AppError;
-use retainpdf_core::models::api::{
-    AddCollectionDocumentsInput, CollectionListView, CollectionMutationResult, CollectionRecord,
+use retainpdf_core::models::api::CollectionRecord;
+use crate::views::{
+    AddCollectionDocumentsInput, CollectionListView, CollectionMutationResult,
     CreateCollectionInput, PatchCollectionInput,
 };
 use retainpdf_core::models::domain::build_job_id;

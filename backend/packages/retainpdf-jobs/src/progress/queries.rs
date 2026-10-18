@@ -1,5 +1,5 @@
 use retainpdf_api_base::error::AppError;
-use retainpdf_core::models::api::{JobEventListView, ListJobEventsQuery};
+use crate::views::{JobEventListView, ListJobEventsQuery};
 
 use retainpdf_api_base::job_loading::load_supported_job;
 use crate::query::JobQueries;
@@ -10,7 +10,7 @@ impl JobQueries<'_> {
         job_id: &str,
         after_seq: i64,
         limit: u32,
-    ) -> Result<Vec<retainpdf_core::models::api::LiveTranslationCommitEventView>, AppError> {
+    ) -> Result<Vec<crate::views::LiveTranslationCommitEventView>, AppError> {
         load_supported_job(self.db, self.data_root, job_id)?;
         crate::progress::live_translation::load_live_translation_events_after(
             self.db,

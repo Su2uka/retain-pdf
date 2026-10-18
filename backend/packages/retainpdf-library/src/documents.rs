@@ -4,9 +4,10 @@ use std::path::PathBuf;
 
 use retainpdf_core::config::limits::MAX_DOCUMENT_LIMIT;
 use retainpdf_api_base::error::AppError;
-use retainpdf_core::models::api::{
-    document_file_path, to_absolute_url, DocumentDeleteResultView, DocumentListView, DocumentRecord,
-    ListDocumentsQuery, PatchDocumentInput,
+use retainpdf_core::models::api::{to_absolute_url, DocumentRecord};
+use retainpdf_files::document_file_path;
+use crate::views::{
+    DocumentDeleteResultView, DocumentListView, ListDocumentsQuery, PatchDocumentInput,
 };
 use retainpdf_core::models::domain::UploadRecord;
 use retainpdf_jobs::cleanup_deleted_job_credentials;

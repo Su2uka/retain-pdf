@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use retainpdf_api_base::error::AppError;
-use retainpdf_core::models::api::{BackupItemView, BackupRestoreView, BackupStatusView};
+use super::views::{BackupItemView, BackupRestoreView, BackupStatusView};
 
 use super::{BackupRefusal, BackupService};
 

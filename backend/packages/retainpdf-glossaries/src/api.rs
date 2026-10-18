@@ -5,7 +5,7 @@ use super::records::{
 };
 use retainpdf_data::db::Db;
 use retainpdf_api_base::error::AppError;
-use retainpdf_core::models::api::{
+use super::views::{
     glossary_to_csv_export, glossary_to_detail, glossary_to_summary, GlossaryCsvExportView,
     GlossaryCsvParseInput, GlossaryCsvParseView, GlossaryDetailView, GlossaryListView,
     GlossaryUpsertInput, ListGlossariesQuery,

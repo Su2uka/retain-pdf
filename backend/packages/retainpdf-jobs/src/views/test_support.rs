@@ -2,11 +2,14 @@ use std::path::Path;
 
 use serde_json::Value;
 
-use crate::models::{
-    GlossaryUsageSummaryView, InvocationSummaryView, JobFailureDiagnosticView, JobFailureInfo,
-    JobSnapshot, NormalizationSummaryView, OcrJobSummaryView,
+use retainpdf_core::models::{JobFailureInfo, JobSnapshot};
+use crate::views::{
+    GlossaryUsageSummaryView, InvocationSummaryView, JobFailureDiagnosticView,
+    NormalizationSummaryView, OcrJobSummaryView,
 };
-use crate::storage_paths::{resolve_data_path, resolve_translation_manifest};
+use retainpdf_core::storage_paths::resolve_data_path;
+
+use crate::{stored_path, StoredFile};
 
 use super::to_absolute_url;
 
@@ -32,7 +35,7 @@ pub(super) fn load_normalization_summary(
     job: &JobSnapshot,
     data_root: &Path,
 ) -> Option<NormalizationSummaryView> {
-    let path = crate::storage_paths::resolve_normalization_report(job, data_root)?;
+    let path = stored_path(job, data_root, StoredFile::NormalizationReport)?;
     let payload: Value = serde_json::from_str(&std::fs::read_to_string(path).ok()?).ok()?;
     let normalization = payload.get("normalization").unwrap_or(&payload);
     let defaults = normalization.get("defaults");
@@ -112,7 +115,7 @@ fn load_invocation_summary_from_manifest(
     job: &JobSnapshot,
     data_root: &Path,
 ) -> Option<InvocationSummaryView> {
-    let path = resolve_translation_manifest(job, data_root)?;
+    let path = stored_path(job, data_root, StoredFile::TranslationManifest)?;
     load_invocation_summary_from_json_path(&path)
 }
 
@@ -143,7 +146,7 @@ fn load_glossary_summary_from_manifest(
     job: &JobSnapshot,
     data_root: &Path,
 ) -> Option<GlossaryUsageSummaryView> {
-    let path = resolve_translation_manifest(job, data_root)?;
+    let path = stored_path(job, data_root, StoredFile::TranslationManifest)?;
     load_glossary_summary_from_json_path(&path)
 }
 

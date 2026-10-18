@@ -1,6 +1,6 @@
 use serde_json::Value;
 
-use retainpdf_core::models::api::NormalizationSummaryView;
+use crate::views::NormalizationSummaryView;
 
 pub(super) fn load_normalization_summary_from_json(
     payload: &Value,

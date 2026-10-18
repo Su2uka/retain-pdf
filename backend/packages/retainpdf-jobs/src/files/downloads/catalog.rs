@@ -13,7 +13,9 @@ use serde::Serialize;
 
 use retainpdf_data::db::Db;
 use retainpdf_api_base::error::AppError;
-use retainpdf_core::models::api::{document_file_path, to_absolute_url, JobFilesQuery};
+use retainpdf_core::models::api::to_absolute_url;
+use retainpdf_files::document_file_path;
+use crate::views::JobFilesQuery;
 use retainpdf_core::models::domain::{JobSnapshot, JobStatusKind};
 use retainpdf_files::{job_upload_id, list_registry_for_job};
 use retainpdf_core::storage_paths::{resolve_job_root, resolve_markdown_path, resolve_output_pdf, resolve_source_pdf};
@@ -26,7 +28,7 @@ use retainpdf_core::storage_paths::{
 };
 
 /// `internal/` 组：新文件名 ↔ 产物清单里的名字。表在 retainpdf-core，产物清单返回的链接也用它。
-use retainpdf_core::models::api::JOB_INTERNAL_FILES as INTERNAL_FILES;
+use retainpdf_files::JOB_INTERNAL_FILES as INTERNAL_FILES;
 
 const OCR_IMAGES_PREFIX: &str = "ocr/images/";
 
@@ -59,7 +61,7 @@ fn output_file(name: &str, query: &JobFilesQuery) -> Result<JobFile, AppError> {
     Ok(match name {
         "translated.pdf" => JobFile::TranslatedPdf,
         "side-by-side.pdf" => JobFile::SideBySidePdf,
-        "translated.docx" => JobFile::translated_docx(&retainpdf_core::models::api::LayoutDocxQuery { dpi: query.dpi }),
+        "translated.docx" => JobFile::translated_docx(&crate::views::LayoutDocxQuery { dpi: query.dpi }),
         "ocr.md" => JobFile::OcrMarkdown,
         "ocr.zip" => JobFile::OcrMarkdownZip { include_job_dir: false },
         "all.zip" => JobFile::All,
@@ -76,7 +78,7 @@ fn page_file(name: &str, query: &JobFilesQuery) -> Result<JobFile, AppError> {
         .ok_or_else(|| not_found("pages", name))?;
     Ok(JobFile::page(
         page,
-        &retainpdf_core::models::api::PagePreviewQuery {
+        &crate::views::PagePreviewQuery {
             kind: "translated".to_string(),
             width: query.width,
             dpi: query.dpi,

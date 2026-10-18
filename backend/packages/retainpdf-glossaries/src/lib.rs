@@ -8,6 +8,7 @@ mod api;
 mod csv;
 mod entries;
 mod records;
+mod views;
 
 #[cfg(test)]
 use csv::parse_glossary_csv_text;
@@ -29,3 +30,8 @@ pub use api::{
     GlossaryApiDeps,
 };
 pub use entries::resolve_task_glossary_request;
+pub use views::{
+    glossary_to_csv_export, glossary_to_detail, glossary_to_summary, GlossaryCsvExportView,
+    GlossaryCsvParseInput, GlossaryCsvParseView, GlossaryDetailView, GlossaryListView,
+    GlossarySummaryView, GlossaryUpsertInput, ListGlossariesQuery,
+};

@@ -3,10 +3,10 @@ use std::path::Path;
 use retainpdf_core::config::limits::MAX_JOB_LIMIT;
 use retainpdf_data::db::{Db, JobListSelection};
 use retainpdf_api_base::error::AppError;
-use retainpdf_core::models::api::{
-    build_artifact_links, document_file_path, to_absolute_url, LibraryBookDetailView, LibraryBookListItemView,
-    LibraryBookListView, ListJobsQuery,
-};
+use retainpdf_core::models::api::to_absolute_url;
+use retainpdf_files::{build_artifact_links, document_file_path};
+use retainpdf_jobs::ListJobsQuery;
+use crate::views::{LibraryBookDetailView, LibraryBookListItemView, LibraryBookListView};
 use retainpdf_core::models::domain::{JobSnapshot, UploadRecord};
 
 use retainpdf_files::{

@@ -3,7 +3,7 @@ use std::path::Path;
 use serde_json::Value;
 
 use retainpdf_api_base::error::AppError;
-use retainpdf_core::models::api::{
+use crate::views::{
     ListTranslationItemsQuery, TranslationDebugIndexView, TranslationDebugListItemView,
     TranslationDebugListView,
 };

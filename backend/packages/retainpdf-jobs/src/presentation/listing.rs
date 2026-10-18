@@ -9,9 +9,10 @@ use retainpdf_core::config::limits::MAX_JOB_LIMIT;
 use retainpdf_data::db::Db;
 use retainpdf_core::job_failure::classify_job_failure;
 use retainpdf_api_base::error::AppError;
-use retainpdf_core::models::api::{
-    summarize_list_invocation, to_absolute_url, DocumentJobListView, JobFailureBriefView,
-    JobListItemView, JobListView, ListDocumentJobsQuery, ListJobsQuery,
+use retainpdf_core::models::api::to_absolute_url;
+use crate::views::{
+    summarize_list_invocation, DocumentJobListView, JobFailureBriefView, JobListItemView,
+    JobListView, ListDocumentJobsQuery, ListJobsQuery,
 };
 use retainpdf_core::models::domain::{JobFailureInfo, JobSnapshot, UploadRecord};
 use retainpdf_files::{display_title, job_upload_id, source_file_name};

@@ -9,6 +9,7 @@
 //!   读写到一半换了库。
 
 pub mod api;
+pub mod views;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -19,7 +20,7 @@ use chrono::Utc;
 
 use retainpdf_data::db::backup::{BackupInfo, RestoreRefusal, KIND_AUTO, KIND_BEFORE_RESTORE, KIND_MANUAL};
 use retainpdf_data::db::Db;
-use retainpdf_core::models::api::{BackupItemView, BackupRestoreView, BackupStatusView};
+use views::{BackupItemView, BackupRestoreView, BackupStatusView};
 use crate::sync::SyncService;
 
 /// 多久看一次要不要自动备份。

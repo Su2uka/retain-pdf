@@ -24,15 +24,13 @@ mod public_contract;
 mod redaction;
 #[path = "models/request.rs"]
 pub mod request;
-#[path = "models/backup.rs"]
-mod backup;
 #[path = "models/sync.rs"]
 mod sync;
 #[path = "models/view.rs"]
 mod view;
 
 pub use common::{
-    build_job_id, now_iso, ApiResponse, JobStatusKind, UploadRecord, UploadView, WorkflowKind,
+    build_job_id, now_iso, ApiResponse, JobStatusKind, UploadRecord, WorkflowKind,
     LOG_TAIL_LIMIT,
 };
 pub use document_operation::{
@@ -41,11 +39,7 @@ pub use document_operation::{
     DOCUMENT_OPERATION_MANIFEST_SCHEMA, DOCUMENT_OPERATION_SCHEMA_VERSION,
     DOCUMENT_OPERATION_STATE_SCHEMA,
 };
-pub use glossary::{
-    build_glossary_id, glossary_to_csv_export, glossary_to_detail, glossary_to_summary,
-    GlossaryCsvExportView, GlossaryCsvParseInput, GlossaryCsvParseView, GlossaryDetailView,
-    GlossaryListView, GlossaryRecord, GlossarySummaryView, GlossaryUpsertInput,
-};
+pub use glossary::{build_glossary_id, GlossaryRecord};
 pub use input::{
     normalize_translation_refine_mode, CreateJobInput, GlossaryEntryInput, JobSourceInput,
     RefineOverride, OcrInput, RenderInput, ResolvedJobSpec,
@@ -79,32 +73,4 @@ pub use public_contract::{
     public_request_payload, PublicOcrInput, PublicResolvedJobSpec, PublicTranslationInput,
 };
 pub use redaction::{redact_json_value, redact_optional_text, redact_text, sensitive_values};
-pub use view::{
-    build_artifact_links, build_artifact_manifest, build_job_actions, build_job_links,
-    build_job_links_with_workflow, summarize_list_invocation, to_absolute_url, upload_to_response,
-    ActionLinkView, AmbiguousRequestPolicy, ArtifactDisplayItemView, ArtifactDownloadQuery, JobFilesQuery,
-    ArtifactLinksView, BookSummaryView, DocumentDeleteResultView, DocumentJobListView,
-    GlossaryUsageSummaryView, InvocationSummaryView, JobActionsView, JobArtifactItemView,
-    JobArtifactManifestView, JobContractsView, JobDetailView, JobDiagnosticsView, JobEventListView,
-    JobEventProgressView, JobEventRawView, JobEventRecord, JobFailureDiagnosticView, JobLinksView,
-    JobListInvocationSummaryView, JobListItemView, JobListView, JobProgressView, JobResumePlanView,
-    JobStageContractArtifactView, JobStageContractView, JobStageRuntimeView, JobStageSnapshotView,
-    JobStageStateView, JobStagesView, JobSubmissionView, JobTimestampsView,
-    LibraryBookDetailView,
-    LibraryBookListItemView, LibraryBookListView, LibraryDeleteQuery, LibraryDeleteResultView,
-    ListDocumentJobsQuery, ListGlossariesQuery, ListJobEventsQuery, ListJobsQuery,
-    ListTranslationItemsQuery, LiveTranslationCommitEventView, LiveTranslationEventsQuery,
-    LiveTranslationItemView, LiveTranslationLayoutBlockView, LiveTranslationLayoutPageView,
-    LiveTranslationLayoutView, LiveTranslationPageView, LiveTranslationTypographyView,
-    MarkdownArtifactView, MarkdownDocumentView, MarkdownImageView, MarkdownQuery, MarkdownView,
-    NormalizationSummaryView, OcrAmbiguityReceiptFieldView, OcrAmbiguityResolutionKind,
-    OcrAmbiguityResolutionRequest, OcrAmbiguityResolutionView, OcrAmbiguityView, OcrJobSummaryView,
-    LayoutDocxQuery, PagePreviewQuery, ReaderAiChatRequest, ReaderAiChatView, ReaderAiCitationView,
-    ReaderAiContextView, ReaderAiHistoryMessageView, ReaderAiRectView, ReaderAiSelectionView,
-    ReaderAiUsedContextView, ReaderDocumentMetadataView, ReaderMetadataView,
-    ReaderPageMetadataView, ReaderRegionBoxView, ReaderRegionItemView, ReaderRegionsView,
-    RefineRetryRequest, ResourceLinkView, RetryStageKind, RetryStageRequest, RetryStageSubmissionView,
-    LastRefineView, EscalatedItemView, LAST_REFINE_ESCALATED_LIMIT, StageActionsView, StageRetryActionLinkView, StageRetryActionView, TranslationDebugIndexView,
-    TranslationDebugItemView, TranslationDebugListItemView, TranslationDebugListView,
-    TranslationDiagnosticsView, TranslationReplayView, TranslationRequestRecoveryView,
-};
+pub use view::{to_absolute_url, JobEventProgressView, JobEventRawView, JobEventRecord};

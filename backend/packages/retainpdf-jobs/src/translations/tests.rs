@@ -3,7 +3,8 @@ use std::path::Path;
 
 use serde_json::json;
 
-use retainpdf_core::models::{CreateJobInput, JobArtifacts, JobSnapshot, ListTranslationItemsQuery};
+use retainpdf_core::models::{CreateJobInput, JobArtifacts, JobSnapshot};
+use crate::views::ListTranslationItemsQuery;
 
 use crate::translations::{load_translation_debug_item_view, load_translation_debug_list_view};
 

@@ -88,8 +88,10 @@ favorites, search, assets, conversations, collections) only from the
   only via `JobsFacade::create_document_submission`.
 - Cover/thumbnail generation uses `derived_artifacts` inside `library/media`,
   not from routes.
-- Library DTOs are re-exported through `models::api`; do not import
-  `models::library` from routes or migrated `db/*` modules.
+- Library request/response types live in the library package (`retainpdf-library`
+  `src/views.rs`); stored records (`DocumentRecord` and friends) stay in
+  `retainpdf-core` because `db/*` reads and writes them. Routes keep importing
+  everything through rust_api's `models::api` facade (`backend/api/src/models.rs`).
 
 ## API Contract Tests
 
@@ -314,7 +316,13 @@ decisions.
 
 ## Models
 
-`../packages/retainpdf-core/src/models/**` contains serializable input, job records, and
-public view types. Model helpers can build plain data structures, but service
-decisions such as file readiness, route scope, and event-source merging should
-remain in services.
+`../packages/retainpdf-core/src/models/**` contains serializable input, stored records
+(jobs, uploads, documents, glossaries, events) and the few shared helpers every domain
+needs. Public request/response types live in the domain that owns them (2026-10-18):
+jobs in `retainpdf-jobs` `src/views/`, artifact and action links plus file addresses in
+`retainpdf-files` (`src/artifacts/links_view.rs`, `src/links.rs`), library in
+`retainpdf-library` `src/views.rs`, glossaries, uploads and backups in their packages.
+rust_api's `models::api` (`backend/api/src/models.rs`) re-exports all of them, so
+routes and tests write `crate::models::api::…` without knowing the package.
+View builders can build plain data structures, but service decisions such as file
+readiness, route scope, and event-source merging should remain in services.

@@ -16,7 +16,7 @@ pub async fn upload_pdf(
     State(state): State<AppState>,
     principal: Principal,
     ApiMultipart(mut multipart): ApiMultipart,
-) -> Result<Json<ApiResponse<crate::models::UploadView>>, AppError> {
+) -> Result<Json<ApiResponse<crate::models::api::UploadView>>, AppError> {
     const TEXT_FIELD_MAX_BYTES: std::num::NonZeroU64 =
         std::num::NonZeroU64::new(1024 * 1024).expect("multipart text limit is non-zero");
 

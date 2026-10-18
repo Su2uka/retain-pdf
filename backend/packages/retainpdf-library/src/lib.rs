@@ -24,6 +24,7 @@ mod reading;
 mod search;
 mod translate;
 mod translate_plan;
+mod views;
 
 // 门面：领域外只能用这里导出的东西，子模块都是私有的（见 BOUNDARIES.md「Domain Facades」）。
 pub use api::{
@@ -40,6 +41,18 @@ pub use api::{
     TranslationCoverageView,
 };
 pub use media::{open_document_file, DocumentFile};
+pub use views::{
+    AddCollectionDocumentsInput, AppendMessageInput, ApplyDocumentMetadataSuggestionInput,
+    CollectionListView, CollectionMutationResult, ConversationDetailView, ConversationListView,
+    ConversationMutationResult, CreateCollectionInput, CreateConversationInput,
+    CreateDocumentMetadataSuggestionInput, DocumentDeleteResultView, DocumentListView,
+    DocumentMetadataEvidenceView, DocumentMetadataSuggestionApplyView,
+    DocumentMetadataSuggestionListView, DocumentMetadataSuggestionView, DocumentTitleCandidateView,
+    ForkConversationInput, ForkMessageInput, LibraryBookDetailView, LibraryBookListItemView,
+    LibraryBookListView, LibraryDeleteQuery, LibraryDeleteResultView, ListConversationsQuery,
+    ListDocumentMetadataSuggestionsQuery, ListDocumentsQuery, PatchCollectionInput,
+    PatchConversationInput, PatchDocumentInput, SearchQuery, SearchResultView,
+};
 // 只给测试用的。
 #[cfg(test)]
 pub(crate) use book_projection::{build_library_book_detail_view, build_library_book_list_view};

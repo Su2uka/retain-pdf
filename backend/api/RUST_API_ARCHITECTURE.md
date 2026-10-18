@@ -468,8 +468,9 @@ Rust 侧关键落点：
 - route 优先只依赖这些入口
 - 不要让 route 直接再去拼 `db + config + helper + artifact service`
 - application service 内部如果继续长大，优先拆 facade 子模块或 deps 子结构，不要再回退成一个总入口文件加一个总 deps
-- library 域 DTO（`DocumentRecord`、favorites/search/collections 等）经
-  `models::api` 再导出；route 与 migrated `db/*` **不得** 直连 `models::library`
+- library 域的请求、返回类型（文档列表、检索、对话、文件夹、书架）在书库包 `src/views.rs`；
+  库里存的记录（`DocumentRecord` 等）留在核心包，`db/*` 要用。route 照旧经 rust_api 的
+  `models::api`（`src/models.rs`）导入，不用知道类型在哪个包
 
 #### 书库包 `retainpdf-library`（`api.rs` + 其余模块）
 

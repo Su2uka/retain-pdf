@@ -1,5 +1,5 @@
 use retainpdf_api_base::error::AppError;
-use retainpdf_core::models::api::JobSubmissionView;
+use crate::views::JobSubmissionView;
 use retainpdf_core::models::domain::{now_iso, JobSnapshot, JobStatusKind, WorkflowKind};
 use retainpdf_core::models::request::{CreateJobInput, JobSourceInput};
 use crate::actions::stage_plan::resume_plan;

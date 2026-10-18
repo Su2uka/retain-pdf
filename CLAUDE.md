@@ -93,6 +93,9 @@ cargo test -p retainpdf-api -p retainpdf-api-base -p retainpdf-accounts -p retai
   按编号读出任务（`job_loading`）和错误类型（`AppError`）在单独的包 `retainpdf-api-base` 里，services 下面一层；
   rust_api 里照旧写 `crate::error`（`job_loading` 只有领域包用，写 `retainpdf_api_base::job_loading`）。
   只给测试用的小工具（找项目 Python 环境的 `project_venv_bin`、最小 PDF `minimal_pdf_bytes`）也在底座包，挂在 `test-fixtures` 下。
+- 接口的请求、返回类型放在它所属的领域包里（任务的在 `retainpdf-jobs` 的 `views/`，书库、术语表、文件链接、上传、备份各在自己的包），
+  在 rust_api 的 `backend/api/src/models.rs` 里并进 `models::api`，路由照旧写 `crate::models::api::…`。核心包只放库里存的记录
+  （任务、上传、文档、术语表、事件）和各领域都要用的小工具，不再加返回类型。
 - 读任务请求里的东西用 retainpdf-core `models/job/questions.rs` 的方法（`job.source_job_id()`、`job.uses_model_executor()`……），
   不要一路点进 `job.request_payload.<字段>`；只有 `KNOWN_REQUEST_PAYLOAD_WRITERS` 里生成、改写请求的模块可以，名单只许减不许加。
 - 产物文件路径只许出口模块拼（`services/jobs/files/downloads`、`services/jobs/reader/markdown.rs`、`services/library/media.rs`，以及文件包

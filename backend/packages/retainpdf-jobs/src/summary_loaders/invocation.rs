@@ -1,4 +1,4 @@
-use retainpdf_core::models::api::InvocationSummaryView;
+use crate::views::InvocationSummaryView;
 
 pub(super) fn load_invocation_summary_from_json(
     payload: &serde_json::Value,

@@ -89,12 +89,6 @@ pub(crate) fn default_inner_bbox_dense_shrink_x() -> f64 {
 pub(crate) fn default_inner_bbox_dense_shrink_y() -> f64 {
     0.0
 }
-pub(crate) fn default_limit() -> u32 {
-    crate::config::limits::DEFAULT_LIST_LIMIT
-}
-pub(crate) fn default_event_limit() -> u32 {
-    500
-}
 
 // ---- Pagination max limits (centralized) ----
 // Single source of truth is `crate::config::limits`; re-export here for

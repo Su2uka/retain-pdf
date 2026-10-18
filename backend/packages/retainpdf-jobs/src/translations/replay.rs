@@ -2,7 +2,8 @@ use retainpdf_data::credentials::resolve_credential;
 use tokio::process::Command;
 
 use retainpdf_api_base::error::AppError;
-use retainpdf_core::models::api::{redact_json_value, redact_text, sensitive_values, TranslationReplayView};
+use retainpdf_core::models::api::{redact_json_value, redact_text, sensitive_values};
+use crate::views::TranslationReplayView;
 use retainpdf_core::models::domain::JobSnapshot;
 use retainpdf_core::storage_paths::resolve_job_root;
 

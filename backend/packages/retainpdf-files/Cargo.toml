@@ -10,6 +10,7 @@ retainpdf-core = { path = "../retainpdf-core" }
 retainpdf-data = { path = "../retainpdf-data" }
 fastrand = "2"
 libc = "0.2"
+serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["full"] }
 walkdir = "2"

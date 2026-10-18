@@ -1,7 +1,7 @@
 use super::{UploadService, UploadedPdfInput};
 use retainpdf_api_base::error::AppError;
 use retainpdf_accounts::Principal;
-use retainpdf_core::models::api::{upload_to_response, UploadView};
+use super::view::{upload_to_response, UploadView};
 use retainpdf_core::models::domain::UploadRecord;
 
 pub struct UploadApiDeps<'a> {

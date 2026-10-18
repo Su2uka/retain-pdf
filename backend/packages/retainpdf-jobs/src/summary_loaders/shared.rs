@@ -3,9 +3,7 @@ use std::path::{Path, PathBuf};
 
 use serde_json::Value;
 
-use retainpdf_core::models::api::{
-    GlossaryUsageSummaryView, InvocationSummaryView, NormalizationSummaryView,
-};
+use crate::views::{GlossaryUsageSummaryView, InvocationSummaryView, NormalizationSummaryView};
 use retainpdf_core::models::domain::{JobSnapshot, UploadRecord};
 use retainpdf_core::storage_paths::resolve_data_path;
 use crate::{stored_path, StoredFile};

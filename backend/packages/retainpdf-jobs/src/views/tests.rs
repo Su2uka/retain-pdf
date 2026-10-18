@@ -1,15 +1,16 @@
 use std::fs;
 
-use crate::models::view::job::{
-    build_artifact_manifest, build_job_actions, build_job_links_with_workflow, job_to_detail,
+use retainpdf_files::build_job_actions;
+use super::job::{
+    build_artifact_manifest, build_job_links_with_workflow, job_to_detail,
     job_to_list_item, summarize_list_invocation, InvocationSummaryView, JobListItemView,
 };
-use crate::models::{
+use retainpdf_core::models::{
     redact_json_value, redact_text, sensitive_values, CreateJobInput, JobArtifactRecord,
-    JobArtifacts, JobFailureInfo, JobSnapshot, JobStageRuntimeView, JobStageStateView,
-    JobStagesView, JobStatusKind, WorkflowKind,
+    JobArtifacts, JobFailureInfo, JobSnapshot, JobStatusKind, WorkflowKind,
 };
-use crate::storage_paths::{
+use crate::views::{JobStageRuntimeView, JobStageStateView, JobStagesView};
+use retainpdf_core::storage_paths::{
     ARTIFACT_KEY_MARKDOWN_RAW, ARTIFACT_KEY_NORMALIZED_DOCUMENT_JSON, ARTIFACT_KEY_TRANSLATED_PDF,
     ARTIFACT_KEY_TRANSLATION_MANIFEST_JSON,
 };
@@ -38,8 +39,8 @@ fn artifact_record(job_id: &str, artifact_key: &str) -> JobArtifactRecord {
     }
 }
 
-fn empty_progress() -> crate::models::JobProgressView {
-    crate::models::JobProgressView {
+fn empty_progress() -> crate::views::JobProgressView {
+    crate::views::JobProgressView {
         current: None,
         total: None,
         percent: None,
@@ -191,7 +192,7 @@ fn redact_helpers_remove_structured_and_inline_secrets() {
     let mut input = CreateJobInput::default();
     input.translation.api_key = "sk-secret".to_string();
     input.ocr.mineru_token = "mineru-secret".to_string();
-    let spec = crate::models::ResolvedJobSpec::from_input(input);
+    let spec = retainpdf_core::models::ResolvedJobSpec::from_input(input);
     let secrets = sensitive_values(&spec);
 
     let text = redact_text("token=sk-secret mineru-secret", &secrets);
@@ -573,7 +574,7 @@ fn job_detail_view_loads_glossary_summary_from_translation_manifest() {
     .expect("write manifest");
 
     let mut job = build_job("job-glossary", WorkflowKind::Translate);
-    job.artifacts = Some(crate::models::JobArtifacts {
+    job.artifacts = Some(retainpdf_core::models::JobArtifacts {
         translations_dir: Some("jobs/job-glossary/translated".to_string()),
         ..Default::default()
     });
@@ -618,7 +619,7 @@ fn job_detail_view_loads_invocation_from_translation_manifest() {
     .expect("write manifest");
 
     let mut job = build_job("job-invocation", WorkflowKind::Translate);
-    job.artifacts = Some(crate::models::JobArtifacts {
+    job.artifacts = Some(retainpdf_core::models::JobArtifacts {
         translations_dir: Some("jobs/job-invocation/translated".to_string()),
         ..Default::default()
     });
@@ -664,7 +665,7 @@ fn job_detail_view_loads_invocation_from_pipeline_summary_fallback() {
     .expect("write summary");
 
     let mut job = build_job("job-invocation-summary", WorkflowKind::Render);
-    job.artifacts = Some(crate::models::JobArtifacts {
+    job.artifacts = Some(retainpdf_core::models::JobArtifacts {
         summary: Some("jobs/job-invocation-summary/artifacts/pipeline_summary.json".to_string()),
         ..Default::default()
     });

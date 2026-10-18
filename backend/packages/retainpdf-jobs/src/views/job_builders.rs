@@ -1,14 +1,13 @@
+#[cfg(test)]
 use std::path::Path;
 
-use crate::models::{
-    JobArtifactRecord, JobSnapshot, JobStatusKind, UploadRecord, UploadView, WorkflowKind,
-};
-use crate::storage_paths::{
-    resolve_markdown_path, resolve_normalization_report, resolve_normalized_document,
-    resolve_output_pdf,
-};
+use retainpdf_core::models::{JobArtifactRecord, JobSnapshot, WorkflowKind};
+#[cfg(test)]
+use retainpdf_core::models::JobStatusKind;
 
-use super::super::common::{ActionLinkView, JobActionsView, JobLinksView};
+use super::super::common::JobLinksView;
+#[cfg(test)]
+use retainpdf_files::{build_artifact_links, build_job_actions};
 #[cfg(test)]
 use super::super::common::{
     JobProgressView, JobStageRuntimeView, JobStageStateView, JobStagesView, JobTimestampsView,
@@ -18,19 +17,18 @@ use super::super::test_support::{
     build_ocr_job_summary, job_failure_to_legacy_view, load_glossary_summary,
     load_invocation_summary, load_normalization_summary,
 };
-use super::super::file_paths::{
-    document_file_path, job_bundle_path, job_file_path, job_files_list_path, job_internal_file_name,
-    job_markdown_view_path,
+use retainpdf_files::{
+    document_file_path, job_file_path, job_files_list_path, job_internal_file_name,
     job_ocr_images_base_path, job_ocr_markdown_path, job_translated_pdf_path,
 };
 use super::super::to_absolute_url;
 use super::types::*;
 #[cfg(test)]
-use crate::job_failure::classify_job_failure;
+use retainpdf_core::job_failure::classify_job_failure;
 #[cfg(test)]
-use crate::models::public_request_payload;
+use retainpdf_core::models::public_request_payload;
 #[cfg(test)]
-use crate::models::JobFailureInfo;
+use retainpdf_core::models::JobFailureInfo;
 
 pub fn build_job_links(job_id: &str, base_url: &str) -> JobLinksView {
     build_job_links_with_workflow(job_id, &WorkflowKind::Book, base_url)
@@ -63,167 +61,6 @@ pub fn build_job_links_with_workflow(
         events_url: to_absolute_url(base_url, &events_path),
         cancel_path: cancel_path.clone(),
         cancel_url: to_absolute_url(base_url, &cancel_path),
-    }
-}
-
-fn can_cancel(status: &JobStatusKind) -> bool {
-    matches!(status, JobStatusKind::Queued | JobStatusKind::Running)
-}
-
-fn can_rerun(job: &JobSnapshot) -> bool {
-    if matches!(job.workflow, WorkflowKind::Ocr) {
-        return false;
-    }
-    let Some(artifacts) = job.artifacts.as_ref() else {
-        return false;
-    };
-    let has_source_pdf = artifacts
-        .source_pdf
-        .as_deref()
-        .map(str::trim)
-        .is_some_and(|value| !value.is_empty());
-    let has_translations = artifacts
-        .translations_dir
-        .as_deref()
-        .map(str::trim)
-        .is_some_and(|value| !value.is_empty());
-    let has_normalized = artifacts
-        .normalized_document_json
-        .as_deref()
-        .map(str::trim)
-        .is_some_and(|value| !value.is_empty());
-    has_source_pdf && (has_translations || has_normalized)
-}
-
-fn action_link(enabled: bool, method: &str, path: String, base_url: &str) -> ActionLinkView {
-    ActionLinkView {
-        enabled,
-        method: method.to_string(),
-        path: path.clone(),
-        url: to_absolute_url(base_url, &path),
-    }
-}
-
-pub fn build_job_actions(
-    job: &JobSnapshot,
-    base_url: &str,
-    pdf_ready: bool,
-    markdown_ready: bool,
-    bundle_ready: bool,
-) -> JobActionsView {
-    let prefix = job_path_prefix(&job.workflow);
-    let cancel_path = format!("{prefix}/{}/actions/cancel", job.job_id);
-    let rerun_path = format!("{prefix}/{}/actions/rerun", job.job_id);
-    let pdf_path = job_translated_pdf_path(&job.job_id);
-    let markdown_path = job_markdown_view_path(&job.job_id);
-    let markdown_raw_path = job_ocr_markdown_path(&job.job_id);
-    let bundle_path = job_bundle_path(&job.job_id);
-    let self_path = format!("{prefix}/{}", job.job_id);
-    let artifacts_path = job_files_list_path(&job.job_id);
-    JobActionsView {
-        open_job: action_link(true, "GET", self_path, base_url),
-        open_artifacts: action_link(true, "GET", artifacts_path, base_url),
-        cancel: action_link(can_cancel(&job.status), "POST", cancel_path, base_url),
-        rerun: action_link(can_rerun(job), "POST", rerun_path, base_url),
-        download_pdf: action_link(pdf_ready, "GET", pdf_path, base_url),
-        open_markdown: action_link(markdown_ready, "GET", markdown_path, base_url),
-        open_markdown_raw: action_link(markdown_ready, "GET", markdown_raw_path, base_url),
-        download_bundle: action_link(bundle_ready, "GET", bundle_path, base_url),
-    }
-}
-
-pub fn build_artifact_links(
-    job: &JobSnapshot,
-    base_url: &str,
-    data_root: &Path,
-    pdf_ready: bool,
-    markdown_ready: bool,
-    bundle_ready: bool,
-) -> ArtifactLinksView {
-    let pdf_path = job_translated_pdf_path(&job.job_id);
-    let markdown_path = job_markdown_view_path(&job.job_id);
-    let markdown_raw_path = job_ocr_markdown_path(&job.job_id);
-    let markdown_images_base_path = job_ocr_images_base_path(&job.job_id);
-    let bundle_path = job_bundle_path(&job.job_id);
-    let normalized_document_path = job_file_path(&job.job_id, "internal/normalized-document.json");
-    let normalization_report_path = job_file_path(&job.job_id, "internal/normalization-report.json");
-    let manifest_path = job_files_list_path(&job.job_id);
-    let pdf_file_path = resolve_output_pdf(job, data_root);
-    let markdown_file_path = resolve_markdown_path(job, data_root);
-
-    ArtifactLinksView {
-        pdf_ready,
-        markdown_ready,
-        bundle_ready,
-        schema_version: job
-            .artifacts
-            .as_ref()
-            .and_then(|a| a.schema_version.clone()),
-        provider_raw_dir: job
-            .artifacts
-            .as_ref()
-            .and_then(|a| a.provider_raw_dir.clone()),
-        provider_zip: job.artifacts.as_ref().and_then(|a| a.provider_zip.clone()),
-        provider_summary_json: job
-            .artifacts
-            .as_ref()
-            .and_then(|a| a.provider_summary_json.clone()),
-        pdf_url: to_absolute_url(base_url, &pdf_path),
-        markdown_url: to_absolute_url(base_url, &markdown_path),
-        markdown_images_base_url: to_absolute_url(base_url, &markdown_images_base_path),
-        bundle_url: to_absolute_url(base_url, &bundle_path),
-        normalized_document_url: to_absolute_url(base_url, &normalized_document_path),
-        normalization_report_url: to_absolute_url(base_url, &normalization_report_path),
-        manifest_path: manifest_path.clone(),
-        manifest_url: to_absolute_url(base_url, &manifest_path),
-        actions: build_job_actions(job, base_url, pdf_ready, markdown_ready, bundle_ready),
-        normalized_document: ResourceLinkView {
-            ready: resolve_normalized_document(job, data_root).is_some(),
-            path: normalized_document_path.clone(),
-            url: to_absolute_url(base_url, &normalized_document_path),
-            method: "GET".to_string(),
-            content_type: "application/json".to_string(),
-            file_name: Some("document.v1.json".to_string()),
-            size_bytes: file_size(resolve_normalized_document(job, data_root).as_deref()),
-        },
-        normalization_report: ResourceLinkView {
-            ready: resolve_normalization_report(job, data_root).is_some(),
-            path: normalization_report_path.clone(),
-            url: to_absolute_url(base_url, &normalization_report_path),
-            method: "GET".to_string(),
-            content_type: "application/json".to_string(),
-            file_name: Some("document.v1.report.json".to_string()),
-            size_bytes: file_size(resolve_normalization_report(job, data_root).as_deref()),
-        },
-        pdf: ResourceLinkView {
-            ready: pdf_ready,
-            path: pdf_path.clone(),
-            url: to_absolute_url(base_url, &pdf_path),
-            method: "GET".to_string(),
-            content_type: "application/pdf".to_string(),
-            file_name: file_name_from_path(pdf_file_path.as_deref()),
-            size_bytes: file_size(pdf_file_path.as_deref()),
-        },
-        markdown: MarkdownArtifactView {
-            ready: markdown_ready,
-            json_path: markdown_path.clone(),
-            json_url: to_absolute_url(base_url, &markdown_path),
-            raw_path: markdown_raw_path.clone(),
-            raw_url: to_absolute_url(base_url, &markdown_raw_path),
-            images_base_path: markdown_images_base_path.clone(),
-            images_base_url: to_absolute_url(base_url, &markdown_images_base_path),
-            file_name: file_name_from_path(markdown_file_path.as_deref()),
-            size_bytes: file_size(markdown_file_path.as_deref()),
-        },
-        bundle: ResourceLinkView {
-            ready: bundle_ready,
-            path: bundle_path.clone(),
-            url: to_absolute_url(base_url, &bundle_path),
-            method: "GET".to_string(),
-            content_type: "application/zip".to_string(),
-            file_name: Some(format!("{}.zip", job.job_id)),
-            size_bytes: None,
-        },
     }
 }
 
@@ -490,7 +327,7 @@ fn test_stage_snapshot(job: &JobSnapshot, percent: Option<f64>) -> Option<JobSta
         return None;
     }
     let display_stage =
-        crate::models::public_stage_for_raw_stage(job.stage.as_deref()).map(str::to_string)?;
+        retainpdf_core::models::public_stage_for_raw_stage(job.stage.as_deref()).map(str::to_string)?;
     Some(JobStageSnapshotView {
         display_stage: Some(display_stage),
         stage: job.stage.clone(),
@@ -583,25 +420,3 @@ pub fn summarize_list_invocation(items: &[JobListItemView]) -> JobListInvocation
     }
 }
 
-pub fn upload_to_response(upload: &UploadRecord) -> UploadView {
-    UploadView {
-        upload_id: upload.upload_id.clone(),
-        document_id: upload.content_hash.clone(),
-        filename: upload.filename.clone(),
-        bytes: upload.bytes,
-        page_count: upload.page_count,
-        uploaded_at: upload.uploaded_at.clone(),
-    }
-}
-
-fn file_name_from_path(path: Option<&Path>) -> Option<String> {
-    path.and_then(|value| {
-        value
-            .file_name()
-            .map(|name| name.to_string_lossy().to_string())
-    })
-}
-
-fn file_size(path: Option<&Path>) -> Option<u64> {
-    path.and_then(|value| std::fs::metadata(value).ok().map(|meta| meta.len()))
-}

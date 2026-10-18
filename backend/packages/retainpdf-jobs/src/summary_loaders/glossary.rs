@@ -1,4 +1,4 @@
-use retainpdf_core::models::api::GlossaryUsageSummaryView;
+use crate::views::GlossaryUsageSummaryView;
 
 pub(super) fn load_glossary_summary_from_json(
     payload: &serde_json::Value,

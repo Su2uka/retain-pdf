@@ -10,7 +10,7 @@ use std::path::Path;
 use serde_json::Value;
 
 use retainpdf_api_base::error::AppError;
-use retainpdf_core::models::api::RefineRetryRequest;
+use crate::views::RefineRetryRequest;
 use retainpdf_core::models::domain::{now_iso, CreateJobInput, JobSnapshot, RefineOverride};
 use retainpdf_providers::{
     acquire_credential_usage_lock, get_or_create_managed_credential, CredentialUsageLock,

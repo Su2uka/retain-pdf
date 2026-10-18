@@ -1,7 +1,8 @@
 use std::path::Path;
 
 use retainpdf_api_base::error::AppError;
-use retainpdf_core::models::api::{redact_json_value, sensitive_values, TranslationDebugItemView};
+use retainpdf_core::models::api::{redact_json_value, sensitive_values};
+use crate::views::TranslationDebugItemView;
 use retainpdf_core::models::domain::JobSnapshot;
 
 use crate::translations::artifacts::{load_manifest_pages, translation_manifest_path};

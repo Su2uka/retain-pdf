@@ -1,5 +1,5 @@
 use retainpdf_api_base::error::AppError;
-use retainpdf_core::models::api::{ReaderMetadataView, ReaderRegionsView};
+use crate::views::{ReaderMetadataView, ReaderRegionsView};
 
 use crate::reader::reader_regions::{load_reader_metadata_view, load_reader_regions_view};
 use retainpdf_api_base::job_loading::load_supported_job;

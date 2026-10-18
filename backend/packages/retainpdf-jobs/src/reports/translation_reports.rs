@@ -1,9 +1,8 @@
 use std::path::Path;
 
 use retainpdf_api_base::error::AppError;
-use retainpdf_core::models::api::{
-    redact_json_value, sensitive_values, JobReportView, TranslationDiagnosticsView,
-};
+use retainpdf_core::models::api::{redact_json_value, sensitive_values};
+use crate::views::{JobReportView, TranslationDiagnosticsView};
 use retainpdf_core::models::domain::JobSnapshot;
 use retainpdf_core::storage_paths::{
     resolve_fit_report, resolve_refine_report, resolve_translation_diagnostics,

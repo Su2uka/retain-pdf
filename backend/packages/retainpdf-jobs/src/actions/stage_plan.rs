@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use retainpdf_core::models::api::RetryStageKind;
+use crate::views::RetryStageKind;
 use retainpdf_core::models::domain::{JobSnapshot, JobStatusKind, WorkflowKind};
 use crate::actions::translation_request_recovery::load_translation_request_recovery;
 use crate::runtime_gateway::{

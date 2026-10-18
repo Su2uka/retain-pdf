@@ -1,5 +1,5 @@
 use retainpdf_api_base::error::AppError;
-use retainpdf_core::models::api::JobSubmissionView;
+use crate::views::JobSubmissionView;
 use retainpdf_core::models::domain::JobStatusKind;
 
 use crate::actions::cancel::cancel_job as cancel_job_service;

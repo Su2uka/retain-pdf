@@ -9,6 +9,7 @@ retainpdf-api-base = { path = "../retainpdf-api-base" }
 retainpdf-core = { path = "../retainpdf-core" }
 retainpdf-data = { path = "../retainpdf-data" }
 csv = "1"
+serde = { version = "1", features = ["derive"] }
 
 [dev-dependencies]
 fastrand = "2"

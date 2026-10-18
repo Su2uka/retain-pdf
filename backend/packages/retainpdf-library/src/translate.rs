@@ -1,7 +1,7 @@
 //! Translate-from-library: reuse a document's stored upload and submit via JobsFacade.
 
 use retainpdf_api_base::error::AppError;
-use retainpdf_core::models::api::JobSubmissionView;
+use retainpdf_jobs::JobSubmissionView;
 use retainpdf_core::models::domain::WorkflowKind;
 use retainpdf_core::models::request::CreateJobInput;
 use retainpdf_jobs::{

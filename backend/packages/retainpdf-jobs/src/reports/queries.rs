@@ -1,5 +1,5 @@
 use retainpdf_api_base::error::AppError;
-use retainpdf_core::models::api::{JobReportView, TranslationDiagnosticsView};
+use crate::views::{JobReportView, TranslationDiagnosticsView};
 
 use retainpdf_api_base::job_loading::load_supported_job;
 use crate::query::JobQueries;

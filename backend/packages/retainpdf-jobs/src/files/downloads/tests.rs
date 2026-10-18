@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use retainpdf_api_base::error::AppError;
-use retainpdf_core::models::api::PagePreviewQuery;
+use crate::views::PagePreviewQuery;
 
 use super::fixture::{DownloadFixture as Fixture, JOB_ID};
 use crate::files::downloads::{Disposition, JobFile, JobScope};
