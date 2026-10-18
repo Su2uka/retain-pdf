@@ -247,6 +247,44 @@ test("job detail action links own reader and pdf readiness rules", () => {
   }), false);
 });
 
+test("job detail markdown flow：没发布 Markdown 的任务（失败的）不去取 /reader/markdown", async () => {
+  const previousDocument = globalThis.document;
+  globalThis.document = { getElementById: () => null };
+  const fields = {};
+  const links = {};
+  const state = { markdownPayload: { content: "旧的" } };
+  try {
+    for (const job of [
+      { status: "failed", artifacts: { markdown: { ready: false, json_path: "/api/v1/jobs/job-failed/reader/markdown" } } },
+      { status: "failed", artifacts: {} },
+    ]) {
+      await loadAndRenderMarkdownFlow({
+        fetchProtected: async () => {
+          throw new Error("no image fetch expected");
+        },
+        job,
+        jobId: "job-failed",
+        loadMarkdownPayload: async () => {
+          throw new Error("不该去取 /reader/markdown");
+        },
+        markdownImageUrls: [],
+        setActionLink: (id, url, enabled) => {
+          links[id] = { enabled: Boolean(enabled), url };
+        },
+        setText: (id, value) => {
+          fields[id] = value;
+        },
+        state,
+      });
+      assert.equal(state.markdownPayload, null);
+      assert.equal(fields["detail-markdown-status"], "当前任务没有已发布 Markdown");
+      assert.equal(links["detail-markdown-json-btn"].enabled, false);
+    }
+  } finally {
+    globalThis.document = previousDocument;
+  }
+});
+
 test("job detail markdown flow owns loading state and status fallbacks", async () => {
   const previousDocument = globalThis.document;
   globalThis.document = {
