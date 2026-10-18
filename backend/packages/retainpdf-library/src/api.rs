@@ -12,17 +12,18 @@ pub use crate::merge::reading::DocumentReadingView;
 
 use retainpdf_api_base::error::AppError;
 use retainpdf_core::models::api::{
+    AssetRecord, CollectionRecord, ConversationRecord, JobSubmissionView, ListJobsQuery,
+    MessageRecord,
+};
+use crate::views::{
     AddCollectionDocumentsInput, AppendMessageInput, ApplyDocumentMetadataSuggestionInput,
-    AssetRecord, CollectionListView, CollectionMutationResult, CollectionRecord,
-    ConversationDetailView, ConversationListView, ConversationMutationResult, ConversationRecord,
-    CreateCollectionInput, CreateConversationInput, CreateDocumentMetadataSuggestionInput,
-    DocumentDeleteResultView, DocumentMetadataSuggestionApplyView,
-    DocumentMetadataSuggestionListView, DocumentMetadataSuggestionView, JobSubmissionView,
-    LibraryBookDetailView,
-    LibraryBookListView, LibraryDeleteResultView, ListConversationsQuery,
-    ListDocumentMetadataSuggestionsQuery, ListJobsQuery, MessageRecord,
-    PatchCollectionInput, PatchConversationInput, SearchQuery,
-    SearchResultView,
+    CollectionListView, CollectionMutationResult, ConversationDetailView, ConversationListView,
+    ConversationMutationResult, CreateCollectionInput, CreateConversationInput,
+    CreateDocumentMetadataSuggestionInput, DocumentDeleteResultView,
+    DocumentMetadataSuggestionApplyView, DocumentMetadataSuggestionListView,
+    DocumentMetadataSuggestionView, LibraryBookDetailView, LibraryBookListView,
+    LibraryDeleteResultView, ListConversationsQuery, ListDocumentMetadataSuggestionsQuery,
+    PatchCollectionInput, PatchConversationInput, SearchQuery, SearchResultView,
 };
 use retainpdf_core::models::request::CreateJobInput;
 use retainpdf_jobs::JobsFacade;
@@ -208,7 +209,7 @@ pub fn patch_conversation_view(
 
 pub fn fork_conversation_view(
     deps: &LibraryDeps<'_>,
-    payload: &retainpdf_core::models::api::ForkConversationInput,
+    payload: &crate::views::ForkConversationInput,
 ) -> Result<ConversationDetailView, AppError> {
     super::fork_conversation(deps, payload)
 }

@@ -8,11 +8,12 @@ use serde_json::Value;
 use sha2::{Digest, Sha256};
 
 use retainpdf_api_base::error::AppError;
-use retainpdf_core::models::api::{
+use retainpdf_core::models::api::DocumentRecord;
+use crate::views::{
     ApplyDocumentMetadataSuggestionInput, CreateDocumentMetadataSuggestionInput,
     DocumentMetadataEvidenceView, DocumentMetadataSuggestionApplyView,
-    DocumentMetadataSuggestionListView, DocumentMetadataSuggestionView, DocumentRecord,
-    DocumentTitleCandidateView, ListDocumentMetadataSuggestionsQuery,
+    DocumentMetadataSuggestionListView, DocumentMetadataSuggestionView, DocumentTitleCandidateView,
+    ListDocumentMetadataSuggestionsQuery,
 };
 use retainpdf_core::models::domain::build_job_id;
 use retainpdf_core::storage_paths::resolve_job_root;

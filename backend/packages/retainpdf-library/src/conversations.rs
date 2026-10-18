@@ -2,10 +2,10 @@
 
 use retainpdf_core::config::limits::MAX_CONVERSATION_LIMIT;
 use retainpdf_api_base::error::AppError;
-use retainpdf_core::models::api::{
+use retainpdf_core::models::api::{ConversationRecord, MessageRecord};
+use crate::views::{
     AppendMessageInput, ConversationDetailView, ConversationListView, ConversationMutationResult,
-    ConversationRecord, CreateConversationInput, ForkConversationInput, ListConversationsQuery,
-    MessageRecord, PatchConversationInput,
+    CreateConversationInput, ForkConversationInput, ListConversationsQuery, PatchConversationInput,
 };
 use retainpdf_core::models::domain::build_job_id;
 

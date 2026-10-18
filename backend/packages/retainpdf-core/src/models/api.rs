@@ -1,16 +1,8 @@
 pub use super::common::{ApiResponse, UploadView};
 pub use super::library::{
-    AddCollectionDocumentsInput, AppendMessageInput, ApplyDocumentMetadataSuggestionInput,
-    AssetRecord, BlockSearchHit, CollectionListView, CollectionMutationResult, CollectionRecord,
-    ConversationDetailView, ConversationListView, ConversationMutationResult, ConversationRecord,
-    CreateCollectionInput, CreateConversationInput, CreateDocumentMetadataSuggestionInput,
-    DocumentListView, DocumentMetadataEvidenceView,
-    DocumentMetadataSuggestionApplyView, DocumentMetadataSuggestionListView,
-    DocumentMetadataSuggestionView, DocumentRecord, DocumentTitleCandidateView, ForkConversationInput,
-    ForkMessageInput, FtsBlockRow, ListConversationsQuery, ListDocumentMetadataSuggestionsQuery,
-    ListDocumentsQuery, MessageRecord, PatchCollectionInput,
-    PatchConversationInput, PatchDocumentInput, SearchQuery, SearchResultView,
-};
+    AssetRecord, BlockSearchHit, CollectionRecord,
+    ConversationRecord,
+    DocumentRecord, FtsBlockRow, MessageRecord, };
 pub use super::public_contract::{public_request_payload, PublicResolvedJobSpec};
 pub use super::sync::{
     SyncMaintenanceView, SyncPeerView, SyncPendingItemView, SyncRunView, SyncSettingsInput, SyncStatusView,
@@ -25,15 +17,14 @@ pub use super::view::{
     job_ocr_markdown_path, job_translated_pdf_path, JOB_INTERNAL_FILES,
     build_job_links_with_workflow, summarize_list_invocation, to_absolute_url, upload_to_response,
     AmbiguousRequestPolicy, ArtifactDisplayItemView, ArtifactDownloadQuery, JobFilesQuery, ArtifactLinksView,
-    BookSummaryView, DocumentDeleteResultView, DocumentJobListView, GlossaryUsageSummaryView,
+    BookSummaryView, DocumentJobListView, GlossaryUsageSummaryView,
     InvocationSummaryView, JobActionsView, JobArtifactManifestView, JobContractsView,
     JobDetailView, JobDiagnosticsView, JobEventFeedItem, JobEventListView, JobEventProgressView,
     JobEventRawView, JobEventRecord, JobFailureBriefView, JobFailureDiagnosticView, JobLinksView,
     JobListItemView,
     JobListView, JobProgressView, JobResumePlanView, JobStageContractArtifactView,
     JobStageContractView, JobStageRuntimeView, JobStageSnapshotView, JobStageStateView,
-    JobStagesView, JobSubmissionView, JobTimestampsView, LibraryBookDetailView, LibraryBookListItemView,
-    LibraryBookListView, LibraryDeleteQuery, LibraryDeleteResultView, ListDocumentJobsQuery,
+    JobStagesView, JobSubmissionView, JobTimestampsView, ListDocumentJobsQuery,
     ListJobEventsQuery, ListJobEventsStart, ListJobsQuery,
     ListTranslationItemsQuery, LiveTranslationCommitEventView, LiveTranslationEventsQuery,
     LiveTranslationItemView, LiveTranslationLayoutBlockView, LiveTranslationLayoutPageView,

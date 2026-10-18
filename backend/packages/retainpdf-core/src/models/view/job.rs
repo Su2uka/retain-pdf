@@ -11,13 +11,12 @@ pub use builders::{
 pub use builders::{job_to_detail, job_to_list_item};
 pub use types::{
     AmbiguousRequestPolicy, ArtifactDisplayItemView, ArtifactLinksView, BookSummaryView,
-    DocumentDeleteResultView, DocumentJobListView, GlossaryUsageSummaryView, InvocationSummaryView,
+    DocumentJobListView, GlossaryUsageSummaryView, InvocationSummaryView,
     JobArtifactItemView, JobArtifactManifestView, JobContractsView, JobDetailView,
     JobDiagnosticsView, JobFailureBriefView, JobFailureDiagnosticView, JobListInvocationSummaryView,
     JobListItemView,
     JobListView, JobResumePlanView, JobStageContractArtifactView, JobStageContractView,
-    JobStageSnapshotView, LibraryBookDetailView, LibraryBookListItemView, LibraryBookListView, LibraryDeleteQuery,
-    LibraryDeleteResultView, MarkdownArtifactView, NormalizationSummaryView,
+    JobStageSnapshotView, MarkdownArtifactView, NormalizationSummaryView,
     OcrAmbiguityReceiptFieldView, OcrAmbiguityResolutionKind, OcrAmbiguityResolutionRequest,
     OcrAmbiguityResolutionView, OcrAmbiguityView, OcrJobSummaryView, LayoutDocxQuery, PagePreviewQuery,
     ReaderDocumentMetadataView, ReaderMetadataView, ReaderPageMetadataView, ReaderRegionBoxView,

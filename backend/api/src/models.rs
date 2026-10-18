@@ -11,5 +11,17 @@ pub mod api {
         GlossaryCsvExportView, GlossaryCsvParseInput, GlossaryCsvParseView, GlossaryDetailView,
         GlossaryListView, GlossarySummaryView, GlossaryUpsertInput, ListGlossariesQuery,
     };
+    pub use retainpdf_library::{
+        AddCollectionDocumentsInput, AppendMessageInput, ApplyDocumentMetadataSuggestionInput,
+        CollectionListView, CollectionMutationResult, ConversationDetailView, ConversationListView,
+        ConversationMutationResult, CreateCollectionInput, CreateConversationInput,
+        CreateDocumentMetadataSuggestionInput, DocumentDeleteResultView, DocumentListView,
+        DocumentMetadataEvidenceView, DocumentMetadataSuggestionApplyView,
+        DocumentMetadataSuggestionListView, DocumentMetadataSuggestionView, DocumentTitleCandidateView,
+        ForkConversationInput, ForkMessageInput, LibraryBookDetailView, LibraryBookListItemView,
+        LibraryBookListView, LibraryDeleteQuery, LibraryDeleteResultView, ListConversationsQuery,
+        ListDocumentMetadataSuggestionsQuery, ListDocumentsQuery, PatchCollectionInput,
+        PatchConversationInput, PatchDocumentInput, SearchQuery, SearchResultView,
+    };
     pub use retainpdf_platform::{BackupItemView, BackupRestoreView, BackupStatusView};
 }

@@ -702,58 +702,6 @@ pub struct DocumentJobListView {
     pub has_more: bool,
 }
 
-#[derive(Debug, Serialize)]
-pub struct LibraryBookListItemView {
-    pub id: String,
-    pub job_id: String,
-    pub title: String,
-    pub display_name: String,
-    pub source_file_name: Option<String>,
-    pub authors: Option<String>,
-    pub page_count: Option<i64>,
-    pub status: JobStatusKind,
-    pub stage: Option<String>,
-    pub stage_detail: Option<String>,
-    pub progress: JobProgressView,
-    pub cover_url: Option<String>,
-    pub thumbnail_url: Option<String>,
-    pub output_pdf_ready: bool,
-    pub markdown_ready: bool,
-    pub bundle_ready: bool,
-    pub created_at: String,
-    pub updated_at: String,
-}
-
-#[derive(Debug, Serialize)]
-pub struct LibraryBookListView {
-    pub items: Vec<LibraryBookListItemView>,
-}
-
-#[derive(Debug, Serialize)]
-pub struct LibraryBookDetailView {
-    pub id: String,
-    pub job_id: String,
-    pub title: String,
-    pub authors: Option<String>,
-    pub source_file_name: Option<String>,
-    pub page_count: Option<i64>,
-    pub source_language: Option<String>,
-    pub target_language: Option<String>,
-    pub file_size_bytes: Option<u64>,
-    pub status: JobStatusKind,
-    pub stage: Option<String>,
-    pub progress: JobProgressView,
-    pub cover_url: Option<String>,
-    pub thumbnail_url: Option<String>,
-    pub artifacts: Vec<ArtifactDisplayItemView>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct LibraryDeleteQuery {
-    #[serde(default)]
-    pub force: bool,
-}
-
 #[derive(Debug, Deserialize)]
 pub struct PagePreviewQuery {
     #[serde(default = "default_preview_kind")]
@@ -770,22 +718,6 @@ pub struct PagePreviewQuery {
 pub struct LayoutDocxQuery {
     #[serde(default)]
     pub dpi: Option<u32>,
-}
-
-#[derive(Debug, Serialize)]
-pub struct LibraryDeleteResultView {
-    pub deleted: bool,
-    pub job_id: String,
-    pub removed_paths: Vec<String>,
-    pub removed_child_jobs: Vec<String>,
-}
-
-#[derive(Debug, Serialize)]
-pub struct DocumentDeleteResultView {
-    pub deleted: bool,
-    pub document_id: String,
-    pub removed_jobs: Vec<String>,
-    pub removed_paths: Vec<String>,
 }
 
 fn default_preview_kind() -> String {
