@@ -40,7 +40,6 @@ READING_TOOL_NAMES = frozenset(
         "list_documents",
         "search_fulltext",
         "read_blocks",
-        "search_favorites",
         "search_markdown",
         "read_markdown_chunk",
     }

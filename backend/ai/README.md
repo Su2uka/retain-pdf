@@ -66,7 +66,7 @@ SSE 另提供 `agent_session`、统一的 `agent_tool`、`agent_operation`；don
 `search_fulltext` / `read_blocks`；否则若存在 `md/full.md`，只暴露
 `search_markdown` / `read_markdown_chunk`；两者都不存在的阅读请求直接返回
 `AI_DOCUMENT_CONTENT_UNAVAILABLE`。OpenAI Agent 没有文档 scope 时使用
-`list_documents` / `search_fulltext` / `read_blocks` / `search_favorites`
+`list_documents` / `search_fulltext` / `read_blocks`
 做全库只读检索。
 
 安全计算不执行 Python 或 shell，不访问网络，也不接收任意服务端路径。表格分析和

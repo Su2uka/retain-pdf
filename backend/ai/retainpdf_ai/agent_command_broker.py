@@ -151,7 +151,7 @@ class AgentCommandBroker:
             "can delete/reorder/duplicate pages, and "
             '{"op":"rotate_pages","pages":[...],"degrees":90|180|270}. '
             "Allowed tool names are list_documents, search_fulltext, read_blocks, "
-            "search_favorites, search_markdown, read_markdown_chunk, "
+            "search_markdown, read_markdown_chunk, "
             "calculate_expression, calculate_statistics, analyze_table, and generate_chart. "
             "Table analysis and chart tools require document_id, job_id, page_idx, and "
             "block_ids from prior reading results. Do not invent those references. "

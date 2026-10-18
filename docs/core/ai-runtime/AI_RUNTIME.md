@@ -104,7 +104,7 @@ Python 阅读模式在模型调用前选择唯一内容源：有可读 `document
 `search_fulltext` 与 `read_blocks`；否则有 `md/full.md` 时仅开放
 `search_markdown` 与 `read_markdown_chunk`；两者都没有时立即失败。OpenAI runtime
 没有文档 scope 时使用 `list_documents`、
-`search_fulltext`、`read_blocks` 和 `search_favorites` 做全库只读检索。FX 不读取
+`search_fulltext` 和 `read_blocks` 做全库只读检索。FX 不读取
 宿主文件或密钥，而是通过固定、无 shell 的 broker grammar 调用同一只读工具。
 
 固定安全计算工具为 `calculate_expression`、`calculate_statistics`、`analyze_table`

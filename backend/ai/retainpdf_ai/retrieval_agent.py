@@ -500,7 +500,7 @@ def scope_tool_arguments(
         return scoped
     if not document_id:
         return scoped
-    if name in {"search_fulltext", "search_favorites", "list_documents", "read_blocks"}:
+    if name in {"search_fulltext", "list_documents", "read_blocks"}:
         scoped["document_id"] = document_id
     if name == "search_fulltext" and job_id:
         # Internal scope only: the tool uses this to decide whether the exact

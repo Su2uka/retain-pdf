@@ -60,7 +60,6 @@ def assign_refs(
     """Assign public reference numbers to anchored tool results."""
     anchored: list[dict[str, Any]] = []
     anchored.extend(result.get("hits") or [])
-    anchored.extend(result.get("favorites") or [])
     blocks = result.get("blocks")
     if isinstance(blocks, list):
         rewritten_blocks: list[dict[str, Any]] = []
@@ -209,17 +208,6 @@ def public_tool_payload(result: dict[str, Any]) -> dict[str, Any]:
         if public_hits:
             public["hits"] = public_hits
             public["how_to_cite"] = "回答时只用 hits[].ref 写成 [1] [2]。"
-
-    favorites = result.get("favorites")
-    if isinstance(favorites, list):
-        public_favs = []
-        for favorite in favorites:
-            if isinstance(favorite, dict):
-                item = _public_anchor(favorite)
-                if item:
-                    public_favs.append(item)
-        if public_favs:
-            public["favorites"] = public_favs
 
     blocks = result.get("blocks")
     if isinstance(blocks, list):

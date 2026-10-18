@@ -2,7 +2,7 @@
 
 The first question-answering mode deliberately treats ``md/full.md`` as its
 only evidence source.  It does not open normalized document JSON, translation
-manifests, PDF text, favorites, or the library-wide FTS index.
+manifests, PDF text, or the library-wide FTS index.
 """
 
 from __future__ import annotations

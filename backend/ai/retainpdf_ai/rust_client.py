@@ -84,11 +84,6 @@ class RustApiClient:
         documents = list(data.get("documents") or [])
         return documents[0] if documents else None
 
-    def list_favorites(self, document_id: str = "") -> list[dict[str, Any]]:
-        params = {"document_id": document_id} if document_id else None
-        data = self._get("/api/v1/favorites", params)
-        return list(data.get("favorites") or [])
-
     def _post(self, path: str, payload: dict[str, Any]) -> dict[str, Any]:
         response = self._client.post(f"{self._base}{path}", json=payload)
         response.raise_for_status()
