@@ -4,7 +4,7 @@
  * 钉三件事：
  * 1) 缩略图是受保护资源——必须走 fetchProtected + blob，绝不能把 API URL 直接塞进
  *    <img src>（那是 401），而且卡片收起时必须把 blob URL 收回去；
- * 2) 拿不到 jobId 时（主页的 citation 常常没有 job_id）一张预览请求都不许发，
+ * 2) jobId 和书编号都拿不到时（主页的 citation 常常没有 job_id）一张预览请求都不许发，
  *    也不许出破图，只留 snippet；
  * 3) 卡片贴着视口边时要翻边/夹回，不能开到屏幕外。
  */
@@ -67,9 +67,9 @@ const { computeHoverCardPosition } = await import(
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const settle = (ms = 320) => act(async () => { await sleep(ms); });
 
-/** 页面预览请求：译文页 /jobs/{id}/files/pages/{n}.jpg，原文页 /jobs/{id}/preview/pages/{n}?kind=source。 */
+/** 页面预览请求：译文页 /jobs/{id}/files/pages/{n}.jpg，原文页在书下面 /documents/{书}/files/pages/{n}.jpg。 */
 const isTranslatedPreviewUrl = (url) => /\/jobs\/[^/]+\/files\/pages\/\d+\.jpg/.test(url);
-const isSourcePreviewUrl = (url) => url.includes("/preview/pages/") && url.includes("kind=source");
+const isSourcePreviewUrl = (url) => /\/documents\/[^/]+\/files\/pages\/\d+\.jpg/.test(url);
 const isPreviewUrl = (url) => isTranslatedPreviewUrl(url) || isSourcePreviewUrl(url);
 
 /** 记录所有受保护请求；默认全部成功返回一张假图。 */
@@ -89,6 +89,7 @@ const CITATION = {
   block_id: "p005-b0001",
   page_idx: 4,
   job_id: "job-abc",
+  document_id: "doc-abc",
   snippet: "信赖域方法在每一步都限制步长上界。",
 };
 
@@ -234,7 +235,7 @@ describe("引用悬停预览", () => {
 });
 
 describe("拿不到 jobId 的引用（主页常见）", () => {
-  const NO_JOB = { ...CITATION, job_id: undefined };
+  const NO_JOB = { ...CITATION, job_id: undefined, document_id: undefined };
 
   it("一张预览请求都不发，也不留破图", async () => {
     const view = await render({ jobId: "", citations: [NO_JOB] });
@@ -290,6 +291,19 @@ describe("译文页取不到时的退路", () => {
     assert.equal(figure?.getAttribute("data-state"), "failed");
     assert.ok(card().textContent.includes("预览暂不可用"));
     assert.deepEqual(blobUrls.created, [], "请求都失败了却还是建了 blob");
+    await view.unmount();
+  });
+});
+
+describe("只有书编号、没有任务号的引用", () => {
+  it("只取原文页（书下面的地址），不拼任务地址，也不碰旧的 /preview/pages", async () => {
+    const view = await render({ jobId: "", citations: [{ ...CITATION, job_id: undefined }] });
+    mouseOver(refButton(view.host));
+    await settle();
+    const previews = fetched.filter(isPreviewUrl);
+    assert.deepEqual(previews, ["http://api.test/api/v1/documents/doc-abc/files/pages/5.jpg?width=240"]);
+    assert.ok(!fetched.some((url) => url.includes("/preview/pages/")), "还在请求旧地址 /preview/pages");
+    assert.ok(cardThumb()?.getAttribute("src")?.startsWith("blob:"), "原文页没取到图");
     await view.unmount();
   });
 });

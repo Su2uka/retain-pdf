@@ -189,10 +189,12 @@ test("answer HTML never mounts a raw image URL and hydrates accepted assets thro
 
 test("buildPagePreviewUrl is 1-based page", () => {
   const u = buildPagePreviewUrl("job1", 0);
-  // 译文页走任务文件 /files/pages/{n}.jpg；原文页仍走 /preview/pages/{n}?kind=source。
+  // 译文页走任务文件 /files/pages/{n}.jpg；原文页在书下面 /documents/{书}/files/pages/{n}.jpg。
   assert.match(u, /\/jobs\/job1\/files\/pages\/1\.jpg\?width=240$/);
-  const source = buildPagePreviewUrl("job1", 0, "source");
-  assert.match(source, /\/jobs\/job1\/preview\/pages\/1\?kind=source&width=240$/);
+  const source = buildPagePreviewUrl("job1", 0, "source", { documentId: "doc 1" });
+  assert.match(source, /\/documents\/doc%201\/files\/pages\/1\.jpg\?width=240$/);
+  // 没有书编号就没有原文页，不再退回旧地址 /jobs/{id}/preview/pages?kind=source。
+  assert.equal(buildPagePreviewUrl("job1", 0, "source"), "");
 });
 
 test("isAgenticCitation requires block_id", () => {

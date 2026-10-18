@@ -215,16 +215,20 @@ export function decorateCitationMarkdown(
     .join("");
 }
 
-export function buildPagePreviewUrl(jobId: string, pageIdx0: number, kind: "translated" | "source" = "translated", adapters: { resolveResourceUrl?: (v: unknown) => string } = {}): string {
+export function buildPagePreviewUrl(jobId: string, pageIdx0: number, kind: "translated" | "source" = "translated", adapters: { resolveResourceUrl?: (v: unknown) => string; documentId?: string } = {}): string {
   const resolver = adapters.resolveResourceUrl ?? resolveResourceUrl;
   const job = `${jobId || ""}`.trim();
+  const doc = `${adapters.documentId || ""}`.trim();
   const page = Math.max(1, Math.floor(Number(pageIdx0) || 0) + 1);
-  if (!job) return "";
-  // 译文页：任务的文件 /files/pages/{n}.jpg（页码从 1 开始，长期缓存）。原文页的新地址在书下面
-  // （/documents/{doc}/files/pages/{n}.jpg），这里只有任务号，先用旧的 /preview/pages?kind=source。
-  const path = kind === "source"
-    ? `/api/v1/jobs/${encodeURIComponent(job)}/preview/pages/${page}?kind=source&width=240`
-    : `/api/v1/jobs/${encodeURIComponent(job)}/files/pages/${page}.jpg?width=240`;
+  // 译文页是任务的文件 /jobs/{id}/files/pages/{n}.jpg；原文页在书下面 /documents/{书}/files/pages/{n}.jpg。
+  // 页码从 1 开始，长期缓存。不知道书编号就没有原文页，不再用旧地址 /jobs/{id}/preview/pages?kind=source。
+  let path = "";
+  if (kind === "source") {
+    if (doc) path = `/api/v1/documents/${encodeURIComponent(doc)}/files/pages/${page}.jpg?width=240`;
+  } else if (job) {
+    path = `/api/v1/jobs/${encodeURIComponent(job)}/files/pages/${page}.jpg?width=240`;
+  }
+  if (!path) return "";
   try { return resolver(path) || path; } catch { return path; }
 }
 
