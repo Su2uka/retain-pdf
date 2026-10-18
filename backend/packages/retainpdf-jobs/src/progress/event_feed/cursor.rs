@@ -7,6 +7,8 @@ use serde::{Deserialize, Serialize};
 pub(super) struct Cursor {
     version: u8,
     owner: String,
+    /// 以前区分 `/ocr/jobs/:id/events` 和 `/jobs/:id/events` 的游标，2026-10-18 `/ocr/jobs` 删了以后恒为 false。
+    /// 字段留在编码里，客户端手里的旧游标照样能用；去掉它要升游标版本。
     ocr_only: bool,
     pub epoch: String,
     pub position: i64,
@@ -14,17 +16,17 @@ pub(super) struct Cursor {
 }
 
 impl Cursor {
-    pub fn new(owner: &str, ocr_only: bool, epoch: String, position: i64, upper: i64) -> Self {
+    pub fn new(owner: &str, epoch: String, position: i64, upper: i64) -> Self {
         Self {
             version: 2,
             owner: owner.into(),
-            ocr_only,
+            ocr_only: false,
             epoch,
             position,
             upper,
         }
     }
-    pub fn decode(raw: &str, owner: &str, ocr_only: bool) -> Result<Self, AppError> {
+    pub fn decode(raw: &str, owner: &str) -> Result<Self, AppError> {
         let invalid = || AppError::bad_request("invalid event cursor");
         if raw.len() > 4096 {
             return Err(invalid());
@@ -33,7 +35,7 @@ impl Cursor {
         let cursor: Self = serde_json::from_slice(&bytes).map_err(|_| invalid())?;
         if cursor.version != 2
             || cursor.owner != owner
-            || cursor.ocr_only != ocr_only
+            || cursor.ocr_only
             || cursor.position < 0
             || cursor.upper < cursor.position
             || cursor.epoch.is_empty()

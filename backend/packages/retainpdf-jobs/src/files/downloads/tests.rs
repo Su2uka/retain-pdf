@@ -4,7 +4,7 @@ use retainpdf_api_base::error::AppError;
 use crate::views::PagePreviewQuery;
 
 use super::fixture::{DownloadFixture as Fixture, JOB_ID};
-use crate::files::downloads::{Disposition, JobFile, JobScope};
+use crate::files::downloads::{Disposition, JobFile};
 
 fn preview(kind: &str, width: u32, dpi: u32) -> PagePreviewQuery {
     PagePreviewQuery {
@@ -21,8 +21,8 @@ async fn same_normalized_preview_shares_cache_miss_and_keeps_runtime_responsive(
     let wide = preview(" SOURCE ", 9999, 999);
     let normalized = preview("source", 2400, 300);
     let (first, second, ()) = tokio::join!(
-        downloads.open(JOB_ID, JobScope::Any, JobFile::page(1, &wide), Disposition::Unnamed),
-        downloads.open(JOB_ID, JobScope::Any, JobFile::page(1, &normalized), Disposition::Unnamed),
+        downloads.open(JOB_ID, JobFile::page(1, &wide), Disposition::Inline),
+        downloads.open(JOB_ID, JobFile::page(1, &normalized), Disposition::Inline),
         fixture.release_when_started(),
     );
     let first = first.unwrap();
@@ -33,7 +33,7 @@ async fn same_normalized_preview_shares_cache_miss_and_keeps_runtime_responsive(
     );
     assert_eq!(fixture.render_count(), 1);
     let cached = downloads
-        .open(JOB_ID, JobScope::Any, JobFile::page(1, &normalized), Disposition::Unnamed)
+        .open(JOB_ID, JobFile::page(1, &normalized), Disposition::Inline)
         .await
         .unwrap();
     assert_eq!(cached.path, first.path);
@@ -51,24 +51,24 @@ async fn different_preview_specs_never_share_results() {
     let source = preview("source", 1200, 0);
     let translated = preview("translated", 1200, 0);
     let (first, second, ()) = tokio::join!(
-        downloads.open(JOB_ID, JobScope::Any, JobFile::page(1, &source), Disposition::Unnamed),
-        downloads.open(JOB_ID, JobScope::Any, JobFile::page(1, &translated), Disposition::Unnamed),
+        downloads.open(JOB_ID, JobFile::page(1, &source), Disposition::Inline),
+        downloads.open(JOB_ID, JobFile::page(1, &translated), Disposition::Inline),
         fixture.release_when_started(),
     );
     let first = first.unwrap().path;
     assert_ne!(first, second.unwrap().path);
     let other_page = downloads
-        .open(JOB_ID, JobScope::Any, JobFile::page(2, &source), Disposition::Unnamed)
+        .open(JOB_ID, JobFile::page(2, &source), Disposition::Inline)
         .await
         .unwrap()
         .path;
     let other_width = downloads
-        .open(JOB_ID, JobScope::Any, JobFile::page(1, &preview("source", 1600, 0)), Disposition::Unnamed)
+        .open(JOB_ID, JobFile::page(1, &preview("source", 1600, 0)), Disposition::Inline)
         .await
         .unwrap()
         .path;
     let other_dpi = downloads
-        .open(JOB_ID, JobScope::Any, JobFile::page(1, &preview("source", 1200, 72)), Disposition::Unnamed)
+        .open(JOB_ID, JobFile::page(1, &preview("source", 1200, 72)), Disposition::Inline)
         .await
         .unwrap()
         .path;
@@ -84,17 +84,17 @@ async fn cover_and_thumbnail_share_duplicate_requests_but_not_each_other() {
     let fixture = Fixture::new();
     let downloads = fixture.downloads();
     let (cover, duplicate_cover, thumbnail, ()) = tokio::join!(
-        downloads.open(JOB_ID, JobScope::Any, JobFile::Cover, Disposition::Unnamed),
-        downloads.open(JOB_ID, JobScope::Any, JobFile::Cover, Disposition::Unnamed),
-        downloads.open(JOB_ID, JobScope::Any, JobFile::Thumbnail, Disposition::Unnamed),
+        downloads.open(JOB_ID, JobFile::Cover, Disposition::Inline),
+        downloads.open(JOB_ID, JobFile::Cover, Disposition::Inline),
+        downloads.open(JOB_ID, JobFile::Thumbnail, Disposition::Inline),
         fixture.release_when_started(),
     );
     let cover = cover.unwrap().path;
     assert_eq!(cover, duplicate_cover.unwrap().path);
     assert_ne!(cover, thumbnail.unwrap().path);
     assert_eq!(fixture.render_count(), 2);
-    downloads.open(JOB_ID, JobScope::Any, JobFile::Cover, Disposition::Unnamed).await.unwrap();
-    downloads.open(JOB_ID, JobScope::Any, JobFile::Thumbnail, Disposition::Unnamed).await.unwrap();
+    downloads.open(JOB_ID, JobFile::Cover, Disposition::Inline).await.unwrap();
+    downloads.open(JOB_ID, JobFile::Thumbnail, Disposition::Inline).await.unwrap();
     assert_eq!(fixture.render_count(), 2);
 }
 
@@ -105,7 +105,7 @@ async fn canceled_preview_request_leaves_one_live_writer_for_next_caller() {
     let first = tokio::spawn(async move {
         owner
             .downloads()
-            .open(JOB_ID, JobScope::Any, JobFile::page(1, &preview("source", 1200, 0)), Disposition::Unnamed)
+            .open(JOB_ID, JobFile::page(1, &preview("source", 1200, 0)), Disposition::Inline)
             .await
     });
     fixture.wait_started().await;
@@ -114,7 +114,7 @@ async fn canceled_preview_request_leaves_one_live_writer_for_next_caller() {
     let downloads = fixture.downloads();
     let query = preview("source", 1200, 0);
     let (joined, ()) = tokio::join!(
-        downloads.open(JOB_ID, JobScope::Any, JobFile::page(1, &query), Disposition::Unnamed),
+        downloads.open(JOB_ID, JobFile::page(1, &query), Disposition::Inline),
         fixture.release_when_started(),
     );
     assert!(joined.unwrap().path.is_file());
@@ -128,17 +128,17 @@ async fn preview_validation_keeps_job_scope_before_parameter_errors() {
     let invalid = preview("invalid", 0, 0);
     assert!(matches!(
         downloads
-            .open("missing", JobScope::Any, JobFile::page(0, &invalid), Disposition::Unnamed)
+            .open("missing", JobFile::page(0, &invalid), Disposition::Inline)
             .await,
         Err(AppError::NotFound(_))
     ));
     assert!(matches!(
-        downloads.open(JOB_ID, JobScope::Any, JobFile::page(0, &invalid), Disposition::Unnamed).await,
+        downloads.open(JOB_ID, JobFile::page(0, &invalid), Disposition::Inline).await,
         Err(AppError::BadRequest(_))
     ));
     assert!(matches!(
         downloads
-            .open(JOB_ID, JobScope::Any, JobFile::page(0, &preview("source", 1200, 0)), Disposition::Unnamed)
+            .open(JOB_ID, JobFile::page(0, &preview("source", 1200, 0)), Disposition::Inline)
             .await,
         Err(AppError::BadRequest(_))
     ));

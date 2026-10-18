@@ -33,7 +33,7 @@ pub async fn get_job_events(
     );
     Ok(ok_json(
         run_job_query(&state, key, move |jobs| {
-            jobs.job_events_view(&job_id, &query, false)
+            jobs.job_events_view(&job_id, &query)
         })
         .await?,
     ))

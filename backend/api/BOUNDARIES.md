@@ -156,17 +156,15 @@ The outcome of every entry is pinned in `docs/submissions.txt`
 ## Job File Downloads
 
 Every job file download goes through one entry point,
-`JobDownloads::open(job_id, JobScope, JobFile, Disposition)`
+`JobDownloads::open(job_id, JobFile, Disposition)`
 (`src/services/jobs/files/downloads/files.rs`):
 
 - `JobFile` names the file (translated PDF, side-by-side PDF, Word, OCR
   Markdown, cover, page preview, bundle, or any other registry key). Where to
   find it, its content type and its user-facing download name are written once,
   in `locate`.
-- `JobScope::OcrOnly` was for the `/ocr/jobs/*` aliases, removed on 2026-10-18; nothing passes it now and it is left to be cleaned up later.
-- `Disposition` says whether the browser opens the file (`Inline`), downloads it
-  (`Attachment`), or gets no `Content-Disposition` (`Unnamed`, legacy endpoints
-  only).
+- `Disposition` says whether the browser opens the file (`Inline`) or downloads
+  it (`Attachment`).
 
 Routes only pick those three values; they do not resolve paths. Adding a file
 means adding a `JobFile` variant and a `locate` branch, not another download

@@ -10,12 +10,8 @@ use crate::deps::ControlDeps;
 pub(crate) async fn cancel_job(
     deps: &ControlDeps<'_>,
     job_id: &str,
-    ocr_only: bool,
 ) -> Result<JobSnapshot, AppError> {
     let mut job = load_job_or_404(deps.db, job_id)?;
-    if ocr_only && !matches!(job.workflow, WorkflowKind::Ocr) {
-        return Err(AppError::not_found(format!("ocr job not found: {job_id}")));
-    }
     if !matches!(job.status, JobStatusKind::Queued | JobStatusKind::Running) {
         return Err(AppError::conflict(format!(
             "job is not cancelable in status {:?}",
@@ -41,7 +37,7 @@ pub(crate) async fn cancel_job(
 
     // 取消一律终止进程，normalizing 不再豁免。
     //
-    // 原先 ocr_only + normalizing 时跳过 terminate，让 normalize 子进程"跑完再
+    // 原先只做 OCR 的任务在 normalizing 时跳过 terminate，让 normalize 子进程"跑完再
     // 取消"。这条豁免保护的东西其实不需要保护：normalizing 阶段唯一的磁盘写入
     // 在 `normalize_pipeline.py` 的 `save_json_atomic()` 里，它用同目录临时文件 +
     // `os.replace` 原子改名，其 docstring 写明就是为了防"worker 被中断时读者看到
@@ -181,7 +177,7 @@ mod tests {
         // is actually recorded.
         let guard = canceled_jobs.write().await;
 
-        let cancel_fut = cancel_job(&deps, job_id, false);
+        let cancel_fut = cancel_job(&deps, job_id);
         let racer_fut = async {
             // Simulate the job's runner completing and persisting a terminal
             // status while cancel_job is stuck waiting for the lock we hold.

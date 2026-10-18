@@ -123,7 +123,7 @@ pub async fn cancel_job(
     ApiPath(job_id): ApiPath<String>,
     headers: HeaderMap,
 ) -> Result<Json<ApiResponse<JobSubmissionView>>, AppError> {
-    cancel_job_response(build_jobs_route_deps(&state), &headers, &job_id, false).await
+    cancel_job_response(build_jobs_route_deps(&state), &headers, &job_id).await
 }
 
 fn stage_actions_response(
@@ -141,12 +141,11 @@ async fn cancel_job_response(
     deps: JobsRouteDeps<'_>,
     headers: &HeaderMap,
     job_id: &str,
-    ocr_only: bool,
 ) -> Result<Json<ApiResponse<JobSubmissionView>>, AppError> {
     let base_url = request_base_url(headers, deps.default_port, &deps.bind_host);
     Ok(ok_json(
         jobs_facade(deps)
-            .cancel_submission(&base_url, job_id, ocr_only)
+            .cancel_submission(&base_url, job_id)
             .await?,
     ))
 }

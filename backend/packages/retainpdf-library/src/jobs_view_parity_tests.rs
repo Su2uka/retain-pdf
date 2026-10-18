@@ -157,9 +157,9 @@ async fn document_images_use_the_same_bounded_generation_without_jobs() {
         asset_config: &asset_config,
     };
     let (first, duplicate, thumbnail, ()) = tokio::join!(
-        open_document_file(&deps, &fixture.generation, &document_id, DocumentFile::Cover, Disposition::Unnamed),
-        open_document_file(&deps, &fixture.generation, &document_id, DocumentFile::Cover, Disposition::Unnamed),
-        open_document_file(&deps, &fixture.generation, &document_id, DocumentFile::Thumbnail, Disposition::Unnamed),
+        open_document_file(&deps, &fixture.generation, &document_id, DocumentFile::Cover, Disposition::Inline),
+        open_document_file(&deps, &fixture.generation, &document_id, DocumentFile::Cover, Disposition::Inline),
+        open_document_file(&deps, &fixture.generation, &document_id, DocumentFile::Thumbnail, Disposition::Inline),
         fixture.release_when_started(),
     );
     let cover_path = first.unwrap().path;

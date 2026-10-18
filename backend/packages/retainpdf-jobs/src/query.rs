@@ -4,7 +4,7 @@ use std::path::Path;
 
 use retainpdf_data::db::Db;
 use retainpdf_api_base::error::AppError;
-use retainpdf_api_base::job_loading::{load_ocr_job_with_supported_layout, load_supported_job};
+use retainpdf_api_base::job_loading::load_supported_job;
 use crate::views::ListJobsQuery;
 use retainpdf_core::models::domain::JobSnapshot;
 
@@ -23,13 +23,8 @@ impl<'a> JobQueries<'a> {
     pub(crate) fn load_supported_job_snapshot(
         &self,
         job_id: &str,
-        ocr_only: bool,
     ) -> Result<JobSnapshot, AppError> {
-        if ocr_only {
-            load_ocr_job_with_supported_layout(self.db, self.data_root, job_id)
-        } else {
-            load_supported_job(self.db, self.data_root, job_id)
-        }
+        load_supported_job(self.db, self.data_root, job_id)
     }
 }
 

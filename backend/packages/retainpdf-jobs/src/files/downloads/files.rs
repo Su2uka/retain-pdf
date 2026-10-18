@@ -143,46 +143,17 @@ impl PageSpec {
     }
 }
 
-/// 按哪种任务去找。`OcrOnly` 原来给 `/ocr/jobs/*` 旧别名用，2026-10-18 旧别名删了以后没人再传，留到以后清。
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum JobScope {
-    Any,
-    OcrOnly,
-}
-
 /// 在浏览器里打开还是下载。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Disposition {
-    /// 不带 `Content-Disposition`。只有旧接口这么用。
-    Unnamed,
     /// `inline; filename=…`：照常在浏览器里打开，另存为时文件名是对的。
     Inline,
     /// `attachment; filename=…`：直接下载。
     Attachment,
 }
 
-impl JobScope {
-    fn label(self) -> &'static str {
-        match self {
-            Self::Any => "job",
-            Self::OcrOnly => "ocr",
-        }
-    }
-
-    fn load(self, deps: &DownloadJobsDeps<'_>, job_id: &str) -> Result<JobSnapshot, AppError> {
-        match self {
-            Self::Any => retainpdf_api_base::job_loading::load_supported_job(deps.db, deps.data_root, job_id),
-            Self::OcrOnly => retainpdf_api_base::job_loading::load_ocr_job_with_supported_layout(
-                deps.db,
-                deps.data_root,
-                job_id,
-            ),
-        }
-    }
-}
-
-pub(super) fn generation_key(job_id: &str, scope: JobScope, file: &JobFile) -> String {
-    format!("{job_id}:{}:{}", scope.label(), file.generation_key())
+pub(super) fn generation_key(job_id: &str, file: &JobFile) -> String {
+    format!("{job_id}:{}", file.generation_key())
 }
 
 /// 找到的文件：路径、类型、给用户的文件名（排查用的文件用它在磁盘上的原名）。
@@ -214,16 +185,14 @@ impl Located {
 pub(super) fn open_job_file(
     deps: &DownloadJobsDeps<'_>,
     job_id: &str,
-    scope: JobScope,
     file: &JobFile,
     disposition: Disposition,
 ) -> Result<FileDownload, AppError> {
-    let job = scope.load(deps, job_id)?;
+    let job = retainpdf_api_base::job_loading::load_supported_job(deps.db, deps.data_root, job_id)?;
     let located = locate(deps, &job, file)?;
     let mut download = FileDownload::new(located.path, located.content_type, None);
     if let Some(name) = located.name {
         download = match disposition {
-            Disposition::Unnamed => download,
             Disposition::Inline => download.with_inline_name(name),
             Disposition::Attachment => FileDownload {
                 download_name: Some(name),

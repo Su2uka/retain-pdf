@@ -12,7 +12,7 @@ use std::path::Path;
 
 use retainpdf_data::db::Db;
 use crate::error::AppError;
-use retainpdf_core::models::domain::{JobSnapshot, WorkflowKind};
+use retainpdf_core::models::domain::JobSnapshot;
 use retainpdf_core::storage_paths::{
     job_uses_legacy_output_layout, job_uses_legacy_path_storage, LEGACY_JOB_UNSUPPORTED_MESSAGE,
 };
@@ -49,20 +49,3 @@ pub fn load_supported_job(
     Ok(job)
 }
 
-pub fn load_ocr_job_or_404(db: &Db, job_id: &str) -> Result<JobSnapshot, AppError> {
-    let job = load_job_or_404(db, job_id)?;
-    if !matches!(job.workflow, WorkflowKind::Ocr) {
-        return Err(AppError::not_found(format!("ocr job not found: {job_id}")));
-    }
-    Ok(job)
-}
-
-pub fn load_ocr_job_with_supported_layout(
-    db: &Db,
-    data_root: &Path,
-    job_id: &str,
-) -> Result<JobSnapshot, AppError> {
-    let job = load_ocr_job_or_404(db, job_id)?;
-    ensure_supported_job_layout(data_root, &job)?;
-    Ok(job)
-}

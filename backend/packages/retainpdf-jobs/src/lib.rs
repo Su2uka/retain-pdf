@@ -50,7 +50,6 @@ pub use presentation::book_document_id;
 pub use files::{
     stored_path, StoredFile,
     job_readiness, Disposition, FileDownload, FileGroup, JobDownloads, JobFile, JobFilesView,
-    JobScope,
 };
 pub use lifecycle::launcher::JobLaunchDeps;
 pub use lifecycle::managed_credential_gc::cleanup_deleted_job_credentials;

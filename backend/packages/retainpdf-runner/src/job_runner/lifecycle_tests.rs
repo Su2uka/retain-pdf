@@ -225,7 +225,7 @@ async fn repeated_launch_starts_only_one_real_local_worker() {
 /// 取消标记在队列门被消费掉之后，任务必须落终态，不能挂着。
 ///
 /// `wait_for_execution_slot` 命中标记会清掉它并返回 None，driver 随即退出。
-/// 正常取消路径靠 `cancel_job` 紧接着的 CAS 写兜底，但 `cancel_job(ocr_only=true)`
+/// 正常取消路径靠 `cancel_job` 紧接着的 CAS 写兜底，但取消 OCR 任务时 `cancel_job`
 /// 在 `stage != "queued"` 时一个字都不写 DB——于是没人收尾，任务永久卡在
 /// queued/running 且再无 driver 驱动，用户看到永久转圈、连重跑都点不了。
 ///
@@ -236,7 +236,7 @@ async fn consumed_cancel_flag_still_lands_a_terminal_state() {
     let fx = Fixture::new(1);
     let job = fx.job("job-consumed-flag", JobStatusKind::Queued);
 
-    // 模拟 cancel_job(ocr_only=true) + stage != "queued"：只塞注册表，不写 DB。
+    // 模拟取消 OCR 任务 + stage != "queued"：只塞注册表，不写 DB。
     super::super::cancel_registry::request_cancel_with_registry(
         fx.deps.canceled_jobs.as_ref(),
         &job.job_id,
