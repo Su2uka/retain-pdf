@@ -8,6 +8,7 @@ const libraryBooks = JSON.parse(readFileSync(resolve("library-books.v1.schema.js
 const EXPECTED_SHARED_DEFINITIONS = [
   "ArtifactDisplayItemView",
   "InvocationSummaryView",
+  "JobFailureBriefView",
   "JobListInvocationSummaryView",
   "JobListItemView",
   "JobListView",

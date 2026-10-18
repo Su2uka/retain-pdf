@@ -350,6 +350,11 @@ Reader 宿主接入 job/artifact、Markdown、区域、页面元数据和实时�
 列表项直接返回 `attempt`、`retry_count` 和 `last_retry_at`，用于稳定展示重试状态。
 详情中的重试时间线继续位于 `runtime` 投影。
 
+失败任务的列表项带精简的 `failure`（`category`、`stage`、`retryable`、`summary`，可选 `root_cause`、`suggestion`、`provider`；
+成功、进行中的任务没有这个键），`GET /api/v1/documents/{document_id}/jobs` 的列表项同此。契约见
+[`library-books.v1.schema.json`](../../../contracts/library-books.v1.schema.json) 的 `#/definitions/JobFailureBriefView`。
+完整错误（含 traceback）仍读详情的 `failure`。
+
 详情重点字段：
 
 - `job_id`

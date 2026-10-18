@@ -9,6 +9,20 @@
 
 ---
 
+## 00. 列表项的 `failure` 进了契约：job-failure-brief 契约测试可以改比 schema
+
+分支 `feat/contract-job-failure-brief`（2026-10-18）。JSON 不变，只是把一直存在、但没人描述过的 `failure` 补进契约。
+
+- 定义：`contracts/library-books.v1.schema.json#/definitions/JobFailureBriefView`；`job-status.v1.schema.json` 里有结构相同的一份（两份由 `contracts/tests/job-definitions-parity.test.mjs` 锁一致）。
+- `JobListItemView.failure` 是**可选**属性（只有失败的任务才有，成功、进行中的整个键不出现，不是 null）。
+  `JobFailureBriefView` 的 `category`、`stage`、`retryable`、`summary` 必有；`root_cause`、`suggestion`、`provider` 没有时键也不出现。
+- 生成的 TS 类型已更新：`@retainpdf/contracts/library-books` 和 `/job-status` 都导出 `JobFailureBriefView`，`JobListItemView.failure?: JobFailureBriefView`。
+- 前端要改的：`frontend/web/tests/contracts/job-failure-brief-contract.test.mjs` 现在读 `backend/packages/retainpdf-jobs/src/views/job_types.rs`
+  抠字段；改成对照上面这个 definition 的 `properties` / `required`，不再读 Rust 源码（这条由前端会话自己改，后端不动 `frontend/`）。
+  `frontend/packages/domain` 里手写的失败简报类型也可以换成生成的 `JobFailureBriefView`。
+- 后端侧有测试锁：`backend/api/src/api_tests/job_view_contract.rs` 的 `failed_job_list_item_failure_matches_published_schema`
+  用真实路由取失败任务的列表项，`failure` 的键集合必须等于这个 definition。
+
 ## 0. 三阶段（OCR / 翻译 / 渲染）展示：数据够用了，但要读对地方
 
 后端提交：`364aaaf9` `b575906e` `c85ff4af` `fce89bcc`
