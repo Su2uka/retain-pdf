@@ -2,7 +2,7 @@ use serde_json::{json, Map, Value};
 
 use retainpdf_data::db::{Db, PipelineDispatchRecord};
 use retainpdf_api_base::error::AppError;
-use retainpdf_core::models::api::{
+use crate::views::{
     AmbiguousRequestPolicy, OcrAmbiguityResolutionKind, OcrAmbiguityResolutionRequest,
     OcrAmbiguityResolutionView, RetryStageKind, RetryStageRequest,
 };

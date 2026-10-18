@@ -4,23 +4,22 @@ mod builders;
 mod types;
 
 pub use builders::{
-    build_artifact_links, build_artifact_manifest, build_job_actions, build_job_links,
-    build_job_links_with_workflow, summarize_list_invocation, upload_to_response,
-};
+    build_artifact_manifest, build_job_links,
+    build_job_links_with_workflow, summarize_list_invocation, };
 #[cfg(test)]
 pub use builders::{job_to_detail, job_to_list_item};
 pub use types::{
-    AmbiguousRequestPolicy, ArtifactDisplayItemView, ArtifactLinksView, BookSummaryView,
+    AmbiguousRequestPolicy, BookSummaryView,
     DocumentJobListView, GlossaryUsageSummaryView, InvocationSummaryView,
     JobArtifactItemView, JobArtifactManifestView, JobContractsView, JobDetailView,
     JobDiagnosticsView, JobFailureBriefView, JobFailureDiagnosticView, JobListInvocationSummaryView,
     JobListItemView,
     JobListView, JobResumePlanView, JobStageContractArtifactView, JobStageContractView,
-    JobStageSnapshotView, MarkdownArtifactView, NormalizationSummaryView,
+    JobStageSnapshotView, NormalizationSummaryView,
     OcrAmbiguityReceiptFieldView, OcrAmbiguityResolutionKind, OcrAmbiguityResolutionRequest,
     OcrAmbiguityResolutionView, OcrAmbiguityView, OcrJobSummaryView, LayoutDocxQuery, PagePreviewQuery,
     ReaderDocumentMetadataView, ReaderMetadataView, ReaderPageMetadataView, ReaderRegionBoxView,
-    ReaderRegionItemView, ReaderRegionsView, RefineRetryRequest, ResourceLinkView, RetryStageKind, RetryStageRequest,
+    ReaderRegionItemView, ReaderRegionsView, RefineRetryRequest, RetryStageKind, RetryStageRequest,
     EscalatedItemView, LastRefineView, RetryStageSubmissionView, StageActionsView, StageRetryActionLinkView,
     StageRetryActionView, LAST_REFINE_ESCALATED_LIMIT,
     TranslationRequestRecoveryView,

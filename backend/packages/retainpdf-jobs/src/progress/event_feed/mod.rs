@@ -9,9 +9,8 @@ use std::path::Path;
 use crate::presentation::redact_job_events;
 use retainpdf_data::db::Db;
 use retainpdf_api_base::error::AppError;
-use retainpdf_core::models::api::{
-    JobEventFeedItem, JobEventListView, JobEventRecord, ListJobEventsQuery, ListJobEventsStart,
-};
+use retainpdf_core::models::api::JobEventRecord;
+use crate::views::{JobEventFeedItem, JobEventListView, ListJobEventsQuery, ListJobEventsStart};
 use retainpdf_core::models::domain::JobSnapshot;
 
 use sync::synchronize;

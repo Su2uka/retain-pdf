@@ -1,11 +1,13 @@
 //! 文件（出口）：产物清单和打包（`artifacts`）、按需生成的派生产物（`derived_artifacts`）、
-//! 同一份产物同时只生成一次（`download_generation`）、下载文件名（`download_names`）。
+//! 同一份产物同时只生成一次（`download_generation`）、下载文件名（`download_names`）、
+//! 返回给前端的文件地址（`links`）和任务详情里的产物链接、操作链接（`artifacts/links_view.rs`）。
 //! 任务的文件怎么取在 `jobs/files/`，书的文件在 `library/media.rs`，都往下用这里。
 
 mod artifacts;
 mod derived_artifacts;
 mod download_generation;
 mod download_names;
+mod links;
 
 // 门面：包外只能用这里导出的东西，子模块都是私有的（见 BOUNDARIES.md「Domain Facades」）。
 pub use artifacts::{
@@ -25,3 +27,13 @@ pub use derived_artifacts::side_by_side::{ensure_side_by_side_pdf, run_supervise
 pub use derived_artifacts::word::{ensure_layout_docx, LayoutDocxOptions};
 pub use download_generation::{DownloadGeneration, FileDownload};
 pub use download_names::{download_file_name, job_download_file_name, DownloadKind};
+// 产物链接和操作链接（任务详情的 artifacts、actions），以及返回给前端的文件地址。
+pub use artifacts::{
+    build_artifact_links, build_job_actions, ActionLinkView, ArtifactDisplayItemView,
+    ArtifactLinksView, JobActionsView, MarkdownArtifactView, ResourceLinkView,
+};
+pub use links::{
+    JOB_INTERNAL_FILES, document_file_path, job_bundle_path, job_file_path, job_files_list_path,
+    job_internal_file_name, job_markdown_view_path, job_ocr_images_base_path, job_ocr_markdown_path,
+    job_translated_pdf_path,
+};

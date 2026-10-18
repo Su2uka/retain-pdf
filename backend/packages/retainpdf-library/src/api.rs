@@ -12,9 +12,9 @@ pub use crate::merge::reading::DocumentReadingView;
 
 use retainpdf_api_base::error::AppError;
 use retainpdf_core::models::api::{
-    AssetRecord, CollectionRecord, ConversationRecord, JobSubmissionView, ListJobsQuery,
-    MessageRecord,
+    AssetRecord, CollectionRecord, ConversationRecord, MessageRecord,
 };
+use retainpdf_jobs::{JobSubmissionView, ListJobsQuery};
 use crate::views::{
     AddCollectionDocumentsInput, AppendMessageInput, ApplyDocumentMetadataSuggestionInput,
     CollectionListView, CollectionMutationResult, ConversationDetailView, ConversationListView,

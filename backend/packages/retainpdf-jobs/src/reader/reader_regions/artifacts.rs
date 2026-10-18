@@ -4,7 +4,7 @@ use std::path::{Component, Path, PathBuf};
 use serde_json::Value;
 
 use retainpdf_api_base::error::AppError;
-use retainpdf_core::models::api::job_ocr_images_base_path;
+use retainpdf_files::job_ocr_images_base_path;
 use retainpdf_core::models::domain::JobSnapshot;
 
 use super::value_extract::{

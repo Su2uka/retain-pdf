@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use super::LibraryDeps;
 use retainpdf_data::db::Db;
 use retainpdf_api_base::error::AppError;
-use retainpdf_core::models::api::ListJobsQuery;
+use retainpdf_jobs::ListJobsQuery;
 use crate::views::{LibraryBookDetailView, LibraryBookListView, LibraryDeleteResultView};
 use retainpdf_core::models::domain::{JobSnapshot, JobStatusKind, WorkflowKind};
 use super::book_projection::{

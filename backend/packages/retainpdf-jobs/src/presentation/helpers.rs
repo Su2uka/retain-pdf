@@ -1,10 +1,9 @@
 use std::path::Path;
 
 use crate::summary_loaders::SummaryCache;
-use retainpdf_core::models::api::{
-    document_file_path, to_absolute_url, BookSummaryView, JobFailureDiagnosticView,
-    OcrJobSummaryView,
-};
+use retainpdf_core::models::api::to_absolute_url;
+use retainpdf_files::document_file_path;
+use crate::views::{BookSummaryView, JobFailureDiagnosticView, OcrJobSummaryView};
 use retainpdf_data::db::Db;
 use retainpdf_core::models::domain::{JobFailureInfo, JobSnapshot, UploadRecord};
 use retainpdf_files::source_file_name;

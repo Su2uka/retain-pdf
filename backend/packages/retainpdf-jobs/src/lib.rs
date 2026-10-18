@@ -14,7 +14,8 @@
 //! | `ai/` | AI：阅读路径、概念图、画板 |
 //!
 //! 根目录只放各类共用的：门面 `facade`、依赖 `deps`、返回视图 `presentation`、只读查询的入口
-//! `query`、运行时 `runtime_gateway`、产物摘要 `summary_loaders`。
+//! `query`、运行时 `runtime_gateway`、产物摘要 `summary_loaders`，以及接口的请求和返回类型 `views`
+//!（2026-10-18 从核心包挪过来）。
 
 mod actions;
 mod ai;
@@ -33,6 +34,7 @@ mod runtime_gateway;
 mod summary_loaders;
 mod support;
 mod translations;
+mod views;
 
 // 门面：领域外只能用这里导出的东西，子模块都是私有的（见 BOUNDARIES.md「Domain Facades」）。
 pub use ai::DocumentDownloadKind;
@@ -73,6 +75,34 @@ pub use reports::usage::api::{
 };
 pub use runtime_gateway::{JobDriverRegistry, JobRuntime, JobRuntimeLauncher};
 pub use summary_loaders::SummaryCache;
+pub use views::{
+    AmbiguousRequestPolicy, ArtifactDownloadQuery, BookSummaryView, DocumentJobListView,
+    EscalatedItemView, GlossaryUsageSummaryView, InvocationSummaryView, JobArtifactItemView,
+    JobArtifactManifestView, JobContractsView, JobDetailView, JobDiagnosticsView, JobEventFeedItem,
+    JobEventListView, JobFailureBriefView,
+    JobFailureDiagnosticView, JobFilesQuery, JobLinksView, JobListInvocationSummaryView,
+    JobListItemView, JobListView, JobProgressView, JobReportView, JobResumePlanView,
+    JobStageContractArtifactView, JobStageContractView, JobStageRuntimeView, JobStageSnapshotView,
+    JobStageStateView, JobStagesView, JobSubmissionView, JobTimestampsView,
+    LAST_REFINE_ESCALATED_LIMIT, LastRefineView, LayoutDocxQuery, ListDocumentJobsQuery,
+    ListJobEventsQuery, ListJobEventsStart, ListJobsQuery, ListTranslationItemsQuery,
+    LiveTranslationCommitEventView, LiveTranslationEventsQuery, LiveTranslationItemView,
+    LiveTranslationLayoutBlockView, LiveTranslationLayoutPageView, LiveTranslationLayoutView,
+    LiveTranslationPageView, LiveTranslationTypographyView, MarkdownDocumentView,
+    MarkdownImageView, MarkdownQuery, MarkdownView, NormalizationSummaryView,
+    OcrAmbiguityReceiptFieldView, OcrAmbiguityResolutionKind, OcrAmbiguityResolutionRequest,
+    OcrAmbiguityResolutionView, OcrAmbiguityView, OcrJobSummaryView, PagePreviewQuery,
+    ReaderDocumentMetadataView, ReaderMetadataView, ReaderPageMetadataView, ReaderRegionBoxView,
+    ReaderRegionItemView, ReaderRegionsView, RefineRetryRequest, RetryStageKind, RetryStageRequest,
+    RetryStageSubmissionView, ReviseTranslationItemRequest, StageActionsView,
+    StageRetryActionLinkView, StageRetryActionView, TranslationDebugIndexView,
+    TranslationDebugItemView, TranslationDebugListItemView, TranslationDebugListView,
+    TranslationDiagnosticsView, TranslationReplayView, TranslationRequestRecoveryView,
+    TranslationRevisionHistoryView, TranslationRevisionLivePageView,
+    TranslationRevisionLivePublicationView, TranslationRevisionSource, TranslationRevisionView,
+    build_artifact_manifest, build_job_links, build_job_links_with_workflow,
+    summarize_list_invocation,
+};
 // 只给测试用的。
 #[cfg(any(test, feature = "test-fixtures"))]
 pub use actions::translation_request_recovery::{

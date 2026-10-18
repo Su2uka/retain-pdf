@@ -7,7 +7,7 @@ use sha2::{Digest, Sha256};
 
 use retainpdf_data::db::Db;
 use retainpdf_api_base::error::AppError;
-use retainpdf_core::models::api::{
+use crate::views::{
     LiveTranslationCommitEventView, LiveTranslationItemView, LiveTranslationLayoutBlockView,
     LiveTranslationLayoutPageView, LiveTranslationLayoutView, LiveTranslationPageView,
 };

@@ -1,5 +1,5 @@
 use retainpdf_api_base::error::AppError;
-use retainpdf_core::models::api::RetryStageKind;
+use crate::views::RetryStageKind;
 use retainpdf_core::models::domain::{CreateJobInput, JobSnapshot, WorkflowKind};
 use retainpdf_core::models::request::JobSourceInput;
 

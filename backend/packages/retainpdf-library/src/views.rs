@@ -3,9 +3,10 @@
 //! 库里存的记录（`DocumentRecord` 这些）还在核心包，数据库层要用。
 
 use retainpdf_core::models::api::{
-    ArtifactDisplayItemView, BlockSearchHit, CollectionRecord, ConversationRecord, DocumentRecord,
-    JobProgressView, MessageRecord,
+    BlockSearchHit, CollectionRecord, ConversationRecord, DocumentRecord, MessageRecord,
 };
+use retainpdf_files::ArtifactDisplayItemView;
+use retainpdf_jobs::JobProgressView;
 use retainpdf_core::models::domain::JobStatusKind;
 use serde::{Deserialize, Serialize};
 

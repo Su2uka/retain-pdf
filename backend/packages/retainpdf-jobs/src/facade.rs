@@ -1,5 +1,5 @@
 
-use retainpdf_core::models::api::JobSubmissionView;
+use crate::views::JobSubmissionView;
 use retainpdf_core::models::domain::{JobSnapshot, JobStatusKind, WorkflowKind};
 
 use crate::support::build_submission_view;

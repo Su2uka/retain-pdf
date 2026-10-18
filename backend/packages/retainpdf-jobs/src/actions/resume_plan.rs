@@ -1,5 +1,5 @@
 use retainpdf_api_base::error::AppError;
-use retainpdf_core::models::api::JobResumePlanView;
+use crate::views::JobResumePlanView;
 use retainpdf_core::models::domain::JobSnapshot;
 use crate::actions::stage_plan::resume_plan;
 use retainpdf_api_base::job_loading::load_supported_job;

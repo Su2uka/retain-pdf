@@ -1,7 +1,5 @@
 use retainpdf_data::db::PipelineDispatchRecord;
-use retainpdf_core::models::api::{
-    OcrAmbiguityReceiptFieldView, OcrAmbiguityResolutionKind, OcrAmbiguityView,
-};
+use crate::views::{OcrAmbiguityReceiptFieldView, OcrAmbiguityResolutionKind, OcrAmbiguityView};
 
 pub(crate) fn build_ocr_ambiguity_view(
     dispatch: &PipelineDispatchRecord,

@@ -1,9 +1,10 @@
 use serde_json::{json, Value};
 
-use retainpdf_core::models::api::{
-    build_job_actions, build_job_links_with_workflow, AmbiguousRequestPolicy, EscalatedItemView, LastRefineView,
-    RetryStageKind, LAST_REFINE_ESCALATED_LIMIT,
-    RetryStageSubmissionView, StageActionsView, StageRetryActionLinkView, StageRetryActionView,
+use retainpdf_files::build_job_actions;
+use crate::views::{
+    build_job_links_with_workflow, AmbiguousRequestPolicy, EscalatedItemView, LastRefineView,
+    RetryStageKind, LAST_REFINE_ESCALATED_LIMIT, RetryStageSubmissionView, StageActionsView,
+    StageRetryActionLinkView, StageRetryActionView,
 };
 use retainpdf_core::models::domain::{JobSnapshot, JobStatusKind, WorkflowKind};
 use crate::actions::stage_plan::{stage_name, stage_plans, JobStagePlan};

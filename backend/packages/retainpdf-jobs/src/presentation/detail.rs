@@ -2,10 +2,8 @@ use std::path::Path;
 
 use retainpdf_data::db::Db;
 use retainpdf_api_base::error::AppError;
-use retainpdf_core::models::api::{
-    build_artifact_links, build_artifact_manifest, ArtifactLinksView, JobArtifactManifestView,
-    JobDetailView,
-};
+use retainpdf_files::{build_artifact_links, ArtifactLinksView};
+use crate::views::{build_artifact_manifest, JobArtifactManifestView, JobDetailView};
 use retainpdf_core::models::domain::JobSnapshot;
 use retainpdf_files::{job_upload_id, list_registry_for_job};
 

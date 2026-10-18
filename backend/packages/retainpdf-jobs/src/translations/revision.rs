@@ -15,9 +15,8 @@ use tokio::io::AsyncWriteExt;
 use tokio::process::Command;
 
 use retainpdf_api_base::error::AppError;
-use retainpdf_core::models::api::{
-    redact_text, sensitive_values, ReviseTranslationItemRequest, TranslationRevisionHistoryView,
-};
+use retainpdf_core::models::api::{redact_text, sensitive_values};
+use crate::views::{ReviseTranslationItemRequest, TranslationRevisionHistoryView};
 use retainpdf_core::models::domain::JobSnapshot;
 use crate::deps::ReplayDeps;
 use retainpdf_core::storage_paths::resolve_job_root;

@@ -1,4 +1,5 @@
 pub mod api;
+pub mod view;
 
 mod capacity;
 mod error;

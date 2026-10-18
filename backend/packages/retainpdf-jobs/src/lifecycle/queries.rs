@@ -1,5 +1,5 @@
 use retainpdf_api_base::error::AppError;
-use retainpdf_core::models::api::{
+use crate::views::{
     DocumentJobListView, JobDetailView, JobListView, ListDocumentJobsQuery, ListJobsQuery,
 };
 

@@ -1,4 +1,4 @@
-pub use super::common::{ApiResponse, UploadView};
+pub use super::common::ApiResponse;
 pub use super::library::{
     AssetRecord, BlockSearchHit, CollectionRecord,
     ConversationRecord,
@@ -11,33 +11,4 @@ pub use super::sync::{
 pub use super::redaction::{
     redact_json_value, redact_optional_text, redact_text, sensitive_values,
 };
-pub use super::view::{
-    build_artifact_links, build_artifact_manifest, build_job_actions, document_file_path,
-    job_file_path, job_internal_file_name, job_markdown_view_path, job_ocr_images_base_path,
-    job_ocr_markdown_path, job_translated_pdf_path, JOB_INTERNAL_FILES,
-    build_job_links_with_workflow, summarize_list_invocation, to_absolute_url, upload_to_response,
-    AmbiguousRequestPolicy, ArtifactDisplayItemView, ArtifactDownloadQuery, JobFilesQuery, ArtifactLinksView,
-    BookSummaryView, DocumentJobListView, GlossaryUsageSummaryView,
-    InvocationSummaryView, JobActionsView, JobArtifactManifestView, JobContractsView,
-    JobDetailView, JobDiagnosticsView, JobEventFeedItem, JobEventListView, JobEventProgressView,
-    JobEventRawView, JobEventRecord, JobFailureBriefView, JobFailureDiagnosticView, JobLinksView,
-    JobListItemView,
-    JobListView, JobProgressView, JobResumePlanView, JobStageContractArtifactView,
-    JobStageContractView, JobStageRuntimeView, JobStageSnapshotView, JobStageStateView,
-    JobStagesView, JobSubmissionView, JobTimestampsView, ListDocumentJobsQuery,
-    ListJobEventsQuery, ListJobEventsStart, ListJobsQuery,
-    ListTranslationItemsQuery, LiveTranslationCommitEventView, LiveTranslationEventsQuery,
-    LiveTranslationItemView, LiveTranslationLayoutBlockView, LiveTranslationLayoutPageView,
-    LiveTranslationLayoutView, LiveTranslationPageView, LiveTranslationTypographyView,
-    MarkdownDocumentView, MarkdownImageView, MarkdownQuery, MarkdownView, NormalizationSummaryView,
-    OcrAmbiguityReceiptFieldView, OcrAmbiguityResolutionKind, OcrAmbiguityResolutionRequest,
-    OcrAmbiguityResolutionView, OcrAmbiguityView, OcrJobSummaryView, LayoutDocxQuery, PagePreviewQuery,
-    ReaderDocumentMetadataView, ReaderMetadataView, ReaderPageMetadataView, ReaderRegionBoxView,
-    ReaderRegionItemView, ReaderRegionsView, RefineRetryRequest, RetryStageKind, RetryStageRequest,
-    RetryStageSubmissionView, LastRefineView, EscalatedItemView, LAST_REFINE_ESCALATED_LIMIT, StageActionsView, StageRetryActionLinkView, StageRetryActionView,
-    TranslationDebugIndexView, TranslationDebugItemView, TranslationDebugListItemView,
-    JobReportView, TranslationDebugListView, TranslationDiagnosticsView, TranslationReplayView,
-    ReviseTranslationItemRequest, TranslationRevisionHistoryView, TranslationRevisionLivePageView,
-    TranslationRevisionLivePublicationView, TranslationRevisionSource, TranslationRevisionView,
-    TranslationRequestRecoveryView,
-};
+pub use super::view::{to_absolute_url, JobEventProgressView, JobEventRawView, JobEventRecord};

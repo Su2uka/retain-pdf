@@ -4,7 +4,7 @@ use std::path::Path;
 use serde_json::Value;
 
 use retainpdf_api_base::error::AppError;
-use retainpdf_core::models::api::{ReaderRegionBoxView, ReaderRegionItemView, ReaderRegionsView};
+use crate::views::{ReaderRegionBoxView, ReaderRegionItemView, ReaderRegionsView};
 use retainpdf_core::models::domain::JobSnapshot;
 
 mod artifacts;

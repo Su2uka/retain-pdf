@@ -1,6 +1,6 @@
 use retainpdf_api_base::error::AppError;
 use retainpdf_core::job_failure::classify_job_failure;
-use retainpdf_core::models::api::{JobDiagnosticsView, OcrAmbiguityView};
+use crate::views::{JobDiagnosticsView, OcrAmbiguityView};
 use retainpdf_core::models::domain::{JobFailureInfo, JobSnapshot, JobStatusKind};
 use crate::actions::resume_plan::build_resume_plan_view;
 use crate::actions::translation_request_recovery::load_translation_request_recovery_with_db;

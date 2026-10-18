@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use retainpdf_core::models::api::{JobContractsView, JobStageContractArtifactView, JobStageContractView};
+use crate::views::{JobContractsView, JobStageContractArtifactView, JobStageContractView};
 use retainpdf_core::models::domain::JobSnapshot;
 use retainpdf_core::storage_paths::{
     resolve_data_path, TRANSLATION_CHECKPOINT_FILE_NAME, TRANSLATION_MANIFEST_FILE_NAME,

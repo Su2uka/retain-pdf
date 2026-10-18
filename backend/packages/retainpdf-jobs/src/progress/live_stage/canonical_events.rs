@@ -1,6 +1,7 @@
 use serde_json::{Map, Value};
 
-use retainpdf_core::models::api::{JobEventProgressView, JobEventRawView, JobEventRecord};
+use retainpdf_core::models::api::JobEventRecord;
+use retainpdf_core::models::api::{JobEventProgressView, JobEventRawView};
 use retainpdf_core::models::domain::{
     event_progress_unit, normalize_event_substage, normalize_event_user_stage,
     public_stage_for_raw_stage, public_stage_for_substage,

@@ -68,18 +68,6 @@ pub struct UploadRecord {
     pub content_hash: String,
 }
 
-#[derive(Debug, Serialize)]
-pub struct UploadView {
-    pub upload_id: String,
-    /// documents.document_id（= sha256(文件字节)）。上传即建档，前端据此可直接
-    /// 打开该文档的书籍详情；旧记录未回填 content_hash 时为空串。
-    pub document_id: String,
-    pub filename: String,
-    pub bytes: u64,
-    pub page_count: u32,
-    pub uploaded_at: String,
-}
-
 pub fn now_iso() -> String {
     Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true)
 }

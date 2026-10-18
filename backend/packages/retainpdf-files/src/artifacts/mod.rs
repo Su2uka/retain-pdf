@@ -1,10 +1,15 @@
 mod bundle;
+mod links_view;
 mod presentation;
 mod registry;
 mod response;
 mod titles;
 
 pub use bundle::{build_bundle_for_job, build_markdown_bundle_for_job};
+pub use links_view::{
+    build_artifact_links, build_job_actions, ActionLinkView, ArtifactDisplayItemView, ArtifactLinksView,
+    JobActionsView, MarkdownArtifactView, ResourceLinkView,
+};
 pub use presentation::build_artifacts_display;
 pub use registry::{list_registry_for_job, resolve_registry_artifact};
 pub use response::artifact_is_direct_downloadable;

@@ -1,4 +1,4 @@
-use retainpdf_core::models::api::{ArtifactDisplayItemView, ArtifactLinksView};
+use crate::{ArtifactDisplayItemView, ArtifactLinksView};
 
 // Shared presentation only: callers resolve artifact links and readiness first.
 pub fn build_artifacts_display(

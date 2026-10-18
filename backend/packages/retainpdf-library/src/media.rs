@@ -10,7 +10,8 @@ use serde::Serialize;
 
 use retainpdf_data::db::Db;
 use retainpdf_api_base::error::AppError;
-use retainpdf_core::models::api::{to_absolute_url, JobFilesQuery};
+use retainpdf_core::models::api::to_absolute_url;
+use retainpdf_jobs::JobFilesQuery;
 use retainpdf_core::models::api::DocumentRecord;
 use retainpdf_files::{
     document_artifacts_dir, ensure_document_book_image, ensure_page_preview, BookImageKind,

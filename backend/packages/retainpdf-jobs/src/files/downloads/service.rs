@@ -1,5 +1,5 @@
 use retainpdf_api_base::error::AppError;
-use retainpdf_core::models::api::JobFilesQuery;
+use crate::views::JobFilesQuery;
 use crate::files::downloads::FileDownload;
 
 use crate::files::downloads::catalog::{named_file, FileGroup};

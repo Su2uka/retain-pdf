@@ -1,8 +1,7 @@
 use retainpdf_api_base::error::AppError;
-use retainpdf_core::models::api::{
-    job_markdown_view_path, job_ocr_images_base_path, job_ocr_markdown_path, to_absolute_url,
-    MarkdownDocumentView, MarkdownImageView,
-};
+use retainpdf_core::models::api::to_absolute_url;
+use retainpdf_files::{job_markdown_view_path, job_ocr_images_base_path, job_ocr_markdown_path};
+use crate::views::{MarkdownDocumentView, MarkdownImageView};
 use retainpdf_core::models::domain::JobSnapshot;
 use retainpdf_core::storage_paths::{resolve_markdown_images_dir, resolve_markdown_path};
 

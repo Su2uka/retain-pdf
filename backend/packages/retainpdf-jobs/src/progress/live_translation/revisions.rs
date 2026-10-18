@@ -6,7 +6,7 @@ use std::path::Path;
 
 use retainpdf_data::db::{Db, RevisedPagePublication, RevisedPageStatus};
 use retainpdf_api_base::error::AppError;
-use retainpdf_core::models::api::{TranslationRevisionLivePageView, TranslationRevisionLivePublicationView};
+use crate::views::{TranslationRevisionLivePageView, TranslationRevisionLivePublicationView};
 
 /// 对账一次。没有修订日志(从没修订过)时返回 `None`,什么都不读。
 pub(crate) fn publish_translation_revisions(

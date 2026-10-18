@@ -1,4 +1,4 @@
-use retainpdf_core::models::api::{
+use crate::views::{
     JobProgressView, JobStageRuntimeView, JobStageSnapshotView, JobStageStateView, JobStagesView,
 };
 use retainpdf_core::models::domain::{public_stage_for_raw_stage, JobSnapshot, JobStatusKind, WorkflowKind};
@@ -344,7 +344,7 @@ fn is_terminal_status(status: &JobStatusKind) -> bool {
 #[cfg(test)]
 mod tests {
     use super::build_job_stage_view;
-    use retainpdf_core::models::api::JobStageStateView;
+    use crate::views::JobStageStateView;
     use retainpdf_core::models::domain::{CreateJobInput, JobFailureInfo, JobSnapshot, JobStatusKind};
 
     #[test]

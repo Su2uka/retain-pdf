@@ -2,12 +2,16 @@ use std::path::Path;
 
 use retainpdf_data::db::Db;
 use retainpdf_core::job_failure::classify_job_failure;
-use retainpdf_core::models::api::{
-    build_artifact_links, build_job_actions, build_job_links_with_workflow, public_request_payload,
-    ArtifactDisplayItemView, ArtifactLinksView, BookSummaryView, GlossaryUsageSummaryView,
-    InvocationSummaryView, JobActionsView, JobContractsView, JobFailureDiagnosticView,
-    JobLinksView, JobStageSnapshotView, JobStagesView, JobTimestampsView, NormalizationSummaryView,
-    OcrJobSummaryView, PublicResolvedJobSpec,
+use retainpdf_core::models::api::{public_request_payload, PublicResolvedJobSpec};
+use retainpdf_files::{
+    build_artifact_links, build_job_actions, ArtifactDisplayItemView, ArtifactLinksView,
+    JobActionsView,
+};
+use crate::views::{
+    build_job_links_with_workflow, BookSummaryView, GlossaryUsageSummaryView,
+    InvocationSummaryView, JobContractsView, JobFailureDiagnosticView, JobLinksView,
+    JobStageSnapshotView, JobStagesView, JobTimestampsView, NormalizationSummaryView,
+    OcrJobSummaryView,
 };
 use retainpdf_core::models::domain::{JobFailureInfo, JobRuntimeInfo, JobSnapshot, OcrProviderDiagnostics};
 use retainpdf_files::{build_artifacts_display, display_title, job_upload_id};

@@ -1,6 +1,7 @@
 use crate::progress::stage_view::build_job_stage_view;
 use retainpdf_api_base::error::AppError;
-use retainpdf_core::models::api::{build_job_actions, build_job_links_with_workflow, JobSubmissionView};
+use retainpdf_files::build_job_actions;
+use crate::views::{build_job_links_with_workflow, JobSubmissionView};
 use retainpdf_core::models::domain::{JobSnapshot, JobStatusKind, WorkflowKind};
 pub(crate) fn build_submission_view(
     job: &JobSnapshot,

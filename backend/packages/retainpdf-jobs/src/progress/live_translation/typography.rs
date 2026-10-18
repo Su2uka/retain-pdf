@@ -4,7 +4,7 @@ use std::path::Path;
 
 use serde_json::Value;
 
-use retainpdf_core::models::api::LiveTranslationTypographyView;
+use crate::views::LiveTranslationTypographyView;
 use retainpdf_core::models::domain::JobSnapshot;
 use retainpdf_core::storage_paths::resolve_job_root;
 

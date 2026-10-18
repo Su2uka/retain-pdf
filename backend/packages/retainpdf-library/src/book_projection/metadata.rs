@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use retainpdf_core::models::api::BookSummaryView;
+use retainpdf_jobs::BookSummaryView;
 use retainpdf_core::models::domain::{JobSnapshot, UploadRecord};
 use retainpdf_files::source_file_name;
 use retainpdf_jobs::SummaryCache;

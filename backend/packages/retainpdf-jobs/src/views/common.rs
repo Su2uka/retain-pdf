@@ -1,8 +1,7 @@
 use serde::{Deserialize, Serialize};
 
-use crate::models::{JobStatusKind, WorkflowKind};
-
-use super::super::defaults::{default_event_limit, default_limit};
+use retainpdf_core::models::{JobStatusKind, WorkflowKind};
+use retainpdf_files::JobActionsView;
 
 #[derive(Debug, Serialize)]
 pub struct JobSubmissionView {
@@ -75,26 +74,6 @@ pub struct JobLinksView {
     pub events_url: String,
     pub cancel_path: String,
     pub cancel_url: String,
-}
-
-#[derive(Debug, Serialize)]
-pub struct ActionLinkView {
-    pub enabled: bool,
-    pub method: String,
-    pub path: String,
-    pub url: String,
-}
-
-#[derive(Debug, Serialize)]
-pub struct JobActionsView {
-    pub open_job: ActionLinkView,
-    pub open_artifacts: ActionLinkView,
-    pub cancel: ActionLinkView,
-    pub rerun: ActionLinkView,
-    pub download_pdf: ActionLinkView,
-    pub open_markdown: ActionLinkView,
-    pub open_markdown_raw: ActionLinkView,
-    pub download_bundle: ActionLinkView,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -235,4 +214,12 @@ pub struct MarkdownDocumentView {
     pub images_base_path: String,
     pub images_base_url: String,
     pub images: Vec<MarkdownImageView>,
+}
+
+fn default_limit() -> u32 {
+    retainpdf_core::config::limits::DEFAULT_LIST_LIMIT
+}
+
+fn default_event_limit() -> u32 {
+    500
 }

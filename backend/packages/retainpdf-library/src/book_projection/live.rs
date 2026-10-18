@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use retainpdf_data::db::Db;
-use retainpdf_core::models::api::JobProgressView;
+use retainpdf_jobs::JobProgressView;
 use retainpdf_core::models::domain::JobSnapshot;
 use retainpdf_jobs::{build_job_stage_view, load_live_stage_snapshot, LiveStageSnapshot};
 
