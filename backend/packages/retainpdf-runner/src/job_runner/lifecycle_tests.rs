@@ -223,6 +223,82 @@ async fn repeated_launch_starts_only_one_real_local_worker() {
     );
 }
 
+/// 强制删除运行中的任务后，runner 必须收手：行不能被写回来，worker 要被停掉。
+///
+/// 删除只删了行和目录，没人通知 driver。driver 下一次逐行落库走的 CAS 以前在
+/// 「行不存在」时直接 INSERT，把已删任务复活成 running 的幽灵行，worker 接着跑完整个
+/// 流水线（继续花 OCR/模型的钱）。
+///
+/// 用真实的本地 worker（python 脚本，吞掉 BrokenPipe，只有被杀才会停）。
+///
+/// 反证方式：把 `cas_save_job` 里「行不存在就返回 false」去掉，这个测试必须变红——
+/// 任务行会重新出现，worker 也会一直写到脚本结束。
+#[tokio::test]
+async fn force_deleting_a_running_job_stops_the_runner_and_revives_no_row() {
+    let fx = Fixture::new(1);
+    let marker = fx.root.join("ghost-worker-ticks.txt");
+    let mut job = fx.job("ghost", JobStatusKind::Running);
+    job.command = vec![
+        "python3".into(),
+        "-c".into(),
+        concat!(
+            "import pathlib,sys,time\n",
+            "p=pathlib.Path(sys.argv[1])\n",
+            "for i in range(60):\n",
+            "    p.open('a').write('tick\\n')\n",
+            "    try:\n",
+            "        print('line', i, flush=True)\n",
+            "    except Exception:\n",
+            "        pass\n",
+            "    time.sleep(0.2)\n",
+        )
+        .into(),
+        marker.to_string_lossy().into_owned(),
+    ];
+    fx.deps.db.save_job(&job).unwrap();
+    let handle = spawn_job_with_workflow(
+        fx.deps.clone(),
+        job.job_id.clone(),
+        |deps, job| async move {
+            super::super::process_runner::execute_process_job(deps, job, &[]).await
+        },
+    )
+    .unwrap();
+
+    let ticks = || {
+        std::fs::read_to_string(&marker)
+            .map(|text| text.lines().count())
+            .unwrap_or(0)
+    };
+    for _ in 0..100 {
+        if ticks() >= 2 {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+    assert!(ticks() >= 2, "worker 应该已经在跑");
+
+    // 强制删除：删行，再删磁盘目录（worker 启动时建了日志目录）。
+    fx.deps.db.delete_jobs(&["ghost".to_string()]).unwrap();
+    let _ = std::fs::remove_dir_all(fx.deps.persist.output_root.join("ghost"));
+
+    tokio::time::timeout(std::time::Duration::from_secs(5), handle)
+        .await
+        .expect("行被删之后 driver 必须很快退出，而不是陪 worker 跑到结束")
+        .unwrap();
+    assert!(
+        fx.deps.db.get_job("ghost").is_err(),
+        "已删除的任务行不能被 runner 写回来"
+    );
+    let after = ticks();
+    tokio::time::sleep(std::time::Duration::from_millis(800)).await;
+    assert_eq!(ticks(), after, "worker 进程必须已被终止，不能继续干活");
+    assert!(
+        !fx.deps.persist.output_root.join("ghost").exists(),
+        "runner 不能给已删除的任务重建输出目录"
+    );
+}
+
 /// 取消标记在队列门被消费掉之后，任务必须落终态，不能挂着。
 ///
 /// `wait_for_execution_slot` 命中标记会清掉它并返回 None，driver 随即退出。

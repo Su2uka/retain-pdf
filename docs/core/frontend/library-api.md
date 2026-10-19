@@ -199,6 +199,8 @@ GET /api/v1/library/books?job_ids=job-a,job-b,job-c
    **409**(`error.code` 为 `CONFLICT`)。带 `?force=true` 才会连运行中的任务一起删;前端不自动
    force,提示用户先取消任务再删除。以前被收藏锚点挡住时的 `DELETE_BLOCKED_BY_FAVORITES` 和
    `clear_favorites_path` 已随收藏功能一起删掉。
+   强删（`force=true`）会先取消运行中的任务再删；删单个任务时若别的任务还在用它的产物（重新排版的 render 任务），
+   不带 `force` 返回 409 + `error.details.reason = "job_has_dependents"`。
 2. **重复上传**:同一 PDF 再次上传不会产生新文档(documents 列表数量不变),
    前端不要假设"上传成功 = 列表多一条"。
 

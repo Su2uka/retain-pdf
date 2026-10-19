@@ -40,6 +40,22 @@ pub(super) async fn is_cancel_requested_any(
         .any(|value| canceled_jobs.contains(value))
 }
 
+/// 这个任务的行是不是被删了（强制删除运行中的任务 / 整本书）。
+///
+/// 只有「读库成功且确实没有这一行」才算；读库出错不当成删除（宁可多跑一步，不能误杀）。
+/// runner 的落库写（CAS）在行不存在时返回「没更新」，写的人用它区分「被取消 / 已终态」和「被删了」，
+/// 后者要连 worker 进程一起停掉，并且不再往磁盘写任何东西。
+pub(super) fn job_row_is_gone(db: &Db, job_id: &str) -> bool {
+    match db.job_status(job_id) {
+        Ok(None) => true,
+        Ok(Some(_)) => false,
+        Err(error) => {
+            tracing::warn!("deleted-row check: reading status of job {job_id} failed: {error:#}");
+            false
+        }
+    }
+}
+
 /// OCR 子任务该不该停：自己或父任务登记了取消，**或者库里的父任务已经不在 queued / running**
 /// （被取消、失败、被删）。
 ///

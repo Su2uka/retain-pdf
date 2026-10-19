@@ -37,13 +37,11 @@ pub fn delete_library_book(
     job_id: &str,
     force: bool,
 ) -> Result<LibraryDeleteResultView, AppError> {
-    let mut jobs = vec![load_library_job(deps.db, job_id)?];
-    if let Ok(child) = deps.db.get_job(&format!("{job_id}-ocr")) {
-        jobs.push(child);
-    }
+    let jobs = book_delete_jobs(deps.db, job_id)?;
     for job in &jobs {
         ensure_deletable(job, force)?;
     }
+    ensure_no_dependents(deps.db, &jobs, force)?;
 
     // 删 job 前先记住它所属文档,删后 reconcile 其 active_job_id,
     // 否则文档行会悬空指向已删 job,前端 join 不到而渲染成僵尸卡。
@@ -79,6 +77,13 @@ pub fn delete_library_book(
                 "[library] reconcile active_job for {document_id} after deleting {job_id} failed: {error}"
             );
         }
+        // 被删任务的全文索引行已在删除事务里清掉;它独占的页之外,别的成功任务覆盖的页
+        // 要按剩下的任务重建回来。索引是可重建的派生数据,失败只记日志。
+        if let Err(error) = deps.db.rebuild_document_fts(&document_id) {
+            eprintln!(
+                "[library] rebuild fts for {document_id} after deleting {job_id} failed: {error}"
+            );
+        }
     }
 
     Ok(LibraryDeleteResultView {
@@ -87,6 +92,24 @@ pub fn delete_library_book(
         removed_paths,
         removed_child_jobs,
     })
+}
+
+/// 删一本书会动到的任务:book 任务本身 + 它的 `-ocr` 子任务。找不到书 → 404。
+fn book_delete_jobs(db: &Db, job_id: &str) -> Result<Vec<JobSnapshot>, AppError> {
+    let mut jobs = vec![load_library_job(db, job_id)?];
+    if let Ok(child) = db.get_job(&format!("{job_id}-ocr")) {
+        jobs.push(child);
+    }
+    Ok(jobs)
+}
+
+/// 强制删除前要先取消的任务编号(删书会动到的全部任务)。路由在 `force=true` 时用它，
+/// 经任务门面走和 `POST actions/cancel` 同一条路径，之后才调 [`delete_library_book`]。
+pub fn book_delete_job_ids(db: &Db, job_id: &str) -> Result<Vec<String>, AppError> {
+    Ok(book_delete_jobs(db, job_id)?
+        .into_iter()
+        .map(|job| job.job_id.clone())
+        .collect())
 }
 
 fn load_library_job(db: &Db, job_id: &str) -> Result<JobSnapshot, AppError> {
@@ -107,6 +130,34 @@ pub(super) fn ensure_deletable(job: &JobSnapshot, force: bool) -> Result<(), App
         )));
     }
     Ok(())
+}
+
+/// 删除范围之外的任务还要用范围内任务的产物时，不带 `force` 拒绝(409 + `job_has_dependents`)。
+///
+/// 典型：重新排版产生的 render 任务，译文目录就是源任务的 `translated/`。源任务一删，
+/// 这本书的合并阅读(`/documents/:id/reading`)会因为找不到译文目录整个 500。
+pub(super) fn ensure_no_dependents(
+    db: &Db,
+    jobs: &[JobSnapshot],
+    force: bool,
+) -> Result<(), AppError> {
+    if force {
+        return Ok(());
+    }
+    let ids: Vec<String> = jobs.iter().map(|job| job.job_id.clone()).collect();
+    let dependents = db.jobs_depending_on(&ids)?;
+    if dependents.is_empty() {
+        return Ok(());
+    }
+    let list = dependents
+        .iter()
+        .map(|(dependent, target)| format!("{dependent} (uses {target})"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    Err(AppError::conflict_because(
+        "job_has_dependents",
+        format!("other jobs still use this job's artifacts: {list}; delete them first or pass force=true"),
+    ))
 }
 
 pub(super) fn remove_job_files(

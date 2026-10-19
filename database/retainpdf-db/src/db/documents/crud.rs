@@ -479,6 +479,30 @@ impl Db {
         Ok(changed > 0)
     }
 
+    /// 删除范围 `job_ids` 之外、还要用范围内任务产物的任务(`source.artifact_job_id` 指向范围内的任务)。
+    ///
+    /// 典型是「换字体重新排版」产生的 render 任务:它的译文目录就是源任务的 `translated/`。
+    /// 源任务一删,这本书的合并阅读会因为找不到译文目录整个失败。引用自己的
+    /// (原地重新渲染)和本来就在删除范围内的不算。返回 `(依赖者, 被依赖的任务)`。
+    pub fn jobs_depending_on(&self, job_ids: &[String]) -> Result<Vec<(String, String)>> {
+        let conn = self.connect()?;
+        let mut stmt = conn.prepare(
+            "SELECT job_id FROM jobs WHERE json_extract(request_json, '$.source.artifact_job_id') = ?1 \
+             AND job_id != ?1 ORDER BY job_id",
+        )?;
+        let mut dependents = Vec::new();
+        for target in job_ids {
+            let rows = stmt.query_map(params![target], |row| row.get::<_, String>(0))?;
+            for dependent in rows {
+                let dependent = dependent?;
+                if !job_ids.contains(&dependent) {
+                    dependents.push((dependent, target.clone()));
+                }
+            }
+        }
+        Ok(dependents)
+    }
+
     /// 在一个事务里删掉一批 job 行(连同它们的 events)。
     ///
     /// 与 [`Db::delete_document_cascade`] 同一个理由:馆藏删除一次要删
@@ -598,10 +622,13 @@ impl Db {
     }
 }
 
-/// 删 job 行的共用语句对:events 是 job 的从属行,必须与 jobs 同生共死。
+/// 删 job 行的共用语句对:events 是 job 的从属行,必须与 jobs 同生共死;
+/// 全文索引里记着「这页是哪个任务提供的」(`blocks_fts.job_id`),也一并清掉,
+/// 否则搜索会命中一个已经不存在的任务。
 fn delete_job_rows(tx: &rusqlite::Transaction<'_>, job_ids: &[String]) -> Result<()> {
     for job_id in job_ids {
         tx.execute("DELETE FROM events WHERE job_id = ?1", params![job_id])?;
+        tx.execute("DELETE FROM blocks_fts WHERE job_id = ?1", params![job_id])?;
         tx.execute("DELETE FROM jobs WHERE job_id = ?1", params![job_id])?;
     }
     Ok(())

@@ -124,6 +124,8 @@ mod tests {
         let checkpoint = br#"{"schema":"translation_checkpoint_v1","schema_version":1,"status":"in_progress","pages":[]}"#;
         std::fs::write(&source_checkpoint, checkpoint).unwrap();
 
+        // 真实流程里任务行在建任务时就落了库；CAS 只更新已有的行。
+        deps.db.save_job(&job.snapshot()).unwrap();
         let (prepared, source_pdf) =
             prepare_job_from_ocr_artifacts(&deps, job, "source", "继续翻译")
                 .await

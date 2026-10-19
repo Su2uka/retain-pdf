@@ -257,6 +257,8 @@ pub(super) mod tests {
         )
         .into_runtime();
         job.request_payload.runtime.job_id = job.job_id.clone();
+        // 任务行在真实流程里建任务时就落了库；CAS 只更新已有的行、不会插入，测试得先放一行。
+        state.db.save_job(&job.snapshot()).unwrap();
         job.request_payload.runtime.timeout_seconds = 1;
 
         let finished = execute_process_job(
@@ -330,6 +332,8 @@ pub(super) mod tests {
         )
         .into_runtime();
         job.request_payload.runtime.job_id = job.job_id.clone();
+        // 任务行在真实流程里建任务时就落了库；CAS 只更新已有的行、不会插入，测试得先放一行。
+        state.db.save_job(&job.snapshot()).unwrap();
         job.request_payload.runtime.timeout_seconds = 600;
         job.request_payload.runtime.no_output_timeout_seconds = 2;
 
@@ -384,6 +388,8 @@ pub(super) mod tests {
         )
         .into_runtime();
         job.request_payload.runtime.job_id = job.job_id.clone();
+        // 任务行在真实流程里建任务时就落了库；CAS 只更新已有的行、不会插入，测试得先放一行。
+        state.db.save_job(&job.snapshot()).unwrap();
         job.request_payload.runtime.timeout_seconds = 60;
         assert_eq!(
             job.request_payload.runtime.no_output_timeout_seconds, 0,
@@ -455,6 +461,8 @@ pub(super) mod tests {
         )
         .into_runtime();
         job.request_payload.runtime.job_id = job.job_id.clone();
+        // 任务行在真实流程里建任务时就落了库；CAS 只更新已有的行、不会插入，测试得先放一行。
+        state.db.save_job(&job.snapshot()).unwrap();
         job.request_payload.runtime.timeout_seconds = 60;
 
         let started = std::time::Instant::now();
@@ -735,6 +743,8 @@ print(json.dumps({{
         )
         .into_runtime();
         job.request_payload.runtime.job_id = job.job_id.clone();
+        // 任务行在真实流程里建任务时就落了库；CAS 只更新已有的行、不会插入，测试得先放一行。
+        state.db.save_job(&job.snapshot()).unwrap();
         job.request_payload.translation.api_key.clear();
         job.request_payload.translation.credential_ref = credential_ref.to_string();
         job.request_payload.ocr.provider = "paddle".to_string();
