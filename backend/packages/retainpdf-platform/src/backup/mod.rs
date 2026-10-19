@@ -6,13 +6,14 @@
 //!   0 关掉自动备份)就再存一份,并按保留规则清掉多余的;
 //! - 同一时间只做一件事(备份或恢复);
 //! - 恢复:有任务在跑时不恢复;先存一份「恢复前」备份;恢复期间停住同步,免得同步
-//!   读写到一半换了库。
+//!   读写到一半换了库;恢复成功后调应用装配层给的 [`AfterRestoreHook`](进程内模式下
+//!   立即对账备份里带回来的排队/运行中任务,见 `recover_jobs_after_database_restore`)。
 
 pub mod api;
 pub mod views;
 
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 
 use anyhow::Result;
@@ -50,12 +51,16 @@ fn item_view(info: &BackupInfo) -> BackupItemView {
     }
 }
 
+/// 恢复成功后要做的事,返回处理了几个任务。在阻塞线程里调。
+pub type AfterRestoreHook = Arc<dyn Fn() -> Result<usize> + Send + Sync>;
+
 pub struct BackupService {
     db: Arc<Db>,
     sync: Arc<SyncService>,
     interval_hours: u64,
     lock: tokio::sync::Mutex<()>,
     running: AtomicBool,
+    after_restore: OnceLock<AfterRestoreHook>,
 }
 
 impl BackupService {
@@ -66,7 +71,13 @@ impl BackupService {
             interval_hours: interval_hours_from_env(),
             lock: tokio::sync::Mutex::new(()),
             running: AtomicBool::new(false),
+            after_restore: OnceLock::new(),
         }
+    }
+
+    /// 装配时设一次;再设无效。
+    pub fn set_after_restore(&self, hook: AfterRestoreHook) {
+        let _ = self.after_restore.set(hook);
     }
 
     pub fn status(&self) -> Result<BackupStatusView> {
@@ -151,6 +162,18 @@ impl BackupService {
             }));
         }
         tracing::warn!(backup = %id, safety = %safety.id, "database restored from a backup");
+        // 备份里带回来的排队/运行中任务没有 driver:立即对账,不让它们一直转圈。
+        // 失败只记日志——恢复已经完成,运行期巡检还会再兜一次。
+        if let Some(hook) = self.after_restore.get().cloned() {
+            match tokio::task::spawn_blocking(move || hook()).await {
+                Ok(Ok(0)) => {}
+                Ok(Ok(count)) => {
+                    tracing::warn!("reconciled {count} restored queued/running job(s) after the restore")
+                }
+                Ok(Err(error)) => tracing::warn!("reconciling restored jobs failed: {error:#}"),
+                Err(error) => tracing::warn!("reconciling restored jobs panicked: {error}"),
+            }
+        }
         Ok(Ok(BackupRestoreView {
             restored: id,
             safety_backup: safety.id,

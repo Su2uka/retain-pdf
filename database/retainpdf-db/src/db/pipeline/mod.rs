@@ -6,6 +6,7 @@
 //! atomic.
 
 mod attempts;
+mod auto_resume;
 mod dispatches;
 pub(super) mod events;
 mod queries;
@@ -22,6 +23,7 @@ pub(super) use tx::validate_identity;
 
 mod types;
 
+pub use auto_resume::AutoResumeTally;
 pub use revisions::{RevisedPagePublication, RevisedPageStatus, RevisedTranslationPage};
 pub use types::{
     PipelineAttemptCursor, PipelineCheckpoint, PipelineCommitEventRecord, PipelineDispatchBegin,

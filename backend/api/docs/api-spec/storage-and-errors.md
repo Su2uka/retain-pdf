@@ -185,6 +185,9 @@ Rust API layer stores:
   - `pipeline_attempts`, `pipeline_stages`, `pipeline_units`, and
     `pipeline_dispatches` for durable generation-fenced execution state and
     external-provider dispatch receipts
+    (`pipeline_attempts.auto_resume_count` / `auto_resume_progress`, migration
+    v27, cap automatic resume without progress; see
+    [jobs-retry-and-control.md](jobs-retry-and-control.md))
   - `documents`, `favorites`, `collections`, `collection_documents`,
     `document_tags`, and `blocks_fts` for the library projection
   - `ai_conversations` / `ai_messages` for the durable message tree

@@ -110,6 +110,12 @@ const CATALOGUE: &[(&str, FailureRecovery)] = &[
         resume_from: None,
         hint: "执行进程在运行中消失（多为服务重启或崩溃）。可以直接重试。",
     }),
+    // 启动恢复 / 运行期巡检的崩溃循环熔断（runner 的 MAX_AUTO_RESUMES_WITHOUT_PROGRESS）。
+    ("auto_resume_limit_exceeded", FailureRecovery {
+        resume_from: None,
+        hint: "任务多次自动续跑都没有进展就又中断了，疑似这份输入让服务崩溃，已停止自动续跑。\
+               请先查看失败详情里的日志，排查后再手动重试。",
+    }),
     ("process_timeout", FailureRecovery {
         resume_from: None,
         hint: "处理超时。可以直接重试。",

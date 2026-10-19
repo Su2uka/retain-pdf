@@ -141,6 +141,11 @@ pub(super) const MIGRATIONS: &[Migration] = &[
         name: "invite_codes",
         sql: include_str!("v26_invite_codes.sql"),
     },
+    Migration {
+        version: 27,
+        name: "pipeline_auto_resume",
+        sql: include_str!("v27_pipeline_auto_resume.sql"),
+    },
 ];
 
 #[cfg(test)]

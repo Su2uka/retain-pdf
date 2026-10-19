@@ -158,6 +158,18 @@ resumed; it ends `failed` with `failure_code=translation_request_ambiguous`
 (`resume_from=translation`) and the retry above is the way forward. A clean or
 missing journal still resumes automatically; render/refine stages ignore the journal.
 
+Automatic resume is also capped (additive, 2026-10-19). Startup recovery and the
+runtime driverless sweep count, per pipeline attempt, how many times in a row a job
+was put back to `queued` without any new progress in between (no new committed unit,
+no newly completed stage). After `MAX_AUTO_RESUMES_WITHOUT_PROGRESS` (3) such resumes,
+the next time the job is found interrupted it ends `failed` with
+`failure_code=auto_resume_limit_exceeded` (`failure_category=internal`,
+`failed_stage=startup_recovery`, `retryable=true`, `resume_from=null`, summary
+「自动续跑次数超过上限，疑似导致运行时崩溃」) instead of being resumed again. Progress
+between two interruptions resets the count; a manual retry or resume claims a new
+attempt and starts from zero. The counters live in `pipeline_attempts.auto_resume_count`
+/ `auto_resume_progress` (schema migration v27).
+
 ### Refusals: 400 versus 409, and `error.details.reason`
 
 A request that is itself malformed is `400` regardless of the job's state:

@@ -117,6 +117,8 @@ fn event_uid_is_backfilled_for_legacy_schema_and_migrations_are_idempotent() {
          ALTER TABLE users DROP COLUMN deleted_at;
          DROP INDEX users_by_invite;
          ALTER TABLE users DROP COLUMN invite_id;
+         ALTER TABLE pipeline_attempts DROP COLUMN auto_resume_count;
+         ALTER TABLE pipeline_attempts DROP COLUMN auto_resume_progress;
          PRAGMA user_version = 13;",
     )
     .unwrap();

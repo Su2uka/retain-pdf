@@ -20,6 +20,11 @@
 //! 只恢复数据库,数据目录里的文件(原文、译文、成品)不动:备份之后新加的书文件还在,
 //! 只是数据库里没有它;开着同步时会再从同步文件夹收回来。
 //!
+//! 备份时在排队/运行的任务,恢复出来还是 queued/running,却没有任何 driver(恢复前已确认
+//! 当时没有在跑的任务)。恢复时清掉它们备份里的 pid(不属于当前任何进程,不能拿去杀),
+//! 再由拥有任务运行时的进程按启动恢复的规则对账:进程内模式恢复后立即一次
+//! (`recover_jobs_after_database_restore`),jobsd 模式由 jobsd 的运行期巡检接手。
+//!
 //! 同步记账按「这台设备带着旧数据重新加入」处理(见 `sync_after_restore`):恢复前的同步
 //! 设置保留;本机换一个新设备号,忘掉所有同步记账,不把恢复出来的旧内容当新改动发出去,
 //! 再从头读同步文件夹里每台设备(包括本机原来的设备号)的改动——备份之后已经同步出去的
@@ -358,8 +363,21 @@ impl Db {
             *ready = true;
         }
         sync_after_restore(&target, &previous_sync_state)?;
+        clear_restored_job_pids(&target)?;
         Ok(Ok(()))
     }
+}
+
+/// 备份里排队/运行中的任务带着备份那一刻的 worker pid。恢复之后这些 pid 一律不属于当前
+/// 任何进程（那个 worker 早没了，号码可能已被不相干的进程复用），留着的话对账会把它们当成
+/// 孤儿 worker 去杀。只清 pid；这些行由拥有任务运行时的进程对账（立即一次，或运行期巡检），
+/// 按启动恢复的规则判成续跑或失败。终态任务的 pid 只是历史记录，不动。
+fn clear_restored_job_pids(conn: &Connection) -> Result<usize> {
+    Ok(conn.execute(
+        "UPDATE jobs SET pid = NULL
+         WHERE pid IS NOT NULL AND status_json IN ('\"queued\"', '\"running\"')",
+        [],
+    )?)
 }
 
 #[cfg(test)]
@@ -474,6 +492,38 @@ mod tests {
             )
             .unwrap();
         assert_eq!(db.restore_blockers().unwrap(), vec!["有 1 个任务在排队或运行".to_string()]);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    /// 回归：备份里排队/运行中的任务带着备份时的 pid。恢复后这些 pid 不属于当前任何进程
+    /// （可能已被不相干的进程复用），对账时不能拿去杀，恢复时就要清掉；终态任务不动。
+    #[test]
+    fn a_restore_clears_the_stale_pids_of_restored_queued_and_running_jobs() {
+        let (root, db) = temp_db();
+        let conn = db.connect().unwrap();
+        for (id, status) in [("run", "running"), ("wait", "queued"), ("done", "succeeded")] {
+            conn.execute(
+                "INSERT INTO jobs(job_id, workflow, status_json, created_at, updated_at, pid, command_json, request_json, log_tail_json)
+                 VALUES(?1, '\"book\"', ?2, 't', 't', 4242, '[]', '{}', '[]')",
+                rusqlite::params![id, format!("\"{status}\"")],
+            )
+            .unwrap();
+        }
+        let backup = db.create_backup(KIND_MANUAL).unwrap();
+        // 恢复前这些任务都结束了（否则 restore_blockers 不让恢复）。
+        conn.execute("UPDATE jobs SET status_json = '\"failed\"', pid = NULL", []).unwrap();
+        drop(conn);
+
+        assert_eq!(db.restore_backup(&backup.id).unwrap(), Ok(()));
+        let pid = |id: &str| -> Option<i64> {
+            db.connect()
+                .unwrap()
+                .query_row("SELECT pid FROM jobs WHERE job_id = ?1", [id], |row| row.get(0))
+                .unwrap()
+        };
+        assert_eq!(pid("run"), None, "恢复出来的 running 任务不能带着备份里的 pid");
+        assert_eq!(pid("wait"), None, "恢复出来的 queued 任务不能带着备份里的 pid");
+        assert_eq!(pid("done"), Some(4242), "终态任务的 pid 只是历史记录，不动");
         fs::remove_dir_all(root).unwrap();
     }
 

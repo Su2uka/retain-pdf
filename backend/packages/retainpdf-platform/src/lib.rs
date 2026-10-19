@@ -11,7 +11,7 @@ mod health_api;
 mod sync;
 
 // 门面。
-pub use backup::BackupService;
+pub use backup::{AfterRestoreHook, BackupService};
 pub use backup::views::{BackupItemView, BackupRestoreView, BackupStatusView};
 pub use backup::api::{
     backup_status_view, create_backup_view, delete_backup_view, restore_backup_view, BackupApiDeps,
