@@ -122,7 +122,6 @@ in-memory allocation. The current endpoint limits are:
 | Endpoint | Limit source | Default / fallback |
 | --- | --- | ---: |
 | `/api/v1/uploads` | `RUST_API_UPLOAD_MAX_BYTES` | 512 MiB when unset or `0` |
-| `/api/v1/assets` | `RUST_API_ASSET_MAX_BYTES` | 20 MiB |
 | `/api/v1/fonts/upload` | backend hard limit | 64 MiB |
 
 These checks use bytes actually received from each field and do not trust

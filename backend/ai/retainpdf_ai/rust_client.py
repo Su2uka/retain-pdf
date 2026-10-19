@@ -59,13 +59,10 @@ class RustApiClient:
     def list_documents(
         self,
         *,
-        tag: str = "",
         reading_status: str = "",
         limit: int = 50,
     ) -> list[dict[str, Any]]:
         params: dict[str, Any] = {"limit": limit}
-        if tag:
-            params["tag"] = tag
         if reading_status:
             params["reading_status"] = reading_status
         data = self._get("/api/v1/documents", params)

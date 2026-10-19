@@ -43,7 +43,6 @@ class FakeRust:
                 "document_id": "doc-a",
                 "title": "光谱计算方法",
                 "page_count": 12,
-                "tags": ["化学"],
                 "reading_status": "reading",
                 "active_job_id": "job-1",
             }
@@ -74,7 +73,7 @@ class FakeRust:
             hits = [h for h in hits if h["document_id"] == document_id]
         return hits
 
-    def list_documents(self, *, tag="", reading_status="", limit=50):
+    def list_documents(self, *, reading_status="", limit=50):
         return self.documents
 
     def get_document(self, document_id):

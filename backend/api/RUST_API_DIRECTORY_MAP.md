@@ -104,7 +104,7 @@ jobs 的依赖装配由 `app/jobs.rs` 完成；依赖定义在任务包的 `deps
 - `library_data.rs`
   documents / media / translate-from-library / favorites / search；只调书库包的 `api.rs`。
 - `library_extras.rs`
-  assets / conversations；multipart 解包留在 route，业务进书库包的 `api.rs`。
+  conversations；只调书库包的 `api.rs`。
 - `collections.rs`
   合集 CRUD 与成员关系；只调书库包的 `api.rs`。
 - deps：`routes/common.rs::build_library_route_deps`（`LibraryDeps` + `JobsFacade`）。
@@ -183,7 +183,7 @@ jobs 的依赖装配由 `app/jobs.rs` 完成；依赖定义在任务包的 `deps
   - `documents.rs` / `media.rs` — 文档 CRUD 与 source.pdf/cover/thumbnail
   - `translate.rs` — 绑定文档 upload 后调 `JobsFacade::create_submission`
   - `search.rs` — blocks FTS 全文检索
-  - `assets.rs` / `conversations.rs` / `collections.rs` — 资产、会话、合集
+  - `conversations.rs` / `collections.rs` — 会话、合集
 - 规则：
   route 只用 `api.rs` 导出的 view 函数（经 `services::library` 门面）；`derived_artifacts` 只允许在 service 内部使用。
 

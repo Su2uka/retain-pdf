@@ -423,7 +423,7 @@ Rust 侧关键落点：
 |------------|---------|
 | `library.rs` | books 列表/详情/删除、book cover/thumbnail |
 | `library_data.rs` | documents CRUD/media/translate、favorites、search |
-| `library_extras.rs` | assets、conversations |
+| `library_extras.rs` | conversations |
 | `collections.rs` | 合集 CRUD 与文档成员 |
 | `ai_proxy.rs` | `/api/v1/ai/ask` 与 runtime-config 反向代理 |
 | `public_document_operations.rs` | conversation operation 查询、确认动作、candidate 下载 |

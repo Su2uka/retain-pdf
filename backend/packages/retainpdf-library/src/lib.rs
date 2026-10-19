@@ -5,7 +5,6 @@
 
 mod api;
 
-mod assets;
 mod book_projection;
 mod books;
 mod collection_workspace;
@@ -36,8 +35,8 @@ pub use api::{
     document_translation_coverage, fork_conversation_view, get_conversation_view, get_document,
     get_library_book_view, list_collections_view, list_conversations_view,
     list_document_metadata_suggestions_view, list_documents, list_library_books_view,
-    load_asset_view, ocr_document_view, patch_collection_view, patch_conversation_view,
-    patch_document, remove_collection_document_view, search_blocks_view, store_asset_view,
+    ocr_document_view, patch_collection_view, patch_conversation_view,
+    patch_document, remove_collection_document_view, search_blocks_view,
     translate_document_view, CollectionWorkspace, Disposition, DocumentReadingView,
     TranslationCoverageView,
 };
@@ -60,10 +59,8 @@ pub(crate) use book_projection::{build_library_book_detail_view, build_library_b
 
 use std::path::Path;
 
-use retainpdf_core::config::AssetConfig;
 use retainpdf_data::db::Db;
 
-use assets::{load_asset, store_asset, AssetDownload};
 use books::{book_delete_job_ids, delete_library_book, get_library_book, list_library_books};
 use collections::{
     add_collection_documents, create_collection, delete_collection, list_collections,
@@ -92,5 +89,4 @@ pub struct LibraryDeps<'a> {
     pub python_bin: &'a str,
     /// 合并阅读（多次范围翻译拼一本）要跑 pipeline 生成合并目录。
     pub pipeline_command: &'a str,
-    pub asset_config: &'a AssetConfig,
 }

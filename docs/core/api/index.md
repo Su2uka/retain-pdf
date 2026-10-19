@@ -175,7 +175,7 @@ Reader 宿主接入 job/artifact、Markdown、区域、页面元数据和实时�
 - `POST /api/v1/documents/{document_id}/metadata-suggestions/{suggestion_id}/apply`
 
 `GET /api/v1/documents` 返回 `{ "documents": [...], "total": 128 }`。
-`total` 是应用 `reading_status`、`tag`、`collection_id` 以及有效 upload
+`total` 是应用 `reading_status`、`collection_id` 以及有效 upload
 约束后的跨页总数；`limit` 和 `offset` 只裁剪 `documents`。使用 `job_id`
 直查时，命中返回 `total: 1`，未命中返回 `total: 0`。
 
@@ -738,8 +738,6 @@ PDF 元数据：
 - `PATCH|DELETE /api/v1/collections/{collection_id}`
 - `POST /api/v1/collections/{collection_id}/documents`
 - `DELETE /api/v1/collections/{collection_id}/documents/{document_id}`
-- `POST /api/v1/assets`
-- `GET /api/v1/assets/{asset_id}`
 - `GET /api/v1/fonts`
 - `POST /api/v1/fonts/upload`
 
@@ -933,7 +931,7 @@ simple app 通常监听 `42000`，现在只有 `GET /health` 和 `GET /ready`，
   不在这里面的接口对网站账号**一律关闭**（回 404，看起来就是没有这个接口），新加的接口也默认关闭。
 - **只给管理员**（普通账号 403）：`credentials`、`sync`、`backups`、`admin`、其余 `providers`、
   `POST /api/v1/fonts/upload`。
-- **这一期对网站账号关闭**（管理员也一样）：`ai`、`assets`、`internal`、
+- **这一期对网站账号关闭**（管理员也一样）：`ai`、`internal`、
   `.../agent-versions`、`.../agent-workspace`。
 - **数据只看自己的**：路径、查询串、JSON 请求体里出现的任务 / 书 / 术语表 / 文件夹 / 上传编号必须是自己的，
   别人的一律当不存在（404）；列表和搜索只返回自己的。管理员的网站会话也一样（见 13.6）。

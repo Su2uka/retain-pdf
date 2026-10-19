@@ -541,13 +541,11 @@ def build_default_registry(settings: Settings, rust: RustApiClient) -> ToolRegis
                         "document_id": document.get("document_id"),
                         "title": document.get("title"),
                         "page_count": document.get("page_count"),
-                        "tags": document.get("tags"),
                         "reading_status": document.get("reading_status"),
                     }
                 ]
             }
         documents = rust.list_documents(
-            tag=str(arguments.get("tag") or ""),
             reading_status=str(arguments.get("reading_status") or ""),
             limit=int(arguments.get("limit") or 50),
         )
@@ -558,7 +556,6 @@ def build_default_registry(settings: Settings, rust: RustApiClient) -> ToolRegis
                     "document_id": document.get("document_id"),
                     "title": document.get("title"),
                     "page_count": document.get("page_count"),
-                    "tags": document.get("tags"),
                     "reading_status": document.get("reading_status"),
                 }
                 for document in documents
@@ -671,11 +668,10 @@ def build_default_registry(settings: Settings, rust: RustApiClient) -> ToolRegis
             ),
             Tool(
                 name="list_documents",
-                description="列出图书馆中的文档(标题、标签、阅读状态)。回答涉及'哪篇文档/我的库里'时先用它确认范围。",
+                description="列出图书馆中的文档(标题、页数、阅读状态)。回答涉及'哪篇文档/我的库里'时先用它确认范围。",
                 parameters={
                     "type": "object",
                     "properties": {
-                        "tag": {"type": "string", "description": "按标签过滤,可选"},
                         "reading_status": {
                             "type": "string",
                             "enum": ["unread", "reading", "done"],

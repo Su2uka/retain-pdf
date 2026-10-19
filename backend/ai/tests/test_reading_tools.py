@@ -187,3 +187,31 @@ def test_default_registry_markdown_tools_only_read_full_markdown(tmp_path):
         {"query": "光谱", "document_id": "doc-other", "job_id": "job-1"},
     )
     assert "do not refer to the same document" in mismatch["error"]
+
+
+def test_list_documents_tool_has_no_tag_filter_or_tags_field():
+    """书库标签 2026-09-26 已删：工具不再把「按标签过滤」给模型，结果里也不带 tags。
+
+    以前模型传了 tag，后端不认这个参数，拿到的是整个书库，模型还以为过滤过了。
+    """
+    import httpx
+
+    from retainpdf_ai.rust_client import RustApiClient
+
+    registry = build_default_registry(Settings(), FakeRust())
+    spec = next(s for s in registry.specs() if s["function"]["name"] == "list_documents")
+    assert "tag" not in spec["function"]["parameters"]["properties"]
+    assert "标签" not in spec["function"]["description"]
+    for arguments in ({}, {"document_id": "doc-a"}):
+        for document in registry.invoke("list_documents", arguments)["documents"]:
+            assert "tags" not in document
+
+    seen: list[dict] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(dict(request.url.params))
+        return httpx.Response(200, json={"code": 0, "message": "ok", "data": {"documents": []}})
+
+    client = RustApiClient(Settings(), client=httpx.Client(transport=httpx.MockTransport(handler)))
+    client.list_documents(reading_status="reading", limit=5)
+    assert seen == [{"limit": "5", "reading_status": "reading"}]

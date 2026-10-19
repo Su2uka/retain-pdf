@@ -12,7 +12,7 @@ pub use crate::merge::reading::DocumentReadingView;
 
 use retainpdf_api_base::error::AppError;
 use retainpdf_core::models::api::{
-    AssetRecord, CollectionRecord, ConversationRecord, MessageRecord,
+    CollectionRecord, ConversationRecord, MessageRecord,
 };
 use retainpdf_jobs::{JobSubmissionView, ListJobsQuery};
 use crate::views::{
@@ -34,9 +34,9 @@ use super::{
     create_metadata_suggestion, delete_collection, delete_conversation,
     book_delete_job_ids, delete_document, delete_library_book, document_delete_job_ids,
     document_files_view, get_conversation, get_library_book, list_collections,
-    list_conversations, list_library_books, list_metadata_suggestions, load_asset,
+    list_conversations, list_library_books, list_metadata_suggestions,
     ocr_document, patch_collection, patch_conversation, remove_collection_document,
-    search_blocks, store_asset, translate_document, AssetDownload, LibraryDeps,
+    search_blocks, translate_document, LibraryDeps,
 };
 
 // --- books ---
@@ -162,20 +162,6 @@ pub fn search_blocks_view(
     owner: Option<&str>,
 ) -> Result<SearchResultView, AppError> {
     search_blocks(deps, query, owner)
-}
-
-// --- assets ---
-
-pub fn store_asset_view(
-    deps: &LibraryDeps<'_>,
-    mime: &str,
-    data: &[u8],
-) -> Result<AssetRecord, AppError> {
-    store_asset(deps, mime, data)
-}
-
-pub fn load_asset_view(deps: &LibraryDeps<'_>, asset_id: &str) -> Result<AssetDownload, AppError> {
-    load_asset(deps, asset_id)
 }
 
 // --- conversations ---

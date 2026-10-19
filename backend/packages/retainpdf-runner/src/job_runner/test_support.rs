@@ -123,7 +123,6 @@ pub(crate) fn test_app_config(root: &Path) -> crate::config::AppConfig {
         },
         ai_service: crate::config::AiServiceConfig::default(),
         jobs_service: crate::config::JobsServiceConfig::default(),
-        asset: crate::config::AssetConfig::default(),
         cleanup: crate::config::CleanupConfig::default(),
         db: crate::config::DbConfig::default(),
         ai_proxy: crate::config::AiProxyConfig::default(),

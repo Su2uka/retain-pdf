@@ -8,7 +8,6 @@ use chrono::Utc;
 use rusqlite::Connection;
 use serde_json::json;
 
-use retainpdf_core::config::AssetConfig;
 use retainpdf_jobs::{ListDocumentJobsQuery, ListJobsQuery};
 use retainpdf_core::models::domain::{now_iso, JobStatusKind, UploadRecord};
 use retainpdf_jobs::{
@@ -145,7 +144,6 @@ async fn document_images_use_the_same_bounded_generation_without_jobs() {
             content_hash: document_id.clone(),
         })
         .unwrap();
-    let asset_config = AssetConfig::default();
     let deps = LibraryDeps {
         db: &fixture.db,
         data_root: &fixture.root,
@@ -154,7 +152,6 @@ async fn document_images_use_the_same_bounded_generation_without_jobs() {
         scripts_dir: &fixture.root,
         python_bin: &fixture.renderer,
         pipeline_command: "",
-        asset_config: &asset_config,
     };
     let (first, duplicate, thumbnail, ()) = tokio::join!(
         open_document_file(&deps, &fixture.generation, &document_id, DocumentFile::Cover, Disposition::Inline),

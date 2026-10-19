@@ -50,17 +50,6 @@ fn default_document_title_source() -> String {
     "filename".to_string()
 }
 
-/// 内容寻址的二进制资产(收藏截图等);文件本体在 data/assets/<2>/<hash>。
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct AssetRecord {
-    pub asset_id: String,
-    pub mime: String,
-    pub bytes: u64,
-    pub width: Option<i64>,
-    pub height: Option<i64>,
-    pub created_at: String,
-}
-
 /// AI 问答会话。document_id 为空 = 全库问答。
 /// head_id: 当前可见分支的叶消息 id(空 = 用 max(seq) 推断)。
 #[derive(Debug, Serialize, Deserialize, Clone)]

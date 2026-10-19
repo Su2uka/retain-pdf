@@ -9,7 +9,7 @@ crate::endpoints! {
     GET "/api/v1/documents" => library_data::list_documents_route, signed;
     /// 一本书
     GET "/api/v1/documents/:document_id" => library_data::get_document_route, signed;
-    /// 改书的信息（书名、标签、阅读状态……）
+    /// 改书的信息（书名、阅读状态）
     PATCH "/api/v1/documents/:document_id" => library_data::patch_document_route, signed;
     /// 删除一本书和它的任务
     DELETE "/api/v1/documents/:document_id" => library_data::delete_document_route, signed;

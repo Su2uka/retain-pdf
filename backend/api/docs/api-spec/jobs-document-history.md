@@ -34,7 +34,7 @@ Storage ownership:
 }
 ```
 
-`reading_status`, `tag`, `collection_id`, and `q` apply identically to the page
+`reading_status`, `collection_id`, and `q` apply identically to the page
 and to `total`. Documents without a backing upload are excluded from both.
 `limit` and `offset` affect only `documents`. With `job_id`, an associated
 document returns `total: 1`; a miss returns an empty page with `total: 0`.
