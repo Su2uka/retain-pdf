@@ -9,6 +9,15 @@
 
 ---
 
+## 000. 续跑的正名是 `actions/resume`，任务视图加了 `actions.resume`
+
+分支 `refactor/actions-resume-canonical`（2026-10-19）。只增不改。
+
+- `POST /api/v1/jobs/:job_id/actions/rerun` 和 `actions/resume` 一直是同一个处理函数，现在在登记表里标成旧地址，行为不变，旧地址照常能用。
+- 任务视图的 `actions` 加了 `resume`：`{enabled, method: "POST", path: ".../actions/resume", url}`，`enabled` 和 `rerun` 相同。`actions.rerun` 先留着、同值。
+- 契约：`contracts/job-status.v1.schema.json` 的 `JobActionsView` 加了必有的 `resume`。
+- 前端要改的：把读 `actions.rerun.url`、`actions.rerun.enabled`、调 `rerunJob` 的地方改成 `actions.resume`。等前端不再用 `rerun` 以后，后端删掉旧地址和 `actions.rerun`。
+
 ## 00. 列表项的 `failure` 进了契约：job-failure-brief 契约测试可以改比 schema
 
 分支 `feat/contract-job-failure-brief`（2026-10-18）。JSON 不变，只是把一直存在、但没人描述过的 `failure` 补进契约。

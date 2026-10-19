@@ -199,13 +199,16 @@ Execution semantics:
 ```text
 GET  /api/v1/jobs/{job_id}/actions/resume
 POST /api/v1/jobs/{job_id}/actions/resume
-POST /api/v1/jobs/{job_id}/actions/rerun
+POST /api/v1/jobs/{job_id}/actions/rerun   (old name of actions/resume)
 ```
 
 `GET .../actions/resume` is read-only and returns `can_resume`, `from_stage`,
 `resume_workflow`, `reuses_artifacts`, `reruns_stages`, and a disabling
-`reason`. `resume` is currently an alias of `rerun`; both execute the
-server-selected plan rather than accepting client overrides. Use
+`reason`. `POST .../actions/resume` executes the server-selected plan.
+`actions/rerun` is the old name of the same handler (marked `old` in the
+endpoint registry since 2026-10-19); new code posts to `actions/resume` and reads
+the `actions.resume` link of job views (`actions.rerun` carries the same value
+for now). Use
 `actions/retry-stage` when the caller needs to select a stage, change allowed options,
 or explicitly accept an ambiguous translation-request risk.
 

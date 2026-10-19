@@ -252,11 +252,16 @@ fn job_actions_enable_rerun_for_reusable_checkpoints_only() {
     assert!(actions.rerun.enabled);
     assert_eq!(actions.rerun.method, "POST");
     assert_eq!(actions.rerun.path, "/api/v1/jobs/job-rerun-ready/actions/rerun");
+    // 正名 resume 和旧名 rerun 同值，只是地址不同。
+    assert!(actions.resume.enabled);
+    assert_eq!(actions.resume.method, "POST");
+    assert_eq!(actions.resume.path, "/api/v1/jobs/job-rerun-ready/actions/resume");
 
     let mut ocr_job = build_job("ocr-rerun-disabled", WorkflowKind::Ocr);
     ocr_job.artifacts = translate_job.artifacts.clone();
     let actions = build_job_actions(&ocr_job, "https://api.example", false, false, false);
     assert!(!actions.rerun.enabled);
+    assert!(!actions.resume.enabled);
 }
 
 #[test]
