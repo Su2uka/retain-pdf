@@ -77,23 +77,40 @@ pub async fn collection_agent_workspace(
     tokio::task::spawn_blocking(move || {
         let artifact_deps = DerivedArtifactDeps::with_pipeline_command(&owned.python_bin, &owned.pipeline_command);
         let reading_book = |document: &DocumentRecord| {
-            let upload = owned.db.find_upload_for_document(&document.document_id).ok()??;
-            let target = resolve_reading_target(
-                &owned.db,
-                &owned.data_root,
-                artifact_deps,
-                &document.document_id,
-                Path::new(&upload.stored_path),
-            )
-            .ok()?;
-            match target {
-                ReadingTarget::Merged { job_id, merged } => Some(ReadingBook { job_id, root: merged.root }),
-                // 单个任务、没有译文：交回原来那套按 active_job 的逻辑。
-                _ => None,
-            }
+            workspace_reading_book(&owned.db, &owned.data_root, artifact_deps, document)
         };
         ensure_collection_workspace(&owned.db, &owned.data_root, &collection_id, &reading_book)
     })
     .await
     .map_err(|_| AppError::internal("collection workspace task failed"))?
+}
+
+/// 合集工作区里一本书该链到哪里:阅读入口说的那个任务 —— 一个任务覆盖整本就是它(不看书卡的
+/// `active_job_id`:书卡可能指着刚提交、还在跑的任务,链过去是半成品目录),多次范围翻译是合并目录。
+/// 没有任何可读的译文返回 `None`,调用方退回按书卡的老逻辑。
+pub(crate) fn workspace_reading_book(
+    db: &retainpdf_data::db::Db,
+    data_root: &Path,
+    deps: DerivedArtifactDeps<'_>,
+    document: &DocumentRecord,
+) -> Option<ReadingBook> {
+    let upload = db.find_upload_for_document(&document.document_id).ok()??;
+    let target = resolve_reading_target(
+        db,
+        data_root,
+        deps,
+        &document.document_id,
+        Path::new(&upload.stored_path),
+    )
+    .ok()?;
+    match target {
+        ReadingTarget::Merged { job_id, merged } => Some(ReadingBook { job_id, root: merged.root }),
+        ReadingTarget::Job(job_id) => {
+            let job = db.get_job(&job_id).ok()?;
+            let root = retainpdf_core::storage_paths::resolve_job_root(&job, data_root)?;
+            Some(ReadingBook { job_id, root })
+        }
+        // 没有译文:交回原来那套按 active_job 的逻辑。
+        ReadingTarget::None => None,
+    }
 }

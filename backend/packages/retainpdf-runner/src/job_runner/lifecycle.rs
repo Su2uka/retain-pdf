@@ -5,6 +5,8 @@ use tracing::error;
 #[path = "lifecycle_tests.rs"]
 mod tests;
 
+use crate::config::AppConfig;
+use crate::db::Db;
 use crate::job_events::cas_persist_job_with_resources;
 use crate::models::domain::{now_iso, JobRuntimeState, JobSnapshot, JobStatusKind, WorkflowKind};
 
@@ -294,27 +296,39 @@ fn maintain_document_after_terminal(
     upload_id: Option<&str>,
     status: &JobStatusKind,
 ) {
-    let Some(document_id) = job_document(deps, job_id, upload_id) else {
+    maintain_document_for_terminal(&deps.config, &deps.db, job_id, upload_id, status);
+}
+
+/// `maintain_document_after_terminal` 的本体,只要配置和库:启动恢复(`startup_recovery`)没有
+/// 运行时依赖,但它写终态时同样要维护书卡和全文索引。
+pub(super) fn maintain_document_for_terminal(
+    config: &AppConfig,
+    db: &Db,
+    job_id: &str,
+    upload_id: Option<&str>,
+    status: &JobStatusKind,
+) {
+    let Some(document_id) = job_document(config, db, job_id, upload_id) else {
         return;
     };
     if *status != JobStatusKind::Succeeded {
         // 提交时指针已经给了它;它没成功,书卡别停在失败任务上(规则见
         // `release_document_active_job`)。
-        if let Err(error) = deps.db.release_document_active_job(&document_id, job_id) {
+        if let Err(error) = db.release_document_active_job(&document_id, job_id) {
             error!("library: release active job {job_id} for {document_id} failed: {error}");
         }
         return;
     }
     // 书卡该展示哪个任务：不再无条件覆盖（旧任务后完成会顶掉正在跑的新任务，纯 OCR 会顶掉
     // 翻译好的任务）。规则见 `active_job::active_job_after_success`。
-    if let Some(next) = next_active_job(deps, &document_id, job_id) {
-        if let Err(error) = deps.db.set_document_active_job(&document_id, &next, None) {
+    if let Some(next) = next_active_job(db, &document_id, job_id) {
+        if let Err(error) = db.set_document_active_job(&document_id, &next, None) {
             error!("library: set active job for {document_id} failed: {error}");
         }
     }
     // 按这本书所有成功任务重建索引（每页取最新的那个）。只索引刚完成的这个任务的话，翻完
     // 1-5 页再翻 6-10 页，前 5 页就搜不到了。
-    if let Err(error) = deps.db.rebuild_document_fts(&document_id) {
+    if let Err(error) = db.rebuild_document_fts(&document_id) {
         error!("library: fts rebuild for {document_id} failed: {error}");
     }
 }
@@ -343,17 +357,17 @@ fn release_document_after_foreign_terminal(deps: &ProcessRuntimeDeps, job_id: &s
 /// 重试、继续/重跑这些派生任务只带 artifact_job_id —— 就用提交时继承下来的 jobs.document_id;
 /// 都没有(从 source_url 建的任务)就把它的原文 PDF 登记成一本书。
 /// 以前没有 upload_id 直接跳过,这些任务成功后不纠正书卡、不重建全文索引。
-fn job_document(deps: &ProcessRuntimeDeps, job_id: &str, upload_id: Option<&str>) -> Option<String> {
+fn job_document(config: &AppConfig, db: &Db, job_id: &str, upload_id: Option<&str>) -> Option<String> {
     if let Some(upload_id) = upload_id.filter(|id| !id.is_empty()) {
-        match deps.db.link_job_to_document(job_id, upload_id) {
+        match db.link_job_to_document(job_id, upload_id) {
             Ok(Some(document_id)) => return Some(document_id),
             Ok(None) => {}
             Err(error) => error!("library: link job {job_id} to document failed: {error}"),
         }
     }
-    match deps.db.document_id_for_job(job_id) {
+    match db.document_id_for_job(job_id) {
         Ok(Some(document_id)) => Some(document_id),
-        Ok(None) => adopt_source_document(deps, job_id),
+        Ok(None) => adopt_source_document(config, db, job_id),
         Err(error) => {
             error!("library: resolve document for job {job_id} failed: {error}");
             None
@@ -362,15 +376,15 @@ fn job_document(deps: &ProcessRuntimeDeps, job_id: &str, upload_id: Option<&str>
 }
 
 /// 既没有上传、也没继承到书的任务（从 `source_url` 建的）：把它的原文 PDF 登记成一本书（见 `source_document`）。
-fn adopt_source_document(deps: &ProcessRuntimeDeps, job_id: &str) -> Option<String> {
-    let job = match deps.db.get_job(job_id) {
+fn adopt_source_document(config: &AppConfig, db: &Db, job_id: &str) -> Option<String> {
+    let job = match db.get_job(job_id) {
         Ok(job) => job,
         Err(error) => {
             error!("library: reload job {job_id} to adopt its source pdf failed: {error}");
             return None;
         }
     };
-    match super::adopt_job_source_document(&deps.config, &deps.db, &job) {
+    match super::adopt_job_source_document(config, db, &job) {
         Ok(document_id) => document_id,
         Err(error) => {
             error!("library: adopt source pdf of job {job_id} failed: {error}");
@@ -379,7 +393,7 @@ fn adopt_source_document(deps: &ProcessRuntimeDeps, job_id: &str) -> Option<Stri
     }
 }
 
-fn next_active_job(deps: &ProcessRuntimeDeps, document_id: &str, finished_job_id: &str) -> Option<String> {
+fn next_active_job(db: &Db, document_id: &str, finished_job_id: &str) -> Option<String> {
     use super::active_job::{active_job_after_success, ActiveCandidate};
     fn candidate(job: &JobSnapshot) -> ActiveCandidate<'_> {
         ActiveCandidate {
@@ -389,15 +403,14 @@ fn next_active_job(deps: &ProcessRuntimeDeps, document_id: &str, finished_job_id
             status: &job.status,
         }
     }
-    let finished = deps.db.get_job(finished_job_id).ok()?;
-    let current = deps
-        .db
+    let finished = db.get_job(finished_job_id).ok()?;
+    let current = db
         .get_document(document_id)
         .ok()
         .and_then(|document| document.active_job_id)
         .filter(|id| !id.is_empty())
-        .and_then(|id| deps.db.get_job(&id).ok());
-    let jobs = deps.db.list_jobs_for_document(document_id, 500, 0).unwrap_or_default();
+        .and_then(|id| db.get_job(&id).ok());
+    let jobs = db.list_jobs_for_document(document_id, 500, 0).unwrap_or_default();
     let newest_translation = jobs
         .iter()
         .filter(|job| job.status == JobStatusKind::Succeeded && job.workflow != WorkflowKind::Ocr)
