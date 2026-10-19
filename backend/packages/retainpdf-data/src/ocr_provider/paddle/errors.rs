@@ -11,6 +11,8 @@ pub struct PaddleProviderError {
     stage: &'static str,
     detail: String,
     info: OcrProviderErrorInfo,
+    /// 请求没有离开本机：连接没建起来或请求没构造出来。
+    not_sent: bool,
 }
 
 impl PaddleProviderError {
@@ -33,7 +35,8 @@ impl PaddleProviderError {
         } else {
             OcrErrorCategory::ServiceUnavailable
         };
-        Self::new(
+        let not_sent = err.is_builder() || (err.is_connect() && !err.is_timeout());
+        let mut error = Self::new(
             stage,
             category,
             err.to_string(),
@@ -41,7 +44,9 @@ impl PaddleProviderError {
             None,
             None,
             Some("请检查 Paddle 服务可达性、网络连通性和超时配置"),
-        )
+        );
+        error.not_sent = not_sent;
+        error
     }
 
     pub fn http_status(
@@ -200,6 +205,11 @@ impl PaddleProviderError {
         &self.info
     }
 
+    /// 请求确定没有离开本机（连接没建起来、请求没构造出来）。
+    pub fn request_not_sent(&self) -> bool {
+        self.not_sent
+    }
+
     pub fn stage_detail(&self) -> String {
         let prefix = match self.stage {
             "submit" => "Paddle 提交失败",
@@ -246,6 +256,7 @@ impl PaddleProviderError {
                     .map(str::to_string),
                 http_status: None,
             },
+            not_sent: false,
         }
     }
 

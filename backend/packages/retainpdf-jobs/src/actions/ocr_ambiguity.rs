@@ -14,6 +14,7 @@ use crate::facade::JobsFacade;
 use crate::actions::stage_retry_request::build_retry_request;
 use crate::actions::stage_retry_view::build_retry_stage_submission_view;
 
+#[cfg(test)]
 const OCR_SUBMIT_DISPATCH_KEY: &str = "ocr-submit";
 
 impl<'a> JobsFacade<'a> {
@@ -117,8 +118,9 @@ pub(crate) fn ambiguous_ocr_dispatch(
     db: &Db,
     job_id: &str,
 ) -> Result<Option<PipelineDispatchRecord>, AppError> {
+    // 派发记录在真正调服务商的任务名下：book/translate 任务的 OCR 在 `<id>-ocr` 子任务里跑。
     Ok(db
-        .latest_pipeline_dispatch(job_id, OCR_SUBMIT_DISPATCH_KEY)?
+        .latest_ocr_dispatch_for_job(job_id)?
         .filter(|dispatch| dispatch.stage_key == "ocr" && dispatch.status == "ambiguous"))
 }
 

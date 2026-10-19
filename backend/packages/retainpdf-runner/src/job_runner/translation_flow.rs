@@ -268,3 +268,7 @@ mod ocr_child_persist_contract {
         );
     }
 }
+
+#[cfg(test)]
+#[path = "translation_flow_dispatch_crash_tests.rs"]
+mod translation_flow_dispatch_crash_tests;

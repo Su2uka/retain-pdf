@@ -15,7 +15,7 @@ impl JobQueries<'_> {
         let job = load_supported_job(self.db, self.data_root, job_id)?;
         let ocr_ambiguity = if matches!(job.status, JobStatusKind::Failed) {
             self.db
-                .latest_pipeline_dispatch(job_id, "ocr-submit")?
+                .latest_ocr_dispatch_for_job(job_id)?
                 .as_ref()
                 .and_then(build_ocr_ambiguity_view)
         } else {

@@ -11,7 +11,7 @@ use crate::ocr_provider::mineru::{parse_extra_formats, MineruClient};
 
 use super::dispatch_journal::{
     begin_ocr_dispatch, receipt_ocr_dispatch, receipt_optional_string, receipt_string,
-    OcrDispatchDecision,
+    settle_failed_submit, OcrDispatchDecision,
 };
 use super::mineru_polling::{poll_remote_task_until_ready, poll_uploaded_batch_until_ready};
 use super::save_ocr_job;
@@ -63,7 +63,8 @@ pub(super) async fn run_local_ocr_transport_mineru(
                             extra_formats: &extra_formats,
                         },
                     )
-                    .await?;
+                    .await
+                    .map_err(|err| settle_failed_submit(deps, &cursor, err))?;
                 receipt_ocr_dispatch(
                     deps,
                     &cursor,
@@ -188,7 +189,8 @@ pub(super) async fn run_remote_ocr_transport_mineru(
                     job.request_payload.ocr.cache_tolerance,
                     &extra_formats,
                 )
-                .await?;
+                .await
+                .map_err(|err| settle_failed_submit(deps, &cursor, err))?;
             receipt_ocr_dispatch(
                 deps,
                 &cursor,
