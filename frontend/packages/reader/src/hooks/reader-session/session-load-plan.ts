@@ -110,3 +110,19 @@ export function isStaleDocumentJobFailure(input: {
     && Boolean(input.documentJobId)
     && input.sessionJobId === input.documentJobId;
 }
+
+// `merged-<64 位十六进制的书号>-<指纹>`：多次范围翻译拼成的虚拟任务（/documents/:id/reading 给的）。
+const MERGED_READING_JOB_ID = /^merged-([0-9a-f]{64})-[0-9a-f]+$/;
+
+/**
+ * 合并阅读的虚拟任务目录被清理了（超过一天没人读）：后端 404 带 reason=merged_reading_expired。
+ * 是的话返回这本书的编号（重新问阅读入口要用），不是返回空串。只认显式打开的 `merged-…` 编号。
+ */
+export function expiredMergedReadingDocumentId(input: {
+  status: number;
+  reason?: string;
+  sessionJobId: string;
+}): string {
+  if (input.status !== 404 || input.reason !== "merged_reading_expired") return "";
+  return MERGED_READING_JOB_ID.exec(`${input.sessionJobId || ""}`.trim())?.[1] || "";
+}
