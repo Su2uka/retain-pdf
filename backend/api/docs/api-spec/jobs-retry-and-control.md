@@ -289,6 +289,11 @@ that point the process is killed and the runner records the terminal state
 when it observes the exit — so a client that polls right after cancelling may
 still read `running` for one tick.
 
+The response `status` is the stored status right after the cancel, not a fixed
+`canceled` (since 2026-10-19): normally `canceled`; `running` for an OCR job past
+`queued` (see above); or the job's own terminal status (for example `succeeded`)
+when it finished on its own just before the cancel landed.
+
 Response:
 
 ```json

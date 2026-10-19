@@ -39,7 +39,7 @@ fn seed_job(state: &crate::AppState, job_id: &str, workflow: WorkflowKind, statu
     state.db.set_job_document_id(job_id, DOCUMENT_ID).expect("link job");
 }
 
-async fn cancel(state: &crate::AppState, uri: String) {
+async fn cancel(state: &crate::AppState, uri: String) -> serde_json::Value {
     let response = build_app(state.clone())
         .oneshot(
             Request::builder()
@@ -52,6 +52,8 @@ async fn cancel(state: &crate::AppState, uri: String) {
         .await
         .expect("cancel response");
     assert_eq!(response.status(), StatusCode::OK, "取消请求本身必须成功");
+    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX).await.expect("body");
+    serde_json::from_slice(&bytes).expect("json")
 }
 
 fn card(state: &crate::AppState) -> Option<String> {
@@ -99,4 +101,25 @@ async fn canceling_without_any_success_leaves_the_card_alone() {
 
     assert_eq!(state.db.get_job("job-cancel-first").unwrap().status, JobStatusKind::Canceled);
     assert_eq!(card(&state).as_deref(), Some("job-cancel-first"));
+}
+
+/// 取消的返回报库里的真实状态。OCR 任务过了排队阶段时，取消只杀进程、终态由 runner 稍后落，
+/// 这一刻库里还是 running —— 以前返回写死 canceled，和随后读到的任务对不上。
+#[tokio::test]
+async fn cancel_response_reports_the_stored_status() {
+    let state = test_state("cancel-real-status");
+    seed_document(&state);
+
+    seed_job(&state, "job-cancel-book", WorkflowKind::Book, JobStatusKind::Queued);
+    let body = cancel(&state, "/api/v1/jobs/job-cancel-book/actions/cancel".to_string()).await;
+    assert_eq!(body["data"]["status"], "canceled");
+
+    seed_job(&state, "job-cancel-ocr-running", WorkflowKind::Ocr, JobStatusKind::Running);
+    let mut job = state.db.get_job("job-cancel-ocr-running").unwrap();
+    job.stage = Some("ocr".to_string());
+    state.db.save_job(&job).expect("save running ocr job");
+    let body = cancel(&state, "/api/v1/jobs/job-cancel-ocr-running/actions/cancel".to_string()).await;
+    let stored = state.db.get_job("job-cancel-ocr-running").unwrap().status.clone();
+    assert_eq!(stored, JobStatusKind::Running, "OCR 任务过了排队阶段，终态留给 runner");
+    assert_eq!(body["data"]["status"], "running", "返回要和库里一致");
 }
