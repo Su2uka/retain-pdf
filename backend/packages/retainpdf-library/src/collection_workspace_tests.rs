@@ -251,3 +251,54 @@ fn a_title_that_sanitizes_to_nothing_still_gets_a_name() {
         assert!(!name.is_empty(), "「{title}」削成了空名字");
     }
 }
+
+/// 回归（状态审计 明细2 #7）：整本已经由一个成功任务覆盖，书卡又指着新提交、还在跑的任务时，
+/// 工作区要链到成功的那个（阅读入口说的那个），而不是半成品目录。
+#[test]
+fn a_book_covered_by_one_job_links_the_finished_job_not_the_running_card() {
+    use retainpdf_api_base::test_fixtures::minimal_pdf_bytes;
+    use retainpdf_core::models::domain::{JobStatusKind, WorkflowKind};
+    use retainpdf_files::DerivedArtifactDeps;
+
+    let fx = Fixture::new();
+    fx.book("doc-a", "重新翻译中的书", "job-new");
+    fs::write(fx.root.join("uploads").join("doc-a.pdf"), minimal_pdf_bytes(595, 842)).unwrap();
+    // job-new（running）是书卡指的；job-done 是已经成功、覆盖整本的那个。
+    let rendered = fx.root.join("jobs/job-done/rendered");
+    fs::create_dir_all(&rendered).unwrap();
+    fs::write(rendered.join("out.pdf"), minimal_pdf_bytes(595, 842)).unwrap();
+    let mut done = JobSnapshot::new("job-done".into(), CreateJobInput::default(), vec![]);
+    done.status = JobStatusKind::Succeeded;
+    done.workflow = WorkflowKind::Book;
+    done.created_at = "2026-10-01T00:00:00".into();
+    done.finished_at = Some("2026-10-01T01:00:00".into());
+    done.artifacts = Some(JobArtifacts {
+        job_root: Some("jobs/job-done".into()),
+        output_pdf: Some("jobs/job-done/rendered/out.pdf".into()),
+        ocr_page_numbers: vec![1],
+        ..Default::default()
+    });
+    fx.db.save_job(&done).unwrap();
+    fx.db.link_job_to_document("job-done", "upload-doc-a-job-new").unwrap();
+    let mut running = fx.db.get_job("job-new").unwrap();
+    running.status = JobStatusKind::Running;
+    running.created_at = "2026-10-02T00:00:00".into();
+    fx.db.save_job(&running).unwrap();
+    fx.db.set_document_active_job("doc-a", "job-new", None).unwrap();
+    fx.collect("col-1", &["doc-a"]);
+
+    let document = fx.db.get_document("doc-a").unwrap();
+    let deps = DerivedArtifactDeps::with_pipeline_command("python3", "retainpdf-pipeline");
+    let book = crate::reading::workspace_reading_book(&fx.db, &fx.root, deps, &document)
+        .expect("one finished job covers the whole book");
+    assert_eq!(book.job_id, "job-done", "工作区链到了书卡指的、还在跑的任务");
+    assert!(book.root.ends_with("jobs/job-done"));
+
+    let manifest = ensure_collection_workspace(&fx.db, &fx.root, "col-1", &|document| {
+        let deps = DerivedArtifactDeps::with_pipeline_command("python3", "retainpdf-pipeline");
+        crate::reading::workspace_reading_book(&fx.db, &fx.root, deps, document)
+    })
+    .unwrap();
+    assert_eq!(manifest.books[0].job_id, "job-done");
+    assert_eq!(manifest.books[0].job_root, "../../../jobs/job-done");
+}

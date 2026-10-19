@@ -11,6 +11,7 @@ use retainpdf_core::translation_request_journal::{
     parse_translation_request_journal, TranslationRequestJournalState,
 };
 
+use super::lifecycle::maintain_document_for_terminal;
 use super::worker_process::{terminate_job_process_tree_blocking, worker_process_exists};
 
 /// Why a `Running`-status job found when its owning runtime starts is being reconciled.
@@ -261,6 +262,16 @@ pub(super) fn reconcile_running_jobs_matching(
                     // 任务已落 Failed：attempt 必须收尾，否则它还会出现在自动续跑名单里。
                     db.finish_latest_pipeline_attempt(&job_record.job_id, "failed")?;
                 }
+                // 终态不是 run_job 写的,书卡和全文索引要在这里补(重新排队的不是终态,不动)。
+                if matches!(job.status, JobStatusKind::Succeeded | JobStatusKind::Failed) {
+                    maintain_document_for_terminal(
+                        config,
+                        db,
+                        &job_record.job_id,
+                        job.upload_id.as_deref(),
+                        &job.status,
+                    );
+                }
             }
             Err(error) => {
                 warn!(
@@ -268,6 +279,13 @@ pub(super) fn reconcile_running_jobs_matching(
                     job_record.job_id, error
                 );
                 db.recover_stale_running_job(&job_record.job_id, &detail, &timestamp)?;
+                maintain_document_for_terminal(
+                    config,
+                    db,
+                    &job_record.job_id,
+                    None,
+                    &JobStatusKind::Failed,
+                );
             }
         }
         reconciled += 1;
@@ -629,5 +647,76 @@ mod tests {
             assert!(db.list_resumable_pipeline_job_ids().unwrap().contains(&id.to_string()), "{id}");
         }
         let _ = fs::remove_dir_all(deps.config.project_root.clone());
+    }
+
+    fn seed_document(db: &crate::db::Db) -> String {
+        let upload = crate::models::domain::UploadRecord {
+            upload_id: "up-1".into(),
+            filename: "book.pdf".into(),
+            stored_path: "uploads/up-1/book.pdf".into(),
+            bytes: 1,
+            page_count: 10,
+            uploaded_at: crate::models::domain::now_iso(),
+            developer_mode: false,
+            content_hash: "d".repeat(64),
+        };
+        db.save_upload(&upload).unwrap();
+        db.upsert_document_from_upload(&upload).unwrap();
+        "d".repeat(64)
+    }
+
+    fn document_job(
+        db: &crate::db::Db,
+        id: &str,
+        created_at: &str,
+        status: crate::models::domain::JobStatusKind,
+    ) {
+        let mut job = JobSnapshot::new(id.to_string(), CreateJobInput::default(), vec![]);
+        job.status = status;
+        job.created_at = created_at.to_string();
+        job.upload_id = Some("up-1".to_string());
+        db.save_job(&job).expect("save job");
+        db.link_job_to_document(id, "up-1").expect("link job");
+    }
+
+    /// 回归（状态审计 明细2 #8）：启动恢复把遗留 running 任务判成失败，也要像运行时终态那样
+    /// 退回书卡（`maintain_document_after_terminal`），否则书卡一直停在这个任务上。
+    #[test]
+    fn startup_recovery_failing_a_job_hands_the_book_card_back_like_runtime() {
+        use crate::models::domain::JobStatusKind::*;
+        let deps = crate::job_runner::process_runner::tests::test_runtime_deps(1);
+        let db = deps.db.as_ref();
+        let document_id = seed_document(db);
+        document_job(db, "old", "2026-10-01T00:00:00", Succeeded);
+        document_job(db, "stuck", "2026-10-02T00:00:00", Running);
+        db.set_document_active_job(&document_id, "stuck", None).unwrap();
+
+        super::reconcile_stale_running_jobs(&deps.config, db).expect("startup recovery");
+
+        assert_eq!(db.get_job("stuck").unwrap().status, Failed);
+        assert_eq!(
+            db.get_document(&document_id).unwrap().active_job_id.as_deref(),
+            Some("old"),
+            "启动恢复把任务判成失败后没有维护书卡"
+        );
+    }
+
+    /// 只有这一个任务时没有可退回的：书卡保留失败任务（能看到错误、能重试）。
+    #[test]
+    fn startup_recovery_keeps_the_failure_card_when_there_is_nothing_to_fall_back_to() {
+        use crate::models::domain::JobStatusKind::*;
+        let deps = crate::job_runner::process_runner::tests::test_runtime_deps(1);
+        let db = deps.db.as_ref();
+        let document_id = seed_document(db);
+        document_job(db, "only", "2026-10-02T00:00:00", Running);
+        db.set_document_active_job(&document_id, "only", None).unwrap();
+
+        super::reconcile_stale_running_jobs(&deps.config, db).expect("startup recovery");
+
+        assert_eq!(db.get_job("only").unwrap().status, Failed);
+        assert_eq!(
+            db.get_document(&document_id).unwrap().active_job_id.as_deref(),
+            Some("only")
+        );
     }
 }
