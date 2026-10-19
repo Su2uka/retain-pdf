@@ -172,7 +172,12 @@ DELETE /api/v1/collections/:id             ← 只删文件夹本身,文档不�
 
 POST   /api/v1/collections/:id/documents              body: { document_ids: [...] }
 DELETE /api/v1/collections/:id/documents/:document_id
+POST   /api/v1/collections/:id/agent-workspace        ← 物化文件夹的 Agent 工作区（单机版；旧写法 GET 同一路径）
 ```
+
+- `agent-workspace`：终端切到「文件夹」范围前调一次，返回 `{ schema, collection_id, books[], skipped[] }`。
+  编号不是建合集时生成的形状 400；合集不存在 404（2026-10-19 前是 200 + 空清单）；没有可读译文、超过 200 本上限的书在 `skipped[]` 里带 `reason`。
+  删文件夹时后端顺手清掉它的工作区目录。
 
 - 加入不存在的 `document_id` 返回 404;重复加入同一文档幂等(不报错、不重复计数);
 - 查看某个文件夹里有哪些文档:`GET /api/v1/documents?collection_id=xxx`(见第 1 节),

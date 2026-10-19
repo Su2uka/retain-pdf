@@ -67,7 +67,8 @@ pub async fn document_translation_coverage(
         .map_err(|_| AppError::internal("translation coverage task failed"))?
 }
 
-/// 物化合集的 agent 工作区。多次范围翻译的书链到阅读入口指的合并目录。
+/// POST（旧地址 GET）/collections/:id/agent-workspace：物化合集的 agent 工作区。多次范围翻译的书
+/// 链到阅读入口指的合并目录。编号不合格 400，合集不存在 404。
 pub async fn collection_agent_workspace(
     deps: &LibraryDeps<'_>,
     collection_id: &str,
@@ -87,7 +88,7 @@ pub async fn collection_agent_workspace(
 
 /// 合集工作区里一本书该链到哪里:阅读入口说的那个任务 —— 一个任务覆盖整本就是它(不看书卡的
 /// `active_job_id`:书卡可能指着刚提交、还在跑的任务,链过去是半成品目录),多次范围翻译是合并目录。
-/// 没有任何可读的译文返回 `None`,调用方退回按书卡的老逻辑。
+/// 没有任何可读的译文返回 `None`,调用方把这本书写进 `skipped`。
 pub(crate) fn workspace_reading_book(
     db: &retainpdf_data::db::Db,
     data_root: &Path,
@@ -110,7 +111,7 @@ pub(crate) fn workspace_reading_book(
             let root = retainpdf_core::storage_paths::resolve_job_root(&job, data_root)?;
             Some(ReadingBook { job_id, root })
         }
-        // 没有译文:交回原来那套按 active_job 的逻辑。
+        // 没有可读的译文:调用方写进 skipped,不退回书卡的 active_job(可能是在跑的半成品)。
         ReadingTarget::None => None,
     }
 }

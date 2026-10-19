@@ -10,6 +10,36 @@
 ---
 
 
+## 00000000. 合集工作区改用 POST；合集不存在从 200 变 404，编号不合格 400
+
+分支 `fix/collection-workspace-path`（2026-10-19）。对应书库接口审计 A6，决定见
+[合集工作区编号校验与 POST](../../ops/planning/api-reorg/20261019-合集工作区编号校验与POST.md)。
+
+### 变了什么
+
+1. 新地址 `POST /api/v1/collections/{collection_id}/agent-workspace`（请求体不用带东西），返回和以前的 GET 一样的清单
+   `{ schema, collection_id, books[], skipped[] }`。同一路径的 `GET` 还能用、行为一样，标成旧地址，前端改完后删掉。
+2. 合集不存在：以前 `200` + 空清单（还在磁盘上建出空目录），现在 `404 collection not found: …`。
+3. 编号不是建合集时生成的形状（`col-` + 14 位数字 + `-` + 6 位小写十六进制）：`400 invalid collection_id: …`。
+   前端用的都是 `/collections` 列表里拿到的编号，正常走不到。
+4. 还没有可读译文的书一律在 `skipped[]`（`reason: "还没有可读的译文"`）；以前会退回书卡的 `active_job_id`，可能链到还在跑的任务。
+   一个文件夹超过 200 本时，多出来的也写进 `skipped[]`（以前悄悄少掉）。
+5. 删文件夹（`DELETE /collections/{id}`）后，后端清掉它的工作区目录。响应不变。
+
+### 前端要做什么
+
+- `frontend/web/src/features/reader/domain/terminal-scope.ts:91` 的 `ensureCollectionWorkspace`：
+  旧写法 `` fetchJson(`/api/v1/collections/${encodeURIComponent(collectionId)}/agent-workspace`) ``（GET）；
+  新写法同一路径改成 `POST`。`fetchJson` 现在只发 GET（定义在 `frontend/web/src/features/reader/ui/terminal-chrome.tsx`，
+  `fetch(new URL(path, baseUrl), { headers: { "X-API-Key": apiKey } })`；第 150 行把它传给 `ensureCollectionWorkspace`），
+  要给它加一个方法参数，或者另传一个发 `method: "POST"` 的函数。
+  对应测试 `frontend/web/tests/reader/terminal-scope.test.mjs` 跟着改。
+- 404 不用专门处理：`fetchJson` 遇到非 OK 抛 `HTTP 404`，`ensureCollectionWorkspace` 已经把它当失败原因显示、不切范围。
+  如果想给出中文提示，可以对 404 说「这个文件夹已经不存在了」。
+- `skipped[]` 的 `reason` 文字变了（只给 agent 和人看，前端没有按它判断），不用改。
+
+---
+
 ## 0000000. 还没产出：404 带 `error.details.reason = "not_ready"`，任务不存在是不带 reason 的 404
 
 分支 `fix/not-ready-404`（2026-10-19）。对应审计 C3、D2，规矩见 [错误约定](../../api/00-约定/02-认证与错误.md#还没产出404)，

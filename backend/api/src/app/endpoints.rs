@@ -117,6 +117,14 @@ pub struct Endpoint {
 /// ```
 ///
 /// - 说明写在 `///` 里；旧地址在行尾写 `old "<新地址>"`，说明可以省。
+/// - 同一地址只换方法（例如 GET 换成 POST）：新方法登记成新的一行，旧方法那行行尾写 `old "<同一地址>"`，
+///   接口目录里旧地址那一栏带上方法显示：
+///
+///   ```ignore
+///   POST "/api/v1/collections/:collection_id/agent-workspace" => collections::collection_agent_workspace_route, closed;
+///   GET "/api/v1/collections/:collection_id/agent-workspace" => collections::collection_agent_workspace_route, closed
+///       old "/api/v1/collections/:collection_id/agent-workspace";
+///   ```
 /// - 访问：`public`、`signed`、`admin`、`closed`。
 /// - 方括号里是附加选项，现在只有 `unlimited_body`：去掉默认的请求体大小限制（上传文件的接口）。
 #[macro_export]

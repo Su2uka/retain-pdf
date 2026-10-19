@@ -192,7 +192,7 @@ async fn two_range_translations_open_as_one_full_length_book() {
     let job_a_board = data_root.join("jobs/job-a/ai/board");
     fs::create_dir_all(&job_a_board).unwrap();
     fs::write(job_a_board.join("from-job-a.png"), b"fake png").unwrap();
-    let collection = state.db.create_collection("col-merged", "合集", None).unwrap();
+    let collection = state.db.create_collection("col-20261001000000-00e7ed", "合集", None).unwrap();
     state.db.add_documents_to_collection(&collection.collection_id, &[document_id.clone()]).unwrap();
     let app = build_app(state);
 
@@ -257,7 +257,7 @@ async fn two_range_translations_open_as_one_full_length_book() {
     assert!(data_root.join("documents").join(&document_id).join("ai/board/from-job-a.png").is_file());
 
     // 合集工作区：这本书链到合并目录，agent 看到的是整本
-    let workspace = request(&app, "GET", &format!("/api/v1/collections/{}/agent-workspace", collection.collection_id)).await;
+    let workspace = request(&app, "POST", &format!("/api/v1/collections/{}/agent-workspace", collection.collection_id)).await;
     assert_eq!(workspace.status(), StatusCode::OK);
     let workspace = read_json(workspace).await;
     let book = &workspace["data"]["books"][0];

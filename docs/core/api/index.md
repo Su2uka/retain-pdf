@@ -738,12 +738,24 @@ PDF 元数据：
 - `PATCH|DELETE /api/v1/collections/{collection_id}`
 - `POST /api/v1/collections/{collection_id}/documents`
 - `DELETE /api/v1/collections/{collection_id}/documents/{document_id}`
+- `POST /api/v1/collections/{collection_id}/agent-workspace`（物化合集的 Agent 工作区；旧地址是同一路径的 `GET`，见下）
 - `POST /api/v1/assets`
 - `GET /api/v1/assets/{asset_id}`
 - `GET /api/v1/fonts`
 - `POST /api/v1/fonts/upload`
 
 查询和关系接口只返回持久化 ID 与安全投影；客户端不得把本地文件路径作为资源 ID。
+
+合集的 Agent 工作区 `POST /api/v1/collections/{collection_id}/agent-workspace`（多用户下关闭）：在
+`<data_root>/collections/<id>/ai/` 下重建 `books/`（每本书一个指向它可读译文目录的链接）并写 `collection.v1.json`，
+返回同一份清单 `{ schema, collection_id, books[], skipped[] }`。
+
+- `collection_id` 必须是建合集时生成的形状（`col-` + 14 位数字 + `-` + 6 位小写十六进制），否则 `400 invalid collection_id`，不碰磁盘；
+  合集不存在 `404 collection not found`，不建目录。
+- `books[]` 只放有可读译文的书（阅读入口 `/documents/{id}/reading` 指的那个任务或合并目录）；还没有可读译文的书、
+  超过一次 200 本上限的书都在 `skipped[]`，`reason` 分别是 `还没有可读的译文`、`超过一次最多纳入 200 本的上限`。
+- 删合集（`DELETE /api/v1/collections/{collection_id}`）成功后清掉 `<data_root>/collections/<id>/`；清不掉只记日志，删除照样成功。
+- 旧地址：同一路径的 `GET`，行为相同（2026-10-19 前就是它，GET 会改磁盘，换成 POST；前端改完后删掉）。
 
 ## 9. OCR-only 接口
 
