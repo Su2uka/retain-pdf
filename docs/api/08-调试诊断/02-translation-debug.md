@@ -18,15 +18,17 @@ GET /api/v1/jobs/{job_id}/reports/translation
 GET /api/v1/jobs/{job_id}/translations
 ```
 
-常用查询参数：
+查询参数（别的参数返回 400）：
 
 - `page`
 - `final_status`
 - `error_type`
 - `route`
 - `q`
-- `limit`
+- `limit`：默认 20，1..=500，越界返回 400
 - `offset`
+
+回包带 `items`、`total`、`limit`、`offset`、`has_more`，规矩见 [分页](../00-约定/03-分页.md)。
 
 每次按 translation manifest 指向的页文件现算，所以手改、精修（`PATCH`）之后 `translated_preview`、`final_status` 和 `q` 搜索都是最新的；只有找不到 manifest 的老产物才退回读 `translation_debug_index.json`（它只在翻译结束时写一次，不随修订更新）。
 

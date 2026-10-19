@@ -607,6 +607,11 @@ pub struct OcrJobSummaryView {
 pub struct JobListView {
     pub items: Vec<JobListItemView>,
     pub invocation_summary: JobListInvocationSummaryView,
+    /// 实际生效的条数上限（越界是 400，不会被夹，所以总等于请求的值）。
+    pub limit: u32,
+    pub offset: u32,
+    /// 这一页之后还有没有。
+    pub has_more: bool,
 }
 
 #[derive(Debug, Serialize)]

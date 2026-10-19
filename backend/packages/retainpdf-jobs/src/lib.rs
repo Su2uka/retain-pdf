@@ -61,7 +61,7 @@ pub use progress::live_stage::{
     load_live_stage_snapshot, load_live_stage_snapshots, LiveStageSnapshot,
 };
 pub use progress::stage_view::{build_job_stage_view, terminal_completion_note};
-pub use query::JobQueries;
+pub use query::{job_search_text, JobQueries};
 pub use query_execution::QueryExecution;
 pub use reports::quality::api::{
     quality_items_view, quality_summary_view, QualityApiDeps, QualityItemsParams, QualityItemsView,
@@ -122,4 +122,4 @@ pub use presentation::{build_document_job_list_view, build_job_list_view};
 #[cfg(any(test, feature = "test-fixtures"))]
 pub use progress::event_feed::fixture::{event_line, jsonl_bytes_read, EventFeedFixture};
 #[cfg(any(test, feature = "test-fixtures"))]
-pub use query::list_jobs_filtered;
+pub use query::{list_jobs_filtered, JobsPage};

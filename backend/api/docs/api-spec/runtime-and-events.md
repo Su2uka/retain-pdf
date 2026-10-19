@@ -329,14 +329,13 @@ Read-only structured event APIs:
 
 Query parameters:
 
-- `limit` (default `100`, clamped to `1..500`)
-- `offset` (default `0`)
+- `limit` (default `500`, `1..=500`; outside that range the request is rejected with `400`)
+- `start` (`tail` by default, or `head`) and `cursor`; `offset` is not accepted. See `docs/core/api/event-feed-v2.md`
 
 Behavior:
 
 - events are returned in ascending `seq` order
-- the JSON response contains `items`, the effective `limit`, and `offset`; it
-  does not currently contain `total` or `has_more`
+- the JSON response contains `protocol_version`, `items`, `next_cursor`, `has_more` and the effective `limit`
 - `GET /api/v1/jobs/{job_id}/progress/events` is the historical progress and debugging stream
 - runtime merges DB events, `DATA_ROOT/jobs/<job_id>/logs/pipeline_events.jsonl`, and OCR child events from `{job_id}-ocr`
 - OCR child events are mapped back to the parent `job_id`

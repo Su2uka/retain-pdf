@@ -4,6 +4,7 @@ use crate::progress::live_stage::{load_live_stage_snapshots, LiveStageSnapshot};
 use crate::query::list_jobs_filtered;
 use crate::progress::stage_view::build_job_stage_view;
 use crate::summary_loaders::SummaryCache;
+use crate::support::checked_limit;
 use super::helpers::{book_document_id, cover_url, job_path_prefix, thumbnail_url};
 use retainpdf_core::config::limits::MAX_JOB_LIMIT;
 use retainpdf_data::db::Db;
@@ -23,11 +24,11 @@ pub fn build_job_list_view(
     query: &ListJobsQuery,
     base_url: &str,
 ) -> Result<JobListView, AppError> {
-    let jobs = list_jobs_filtered(db, query)?;
+    let page = list_jobs_filtered(db, query)?;
     let items = build_job_list_items(
         db,
         data_root,
-        &jobs,
+        &page.jobs,
         base_url,
         query.include_live_stage != Some(false),
     );
@@ -35,6 +36,9 @@ pub fn build_job_list_view(
     Ok(JobListView {
         items,
         invocation_summary,
+        limit: page.limit,
+        offset: query.offset,
+        has_more: page.has_more,
     })
 }
 
@@ -47,7 +51,7 @@ pub fn build_document_job_list_view(
     query: &ListDocumentJobsQuery,
     base_url: &str,
 ) -> Result<DocumentJobListView, AppError> {
-    let limit = query.limit.clamp(1, MAX_JOB_LIMIT);
+    let limit = checked_limit(query.limit, MAX_JOB_LIMIT)?;
     let total = db.count_jobs_for_document(document_id)?;
     let jobs = db.list_jobs_for_document(document_id, limit, query.offset)?;
     let items = build_job_list_items(db, data_root, &jobs, base_url, true);

@@ -436,7 +436,15 @@ Response:
     "invocation_summary": {
       "stage_spec_count": 12,
       "unknown_count": 0
-    }
+    },
+    "limit": 20,
+    "offset": 0,
+    "has_more": false
   }
 }
 ```
+
+`limit` is the effective page size (`1..=500`, default `20`; anything else is `400`), `offset` echoes the request, and
+`has_more` says whether another page follows (computed by fetching one extra row). `q` (case-insensitive substring over
+`job_id`, the document title, the upload file name / source URL, `stage`, `stage_detail` and `error`) and `job_ids`
+(comma-separated whitelist) filter before pagination. See `docs/api/01-任务/03-任务列表.md`.
