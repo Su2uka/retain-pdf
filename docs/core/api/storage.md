@@ -8,6 +8,7 @@
 - `DATA_ROOT/jobs/{job_id}/`：任务工作目录。
 - `DATA_ROOT/downloads/`：下载缓存。
 - `DATA_ROOT/db/jobs.db`：SQLite 数据库。
+- `DATA_ROOT/db/jobs.db.runtime-owner.lock`：任务运行时的独占锁文件（进程内模式的 rust_api 或 retain-jobsd 启动时加锁，进程退出自动释放；文件本身留着无害，不要提交）。
 
 ## 任务目录
 
@@ -41,7 +42,7 @@ jobs/{job_id}/
 SQLite 主要承担：
 
 - `uploads`：源文件名、存储路径、PDF 大小、页数和上传时间。
-- `jobs`：任务状态、阶段、进度、请求/runtime 状态、失败信息和日志尾部。
+- `jobs`：任务状态、阶段、进度、请求/runtime 状态、失败信息和日志尾部；运行中的任务还记着 worker 的 `pid` 和 `worker_identity`（`<pid>@<启动时间指纹>`，spawn 时写，启动对账、取消杀进程前核对 pid 没被别的进程复用）。
 - `artifacts`：每个任务的 artifact index JSON。
 - `job_artifact_entries`：规范化 artifact manifest，用于下载和列表展示。
 - `events`：结构化事件流。

@@ -24,7 +24,9 @@ use anyhow::Result;
 use tokio::process::{Child, Command};
 use tokio::time::{sleep, timeout, Duration};
 
+mod identity;
 mod supervisor_watch;
+pub use identity::{identity_matches, process_identity, process_start, ProcessStart};
 pub use supervisor_watch::{
     mark_supervised_child, supervisor_pid_from_env, wait_for_supervisor_exit, SUPERVISOR_PID_ENV,
     SUPERVISOR_WATCH_INTERVAL,
@@ -75,6 +77,7 @@ pub async fn terminate_job_process_tree(
     grace_secs: u64,
     poll_interval_ms: u64,
 ) -> Result<()> {
+    refuse_non_worker_pid(pid)?;
     #[cfg(windows)]
     {
         terminate_job_process_tree_windows(pid)
@@ -95,6 +98,15 @@ pub async fn terminate_job_process_tree(
         let _ = unsafe { libc::kill(group_pid, libc::SIGKILL) };
         Ok(())
     }
+}
+
+/// 组杀的 pid 必须是一个真进程组组长：`kill(-0)` 是调用者自己的进程组，`kill(-1)` 是当前用户能发
+/// 信号的所有进程；超出 `i32` 的值取负数会溢出成别的号。这些一律拒绝，不发任何信号。
+fn refuse_non_worker_pid(pid: u32) -> Result<()> {
+    if pid <= 1 || i32::try_from(pid).is_err() {
+        anyhow::bail!("refusing to signal process group of pid={pid}");
+    }
+    Ok(())
 }
 
 /// SIGKILL 之后最多再等这么久回收；内核态卡住（D 状态）的进程连 SIGKILL 都
@@ -151,6 +163,7 @@ pub fn terminate_job_process_tree_blocking(
     grace_secs: u64,
     poll_interval_ms: u64,
 ) -> Result<()> {
+    refuse_non_worker_pid(pid)?;
     #[cfg(windows)]
     {
         terminate_job_process_tree_windows(pid)
@@ -237,6 +250,17 @@ mod tests {
         let status = terminate_child_process_tree(&mut child, 3).await;
         assert!(started.elapsed().as_secs_f64() < 0.5);
         assert!(status.is_some_and(|status| status.success()));
+    }
+
+    #[test]
+    fn group_kill_guard_refuses_pid_zero_one_and_overflow() {
+        // 只测守卫本身，不经过真的组杀：守卫一旦被改坏，经过组杀的用例会 kill(0)/kill(-1)，
+        // 杀掉跑测试的进程组乃至当前用户的所有进程。
+        for pid in [0, 1, u32::MAX, i32::MAX as u32 + 1] {
+            assert!(super::refuse_non_worker_pid(pid).is_err(), "{pid}");
+        }
+        assert!(super::refuse_non_worker_pid(2).is_ok());
+        assert!(super::refuse_non_worker_pid(i32::MAX as u32).is_ok());
     }
 
     #[test]

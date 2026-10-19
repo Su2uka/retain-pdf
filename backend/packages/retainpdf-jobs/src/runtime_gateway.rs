@@ -21,7 +21,10 @@ use tokio::sync::RwLock;
 
 use retainpdf_core::config::{JobRunnerConfig, JobsServiceConfig};
 use retainpdf_api_base::error::AppError;
-use retainpdf_runner::job_runner::{clear_cancel_request_with_registry, request_cancel_with_registry};
+use retainpdf_data::db::Db;
+use retainpdf_runner::job_runner::{
+    clear_cancel_request_with_registry, recorded_worker_is_ours, request_cancel_with_registry,
+};
 pub use retainpdf_runner::job_runner::{
     translation_artifacts_are_ready, translation_checkpoint_candidate_is_ready, JobDriverRegistry,
 };
@@ -60,6 +63,20 @@ impl JobsClient {
     }
 
     async fn send(&self, method: reqwest::Method, path: &str) -> Result<(), AppError> {
+        let status = self.send_for_status(method, path).await?;
+        if !status.is_success() {
+            return Err(AppError::internal(format!(
+                "任务服务拒绝了请求（{path}）：HTTP {status}"
+            )));
+        }
+        Ok(())
+    }
+
+    async fn send_for_status(
+        &self,
+        method: reqwest::Method,
+        path: &str,
+    ) -> Result<reqwest::StatusCode, AppError> {
         let url = format!("{}{path}", self.base_url);
         let response = self
             .client
@@ -70,13 +87,7 @@ impl JobsClient {
             .map_err(|error| {
                 AppError::service_unavailable(format!("任务服务不可用（{path}）：{error}"))
             })?;
-        if !response.status().is_success() {
-            return Err(AppError::internal(format!(
-                "任务服务拒绝了请求（{path}）：HTTP {}",
-                response.status()
-            )));
-        }
-        Ok(())
+        Ok(response.status())
     }
 }
 
@@ -178,10 +189,23 @@ impl JobRuntime {
             .map_err(|e| AppError::internal(format!("failed to terminate job process tree: {e}"))),
             // 远端模式下 worker 是 jobsd 的子进程：必须由 jobsd 组杀，壳直接
             // 杀会绕过它的进程组记账。
+            //
+            // jobsd 只杀它登记过、身份核对得上的 worker；404（not_a_registered_worker）说明这个
+            // pid 已经不是任何 running 任务的 worker 了（刚退出、号被复用），没有东西要杀，不算失败。
             Self::Remote { client } => {
-                client
-                    .post(&format!("/internal/v1/processes/{pid}/terminate"))
-                    .await
+                let path = format!("/internal/v1/processes/{pid}/terminate");
+                match client.send_for_status(reqwest::Method::POST, &path).await? {
+                    status if status.is_success() => Ok(()),
+                    reqwest::StatusCode::NOT_FOUND => {
+                        tracing::warn!(
+                            "jobsd: pid={pid} is not a registered worker any more; nothing to terminate"
+                        );
+                        Ok(())
+                    }
+                    status => Err(AppError::internal(format!(
+                        "任务服务拒绝了请求（{path}）：HTTP {status}"
+                    ))),
+                }
             }
         }
     }
@@ -236,4 +260,26 @@ pub async fn terminate_runtime_process(
     config: &JobRunnerConfig,
 ) -> Result<(), AppError> {
     runtime.terminate_process(pid, config).await
+}
+
+/// 终止任务 `job_id` 库里记的 worker `pid`，但先核对它还是这个任务的 worker（spawn 时记下的进程身份，
+/// 见 retainpdf-runner 的 `worker_identity`）。worker 已经退出、库里 pid 还没清的窗口里，这个号可能已经
+/// 归了别的进程，不能把它整组杀掉：核对不上就只打日志、返回成功。远端模式下 jobsd 收到 terminate
+/// 还会按同一套规则再核对一次。
+pub async fn terminate_job_worker(
+    runtime: &JobRuntime,
+    db: &Db,
+    job_id: &str,
+    pid: u32,
+    config: &JobRunnerConfig,
+) -> Result<(), AppError> {
+    let ours = recorded_worker_is_ours(db, job_id, pid)
+        .map_err(|error| AppError::internal(format!("check worker identity: {error:#}")))?;
+    if !ours {
+        tracing::warn!(
+            "job {job_id}: recorded worker pid={pid} is gone or now belongs to another process; not signaling it"
+        );
+        return Ok(());
+    }
+    terminate_runtime_process(runtime, pid, config).await
 }

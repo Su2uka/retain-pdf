@@ -62,6 +62,17 @@ services/jobs -> job_runner -> worker_command / ocr_provider / db facade
 - Python stdout 解析规则。
 - 单个 worker 的完成态细节。
 
+### `runtime_owner.rs` / `worker_identity.rs`
+
+作用：
+
+- `runtime_owner.rs`：任务库旁的运行时独占锁（`jobs.db.runtime-owner.lock`）。进程内模式的 rust_api、retain-jobsd 在启动对账之前拿，
+  拿不到就退出，不去对账别的运行时正在管的任务。
+- `worker_identity.rs`：库里记的 worker pid 还是不是我们的 worker（spawn 时记的进程身份对不对得上；没有身份信息的老行按启动时间粗判）。
+  启动对账、运行期巡检、取消、jobsd 的 terminate 杀进程之前都走这里，不要再只凭 `worker_process_exists` 就组杀。
+
+取舍见 `docs/ops/planning/api-reorg/20261019-worker进程身份与运行时独占.md`。
+
 ## process runner
 
 入口：
@@ -73,7 +84,7 @@ services/jobs -> job_runner -> worker_command / ocr_provider / db facade
 - `process_runner.rs`
   只保留 worker 执行 orchestrator：启动、收集执行结果、分派 timeout/completion。
 - `process_runner/startup.rs`
-  worker 启动、pid 持久化、启动前 cancel 检查。
+  worker 启动、pid 和进程身份持久化（先 `record_worker_identity` 再写 pid）、启动前 cancel 检查。
 - `process_runner/execution.rs`
   等待进程、收集 stdout/stderr、区分 completed/timed out。
 - `process_runner/completion.rs`

@@ -248,3 +248,49 @@ async fn deleting_a_job_removes_its_full_text_rows() {
     let hits = state.db.search_blocks("betaunique", 10, None).unwrap();
     assert!(hits.iter().all(|hit| hit.job_id != "job-a"));
 }
+
+/// 回归（状态审计 1-#9）：库里记的 pid 已经不是这个任务的 worker（身份对不上：worker 退出了、号被
+/// 别的进程复用，库里的 pid 还没清）。取消和强制删除都只清 pid、把任务落终态，不许去杀那个进程。
+#[cfg(any(target_os = "linux", target_os = "macos"))]
+#[tokio::test]
+async fn cancel_and_force_delete_spare_a_process_that_reused_the_recorded_pid() {
+    let state = test_state("delete-safety-reused-pid");
+    seed_document(&state);
+    let mut stranger = spawn_worker();
+    let pid = stranger.id();
+    for job_id in ["job-cancel-reused", "job-delete-reused"] {
+        seed_job(&state, job_id, WorkflowKind::Translate, JobStatusKind::Running, Some(pid), None);
+        state
+            .db
+            .record_worker_identity(job_id, Some(&format!("{pid}@darwin:1.000000")))
+            .expect("record forged identity");
+    }
+
+    let response = build_app(state.clone())
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/jobs/job-cancel-reused/actions/cancel")
+                .header("X-API-Key", "test-key")
+                .body(Body::empty())
+                .expect("cancel request"),
+        )
+        .await
+        .expect("cancel response");
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        state.db.get_job("job-cancel-reused").expect("job").status,
+        JobStatusKind::Canceled
+    );
+
+    let (status, body) = delete(&state, "/api/v1/library/books/job-delete-reused?force=true").await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+
+    std::thread::sleep(Duration::from_millis(300));
+    assert!(
+        stranger.try_wait().expect("try_wait").is_none(),
+        "取消 / 强删把复用了这个 pid 的别的进程杀掉了"
+    );
+    let _ = stranger.kill();
+    let _ = stranger.wait();
+}

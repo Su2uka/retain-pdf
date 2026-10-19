@@ -224,3 +224,64 @@ fn api_process_restart_kills_orphan_worker_and_preserves_committed_checkpoint() 
     worker.terminate();
     fs::remove_dir_all(root).expect("remove API fixture");
 }
+
+/// 回归（状态审计 1-#6）：实例 A（进程内模式）正在管一个 running 任务；同一个 `data/` 上再起一个
+/// 实例 B（换了端口，比如另一个 worktree 起的开发后端）。B 必须在启动对账之前就因为拿不到运行时锁
+/// 退出——以前它先对账，把 A 的 worker 判成孤儿杀掉、任务改成 queued/failed，然后才在 bind 上失败
+/// （换了端口的话连 bind 都不会失败）。
+#[test]
+fn second_in_process_api_on_the_same_data_exits_without_touching_live_workers() {
+    let root = fixture_root();
+    fs::create_dir_all(root.join("data/db")).expect("create data root");
+    let db = jobs_db(&root);
+    db.init().expect("init db");
+
+    let (port_a, simple_a) = distinct_ports();
+    let mut api_a = spawn_api(&root, port_a, simple_a);
+    wait_for_api(&mut api_a, port_a);
+
+    // A 已经起来之后才出现的 running 任务：它是 A 的（A 不会再对账它）。
+    let mut worker = spawn_orphan_worker();
+    let worker_pid = worker.child_mut().id();
+    seed_crashed_runtime(&db, worker_pid);
+    db.record_worker_identity(JOB_ID, retainpdf_proc::process_identity(worker_pid).as_deref())
+        .expect("record worker identity");
+
+    let (port_b, simple_b) = loop {
+        let ports = distinct_ports();
+        if ![port_a, simple_a].contains(&ports.0) && ![port_a, simple_a].contains(&ports.1) {
+            break ports;
+        }
+    };
+    let mut api_b = spawn_api(&root, port_b, simple_b);
+    let deadline = Instant::now() + Duration::from_secs(10);
+    let status = loop {
+        if let Some(status) = api_b.child_mut().try_wait().expect("poll second rust_api") {
+            break status;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "第二个实例拿不到运行时锁时应当直接退出"
+        );
+        thread::sleep(Duration::from_millis(20));
+    };
+    assert!(!status.success(), "第二个实例应当报错退出：{status}");
+
+    thread::sleep(Duration::from_millis(300));
+    assert!(
+        worker
+            .child_mut()
+            .try_wait()
+            .expect("poll worker")
+            .is_none(),
+        "第二个实例把第一个实例的 worker 杀掉了"
+    );
+    let job = db.get_job(JOB_ID).expect("load job");
+    assert_eq!(job.status, JobStatusKind::Running, "第二个实例改了第一个实例的任务状态");
+    assert_eq!(job.pid, Some(worker_pid));
+    assert!(health_is_ready(port_a), "第一个实例应当不受影响");
+
+    api_a.terminate();
+    worker.terminate();
+    fs::remove_dir_all(root).expect("remove API fixture");
+}

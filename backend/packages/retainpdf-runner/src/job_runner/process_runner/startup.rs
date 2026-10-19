@@ -58,13 +58,21 @@ pub(super) async fn spawn_started_process(
     let (mut child, runtime_secrets) =
         spawn_worker_process(worker_runtime, &job, model_binding.as_ref())?;
     job.pid = child.id();
-    let persisted = cas_persist_job_with_resources(
-        persist.db.as_ref(),
-        &persist.data_root,
-        &persist.output_root,
-        &job.snapshot(),
-        &["queued", "running"],
-    );
+    // 先记进程身份、再写 pid（顺序见 `Db::record_worker_identity`）：之后启动对账、取消、jobsd
+    // 杀进程前都靠它核对「这个 pid 还是不是这个 worker」。读不到身份时记 None，按老行处理。
+    let identity = job.pid.and_then(retainpdf_proc::process_identity);
+    let persisted = persist
+        .db
+        .record_worker_identity(&job.job_id, identity.as_deref())
+        .and_then(|()| {
+            cas_persist_job_with_resources(
+                persist.db.as_ref(),
+                &persist.data_root,
+                &persist.output_root,
+                &job.snapshot(),
+                &["queued", "running"],
+            )
+        });
     if !matches!(persisted, Ok(true)) {
         // Cancellation can win while spawn is in progress. Never overwrite
         // its terminal state, and do not abandon the newly created worker.

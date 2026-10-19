@@ -17,12 +17,14 @@ mod render_prepare;
 mod revision_publication;
 mod runtime_credentials;
 mod runtime_deps;
+mod runtime_owner;
 mod runtime_state;
 mod source_document;
 mod stage_contract;
 mod startup_recovery;
 mod stdout_parser;
 mod translation_flow;
+mod worker_identity;
 mod worker_process;
 
 #[cfg(test)]
@@ -38,6 +40,7 @@ pub use driverless_sweep::{
 pub use lifecycle::{fail_unlaunched_job, launch_job, spawn_job};
 pub(crate) use process_runner::{execute_process_job, execute_process_job_stage, ProcessStageKind};
 pub use runtime_deps::{JobPersistDeps, ProcessRuntimeDeps};
+pub use runtime_owner::{acquire_runtime_owner_lock, runtime_owner_lock_path, RuntimeOwnerLock};
 pub(crate) use runtime_state::{
     attach_job_paths, attach_job_provider_failure, clear_canceled_runtime_artifacts,
     clear_job_failure, job_artifacts_mut, ocr_provider_diagnostics_mut, refresh_job_failure,
@@ -52,6 +55,10 @@ pub use worker_process::{
     configure_child_process, terminate_job_process_tree_blocking, worker_process_exists,
 };
 pub use worker_process::{terminate_child_process_tree, terminate_job_process_tree};
+pub use worker_identity::{
+    classify_process_record, classify_recorded_worker, recorded_worker_is_ours,
+    registered_running_worker, RecordedWorker,
+};
 
 pub(crate) fn format_error_chain(err: &anyhow::Error) -> String {
     let causes: Vec<String> = err

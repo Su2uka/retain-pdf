@@ -330,6 +330,10 @@ fn build_state_terminates_and_fails_running_jobs_with_live_pid() {
 
     db.save_job(&sample_running_job("job-live-pid", Some(pid)))
         .expect("save job");
+    // 和真实 spawn 一样记下进程身份：任务行的 updated_at 是写死的过去时刻，没有身份信息的话
+    // 会按「进程比任务行最后一次写入晚得多」判成 pid 被复用、不杀（retainpdf-runner 的 worker_identity）。
+    db.record_worker_identity("job-live-pid", crate::process::process_identity(pid).as_deref())
+        .expect("record worker identity");
 
     let state = build_state(fs.config()).expect("build state");
     let job = state.db.get_job("job-live-pid").expect("get job");
