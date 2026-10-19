@@ -136,3 +136,40 @@ fn a_queued_in_place_rerun_keeps_serving_its_previous_pdf() {
     let _ = std::fs::remove_dir_all(&root);
     assert_eq!(single_whole_document_job(&merge_plan(1, &ranked)), Some("relayout"));
 }
+
+/// `/reading` 和 `/translation-coverage` 每次请求都要知道每个任务译文 PDF 的页数。以前每次都把
+/// 整份 PDF 用 lopdf 载入（解出全部对象和流）只为数页数；现在按文件戳（路径、大小、修改时间、
+/// inode）缓存，文件没变就不再解析。
+#[test]
+fn a_job_pdf_is_parsed_once_while_it_stays_the_same_file() {
+    use retainpdf_api_base::test_fixtures::minimal_pdf_bytes;
+    use retainpdf_core::models::domain::{JobStatusKind, WorkflowKind};
+
+    let root = std::env::temp_dir().join(format!("retain-reading-pagecount-{:016x}", fastrand::u64(..)));
+    let rendered = root.join("jobs/a/rendered");
+    std::fs::create_dir_all(&rendered).unwrap();
+    let pdf = rendered.join("out.pdf");
+    let bytes = minimal_pdf_bytes(595, 842);
+    std::fs::write(&pdf, &bytes).unwrap();
+    let mut job = snapshot("a", "2026-10-01T00:00:00", "jobs/a", "jobs/a/translated");
+    job.status = JobStatusKind::Succeeded;
+    job.workflow = WorkflowKind::Book;
+    let artifacts = job.artifacts.as_mut().unwrap();
+    artifacts.output_pdf = Some("jobs/a/rendered/out.pdf".to_string());
+    artifacts.ocr_page_numbers = vec![1];
+    let jobs = [job];
+    assert_eq!(document_merge_sources(&jobs, &root).len(), 1);
+
+    // 原地写成同样长度的乱码、改回原来的修改时间：戳没变。还能数出页数，说明没有再解析。
+    let modified = std::fs::metadata(&pdf).unwrap().modified().unwrap();
+    std::fs::write(&pdf, vec![b'x'; bytes.len()]).unwrap();
+    std::fs::File::options().write(true).open(&pdf).unwrap().set_modified(modified).unwrap();
+    let cached = document_merge_sources(&jobs, &root).len();
+
+    // 文件真的变了（长度不同）：重新解析，乱码数不出页数，不参与合并。
+    std::fs::write(&pdf, b"not a pdf at all").unwrap();
+    let changed = document_merge_sources(&jobs, &root).len();
+    let _ = std::fs::remove_dir_all(&root);
+    assert_eq!(cached, 1, "文件没变却又把整份 PDF 解析了一遍");
+    assert_eq!(changed, 0, "文件变了还在用旧页数");
+}

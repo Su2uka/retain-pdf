@@ -67,7 +67,7 @@ pub(crate) struct MergeSource {
     pub inputs: BuildInputs,
 }
 
-/// 读磁盘的那一层：解析输出 PDF、读它的页数，交给 `covered_pages` 判定。
+/// 读磁盘的那一层：找到输出 PDF、读它的页数（按文件戳缓存），交给 `covered_pages` 判定。
 ///
 /// `producer_created_at` 是**产出这份译文的那个任务**的提交时间，必须由调用方给 —— 它要
 /// 查另一个任务（`translations_dir` 的主人），这里拿不到。刻意不设默认值：默认成自己的
@@ -90,10 +90,8 @@ pub(crate) fn job_merge_source(
         stored_path(job, data_root, StoredFile::TranslatedPdf)
     }
     .filter(|path| path.is_file());
-    let page_count = output_pdf
-        .as_deref()
-        .and_then(|path| lopdf::Document::load(path).ok())
-        .map(|document| document.get_pages().len());
+    // 按文件戳缓存：每次 `/reading`、`/translation-coverage` 都要数，不能每次整份载入。
+    let page_count = output_pdf.as_deref().and_then(super::page_count::pdf_page_count);
     let (start_page, end_page) = job.translation_page_window();
     let pages = covered_pages(
         &job.status,

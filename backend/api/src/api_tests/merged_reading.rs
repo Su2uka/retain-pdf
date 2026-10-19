@@ -363,3 +363,63 @@ async fn translation_coverage_reports_pages_per_job_without_building_a_merge() {
     // 只计算、不生成：打开详情页不该触发一次合并。
     assert!(!data_root.join("documents").join(&document_id).join("merged").exists(), "覆盖接口生成了合并目录");
 }
+
+/// 合并目录被清理（超过一天没人读）以后，拿着旧虚拟 id 的阅读器：404 带
+/// `merged_reading_expired`，和「任务被删了」分得开；重新问一次阅读入口就能接着读。
+#[tokio::test]
+async fn a_cleaned_up_merged_reading_says_so_and_reopening_works() {
+    let state = state_with_real_pipeline("merged-reading-expired");
+    let data_root = state.config.data_root.clone();
+    let document_id = seed_document(&state, &["SRC 1", "SRC 2"]);
+    seed_range_job(&state, &document_id, "job-a", "2026-10-01T00:00:00", &[1], &["ZH 1"]);
+    let app = build_app(state);
+    let job_id = reading(&app, &document_id).await["job_id"].as_str().unwrap().to_string();
+    let merged = data_root.join("documents").join(&document_id).join("merged");
+    let root = fs::read_dir(&merged).unwrap().next().unwrap().unwrap().path();
+    fs::remove_dir_all(&root).unwrap();
+
+    let response = request(&app, "GET", &format!("/api/v1/jobs/{job_id}")).await;
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    let body = read_json(response).await;
+    assert_eq!(body["error"]["details"]["reason"], "merged_reading_expired", "{body}");
+    assert_eq!(body["message"], format!("job not found: {job_id}"));
+
+    // 真正不存在的普通任务仍然是不带 reason 的 404。
+    let missing = read_json(request(&app, "GET", "/api/v1/jobs/no-such-job").await).await;
+    assert_eq!(missing["error"]["details"], json!({}));
+
+    let reopened = reading(&app, &document_id).await["job_id"].as_str().unwrap().to_string();
+    let detail = request(&app, "GET", &format!("/api/v1/jobs/{reopened}")).await;
+    assert_eq!(detail.status(), StatusCode::OK);
+}
+
+/// 翻译覆盖和阅读入口的页数来源要一致。以前覆盖用 `documents.page_count`、阅读入口数原文
+/// PDF：老数据没记页数（0）时，覆盖说「0 页、什么都没翻」，阅读器却照常打开整本合并。
+#[tokio::test]
+async fn coverage_and_reading_count_the_book_the_same_way() {
+    let state = state_with_real_pipeline("merged-reading-page-count");
+    let document_id = seed_document(&state, &["SRC 1", "SRC 2", "SRC 3"]);
+    seed_range_job(&state, &document_id, "job-a", "2026-10-01T00:00:00", &[1], &["ZH 1"]);
+    let conn = rusqlite::Connection::open(&state.config.jobs_db_path).unwrap();
+    conn.execute(
+        "UPDATE documents SET page_count = 0 WHERE document_id = ?1",
+        rusqlite::params![document_id],
+    )
+    .unwrap();
+    let app = build_app(state);
+
+    let response = request(&app, "GET", &format!("/api/v1/documents/{document_id}/translation-coverage")).await;
+    assert_eq!(response.status(), StatusCode::OK);
+    let coverage = read_json(response).await["data"].clone();
+    assert_eq!(coverage["page_count"], 3, "{coverage}");
+    assert_eq!(
+        coverage["segments"],
+        json!([
+            { "first": 1, "last": 1, "job_id": "job-a" },
+            { "first": 2, "last": 3, "job_id": null },
+        ])
+    );
+    let view = reading(&app, &document_id).await;
+    assert_eq!(view["merged"], true);
+    assert_eq!(view["contributing_job_ids"], json!(["job-a"]));
+}
