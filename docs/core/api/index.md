@@ -49,11 +49,15 @@
 
 ## 2. 推荐前端接入路径
 
-图书馆页面优先使用“书籍语义”接口：
+图书馆页面（2026-10-19 起，见 [书架冻结与删任务新地址](../../ops/planning/api-reorg/20261019-书架冻结与删任务新地址.md)）：
 
-- `GET /api/v1/library/books`
-- `GET /api/v1/library/books/{job_id}`
-- `DELETE /api/v1/library/books/{job_id}`
+- 书用 `/api/v1/documents`（列表、一本书的读改删），见下面「文档身份与文档级任务历史」；
+- 书名下任务的活态（状态、进度、阶段）用 `GET /api/v1/jobs?job_ids=a,b&limit=n&include_live_stage=true`，
+  见 [任务列表](../../api/01-任务/03-任务列表.md)；它不排除 OCR 任务；
+- 删单个任务用 `DELETE /api/v1/jobs/{job_id}`，见 [删除任务](../../api/01-任务/05-删除任务.md)；
+- 书架 `/api/v1/library/books` **冻结**：不再加字段，列表等前端改调 `GET /jobs?job_ids=` 以后删；
+  `GET /api/v1/library/books/{job_id}` 没有调用方，2026-10-19 已删；`DELETE /api/v1/library/books/{job_id}` 是
+  `DELETE /api/v1/jobs/{job_id}` 的旧地址。
 
 封面和缩略图用 `/documents/{document_id}/files/cover.jpg`、`thumbnail.jpg`（原 `/library/books/{job_id}/cover`、`/thumbnail` 已于 2026-10-18 删除，书架返回的 `cover_url`、`thumbnail_url` 已是新地址；查不到书编号时为 `null`）。
 
@@ -76,14 +80,20 @@ Reader 宿主接入 job/artifact、Markdown、区域、页面元数据和实时�
 
 ## 3. 图书馆接口
 
+### 书架（冻结）
+
+`/api/v1/library/books` 是旧的一套：每一项其实是一个任务（`id` 和 `job_id` 都是任务编号，没有 `document_id`），
+而且排除 OCR 任务。2026-10-19 起冻结，不再加字段；新代码用 `/documents` 和 `GET /jobs?job_ids=`（见上一节）。
+
 列表：
 
 `GET /api/v1/library/books?limit=20&offset=0&q=physics`
 
 查询参数：
 
-- `limit` / `offset`：分页。
+- `limit` / `offset`：分页（静默夹到上限；带 `job_ids` 时不按 `limit` 截断）。
 - `q`：可选，全库搜索书名、源文件名、job_id、源 URL 和状态文本。
+- `job_ids`：可选，逗号分隔的任务编号白名单。
 
 返回 `data.items[]`：
 
@@ -114,46 +124,31 @@ Reader 宿主接入 job/artifact、Markdown、区域、页面元数据和实时�
 }
 ```
 
-详情：
+换成 `GET /jobs?job_ids=` 时：标题读 `display_name`，阶段和进度读 `stage_snapshot`（`stage`、`stage_detail`、
+`progress`），`has_more` 告诉有没有下一页。
 
-`GET /api/v1/library/books/{job_id}`
+详情 `GET /api/v1/library/books/{job_id}`：没有调用方，2026-10-19 删了（同一地址还有 DELETE，所以 GET 返回 `405`）。
+要一个任务的详情用 `GET /api/v1/jobs/{job_id}`。
 
-返回重点字段：
+### 删除一个任务
 
-- `id`
-- `job_id`
-- `title`
-- `authors`
-- `source_file_name`
-- `page_count`
-- `source_language`
-- `target_language`
-- `file_size_bytes`
-- `status`
-- `stage`
-- `progress`
-- `cover_url`
-- `thumbnail_url`
-- `artifacts`
+- `DELETE /api/v1/jobs/{job_id}`
+- `DELETE /api/v1/jobs/{job_id}?force=true`
 
-删除：
-
-- `DELETE /api/v1/library/books/{job_id}`
-- `DELETE /api/v1/library/books/{job_id}?force=true`
-
-批量删除在前端逐本调用单本删除（`POST /api/v1/library/books/delete` 三周零调用，已删）。
+旧地址 `DELETE /api/v1/library/books/{job_id}` 行为不变（工作流是 OCR 的任务照旧 404）。批量删除在前端逐个调用
+（`POST /api/v1/library/books/delete` 三周零调用，已删）。完整说明见 [删除任务](../../api/01-任务/05-删除任务.md)。
 
 删除行为：
 
-- 删除主 job 记录
+- 删除主 job 记录（任何工作流，OCR 任务也行）
 - 删除关联 `artifacts` / `job_artifact_entries` / `events`
 - 删除 `DATA_ROOT/jobs/{job_id}`
 - 删除 `DATA_ROOT/downloads/{job_id}.zip`
 - 如果存在 `{job_id}-ocr` 子任务，一并删除
-- 默认不删除 `uploads` 源文件
+- 默认不删除 `uploads` 源文件，书（文档行）留着
 - `queued` / `running` 默认拒绝删除，除非传 `force=true`；`force=true` 时先对运行中的任务走和 `actions/cancel` 同一条路径（登记取消 + 终止 worker 进程）再删，
   runner 的落库写在行不存在时不会再把任务写回来
-- 别的任务还在用被删任务的产物（`request_payload.source.artifact_job_id` 指向它，例如重新排版的 render 任务）时，不带 `force` 返回 `409` + `error.details.reason = "job_has_dependents"`
+- 别的任务还在用被删任务的产物（`request_payload.source.artifact_job_id` 指向它，例如重新排版的 render 任务；或者单删 OCR 子任务 `P-ocr` 而父任务 `P` 还在）时，不带 `force` 返回 `409` + `error.details.reason = "job_has_dependents"`
 - 同时清掉被删任务在全文索引（`blocks_fts`）里的行，并按这本书剩下的成功任务重建
 
 ### 文档身份与文档级任务历史

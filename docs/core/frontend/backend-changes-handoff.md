@@ -10,6 +10,47 @@
 ---
 
 
+## 000000000. 书架冻结：删单个任务改用 `DELETE /jobs/{job_id}`，书架列表改调 `GET /jobs?job_ids=`
+
+分支 `refactor/library-books-freeze`（2026-10-19）。对应书库接口审计 A1，做法和取舍见
+[书架冻结与删任务新地址](../../ops/planning/api-reorg/20261019-书架冻结与删任务新地址.md)，新接口见 [删除任务](../../api/01-任务/05-删除任务.md)。
+
+### 后端变了什么（只增不改，前端现在不改也能用）
+
+1. 新增 `DELETE /api/v1/jobs/{job_id}`（`?force=true` 可选）：删这个任务和它的 `{job_id}-ocr` 子任务，书留着。
+   返回和书架删除一样（`deleted`、`job_id`、`removed_paths`、`removed_child_jobs`），409 / `job_has_dependents` / `force`
+   的规则也一样；不同的只有：**OCR 任务也能删**（书架删除把它挡成 404），以及单删 OCR 子任务 `P-ocr` 而父任务 `P` 还在时
+   409 + `job_has_dependents`。
+2. `DELETE /api/v1/library/books/{job_id}` 变成旧地址（接口目录里标了），行为不变。
+3. `GET /api/v1/library/books/{job_id}` 删了（前端、AI、CLI 都没调过）。同一地址还有 DELETE，所以 GET 返回 405。
+4. `GET /api/v1/library/books` 冻结：不再加字段，前端改完下面第 1 条以后删。
+5. 契约 `library-books.v1` 里 `LibraryBookDetailView` 定义暂留（标了废弃），因为前端还引用它（见下面第 4 条）。
+
+### 前端要改的
+
+1. `frontend/packages/api/src/library-books.ts` 的 `fetchLibraryBookList`（调用方：文档卡片叠加活态
+   `features/library/domain/documents/shape-documents-with-books.ts:60`，文件夹 `features/collections/domain/controller.ts:67`）：
+   - 旧：`GET library/books?limit=n&offset=0&job_ids=a,b`
+   - 新：`GET jobs?job_ids=a,b&limit=n&include_live_stage=true`（`limit` 必须在 1..=500，越界 400；名单超过 500 个分批请求）。
+     返回 `JobListView`：`items[]` 是任务列表项，标题用 `display_name`（没有 `title`），阶段和进度在 `items[].stage_snapshot`
+     （`stage`、`stage_detail`、`progress`，已有的 `flattenStageSnapshot` 能摊平；终态任务的 `stage_snapshot` 是 `null`），
+     `has_more` 表示还有没有下一页。`/jobs` 不排除 OCR 任务，`shape-documents-with-books.ts:70-85` 那段「没命中再逐个
+     `GET /jobs/:id` 补」以后基本用不上（可以留着兜底）。
+   - mock：`frontend/web/src/platform/mock/index.ts:90` 的 `synthesizeMockBook` 要改成按 `/jobs?job_ids=` 的形状造数据。
+2. `frontend/packages/api/src/library-books.ts` 的 `deleteLibraryBook`（调用方 `features/library/domain/recent-jobs/actions.ts:75`，
+   只在卡片没有 `document_id` 时走，见 `documents/delete-actions.ts:76`）：
+   - 旧：`DELETE library/books/{id}`（`?force=true`）
+   - 新：`DELETE jobs/{id}`（`?force=true`），返回形状和错误处理（`error.details.reason`）不变。
+     `stripOcrSuffix` 可以留着：传 `-ocr` 子任务编号本来就该删它的父任务；要单删 OCR 任务时别去后缀。
+3. 最近任务分页 `features/library/domain/recent-jobs/loader.ts:85`（`fetchLibraryBookList` 选项）→
+   `recent-jobs/library-books-resource.ts:29` → `recent-jobs/pagination.ts:81`：没有 `fetchJobList` 时回退调书架列表，
+   书架不给 `has_more`，只能靠「短页」猜。改成只用 `fetchJobList`（`GET /jobs`，回包有 `has_more`），去掉这条回退和
+   `fetchLibraryBookList` 选项（`app/home/composition/create-runtime-features.ts:196` 已经同时传了 `fetchJobList`）。
+4. 契约类型：`frontend/packages/api/src/types.ts:19` 重新导出的 `LibraryBookDetailView`，和
+   `frontend/web/tests/contracts/library-books-contract.test.mjs:66` 那条「LibraryBookDetailView 字段存在于契约」的测试，删掉。
+   删完告诉后端，后端再从 `contracts/library-books.v1.schema.json` 删这个定义和那条标了 `removed` 的端点。
+5. 上面 1、3 都改完、不再调 `GET library/books` 以后告诉后端，后端删书架列表和 `DELETE library/books/{id}` 旧地址。
+
 ## 0000000. 还没产出：404 带 `error.details.reason = "not_ready"`，任务不存在是不带 reason 的 404
 
 分支 `fix/not-ready-404`（2026-10-19）。对应审计 C3、D2，规矩见 [错误约定](../../api/00-约定/02-认证与错误.md#还没产出404)，
