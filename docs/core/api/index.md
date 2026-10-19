@@ -640,9 +640,16 @@ Content-Type: application/pdf
 ```http
 200 OK
 Content-Type: image/jpeg
-Cache-Control: public, max-age=31536000, immutable
+Cache-Control: private, max-age=0, must-revalidate   # 译文页（job）
+Cache-Control: private, max-age=31536000, immutable   # 原文页（document）
 ETag: "..."
 ```
+
+- 译文页：缓存图比 `translated.pdf` 旧（重渲染、原地重跑以后）就重新渲染，同一个地址的内容会变，所以不用强缓存，
+  浏览器每次带 `ETag` / `Last-Modified` 校验，没变回 304。
+- 原文页：书的编号是原文指纹，同一个地址内容不变，可以长缓存；和封面一样是登录后的内容，用 `private`。
+- `page` 超过总页数（任务的 `files` 清单 `pages.page_count`、书的 `pages.page_count`）：返回 404
+  `no such file: pages/{page}.jpg`，和 `pages/0.jpg` 一样，不会起渲染进程。
 
 预览图按 job 缓存在 `DATA_ROOT/jobs/{job_id}/artifacts/` 下。前端可先请求第一页预览图实现秒开，再后台加载 PDF.js。
 

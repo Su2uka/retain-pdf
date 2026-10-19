@@ -22,8 +22,9 @@ use super::LibraryDeps;
 
 /// 封面、缩略图按源 PDF 首页生成，一本书不变，浏览器缓存一天。
 const IMAGE_CACHE: &str = "private, max-age=86400";
-/// 预览图的文件名里带全部参数，同一个地址内容永远不变。
-const PAGE_CACHE: &str = "public, max-age=31536000, immutable";
+/// 书的编号就是源 PDF 的指纹，预览图的文件名里又带全部参数：同一个地址内容不变。
+/// 和封面一样是登录后的内容，用 `private`，不进共享缓存。
+const PAGE_CACHE: &str = "private, max-age=31536000, immutable";
 
 /// 书能取的每一种文件。
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -142,6 +143,11 @@ fn locate(db: &Db, data_root: &Path, python_bin: &str, document_id: &str, file: 
             Ok(download)
         }
         DocumentFile::Page { page, width_px, dpi } => {
+            // 页码超出页数：不用起渲染进程，直接 404。页数用 `/files` 清单里 `pages.page_count`
+            // 同一份（0 表示没记录，交给渲染脚本判断）。
+            if document.page_count > 0 && *page > document.page_count {
+                return Err(AppError::not_found(format!("no such file: pages/{page}.jpg")));
+            }
             let output = document_artifacts_dir(data_root, document_id)?
                 .join("pages")
                 .join(format!("p{page:04}-w{width_px}-d{dpi}.jpg"));

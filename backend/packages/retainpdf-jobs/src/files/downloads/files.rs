@@ -15,7 +15,7 @@ use retainpdf_core::models::domain::{JobSnapshot, JobStatusKind};
 use retainpdf_files::{
     artifact_is_direct_downloadable, build_bundle_for_job, build_markdown_bundle_for_job,
     ensure_book_image, ensure_layout_docx, ensure_page_preview, ensure_side_by_side_pdf,
-    job_download_file_name, resolve_registry_artifact, BookImageKind, DownloadKind,
+    job_download_file_name, job_upload_id, resolve_registry_artifact, BookImageKind, DownloadKind,
     LayoutDocxOptions,
 };
 use retainpdf_core::storage_paths::{
@@ -27,6 +27,7 @@ use retainpdf_core::storage_paths::{
 use crate::files::downloads::artifact_deps::derived_artifact_deps;
 use crate::files::downloads::paths::{job_artifacts_dir, safe_markdown_image_path};
 use crate::files::downloads::pdf::linearized_pdf_or_original;
+use crate::summary_loaders::SummaryCache;
 use crate::files::downloads::{DownloadJobsDeps, FileDownload};
 
 const DOCX_CONTENT_TYPE: &str =
@@ -34,8 +35,9 @@ const DOCX_CONTENT_TYPE: &str =
 const MARKDOWN_CONTENT_TYPE: &str = "text/markdown; charset=utf-8";
 /// 封面、缩略图按源 PDF 首页生成，一本书不变，浏览器缓存一天。
 const IMAGE_CACHE: &str = "private, max-age=86400";
-/// 预览图的文件名里带全部参数，同一个地址内容永远不变。
-const PAGE_CACHE: &str = "public, max-age=31536000, immutable";
+/// 译文页预览：译文 PDF 重渲染以后同一个地址的图会变，不能让浏览器直接用缓存。
+/// 每次带着 ETag / Last-Modified 来问，没变回 304。
+const TRANSLATED_PAGE_CACHE: &str = "private, max-age=0, must-revalidate";
 
 /// 任务能取的每一种文件。
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -331,6 +333,13 @@ fn locate(deps: &DownloadJobsDeps<'_>, job: &JobSnapshot, file: &JobFile) -> Res
                 .page
                 .checked_sub(1)
                 .ok_or_else(|| AppError::bad_request("page must be 1-based"))?;
+            // 页码超出页数：不用起渲染进程，直接 404（和 `pages/0.jpg` 一样的报错）。
+            // 页数用 `/files` 清单里 `pages.page_count` 同一份规则；查不到页数就交给渲染脚本判断。
+            let upload = job_upload_id(job).and_then(|id| deps.db.get_upload(id).ok());
+            let page_count = SummaryCache::default().book_page_count(upload.as_ref(), job, data_root);
+            if page_count.is_some_and(|count| count > 0 && i64::from(spec.page) > count) {
+                return Err(AppError::not_found(format!("no such file: pages/{}.jpg", spec.page)));
+            }
             let output_path = job_artifacts_dir(deps, job)?.join(format!(
                 "preview-{}-p{:04}-w{}-d{}.jpg",
                 kind.as_str(),
@@ -346,8 +355,12 @@ fn locate(deps: &DownloadJobsDeps<'_>, job: &JobSnapshot, file: &JobFile) -> Res
                 spec.width_px,
                 spec.dpi,
             )?;
+            let cache_control = match kind {
+                PagePreviewKind::Translated => TRANSLATED_PAGE_CACHE,
+                PagePreviewKind::Source => IMAGE_CACHE,
+            };
             Ok(Located {
-                cache_control: Some(PAGE_CACHE),
+                cache_control: Some(cache_control),
                 ..Located::new(path, "image/jpeg")
             })
         }
