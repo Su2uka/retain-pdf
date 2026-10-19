@@ -6,7 +6,7 @@ use crate::actions::stage_plan::resume_plan;
 use crate::actions::translation_request_recovery::load_translation_request_recovery;
 use crate::lifecycle::managed_credential_gc::cleanup_deleted_job_credentials;
 
-use crate::lifecycle::creation::{relaunch_in_place, submit_job, NewJob};
+use crate::lifecycle::creation::{relaunch_in_place, submit_job, NewJob, RunFence};
 use retainpdf_api_base::job_loading::load_job_or_404;
 use crate::facade::JobsFacade;
 use crate::actions::ocr_ambiguity::ambiguous_ocr_dispatch;
@@ -28,41 +28,21 @@ impl<'a> JobsFacade<'a> {
             return Err(plan.blocked_error());
         }
         if plan.resume_workflow == Some(WorkflowKind::Render) {
-            let job_id = source_job.job_id.clone();
-            let ocr_child_id = format!("{}-ocr", job_id);
-            // Clean up any previous OCR child that is now orphaned due to in-place rerender
-            let deleted_ocr_child = self.command.db.get_job(&ocr_child_id).ok();
-            let _ = self.command.db.delete_job(&ocr_child_id);
-            if let Some(deleted_ocr_child) = deleted_ocr_child {
-                cleanup_deleted_job_credentials(
-                    self.command.db,
-                    self.command.control.data_root,
-                    &[deleted_ocr_child],
-                );
-            }
-            let ocr_child_dir = self
-                .command
-                .control
-                .data_root
-                .join("jobs")
-                .join(&ocr_child_id);
-            let _ = std::fs::remove_dir_all(&ocr_child_dir);
-            // Also clear any stale rendered output on disk that would otherwise make
-            // completion's Path::exists() treat old PDF as success
-            let rendered_dir = self
-                .command
-                .control
-                .output_root
-                .join(&job_id)
-                .join("rendered");
-            let _ = std::fs::remove_dir_all(&rendered_dir);
+            // 先取读数，再改快照：落库只在库里还是这个终态、这一代时才写（两个请求同时来只开跑一个）。
+            let read_as = RunFence::of(&source_job);
             let job = prepare_in_place_render_job(source_job)?;
             // 续跑出来的渲染不精修：清掉没用完的一次性精修覆盖。
             crate::actions::stage_retry_refine::clear_pending_refine_override(
                 self.command.control.output_root,
                 &job.job_id,
             )?;
-            let job = relaunch_in_place(&self.command.submit.launcher, job)?;
+            // `rendered/` 不删：上一份 PDF 由 relaunch_in_place 在落库成功后挪开（排队期间阅读接着用，
+            // 没跑成时接回来），渲染的其它中间文件照旧覆盖写，和 stage_retry 的原地重渲染一致。
+            // 发射被拒（503、额度、409、落库失败）时，除了上面那份没用完的精修覆盖，什么都没动。
+            let job = relaunch_in_place(&self.command.submit.launcher, job, &read_as)?;
+            // 开跑之后才清理上一轮遗留的 `-ocr` 子任务（重渲染不做 OCR，用不上它；
+            // prepare_in_place_render_job 已经断开了父任务指向它的链接）。
+            self.discard_stale_ocr_child(&job.job_id);
             return Ok(self.build_submission_view(
                 base_url,
                 &job,
@@ -102,6 +82,29 @@ impl<'a> JobsFacade<'a> {
         // 归属（jobs.document_id + 书卡）沿 artifact_job_id 继承。
         let job = submit_job(&self.command.submit, NewJob::new(request))?;
         Ok(self.build_submission_view(base_url, &job, JobStatusKind::Queued, workflow))
+    }
+}
+
+impl JobsFacade<'_> {
+    /// 删掉 `<id>-ocr` 子任务的行和（老布局下的）目录，尽力而为。
+    fn discard_stale_ocr_child(&self, job_id: &str) {
+        let ocr_child_id = format!("{job_id}-ocr");
+        let deleted_ocr_child = self.command.db.get_job(&ocr_child_id).ok();
+        let _ = self.command.db.delete_job(&ocr_child_id);
+        if let Some(deleted_ocr_child) = deleted_ocr_child {
+            cleanup_deleted_job_credentials(
+                self.command.db,
+                self.command.control.data_root,
+                &[deleted_ocr_child],
+            );
+        }
+        let ocr_child_dir = self
+            .command
+            .control
+            .data_root
+            .join("jobs")
+            .join(&ocr_child_id);
+        let _ = std::fs::remove_dir_all(&ocr_child_dir);
     }
 }
 

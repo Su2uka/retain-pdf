@@ -1,4 +1,5 @@
 use super::*;
+use crate::db::NewRunWrite;
 use crate::models::domain::{
     CreateJobInput, JobArtifacts, OcrProviderDiagnostics, OcrProviderKind, UploadRecord,
 };
@@ -466,6 +467,53 @@ fn run_generation_fences_cas_writes_from_earlier_runs() {
     // 普通整行写（启动恢复等）不改代次。
     test.db.save_job(&current).unwrap();
     assert_eq!(test.db.job_run_generation("gen").unwrap(), Some(1));
+}
+
+/// 原地重跑的落库只认读到时的状态和代次：两个请求读到同一个终态，只有先来的那个开跑。
+#[test]
+fn new_run_cas_only_starts_from_the_state_it_read() {
+    let test = TestDb::new();
+    test.seed("relaunch", WorkflowKind::Render, JobStatusKind::Failed, OcrProviderKind::Paddle);
+    let read = test.db.get_job("relaunch").unwrap();
+    let mut queued = read.clone();
+    queued.status = JobStatusKind::Queued;
+
+    assert_eq!(
+        test.db.cas_save_job_as_new_run(&queued, &JobStatusKind::Failed, 0).unwrap(),
+        NewRunWrite::Started(1)
+    );
+    // 同一份读数再来一次：行已经是 queued、代次 1，写不进去，什么都不改。
+    let mut second = queued.clone();
+    second.stage = Some("second".into());
+    assert_eq!(
+        test.db.cas_save_job_as_new_run(&second, &JobStatusKind::Failed, 0).unwrap(),
+        NewRunWrite::Changed {
+            current_status: Some(JobStatusKind::Queued),
+            current_generation: 1,
+        }
+    );
+    let stored = test.db.get_job("relaunch").unwrap();
+    assert_eq!(stored.run_generation, 1);
+    assert_ne!(stored.stage.as_deref(), Some("second"));
+    // 那一次跑完了（又是 failed）：状态对上了，代次没对上，照样不写。
+    let mut finished = stored.clone();
+    finished.status = JobStatusKind::Failed;
+    assert!(test.db.cas_save_job(&finished, &["queued"]).unwrap());
+    assert!(matches!(
+        test.db.cas_save_job_as_new_run(&second, &JobStatusKind::Failed, 0).unwrap(),
+        NewRunWrite::Changed { current_generation: 1, .. }
+    ));
+    assert_eq!(
+        test.db.cas_save_job_as_new_run(&second, &JobStatusKind::Failed, 1).unwrap(),
+        NewRunWrite::Started(2)
+    );
+    let mut missing = second.clone();
+    missing.job_id = "missing".into();
+    assert_eq!(
+        test.db.cas_save_job_as_new_run(&missing, &JobStatusKind::Failed, 0).unwrap(),
+        NewRunWrite::Missing
+    );
+    assert!(test.db.get_job("missing").is_err(), "行不存在时不插入");
 }
 
 /// CAS 写不许在行不存在时 INSERT：行没了就是「被删了」，写的人该收手。

@@ -27,7 +27,7 @@ jobs/{job_id}/
 
 - `ocr/`：Provider 原始结果、解包结果、标准化输入。
 - `translated/`：翻译中间产物和 `translation-manifest.json`。
-- `rendered/`：渲染输出。
+- `rendered/`：渲染输出。原地重跑（原地重渲染、精修）开跑时把上一份译文 PDF 改名成同目录的 `<名>.previous.pdf`（`artifacts.previous_output_pdf` 指向它），这一次没跑成就把 `output_pdf` 指回它。
 - `artifacts/`：对外发布的稳定产物、诊断文件和索引。
 - `logs/pipeline_events.jsonl`：当前事件落盘主文件。
 

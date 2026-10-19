@@ -176,7 +176,7 @@ returned `400` here (refine returned `409`); they are all `409` now.
 
 | `reason` | When | Endpoints |
 |---|---|---|
-| `job_active` | job is queued/running; cancel it first. Checked before everything else | retry-stage (every stage, in place or new job), resume/rerun, resolve-ocr-ambiguity |
+| `job_active` | job is queued/running; cancel it first. Checked before everything else. Also returned to the losing request when two in-place reruns read the same terminal state and the other one already started | retry-stage (every stage, in place or new job), resume/rerun, resolve-ocr-ambiguity |
 | `job_not_active` | cancel on a job that is not queued/running | cancel |
 | `artifacts_missing` | artifacts or the original source (`upload_id`/`source_url`) the stage or resume plan needs are gone | retry-stage, resume/rerun |
 | `translations_not_owned` | refine target renders another job's translations; refine the source job | retry-stage `stage=refine` |
@@ -184,7 +184,7 @@ returned `400` here (refine returned `409`); they are all `409` now.
 | `ambiguous_translation_request` | translation request outcome is ambiguous; retry-stage translation with `ambiguous_request_policy=accept_duplicate_risk` | retry-stage (translation), resume/rerun |
 | `request_journal_corrupt` | translation request journal is corrupt; `accept_duplicate_risk` cannot repair it | retry-stage `stage=translation`, resume/rerun |
 | `model_executor_unsupported` | job is bound to a Rust model executor; legacy retry/resume/refine is disabled | retry-stage, resume/rerun |
-| `stale_resolution` | `resolution_revision` is stale, or another request already resolved the ambiguity | resolve-ocr-ambiguity |
+| `stale_resolution` | `resolution_revision` is stale, or another request already resolved the ambiguity. For an in-place rerun: the job ran again (its run generation changed) after this request read it; reload and retry | resolve-ocr-ambiguity, retry-stage (in-place render / refine), resume/rerun (in-place render) |
 | `no_ocr_dispatch` | job is neither failed nor canceled, or has no ambiguous OCR dispatch | resolve-ocr-ambiguity |
 | `ocr_dispatch_unsupported` | the ambiguous dispatch is for a provider/operation whose receipt cannot be bound | resolve-ocr-ambiguity |
 
@@ -237,6 +237,33 @@ Execution semantics:
   `reviewer_credential_ref` (inline keys are rejected in `overrides`). If an
   earlier plain re-render already cleared them, pass
   `overrides.translation.{model, base_url, credential_ref}`; otherwise `400`.
+
+### In-place reruns and the previous PDF
+
+`stage=render` with `create_new_job=false`, `stage=refine`, and the in-place
+render chosen by resume/rerun keep the job id and run again on the same job
+(`relaunch_in_place`):
+
+- The write that requeues the job is a compare-and-set: it only succeeds while
+  the row still has the terminal status and run generation the request read.
+  Of two concurrent requests only one starts; the other gets `409`
+  (`job_active` while the winner is queued/running, `stale_resolution` if it
+  already finished). The winner's row is never reset back to `queued`.
+- A refused relaunch (`409`, `503` model executor not enabled, page quota,
+  persistence failure) changes nothing: the previous translated PDF, the
+  `<id>-ocr` child job and its directory are left as they were, and
+  `files/output/translated.pdf` keeps serving the old PDF. (Resume/rerun used to
+  delete `rendered/` and the `-ocr` child before validating.)
+- Once the run is persisted, the previous PDF is renamed to
+  `<name>.previous.pdf` in the same directory and `artifacts.previous_output_pdf`
+  points there, so the renderer (which rewrites `rendered/<name>.pdf`
+  non-atomically) cannot truncate it; merged reading keeps using it while the
+  job is queued. The rest of `rendered/` is no longer wiped. Resume/rerun drops
+  the stale `-ocr` child only after the run started.
+- When the run ends `failed` or `canceled` with no new `output_pdf`, every job
+  write restores `artifacts.output_pdf` to the previous PDF (if the file still
+  exists), so `translated.pdf`, page previews and the Word export keep working.
+  `translated.pdf` is `404 … not ready` only while the rerun is queued/running.
 
 ## Resume Plan, Resume, and Generic Rerun
 

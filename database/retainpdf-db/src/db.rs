@@ -144,6 +144,7 @@ pub use event_feed::{
     EventSourceVersion, NewFeedItem, SourceEvent, StoredEventFeed, StoredFeedItem,
 };
 pub use event_projection_inputs::EventProjectionInput;
+pub use job_writes::NewRunWrite;
 pub use jobs::JobListSelection;
 pub use model_requests::{
     ModelOperation, ModelRecoverySummary, ModelReservation, ModelSession, ModelSessionConflict,

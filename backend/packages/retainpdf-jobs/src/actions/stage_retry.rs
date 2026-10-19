@@ -6,7 +6,7 @@ use crate::views::{
 use crate::actions::stage_plan::stage_plan;
 use crate::actions::translation_request_recovery::load_translation_request_recovery;
 
-use crate::lifecycle::creation::{relaunch_in_place, submit_job, NewJob};
+use crate::lifecycle::creation::{relaunch_in_place, submit_job, NewJob, RunFence};
 use retainpdf_api_base::job_loading::load_job_or_404;
 use crate::facade::JobsFacade;
 use crate::actions::ocr_ambiguity::ambiguous_ocr_dispatch;
@@ -131,6 +131,7 @@ impl<'a> JobsFacade<'a> {
         let request_input = if request.creates_new_job() {
             build_retry_request(&source_job, &request.stage)?
         } else if matches!(request.stage, RetryStageKind::Render) {
+            let read_as = RunFence::of(&source_job);
             let mut job = prepare_in_place_render_job(source_job)?;
             // 普通重渲染永远不精修：清掉上一次精修重试没用完的一次性覆盖（例如运行时
             // 重启时被判成 failed 的那次），否则这次渲染会意外带上它。
@@ -143,7 +144,7 @@ impl<'a> JobsFacade<'a> {
             job.request_payload.translation.reviewer_api_key.clear();
             job.request_payload.runtime.job_id = job.job_id.clone();
             job.sync_runtime_state();
-            let job = relaunch_in_place(&self.command.submit.launcher, job)?;
+            let job = relaunch_in_place(&self.command.submit.launcher, job, &read_as)?;
             return Ok(build_retry_stage_submission_view(
                 base_url,
                 source_job_id,
@@ -209,6 +210,7 @@ impl<'a> JobsFacade<'a> {
         // 换了 key 后带来的明文 key 先导入凭据库；锁持有到 relaunch_in_place 落库之后。
         let (overrides, _credential_usage) =
             import_inline_refine_keys(&request.overrides, self.command.control.data_root)?;
+        let read_as = RunFence::of(&source_job);
         let job = prepare_in_place_refine_job(source_job, &overrides, self.command.control.data_root)?;
         // 覆盖必须在启动之前写好：relaunch_in_place 之后运行时随时可能读它。
         let job_paths = retainpdf_core::storage_paths::JobPaths::for_job(
@@ -219,10 +221,17 @@ impl<'a> JobsFacade<'a> {
             .map_err(|error| {
                 AppError::internal(format!("failed to stage refine override: {error:#}"))
             })?;
-        let job = match relaunch_in_place(&self.command.submit.launcher, job) {
+        let job = match relaunch_in_place(&self.command.submit.launcher, job, &read_as) {
             Ok(job) => job,
             Err(error) => {
-                let _ = retainpdf_data::worker_command::refine_override::clear_refine_override(&job_paths);
+                // 别的请求已经开跑了（409 job_active）：那一次运行可能正要读覆盖，不删。
+                let someone_else_started = matches!(
+                    &error,
+                    AppError::Reasoned { reason, .. } if *reason == ActionBlockReason::JobActive.as_str()
+                );
+                if !someone_else_started {
+                    let _ = retainpdf_data::worker_command::refine_override::clear_refine_override(&job_paths);
+                }
                 return Err(error);
             }
         };

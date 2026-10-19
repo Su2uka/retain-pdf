@@ -52,8 +52,10 @@ pub struct JobArtifacts {
     pub translation_checkpoint_json: Option<String>,
     pub translations_dir: Option<String>,
     pub output_pdf: Option<String>,
-    /// 原地重跑（重排 / 精修）排队时清掉了 `output_pdf`，但上一次排好的 PDF 还在磁盘上，直到
-    /// 新的渲染开始覆盖它。记下它的路径，阅读在排队这段时间里继续用它，而不是退回更旧的版本。
+    /// 原地重跑（重排 / 精修）排队时清掉了 `output_pdf`，上一次排好的 PDF 在开跑时挪到同目录的
+    /// `<名>.previous.pdf`（新的渲染写不到它），这里记的是挪开后的路径。阅读在排队这段时间里继续用它，
+    /// 而不是退回更旧的版本；这一次没跑成（failed / canceled）时落库层把 `output_pdf` 指回它。
+    /// 见 `storage_paths::previous_output`。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub previous_output_pdf: Option<String>,
     /// 上一份 PDF 排好的时间（原地重跑清掉了 `finished_at`）。
