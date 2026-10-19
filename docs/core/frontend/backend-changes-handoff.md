@@ -490,3 +490,31 @@ API / jobsd 重启时，翻译阶段运行中的任务以前一律自动续跑�
 现有的失败弹窗按 `summary` / `recovery_hint` 显示（`failure-recovery.ts` 优先用后端的 `recovery_hint`），重试按钮照 `retryable` 和 `GET actions`。
 
 详见 [失败结构](../../api/08-调试诊断/01-失败结构.md)、[数据库备份](../../api/10-备份/01-数据库备份.md)。
+
+---
+
+## 书的图跟着原文走、合并阅读过期带 reason（fix/library-media-freshness）
+
+2026-10-19。决定和取舍见 [书库媒体新鲜度与合并阅读](../../ops/planning/api-reorg/20261019-书库媒体新鲜度与合并阅读.md)。
+
+### 变了什么
+
+1. **书的封面、缩略图、原文页**（`/documents/{id}/files/cover.jpg`、`thumbnail.jpg`、`pages/{page}.jpg`）：原文换了版本（Agent 文档操作提交）以后
+   按新原文重新渲染（以前封面、缩略图一直是旧图）。响应头统一成 `Cache-Control: private, max-age=0, must-revalidate`
+   （以前封面、缩略图 `private, max-age=86400`，原文页 `private, max-age=31536000, immutable`），`ETag` / `Last-Modified` 照旧，没变回 304。
+   地址没变。
+2. **合并阅读的虚拟任务 id**（`/documents/{id}/reading` 返回的 `merged-<书>-<指纹>`）：合并目录改成超过一天**没人读**才清理（以前按生成时间，
+   正在读的也会被删）。清理以后拿着旧 id 的读请求仍是 `404`、`message` 仍是 `job not found: merged-…`，多了
+   `error.details.reason = "merged_reading_expired"`。真不存在的普通任务还是不带 reason 的 404。
+3. **翻译覆盖**（`/documents/{id}/translation-coverage`）：页数改成和阅读入口一样数原文 PDF。只有老数据（书没记页数）会变：
+   `page_count`、`segments` 以前是 0 / 空，现在是实际页数。
+
+### 前端要做什么
+
+- 第 1、3 条**不用改代码**。
+- 第 2 条可选（不改的话和现在一样：显示加载失败）。`frontend/packages/reader/src/hooks/reader-session/session-assets.ts` 的 `load()` catch 块
+  （约 455 行，`isStaleDocumentJobFailure` 判断前后）：旧写法是 404 只在「书的链路、没有显式 job」时退回原文，显式的 `merged-…` 直接 `failBoot`；
+  新写法加一个分支：`status === 404 && reason === "merged_reading_expired" && sessionJobId.startsWith("merged-")` 时，从 id 里取书的编号
+  （`merged-` 后面 64 位十六进制），调 `fetchDocumentReading(apiPrefix, documentId)`（`frontend/packages/api/src/documents.ts:213`），
+  拿到新的 `job_id` 就按它重新打开阅读器（和 `ReaderNavigation.tsx` 里 `buildReaderPageUrl(jobId, anchor)` 一样），拿不到（`null`）退回按书读原文。
+  `session-load-plan.ts` 里可以照 `isStaleDocumentJobFailure` 加一个纯函数 `isExpiredMergedReading({ status, reason, sessionJobId })` 方便测。
