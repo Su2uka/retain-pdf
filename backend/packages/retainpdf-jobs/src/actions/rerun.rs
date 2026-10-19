@@ -79,7 +79,7 @@ impl<'a> JobsFacade<'a> {
             return Err(ActionBlockReason::ModelExecutorUnsupported.conflict("Rust model translation rerun requires receipt-preserving recovery; legacy rerun is disabled"));
         }
         if ambiguous_ocr_dispatch(self.command.db, source_job_id)?.is_some() {
-            return Err(ActionBlockReason::AmbiguousRequest.conflict(
+            return Err(ActionBlockReason::AmbiguousOcrDispatch.conflict(
                 "OCR request outcome is ambiguous; generic rerun is paused. Use the OCR ambiguity resolution endpoint to bind an existing provider task or explicitly accept duplicate request risk",
             ));
         }
@@ -92,7 +92,7 @@ impl<'a> JobsFacade<'a> {
                     "translation request journal is corrupt; generic rerun is paused because duplicate-risk acceptance cannot repair control-state corruption",
                 ));
             }
-            return Err(ActionBlockReason::AmbiguousRequest.conflict(
+            return Err(ActionBlockReason::AmbiguousTranslationRequest.conflict(
                 "translation request outcome is ambiguous; generic rerun is paused. Use retry-stage with stage=translation and ambiguous_request_policy=accept_duplicate_risk",
             ));
         }

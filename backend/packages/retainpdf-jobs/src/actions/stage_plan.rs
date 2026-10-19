@@ -190,7 +190,7 @@ pub(crate) fn resume_plan(job: &JobSnapshot, data_root: &Path) -> JobResumePlan 
             reason_code: Some(if availability.translation_request_journal_corrupt {
                 ActionBlockReason::RequestJournalCorrupt
             } else {
-                ActionBlockReason::AmbiguousRequest
+                ActionBlockReason::AmbiguousTranslationRequest
             }),
         };
     }
@@ -276,7 +276,7 @@ fn base_stage_plan(
             disabled_code: if availability.translation_request_journal_corrupt {
                 Some(ActionBlockReason::RequestJournalCorrupt)
             } else if availability.translation_retry_requires_confirmation {
-                Some(ActionBlockReason::AmbiguousRequest)
+                Some(ActionBlockReason::AmbiguousTranslationRequest)
             } else {
                 None
             },

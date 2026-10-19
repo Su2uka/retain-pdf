@@ -41,10 +41,10 @@ GET /api/v1/jobs/{job_id}/actions
 
 `disabled_reason` 是给人看的文字，`disabled_code` 是同一件事的机器可读版本（`disabled_reason` 为空时是 `null`），
 取值和 `retry-stage` 被拒时 409 的 `error.details.reason` 一致，见 [错误约定](../00-约定/02-认证与错误.md#任务操作的-409-原因)：
-`job_active`、`artifacts_missing`、`translations_not_owned`、`model_executor_unsupported`、`request_journal_corrupt`、`ambiguous_request`。
+`job_active`、`artifacts_missing`、`translations_not_owned`、`model_executor_unsupported`、`request_journal_corrupt`、`ambiguous_translation_request`。
 
 一个例外：翻译阶段在请求结果不确定时 `can_retry` 仍是 `true`（带 `ambiguous_request_policy=accept_duplicate_risk` 就能重试），
-此时 `disabled_code` 是 `ambiguous_request`、`danger` 是 `true`。
+此时 `disabled_code` 是 `ambiguous_translation_request`、`danger` 是 `true`。
 
 ## 前端规则
 

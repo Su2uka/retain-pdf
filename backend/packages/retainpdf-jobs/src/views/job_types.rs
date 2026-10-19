@@ -282,8 +282,11 @@ pub enum ActionBlockReason {
     ArtifactsMissing,
     /// 精修要写回任务自己的译文目录，但这个任务渲染的是别的任务的译文。
     TranslationsNotOwned,
-    /// OCR 或翻译的请求结果不确定，要先处理歧义或接受重复请求风险。
-    AmbiguousRequest,
+    /// 翻译请求的结果不确定：要用 retry-stage(translation) + `accept_duplicate_risk` 确认。
+    AmbiguousTranslationRequest,
+    /// OCR 派发的结果不确定：要用 resolve-ocr-ambiguity 绑定已有回执或接受重复风险，
+    /// 不能拿「从翻译阶段重试」处理。
+    AmbiguousOcrDispatch,
     /// 翻译请求日志损坏，接受重复风险也修不好。
     RequestJournalCorrupt,
     /// Rust 模型执行器绑定的任务不能走这条旧路径。
@@ -303,7 +306,8 @@ impl ActionBlockReason {
             Self::JobNotActive => "job_not_active",
             Self::ArtifactsMissing => "artifacts_missing",
             Self::TranslationsNotOwned => "translations_not_owned",
-            Self::AmbiguousRequest => "ambiguous_request",
+            Self::AmbiguousTranslationRequest => "ambiguous_translation_request",
+            Self::AmbiguousOcrDispatch => "ambiguous_ocr_dispatch",
             Self::RequestJournalCorrupt => "request_journal_corrupt",
             Self::ModelExecutorUnsupported => "model_executor_unsupported",
             Self::StaleResolution => "stale_resolution",
@@ -371,7 +375,7 @@ pub struct StageRetryActionView {
     pub reason: String,
     pub disabled_reason: String,
     /// `disabled_reason` 的机器可读版本；`disabled_reason` 为空时为 null。
-    /// 翻译阶段在请求结果不确定时 `can_retry` 仍为 true，这里是 `ambiguous_request`
+    /// 翻译阶段在请求结果不确定时 `can_retry` 仍为 true，这里是 `ambiguous_translation_request`
     /// （重试要带 `ambiguous_request_policy=accept_duplicate_risk`）。
     pub disabled_code: Option<ActionBlockReason>,
     pub action: Option<StageRetryActionLinkView>,

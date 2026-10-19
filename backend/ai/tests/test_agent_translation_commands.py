@@ -444,7 +444,8 @@ def test_retry_conflict_hint_follows_the_backend_reason():
     for reason, expected in [
         ("job_active", "正在运行"),
         ("artifacts_missing", "缺少需要的产物"),
-        ("ambiguous_request", "不确定"),
+        ("ambiguous_translation_request", "不确定"),
+        ("ambiguous_ocr_dispatch", "不确定"),
         ("some_future_reason", "some_future_reason"),
     ]:
         fake = FakeCli({("translation", "retry-stage"): _conflict(reason)})

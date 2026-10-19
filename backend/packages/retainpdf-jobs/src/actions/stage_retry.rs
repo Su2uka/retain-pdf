@@ -104,7 +104,7 @@ impl<'a> JobsFacade<'a> {
         if ambiguous_ocr.is_some()
             && request.ambiguous_request_policy != AmbiguousRequestPolicy::AcceptDuplicateRisk
         {
-            return Err(ActionBlockReason::AmbiguousRequest.conflict(
+            return Err(ActionBlockReason::AmbiguousOcrDispatch.conflict(
                 "OCR request outcome is ambiguous; retry is paused. Use the OCR ambiguity resolution endpoint to bind an existing provider task, or retry-stage with ambiguous_request_policy=accept_duplicate_risk",
             ));
         }
@@ -121,7 +121,7 @@ impl<'a> JobsFacade<'a> {
                     && request.ambiguous_request_policy
                         != AmbiguousRequestPolicy::AcceptDuplicateRisk
                 {
-                    return Err(ActionBlockReason::AmbiguousRequest.conflict(
+                    return Err(ActionBlockReason::AmbiguousTranslationRequest.conflict(
                         "translation request outcome is ambiguous; retry is paused. Resubmit retry-stage with ambiguous_request_policy=accept_duplicate_risk to acknowledge possible duplicate upstream work or billing",
                     ));
                 }

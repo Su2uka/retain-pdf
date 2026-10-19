@@ -138,7 +138,7 @@ async fn ambiguous_ocr_requires_explicit_resolution_and_can_bind_existing_receip
     assert_eq!(blocked.status(), StatusCode::CONFLICT);
     assert_eq!(
         read_json(blocked).await["error"]["details"]["reason"],
-        "ambiguous_request"
+        "ambiguous_ocr_dispatch"
     );
 
     let upload_url = "https://signed.example/upload?token=must-not-leak";
@@ -462,7 +462,7 @@ async fn translation_retry_requires_explicit_duplicate_risk_acceptance() {
     assert_eq!(translation_action["danger"], true);
     // 请求结果不确定：仍可重试（带 accept_duplicate_risk），disabled_code 说明为什么要确认。
     assert_eq!(translation_action["can_retry"], true);
-    assert_eq!(translation_action["disabled_code"], "ambiguous_request");
+    assert_eq!(translation_action["disabled_code"], "ambiguous_translation_request");
     assert_eq!(
         translation_action["action"]["body"]["ambiguous_request_policy"],
         "block"
@@ -482,7 +482,7 @@ async fn translation_retry_requires_explicit_duplicate_risk_acceptance() {
         .expect("blocked retry response");
     assert_eq!(blocked.status(), StatusCode::CONFLICT);
     let blocked_payload = read_json(blocked).await;
-    assert_eq!(blocked_payload["error"]["details"]["reason"], "ambiguous_request");
+    assert_eq!(blocked_payload["error"]["details"]["reason"], "ambiguous_translation_request");
     assert!(blocked_payload["message"]
         .as_str()
         .unwrap_or_default()
@@ -502,7 +502,7 @@ async fn translation_retry_requires_explicit_duplicate_risk_acceptance() {
     assert_eq!(generic_rerun.status(), StatusCode::CONFLICT);
     assert_eq!(
         read_json(generic_rerun).await["error"]["details"]["reason"],
-        "ambiguous_request"
+        "ambiguous_translation_request"
     );
 
     let accepted = build_app(state.clone())

@@ -509,7 +509,8 @@ def _failure(detail: dict[str, Any]) -> dict[str, Any]:
 _CONFLICT_HINTS = {
     "job_active": "任务正在运行，等它结束再试。",
     "artifacts_missing": "这个任务缺少需要的产物（译文或原始来源），先把前面的阶段跑完。",
-    "ambiguous_request": "上一次请求的结果不确定，需要用户确认后才能重试，不要自己重试。",
+    "ambiguous_translation_request": "上一次翻译请求的结果不确定，需要用户确认后才能重试，不要自己重试。",
+    "ambiguous_ocr_dispatch": "上一次 OCR 提交的结果不确定，需要用户在页面上处理后才能重试，不要自己重试。",
     "request_journal_corrupt": "翻译请求日志损坏，重试不了，需要用户处理。",
     "model_executor_unsupported": "这个任务绑定了模型执行器，不支持这种重试。",
     "translations_not_owned": "这个任务用的是别的任务的译文，请到源任务上精修。",

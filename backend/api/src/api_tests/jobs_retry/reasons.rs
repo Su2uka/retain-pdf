@@ -197,10 +197,10 @@ async fn enabled_actions_have_null_codes() {
 }
 
 #[tokio::test]
-async fn ambiguous_requests_reject_with_ambiguous_request() {
+async fn ambiguous_requests_reject_with_a_reason_per_kind() {
     let state = test_state("reasons-ambiguous");
 
-    // OCR 派发结果不确定。
+    // OCR 派发结果不确定：处理办法是 resolve-ocr-ambiguity，和翻译的歧义分开报。
     let ocr_id = "job-reasons-ambiguous-ocr";
     let mut job = source_job_with_artifacts(ocr_id, JobArtifacts::default());
     job.status = JobStatusKind::Failed;
@@ -210,10 +210,10 @@ async fn ambiguous_requests_reject_with_ambiguous_request() {
     seed_ambiguous_ocr_dispatch(&state, ocr_id, "mineru", "apply_upload_url");
     assert_conflict(
         &post(&state, ocr_id, "retry-stage", Some(json!({"stage": "ocr"}))).await,
-        "ambiguous_request",
+        "ambiguous_ocr_dispatch",
         "ocr retry",
     );
-    assert_conflict(&post(&state, ocr_id, "rerun", None).await, "ambiguous_request", "ocr rerun");
+    assert_conflict(&post(&state, ocr_id, "rerun", None).await, "ambiguous_ocr_dispatch", "ocr rerun");
 
     // 翻译请求结果不确定：通用续跑和不带 policy 的重试都挡住。
     let id = "job-reasons-ambiguous-translation";
@@ -221,15 +221,15 @@ async fn ambiguous_requests_reject_with_ambiguous_request() {
     job.artifacts.as_mut().unwrap().translations_dir = None;
     state.db.save_job(&job).expect("save translation job");
     seed_ambiguous_translation_request_journal(&state, &job);
-    assert_conflict(&post(&state, id, "rerun", None).await, "ambiguous_request", "translation rerun");
+    assert_conflict(&post(&state, id, "rerun", None).await, "ambiguous_translation_request", "translation rerun");
     assert_conflict(
         &post(&state, id, "retry-stage", Some(json!({"stage": "translation"}))).await,
-        "ambiguous_request",
+        "ambiguous_translation_request",
         "translation retry",
     );
     let (_, plan) = call(&state, Method::GET, &format!("/api/v1/jobs/{id}/actions/resume"), None).await;
     assert_eq!(plan["data"]["can_resume"], false);
-    assert_eq!(plan["data"]["reason_code"], "ambiguous_request");
+    assert_eq!(plan["data"]["reason_code"], "ambiguous_translation_request");
 }
 
 #[tokio::test]

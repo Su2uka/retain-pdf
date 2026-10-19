@@ -149,7 +149,7 @@ Response:
 `disabled_reason`: `null` when `disabled_reason` is empty, otherwise one of the
 reasons in the table below (the same values a refused `retry-stage` returns in
 `error.details.reason`). Translation with an ambiguous request journal keeps
-`can_retry=true` and reports `disabled_code=ambiguous_request` (retry needs
+`can_retry=true` and reports `disabled_code=ambiguous_translation_request` (retry needs
 `ambiguous_request_policy=accept_duplicate_risk`).
 
 ### Refusals: 400 versus 409, and `error.details.reason`
@@ -174,7 +174,8 @@ returned `400` here (refine returned `409`); they are all `409` now.
 | `job_not_active` | cancel on a job that is not queued/running | cancel |
 | `artifacts_missing` | artifacts or the original source (`upload_id`/`source_url`) the stage or resume plan needs are gone | retry-stage, resume/rerun |
 | `translations_not_owned` | refine target renders another job's translations; refine the source job | retry-stage `stage=refine` |
-| `ambiguous_request` | OCR dispatch or translation request outcome is ambiguous | retry-stage (ocr, translation), resume/rerun |
+| `ambiguous_ocr_dispatch` | OCR dispatch outcome is ambiguous; resolve with `resolve-ocr-ambiguity` (bind receipt or accept duplicate risk), not by retrying translation | retry-stage (ocr), resume/rerun |
+| `ambiguous_translation_request` | translation request outcome is ambiguous; retry-stage translation with `ambiguous_request_policy=accept_duplicate_risk` | retry-stage (translation), resume/rerun |
 | `request_journal_corrupt` | translation request journal is corrupt; `accept_duplicate_risk` cannot repair it | retry-stage `stage=translation`, resume/rerun |
 | `model_executor_unsupported` | job is bound to a Rust model executor; legacy retry/resume/refine is disabled | retry-stage, resume/rerun |
 | `stale_resolution` | `resolution_revision` is stale, or another request already resolved the ambiguity | resolve-ocr-ambiguity |
@@ -243,7 +244,7 @@ POST /api/v1/jobs/{job_id}/actions/rerun   (old name of actions/resume)
 `resume_workflow`, `reuses_artifacts`, `reruns_stages`, a disabling
 `reason` and its machine-readable twin `reason_code` (additive, `null` when
 `can_resume` is true; same values as the table above: `job_active`,
-`model_executor_unsupported`, `ambiguous_request`, `request_journal_corrupt`,
+`model_executor_unsupported`, `ambiguous_translation_request`, `request_journal_corrupt`,
 `artifacts_missing`). `POST .../actions/resume` executes the server-selected plan.
 `actions/rerun` is the old name of the same handler (marked `old` in the
 endpoint registry since 2026-10-19); new code posts to `actions/resume` and reads
@@ -258,7 +259,8 @@ creates a new recovery job and can seed a compatible translation checkpoint.
 Queued/running jobs cannot be resumed (`409`, `reason=job_active`). When no
 checkpoint is usable the POST is also `409` (`reason=artifacts_missing`), not
 `400`. A durable ambiguous OCR dispatch or
-translation request blocks generic rerun with `409` (`reason=ambiguous_request`;
+translation request blocks generic rerun with `409` (`reason=ambiguous_ocr_dispatch` /
+`ambiguous_translation_request`;
 `request_journal_corrupt` when the journal is corrupt); the caller must use the
 explicit recovery route described below or `actions/retry-stage` with the documented
 duplicate-risk policy.
