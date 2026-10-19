@@ -55,13 +55,15 @@ pub fn ensure_document_book_image(
     ensure_book_image_at_path(deps, source_pdf, &output_path, kind)
 }
 
+/// 封面、缩略图和页预览一样按生成前记下的原文戳判断新鲜（见 `freshness.rs`）：书的原文会变
+/// （单机下 Agent 文档操作提交以后，原文换成新版本的文件），以前「文件在就用」会一直发旧图。
 fn ensure_book_image_at_path(
     deps: DerivedArtifactDeps<'_>,
     source_pdf: &Path,
     output_path: &Path,
     kind: BookImageKind,
 ) -> Result<PathBuf, AppError> {
-    if output_path.exists() && output_path.is_file() {
+    if cached_output_is_fresh(output_path, &[source_pdf])? {
         return Ok(output_path.to_path_buf());
     }
     render_book_image(deps.python_bin, source_pdf, output_path, kind.width_px(), RENDER_TIMEOUT)?;
@@ -146,8 +148,8 @@ with fitz.open(source) as doc:
     pix = page.get_pixmap(matrix=fitz.Matrix(scale, scale), alpha=False)
     pix.save(output, output="jpg")
 "#;
-    // 封面按「文件在就用」，不判断新鲜度（源 PDF 不变），所以不记输入。
-    build_with_command(output_path, "book-image", timeout, &[], |temporary| {
+    // 记下生成前的原文戳，下一次按它判断新不新鲜（原文换了版本就重新渲染）。
+    build_with_command(output_path, "book-image", timeout, &[source_pdf], |temporary| {
         let mut command = Command::new(python_bin);
         command
             .arg("-c")
@@ -450,6 +452,44 @@ mod tests {
         assert_eq!(std::fs::read(second).unwrap(), b"render-2", "渲染期间 PDF 换了，下一次要重新渲染");
         let third = ensure_page_preview(deps, &case.cached, &case.source, 0, 1200, 0).unwrap();
         assert_eq!(std::fs::read(third).unwrap(), b"render-2", "PDF 没再变，第三次用缓存");
+    }
+
+    /// 书的原文会变：单机下 Agent 文档操作提交以后，书的原文换成新版本（另一个文件）。
+    /// 以前封面、缩略图只看文件在不在，旧图永远不更新。
+    #[test]
+    fn a_cover_cached_before_the_source_changed_is_rendered_again() {
+        let case = case("cover-legacy");
+        let cover = case.dir.join("cover.jpg");
+        std::fs::write(&cover, b"old").unwrap();
+        let now = SystemTime::now();
+        set_mtime(&cover, now - Duration::from_secs(60));
+        set_mtime(&case.source, now);
+        let python = fake_python(&case.dir, 0);
+        let deps = DerivedArtifactDeps::new(python.to_str().unwrap());
+        let path = ensure_book_image_at_path(deps, &case.source, &cover, BookImageKind::Cover).unwrap();
+        assert_eq!(std::fs::read(path).unwrap(), b"new", "原文比封面新，封面要重新渲染");
+    }
+
+    #[test]
+    fn a_cover_follows_the_committed_source_version_and_is_reused_while_it_stays() {
+        let case = case("cover-version");
+        let cover = case.dir.join("thumbnail.jpg");
+        let python = counting_python(&case.dir, false);
+        let deps = DerivedArtifactDeps::new(python.to_str().unwrap());
+        let kind = BookImageKind::Thumbnail;
+        ensure_book_image_at_path(deps, &case.source, &cover, kind).unwrap();
+        ensure_book_image_at_path(deps, &case.source, &cover, kind).unwrap();
+        assert_eq!(std::fs::read(&cover).unwrap(), b"render-1", "原文没变，第二次用缓存");
+        // 提交了新版本：书的原文换成另一个文件。修改时间故意比缩略图早（版本文件先落盘、
+        // 后提交），只比修改时间也看不出来。
+        let version = case.dir.join("version-2.pdf");
+        std::fs::write(&version, b"%PDF-v2").unwrap();
+        let cover_modified = std::fs::metadata(&cover).unwrap().modified().unwrap();
+        set_mtime(&version, cover_modified - Duration::from_secs(60));
+        ensure_book_image_at_path(deps, &version, &cover, kind).unwrap();
+        assert_eq!(std::fs::read(&cover).unwrap(), b"render-2", "换了版本，缩略图要按新原文重新渲染");
+        ensure_book_image_at_path(deps, &version, &cover, kind).unwrap();
+        assert_eq!(std::fs::read(&cover).unwrap(), b"render-2");
     }
 
     #[test]
