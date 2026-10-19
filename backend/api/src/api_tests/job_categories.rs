@@ -33,8 +33,6 @@ const PATHS: &[(&str, &str)] = &[
     ("GET", "/translations"),
     ("GET", "/translations/p001-b001"),
     ("GET", "/translations/p001-b001/revisions"),
-    ("GET", "/ai/reading-path"),
-    ("GET", "/ai/canvas"),
     ("GET", "/ai/board"),
     ("GET", "/ai/board/missing.html"),
     // 请求体不合法，一定在动任务之前被拒。
@@ -91,4 +89,11 @@ async fn every_category_path_is_registered_and_answers() {
     }
     // 不能全是 404：那说明任务没找到，比的只是一堆"找不到"。
     assert!(statuses.iter().filter(|status| **status == 200).count() >= 5, "{statuses:?}");
+
+    // 已经删掉的地址：没有路由，不是"任务没找到"也不是"还没生成"。
+    for path in ["/ai/reading-path", "/ai/canvas"] {
+        let (status, _, body) = send(app.clone(), "GET", &format!("/api/v1/jobs/{JOB}{path}")).await;
+        assert_eq!(status, 404, "{path} 应该已经没有路由");
+        assert!(!String::from_utf8_lossy(&body).contains("not generated yet"), "{path}: 还有处理函数在答");
+    }
 }

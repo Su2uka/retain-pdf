@@ -159,7 +159,7 @@ jobs 的依赖装配由 `app/jobs.rs` 完成；依赖定义在任务包的 `deps
   `lifecycle`（建任务、校验、发射、列表和详情）、`actions`（取消、重跑、重试阶段、续跑计划）、
   `progress`（事件流、当前阶段、边翻边看）、`files`（列出、下载、是否就绪）、
   `reports`（失败原因、翻译诊断、排版、精修）、`reader`（区块、元信息、Markdown）、
-  `translations`（逐条看、人工改、重翻）、`data`（通用取数）、`ai`（阅读路径、概念图、画板）。
+  `translations`（逐条看、人工改、重翻）、`data`（通用取数）、`ai`（画板）。
 - 根目录只放各类共用的：`facade.rs`（`JobsFacade` 结构体）、`query.rs`（`JobQueries` 结构体和取任务）、
   `deps/`、`presentation/`、`runtime_gateway.rs`、`summary_loaders/`。
 - 规则：

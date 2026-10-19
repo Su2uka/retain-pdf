@@ -188,10 +188,10 @@ async fn two_range_translations_open_as_one_full_length_book() {
     // 第 1 页一次，第 3-4 页一次 —— 两个任务各自的「第 1 页」都叫 p001。
     seed_range_job(&state, &document_id, "job-a", "2026-10-01T00:00:00", &[1], &["ZH 1"]);
     seed_range_job(&state, &document_id, "job-mid", "2026-10-02T00:00:00", &[3, 4], &["ZH 3", "ZH 4"]);
-    // agent 在 job-a 上干过活：留下一份阅读路径。
-    let job_a_ai = data_root.join("jobs/job-a/ai");
-    fs::create_dir_all(&job_a_ai).unwrap();
-    fs::write(job_a_ai.join("reading-path.v1.json"), br#"{"steps":["from job-a"]}"#).unwrap();
+    // agent 在 job-a 上干过活：往画板里放了一张图。
+    let job_a_board = data_root.join("jobs/job-a/ai/board");
+    fs::create_dir_all(&job_a_board).unwrap();
+    fs::write(job_a_board.join("from-job-a.png"), b"fake png").unwrap();
     let collection = state.db.create_collection("col-merged", "合集", None).unwrap();
     state.db.add_documents_to_collection(&collection.collection_id, &[document_id.clone()]).unwrap();
     let app = build_app(state);
@@ -250,11 +250,11 @@ async fn two_range_translations_open_as_one_full_length_book() {
     assert_eq!(metadata.status(), StatusCode::OK);
 
     // AI 工作区：合并书接到这本书上次 agent 的产出，落在文档级的 ai/（不跟着指纹走）
-    let reading_path = request(&app, "GET", &format!("/api/v1/jobs/{job_id}/ai/reading-path")).await;
-    assert_eq!(reading_path.status(), StatusCode::OK);
-    let body = to_bytes(reading_path.into_body(), usize::MAX).await.unwrap();
-    assert!(String::from_utf8_lossy(&body).contains("from job-a"), "{}", String::from_utf8_lossy(&body));
-    assert!(data_root.join("documents").join(&document_id).join("ai/reading-path.v1.json").is_file());
+    let board = request(&app, "GET", &format!("/api/v1/jobs/{job_id}/ai/board")).await;
+    assert_eq!(board.status(), StatusCode::OK);
+    let body = to_bytes(board.into_body(), usize::MAX).await.unwrap();
+    assert!(String::from_utf8_lossy(&body).contains("from-job-a.png"), "{}", String::from_utf8_lossy(&body));
+    assert!(data_root.join("documents").join(&document_id).join("ai/board/from-job-a.png").is_file());
 
     // 合集工作区：这本书链到合并目录，agent 看到的是整本
     let workspace = request(&app, "GET", &format!("/api/v1/collections/{}/agent-workspace", collection.collection_id)).await;
