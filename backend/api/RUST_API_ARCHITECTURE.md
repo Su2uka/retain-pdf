@@ -273,7 +273,8 @@ Rust 侧关键落点：
 - `storage_paths::resolve_*` 只给出口模块调：任务的下载出口、原文 Markdown、书的文件、文件包的产物清单和派生产物。
   任务包、书库包内部要读已经落盘的产物，调任务包的
   [`stored_path(任务, data_root, StoredFile::…)`](../packages/retainpdf-jobs/src/files/downloads/stored.rs)，
-  只说要哪个产物，不用知道存放规则（2026-10-17 起，`check_artifact_path_ownership` 管着）
+  只说要哪个产物，不用知道存放规则（2026-10-17 起，`check_artifact_path_ownership` 管着；
+  2026-10-19 起出口模块以外的字符串字面量里写 `ocr/normalized`、`document.v1.json` 这类产物存放位置也算自己拼）
 - `db.rs`
   现在也只保留 `Db` facade；row decode 和 schema 检查分别下沉到
   `../../database/retainpdf-db/src/db/rows.rs`、`../../database/retainpdf-db/src/db/schema/`

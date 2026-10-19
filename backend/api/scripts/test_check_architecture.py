@@ -596,6 +596,28 @@ mod tests { fn f() { resolve_output_pdf(job, root); } }
             ''',
         }))
 
+    def test_artifact_layout_literals_outside_exit_modules_are_rejected(self):
+        # 任务根目录 + 手写的产物相对路径，正则认不出 resolve_*，但一样是自己拼产物路径。
+        for code in (
+            'fn f() { resolve_job_root(job, root).map(|r| r.join("ocr/normalized/document.v1.json")); }',
+            'fn f() { root.join("ocr").join("normalized").join("document.v1.json"); }',
+        ):
+            with self.subTest(code=code):
+                errors = self.run_check({"services/library/new.rs": code})
+                self.assertEqual(1, len(errors), errors)
+                self.assertIn("builds artifact paths itself", errors[0])
+
+    def test_artifact_layout_literals_in_exit_modules_comments_and_tests_are_fine(self):
+        self.assertEqual([], self.run_check({
+            "services/jobs/files/downloads/stored.rs": 'fn f() { root.join("ocr/normalized/document.v1.json"); }',
+            "services/library/x.rs": '''
+                // root.join("ocr/normalized/document.v1.json")
+                fn f() {}
+#[cfg(test)]
+mod tests { fn f() { root.join("ocr/normalized/document.v1.json"); } }
+            ''',
+        }))
+
     def test_no_reader_is_grandfathered_any_more(self):
         self.assertEqual(set(), checks.KNOWN_ARTIFACT_PATH_READERS)
         # 内部读产物的窄出口在 downloads 里，可以拼。
