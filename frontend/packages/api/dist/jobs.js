@@ -2,6 +2,7 @@
 // No frontend/web deps; browser-aware (reads window.__FRONT_RUNTIME_CONFIG__ for apiBase / X-API-Key if present).
 import { apiFetch } from "./internal/runtime.js";
 import { API_PREFIX, buildApiHeaders, buildApiUrl, unwrapEnvelope } from "./internal/runtime.js";
+import { attachErrorDetails } from "./http.js";
 // OCR 任务也走 /jobs（后端已统一），建任务也是（见 jobs-submit.ts），前端不再用 /ocr/jobs。
 function buildJobsEndpoint(apiPrefix) {
     return buildApiUrl(apiPrefix, "jobs");
@@ -46,7 +47,9 @@ export async function fetchJobPayload(a, b) {
     const resp = await apiFetch(buildJobDetailEndpoint(normalizedJobId, apiPrefix), { headers: buildApiHeaders() });
     if (!resp.ok) {
         if (resp.status === 404) {
-            throw jobRequestError("未找到该任务，请检查 job_id 是否正确。", 404);
+            // 合并阅读的虚拟任务被清理了，404 带 reason=merged_reading_expired；阅读器靠它重新问阅读入口。
+            const envelope = await resp.json().catch(() => null);
+            throw attachErrorDetails(jobRequestError("未找到该任务，请检查 job_id 是否正确。", 404), envelope);
         }
         throw jobRequestError(`读取任务失败，请稍后重试。(${resp.status})`, resp.status);
     }

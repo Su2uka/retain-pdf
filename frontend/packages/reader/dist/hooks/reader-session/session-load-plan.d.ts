@@ -59,4 +59,13 @@ export declare function isStaleDocumentJobFailure(input: {
     documentJobId: string;
     sessionJobId: string;
 }): boolean;
+/**
+ * 合并阅读的虚拟任务目录被清理了（超过一天没人读）：后端 404 带 reason=merged_reading_expired。
+ * 是的话返回这本书的编号（重新问阅读入口要用），不是返回空串。只认显式打开的 `merged-…` 编号。
+ */
+export declare function expiredMergedReadingDocumentId(input: {
+    status: number;
+    reason?: string;
+    sessionJobId: string;
+}): string;
 //# sourceMappingURL=session-load-plan.d.ts.map
