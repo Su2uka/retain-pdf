@@ -17,7 +17,7 @@ use retainpdf_jobs::{
 };
 
 use super::{
-    build_library_book_detail_view, build_library_book_list_view, open_document_file, DocumentFile,
+    build_library_book_list_view, open_document_file, DocumentFile,
     LibraryDeps,
 };
 
@@ -108,16 +108,10 @@ fn task_document_and_library_lists_keep_live_progress_and_background_stage_parit
             .iter()
             .find(|item| item.job_id == "owner")
             .unwrap();
-        let job = fs.db.get_job("owner").unwrap();
-        let detail = build_library_book_detail_view(&fs.db, &fs.root, &job, "http://test");
         assert_eq!(task, doc_task, "document listing shares the same task view");
         assert_eq!(task["stage_snapshot"]["progress"]["current"], expected);
         assert_eq!(task["background_snapshots"].as_array().unwrap().len(), 1);
         assert_eq!(book.progress.current, Some(expected));
-        assert_eq!(
-            serde_json::to_value(&book.progress).unwrap(),
-            serde_json::to_value(detail.progress).unwrap()
-        );
         assert!(fs.fast("owner"));
     }
 }

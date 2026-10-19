@@ -294,3 +294,131 @@ async fn cancel_and_force_delete_spare_a_process_that_reused_the_recorded_pid() 
     let _ = stranger.kill();
     let _ = stranger.wait();
 }
+
+// ---- DELETE /api/v1/jobs/:job_id（2026-10-19，书库接口审计 A1）----
+//
+// 删一个任务：任务本身 + 它的 `-ocr` 子任务，书（文档行、上传、原文）留着。规则和书架删除
+// （`DELETE /library/books/:job_id`，现在是它的旧地址）一样，另外 OCR 任务也能删。
+
+async fn get_status(state: &crate::AppState, uri: &str) -> StatusCode {
+    build_app(state.clone())
+        .oneshot(
+            Request::builder()
+                .uri(uri)
+                .header("X-API-Key", "test-key")
+                .body(Body::empty())
+                .expect("get request"),
+        )
+        .await
+        .expect("get response")
+        .status()
+}
+
+#[tokio::test]
+async fn delete_job_removes_a_translation_job_and_its_ocr_child_but_keeps_the_book() {
+    let state = test_state("delete-job-translation");
+    seed_document(&state);
+    seed_job(&state, "job-t", WorkflowKind::Translate, JobStatusKind::Succeeded, None, None);
+    seed_job(&state, "job-t-ocr", WorkflowKind::Ocr, JobStatusKind::Succeeded, None, None);
+
+    let (status, body) = delete(&state, "/api/v1/jobs/job-t").await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(body["data"]["deleted"], true, "{body}");
+    assert_eq!(body["data"]["job_id"], "job-t", "{body}");
+    assert_eq!(body["data"]["removed_child_jobs"], serde_json::json!(["job-t-ocr"]), "{body}");
+    assert!(body["data"]["removed_paths"].is_array(), "{body}");
+    assert!(state.db.get_job("job-t").is_err());
+    assert!(state.db.get_job("job-t-ocr").is_err());
+    assert!(!state.config.output_root.join("job-t").exists());
+    assert!(!state.config.output_root.join("job-t-ocr").exists());
+    assert!(state.db.get_document(DOCUMENT_ID).is_ok(), "删任务不删书");
+}
+
+/// 单独的 OCR 任务也能删。书架的旧地址照旧把它当「不是书」，404。
+#[tokio::test]
+async fn delete_job_removes_a_standalone_ocr_job_that_the_old_address_refuses() {
+    let state = test_state("delete-job-ocr");
+    seed_document(&state);
+    seed_job(&state, "job-o", WorkflowKind::Ocr, JobStatusKind::Succeeded, None, None);
+
+    let (status, body) = delete(&state, "/api/v1/library/books/job-o").await;
+    assert_eq!(status, StatusCode::NOT_FOUND, "旧地址行为不变: {body}");
+    assert!(state.db.get_job("job-o").is_ok());
+
+    let (status, body) = delete(&state, "/api/v1/jobs/job-o").await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(body["data"]["removed_child_jobs"], serde_json::json!([]), "{body}");
+    assert!(state.db.get_job("job-o").is_err());
+    assert!(!state.config.output_root.join("job-o").exists());
+}
+
+/// 别的任务还用它的产物：OCR 任务被翻译任务的 `source.artifact_job_id` 引用、OCR 子任务的父任务还在，
+/// 都 409 + `job_has_dependents`，什么都不删；`force=true` 照删。
+#[tokio::test]
+async fn delete_job_refuses_jobs_that_others_still_use() {
+    let state = test_state("delete-job-dependents");
+    seed_document(&state);
+    seed_job(&state, "job-o", WorkflowKind::Ocr, JobStatusKind::Succeeded, None, None);
+    seed_job(&state, "job-t", WorkflowKind::Translate, JobStatusKind::Succeeded, None, Some("job-o"));
+    seed_job(&state, "job-b", WorkflowKind::Book, JobStatusKind::Succeeded, None, None);
+    seed_job(&state, "job-b-ocr", WorkflowKind::Ocr, JobStatusKind::Succeeded, None, None);
+
+    let (status, body) = delete(&state, "/api/v1/jobs/job-o").await;
+    assert_eq!(status, StatusCode::CONFLICT, "{body}");
+    assert_eq!(body["error"]["details"]["reason"], "job_has_dependents", "{body}");
+    assert!(body["message"].as_str().unwrap_or_default().contains("job-t"), "{body}");
+    assert!(state.db.get_job("job-o").is_ok());
+    assert!(state.config.output_root.join("job-o").exists());
+
+    let (status, body) = delete(&state, "/api/v1/jobs/job-b-ocr").await;
+    assert_eq!(status, StatusCode::CONFLICT, "父任务还在，单删 OCR 子任务会让父任务缺产物: {body}");
+    assert_eq!(body["error"]["details"]["reason"], "job_has_dependents", "{body}");
+    assert!(body["message"].as_str().unwrap_or_default().contains("job-b"), "{body}");
+    assert!(state.db.get_job("job-b-ocr").is_ok());
+
+    let (status, body) = delete(&state, "/api/v1/jobs/job-o?force=true").await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert!(state.db.get_job("job-o").is_err());
+    assert!(state.db.get_job("job-t").is_ok(), "force 只删范围内的任务");
+}
+
+#[tokio::test]
+async fn delete_job_refuses_a_running_job_without_force_and_cancels_it_with_force() {
+    let state = test_state("delete-job-running");
+    seed_document(&state);
+    let mut worker = spawn_worker();
+    seed_job(&state, "job-run", WorkflowKind::Translate, JobStatusKind::Running, Some(worker.id()), None);
+
+    let (status, body) = delete(&state, "/api/v1/jobs/job-run").await;
+    assert_eq!(status, StatusCode::CONFLICT, "{body}");
+    assert!(!cancel_requested(&state, "job-run").await);
+    assert!(worker.try_wait().expect("try_wait").is_none(), "没有 force 不能动进程");
+    assert!(state.db.get_job("job-run").is_ok());
+
+    let (status, body) = delete(&state, "/api/v1/jobs/job-run?force=true").await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert!(cancel_requested(&state, "job-run").await, "强删前必须登记取消");
+    assert!(wait_dead(&mut worker), "强删必须终止运行中的 worker 进程");
+    assert!(state.db.get_job("job-run").is_err());
+}
+
+#[tokio::test]
+async fn delete_job_of_an_unknown_job_is_404() {
+    let state = test_state("delete-job-missing");
+    let (status, body) = delete(&state, "/api/v1/jobs/no-such-job").await;
+    assert_eq!(status, StatusCode::NOT_FOUND, "{body}");
+    let (status, body) = delete(&state, "/api/v1/jobs/no-such-job?force=true").await;
+    assert_eq!(status, StatusCode::NOT_FOUND, "{body}");
+}
+
+/// `GET /library/books/:job_id` 没有调用方，2026-10-19 删了；列表 `GET /library/books` 冻结还在。
+/// 同一个地址还挂着 DELETE（旧地址），所以 GET 是 405 不是 404。
+#[tokio::test]
+async fn library_book_detail_address_is_gone() {
+    let state = test_state("library-book-detail-gone");
+    seed_document(&state);
+    seed_job(&state, "job-a", WorkflowKind::Book, JobStatusKind::Succeeded, None, None);
+    assert_eq!(get_status(&state, "/api/v1/library/books/job-a").await, StatusCode::METHOD_NOT_ALLOWED);
+    assert_eq!(get_status(&state, "/api/v1/library/books").await, StatusCode::OK);
+    assert_eq!(get_status(&state, "/api/v1/jobs/job-a").await, StatusCode::OK);
+}

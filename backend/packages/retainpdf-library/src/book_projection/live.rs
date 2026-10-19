@@ -1,23 +1,11 @@
-use std::path::Path;
-
-use retainpdf_data::db::Db;
 use retainpdf_jobs::JobProgressView;
 use retainpdf_core::models::domain::JobSnapshot;
-use retainpdf_jobs::{build_job_stage_view, load_live_stage_snapshot, LiveStageSnapshot};
+use retainpdf_jobs::{build_job_stage_view, LiveStageSnapshot};
 
 pub(super) struct BookLiveProjection {
     pub stage: Option<String>,
     pub stage_detail: Option<String>,
     pub progress: JobProgressView,
-}
-
-pub(super) fn build_live_projection(
-    db: &Db,
-    job: &JobSnapshot,
-    data_root: &Path,
-) -> BookLiveProjection {
-    let live_stage = load_live_stage_snapshot(db, job, data_root);
-    project_live_stage(job, live_stage.as_ref())
 }
 
 pub(super) fn project_live_stage(

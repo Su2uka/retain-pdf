@@ -111,6 +111,7 @@ GET    /api/v1/internal/model/jobs/:job_id/requests/:operation_id  closed
 POST   /api/v1/internal/model/jobs/:job_id/requests/:operation_id/cancel  closed
 GET    /api/v1/jobs  signed
 POST   /api/v1/jobs  signed
+DELETE /api/v1/jobs/:job_id  signed
 GET    /api/v1/jobs/:job_id  signed
 GET    /api/v1/jobs/:job_id/actions  signed
 POST   /api/v1/jobs/:job_id/actions/cancel  signed
@@ -149,7 +150,6 @@ POST   /api/v1/jobs/:job_id/translations/:item_id/replay  signed
 GET    /api/v1/jobs/:job_id/translations/:item_id/revisions  signed
 GET    /api/v1/library/books  signed
 DELETE /api/v1/library/books/:job_id  signed
-GET    /api/v1/library/books/:job_id  signed
 POST   /api/v1/providers/deepseek/balance  admin
 POST   /api/v1/providers/deepseek/validate-token  admin
 POST   /api/v1/providers/mineru/validate-token  admin

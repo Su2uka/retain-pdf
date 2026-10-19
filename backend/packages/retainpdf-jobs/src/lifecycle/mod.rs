@@ -1,6 +1,7 @@
-//! 任务：建任务（唯一入口 `submit_job`）、校验、发射、列表和详情，删任务时清理凭据。
+//! 任务：建任务（唯一入口 `submit_job`）、校验、发射、列表和详情，删任务（`deletion`）和删后清理凭据。
 
 pub(crate) mod creation;
+pub(crate) mod deletion;
 pub mod launcher;
 pub(crate) mod managed_credential_gc;
 pub(crate) mod ocr_artifact_reuse;

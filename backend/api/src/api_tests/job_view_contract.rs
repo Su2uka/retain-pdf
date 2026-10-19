@@ -288,8 +288,7 @@ async fn real_job_and_library_views_match_published_schemas() {
         &format!("/api/v1/jobs/{job_id}/progress/events?limit=20&start=head"),
     )
     .await;
-    let library_list = get_data(app.clone(), "/api/v1/library/books").await;
-    let library_detail = get_data(app, &format!("/api/v1/library/books/{job_id}")).await;
+    let library_list = get_data(app, "/api/v1/library/books").await;
 
     let job_contract = contract("job-status.v1.schema.json");
     assert_definition(&job_list, &job_contract, "JobListView", "job_list");
@@ -351,12 +350,6 @@ async fn real_job_and_library_views_match_published_schemas() {
         "LibraryBookListView",
         "library_list",
     );
-    assert_definition(
-        &library_detail,
-        &library_contract,
-        "LibraryBookDetailView",
-        "library_detail",
-    );
     assert_exact_object_keys(
         &job_list,
         &library_contract,
@@ -382,14 +375,9 @@ async fn real_job_and_library_views_match_published_schemas() {
         "LibraryBookListItemView",
         "library_list.items[0]",
     );
-    assert_exact_object_keys(
-        &library_detail,
-        &library_contract,
-        "LibraryBookDetailView",
-        "library_detail",
-    );
-    assert!(library_detail["thumbnail_url"].is_null());
-    assert!(library_detail["cover_url"].is_null());
+    // 书架列表项没有书时同样不给封面地址。
+    assert!(library_list["items"][0]["thumbnail_url"].is_null());
+    assert!(library_list["items"][0]["cover_url"].is_null());
 }
 
 /// `/files` 的返回对着契约核对。用文件出口快照那套夹具：有书、有登记过的产物，
@@ -545,5 +533,37 @@ async fn failed_job_list_item_failure_matches_published_schema() {
             "JobFailureBriefView",
             "minimal.failure",
         );
+    }
+}
+
+/// 删任务的返回（新地址 `DELETE /jobs/:job_id` 和书架旧地址同一个类型）对着契约的
+/// `LibraryDeleteResultView` 核对键集合。以前书架删除的返回没有测试钉。
+#[tokio::test]
+async fn job_delete_result_matches_published_schema() {
+    let state = test_state("job-delete-contract");
+    let library_contract = contract("library-books.v1.schema.json");
+    for (job_id, uri) in [
+        ("job-delete-contract-new", "/api/v1/jobs/job-delete-contract-new"),
+        ("job-delete-contract-old", "/api/v1/library/books/job-delete-contract-old"),
+    ] {
+        let mut job = JobSnapshot::new(job_id.to_string(), CreateJobInput::default(), vec!["python".to_string()]);
+        job.status = JobStatusKind::Succeeded;
+        state.db.save_job(&job).expect("save job");
+        let response = build_app(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("DELETE")
+                    .uri(uri)
+                    .header("X-API-Key", "test-key")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        let status = response.status();
+        let payload = read_json(response).await;
+        assert_eq!(status, StatusCode::OK, "{uri}: {payload}");
+        assert_definition(&payload["data"], &library_contract, "LibraryDeleteResultView", uri);
+        assert_exact_object_keys(&payload["data"], &library_contract, "LibraryDeleteResultView", uri);
     }
 }

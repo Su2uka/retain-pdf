@@ -161,6 +161,9 @@ export interface LibraryDeleteResultView {
     removed_paths: string[];
     removed_child_jobs: string[];
 }
+/**
+ * 已废弃：GET /api/v1/library/books/:job_id 2026-10-19 删了，Rust 侧不再产出。前端去掉引用后删除本定义（见 endpoints 里那条 removed 的说明）。
+ */
 export interface LibraryBookDetailView {
     id: string;
     job_id: string;

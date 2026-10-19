@@ -104,6 +104,23 @@ pub struct ListJobsQuery {
     pub owner: Option<String>,
 }
 
+/// `DELETE /api/v1/jobs/:job_id` 的查询参数（书架删除 `DELETE /library/books/:job_id` 是它的旧地址）。
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct DeleteJobQuery {
+    /// 运行中的任务先取消再删；别的任务还在用它的产物也照删。
+    #[serde(default)]
+    pub force: bool,
+}
+
+/// 删一个任务的结果：任务本身 + 删掉的 `-ocr` 子任务。书架删除的返回 `LibraryDeleteResultView` 是同一个类型。
+#[derive(Debug, Serialize)]
+pub struct JobDeleteResultView {
+    pub deleted: bool,
+    pub job_id: String,
+    pub removed_paths: Vec<String>,
+    pub removed_child_jobs: Vec<String>,
+}
+
 /// Pagination for one document's complete OCR/translation task history.
 /// Keep this deliberately narrower than `ListJobsQuery`: document scope is
 /// supplied by the path and must not be overridable by list filters.

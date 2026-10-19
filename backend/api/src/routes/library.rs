@@ -1,3 +1,5 @@
+//! 书架（冻结）：列表和删除的旧地址。
+
 use axum::extract::State;
 use axum::http::HeaderMap;
 use axum::Json;
@@ -5,8 +7,7 @@ use axum::Json;
 use crate::auth::Principal;
 use crate::error::AppError;
 use crate::models::api::{
-    ApiResponse, LibraryBookDetailView,
-    LibraryBookListView, LibraryDeleteQuery, LibraryDeleteResultView, ListJobsQuery,
+    ApiResponse, LibraryBookListView, LibraryDeleteQuery, LibraryDeleteResultView, ListJobsQuery,
 };
 use crate::routes::common::request_base_url;
 use crate::routes::common::{
@@ -14,8 +15,7 @@ use crate::routes::common::{
     ApiPath, ApiQuery,
 };
 use crate::services::library::{
-    book_delete_job_ids_view, delete_library_book_view, get_library_book_view,
-    list_library_books_view,
+    book_delete_job_ids_view, delete_library_book_view, list_library_books_view,
 };
 use crate::AppState;
 
@@ -35,22 +35,7 @@ pub async fn list_books(
     Ok(ok_json(view))
 }
 
-pub async fn get_book(
-    State(state): State<AppState>,
-    headers: HeaderMap,
-    ApiPath(job_id): ApiPath<String>,
-) -> Result<Json<ApiResponse<LibraryBookDetailView>>, AppError> {
-    let deps = build_library_route_deps(&state);
-    let base_url = request_base_url(&headers, deps.default_port, &deps.bind_host);
-    let view = run_read_query_once(
-        &state,
-        format!("library:books:{job_id}"),
-        move |db, root| get_library_book_view(db, root, &job_id, &base_url),
-    )
-    .await?;
-    Ok(ok_json(view))
-}
-
+/// 旧地址，新地址 `DELETE /api/v1/jobs/:job_id`（`routes/jobs/lifecycle.rs::delete_job`）；行为不变，OCR 任务照旧 404。
 pub async fn delete_book(
     State(state): State<AppState>,
     ApiPath(job_id): ApiPath<String>,
