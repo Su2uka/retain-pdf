@@ -25,8 +25,7 @@ export function bindRerunButton({
   const button = document.getElementById("detail-rerun-btn") as HTMLButtonElement | null;
   button?.addEventListener("click", async () => {
     const jobId = detailPageState.job?.job_id || getJobId();
-    const actionUrl = `${detailPageState.rerunActionUrl || ""}`.trim();
-    if (!button || (!jobId && !actionUrl)) {
+    if (!button || !jobId) {
       setText("detail-rerun-status", "当前任务暂不可从断点恢复。");
       return;
     }
@@ -40,7 +39,7 @@ export function bindRerunButton({
     button.disabled = true;
     setText("detail-rerun-status", "正在提交恢复任务...");
     try {
-      const payload = await resumePort.submit({ actionUrl, jobId });
+      const payload = await resumePort.submit({ jobId });
       const nextJobId = firstJobIdFromPayload(payload);
       if (!nextJobId) {
         setText("detail-rerun-status", "恢复任务已提交，但响应中没有 job_id。");

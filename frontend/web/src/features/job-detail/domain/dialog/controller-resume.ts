@@ -17,7 +17,7 @@ export function createStatusDetailResumeActions({
   runtimePort,
   store,
   dialogStore,
-  rerunJob,
+  resumeJob,
   retryTranslationWithRisk,
   setText,
   startPolling,
@@ -26,7 +26,7 @@ export function createStatusDetailResumeActions({
   runtimePort: StatusDetailRuntimePort;
   store: StatusDetailStore;
   dialogStore: StatusDetailDialogStore;
-  rerunJob: (actionUrl: string) => Promise<unknown>;
+  resumeJob: (jobId: string) => Promise<unknown>;
   /** 409 翻译歧义被用户二次确认后，改走 retry-stage(translation) + accept_duplicate_risk。 */
   retryTranslationWithRisk?: (jobId: string) => Promise<unknown>;
   setText?: (id: string, message: string) => void;
@@ -60,7 +60,7 @@ export function createStatusDetailResumeActions({
     const jobId = `${rerunContext?.job?.job_id || ""}`.trim();
     await rerunCurrentJobAction({
       rerunContext,
-      rerunJob,
+      resumeJob,
       setText,
       startPolling,
       viewPort: resumeViewPort,

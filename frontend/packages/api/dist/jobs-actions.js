@@ -75,7 +75,3 @@ export async function retryJobStage(jobId, apiPrefix, stage, payload = {}) {
         active_job_id: nextJobId,
     };
 }
-/** body 同 resumeJob：可带 overrides.translation 换 key，不带时行为不变。 */
-export async function rerunJob(actionUrl, body = {}) {
-    return submitJson(actionUrl, body);
-}

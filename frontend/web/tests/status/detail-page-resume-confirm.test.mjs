@@ -23,7 +23,7 @@ function setText(id, text) {
 
 function bind({ submit }) {
   bindRerunButton({
-    detailPageState: { job: { job_id: "job-1" }, rerunActionUrl: "" },
+    detailPageState: { job: { job_id: "job-1" } },
     getJobId: () => "job-1",
     resumePort: { submit },
     setText,

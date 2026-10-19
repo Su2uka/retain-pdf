@@ -184,7 +184,3 @@ export async function retryJobStage(jobId: string, apiPrefix: string | undefined
   };
 }
 
-/** body 同 resumeJob：可带 overrides.translation 换 key，不带时行为不变。 */
-export async function rerunJob(actionUrl: string, body: Record<string, unknown> = {}): Promise<any> {
-  return submitJson(actionUrl, body);
-}

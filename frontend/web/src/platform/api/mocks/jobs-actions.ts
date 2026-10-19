@@ -151,10 +151,3 @@ export async function retryJobStage(jobId: string, apiPrefix: string, stage: str
   };
 }
 
-export async function rerunJob(actionUrl: string) {
-  void actionUrl;
-  return {
-    job_id: `mock-rerun-${Date.now()}`,
-    status: "queued",
-  };
-}
