@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use retainpdf_data::db::Db;
 use retainpdf_api_base::error::AppError;
+use retainpdf_api_base::job_loading::load_supported_job;
 use retainpdf_core::storage_paths::JobPaths;
 
 pub use super::UsageSummaryView;
@@ -25,9 +26,18 @@ impl UsageApiDeps {
 }
 
 /// 单个任务（含它的原地精修、重渲染）。任务不存在时 404。
+///
+/// 和其余读任务的接口一样走 `load_supported_job`：认合并阅读的虚拟 id（合并结果自己没有用量，
+/// 给空汇总），旧目录格式的任务报 409，库读不出来报 500。
+///
+/// 有意保留的一条：库里没有这个任务、但 `output/<任务>/` 目录还在，仍然给 200（用量账本在任务目录里，
+/// 和全局汇总 `all_usage_view` 一样不依赖数据库）；库里删掉记录之后，花过多少 token 仍然查得到。
+/// 只有「库里没有、目录也没有」才是 404。
 pub fn job_usage_view(deps: &UsageApiDeps, job_id: &str) -> Result<UsageSummaryView, AppError> {
-    if deps.db.get_job(job_id).is_err() && !JobPaths::for_job(&deps.output_root, job_id).root.is_dir() {
-        return Err(AppError::not_found(format!("job not found: {job_id}")));
+    match load_supported_job(&deps.db, &deps.data_root, job_id) {
+        Ok(_) => {}
+        Err(AppError::NotFound(_)) if JobPaths::for_job(&deps.output_root, job_id).root.is_dir() => {}
+        Err(error) => return Err(error),
     }
     Ok(summarize_jobs("job", &deps.output_root, [job_id], Vec::new()))
 }

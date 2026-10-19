@@ -663,16 +663,9 @@ mod tests {
         assert!(detail.contains("clear the DB or rerun those jobs"));
     }
 
-    #[test]
-    fn list_jobs_skips_malformed_rows_instead_of_failing() {
-        let fs = TestDbFs::new();
-        let db = fs.db();
-        db.init().expect("init db");
-
-        let valid_job = sample_job("job-valid", &fs.data_root);
-        db.save_job(&valid_job).expect("save valid job");
-
-        let conn = Connection::open(&fs.db_path).expect("open sqlite");
+    /// 插一条读不出来的任务行（request_json 对不上当前的类型），可选地挂到一本书上。
+    fn insert_malformed_job(db_path: &Path, job_id: &str, document_id: Option<&str>) {
+        let conn = Connection::open(db_path).expect("open sqlite");
         conn.execute(
             r#"
             INSERT INTO jobs (
@@ -682,7 +675,7 @@ mod tests {
             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20)
             "#,
             params![
-                "job-bad",
+                job_id,
                 serde_json::to_string(&WorkflowKind::Book).expect("workflow json"),
                 serde_json::to_string(&JobStatusKind::Succeeded).expect("status json"),
                 now_iso(),
@@ -705,10 +698,63 @@ mod tests {
             ],
         )
         .expect("insert malformed row");
-        drop(conn);
+        if let Some(document_id) = document_id {
+            conn.execute(
+                "UPDATE jobs SET document_id = ?1 WHERE job_id = ?2",
+                params![document_id, job_id],
+            )
+            .expect("attach malformed row to a document");
+        }
+    }
+
+    #[test]
+    fn list_jobs_skips_malformed_rows_instead_of_failing() {
+        let fs = TestDbFs::new();
+        let db = fs.db();
+        db.init().expect("init db");
+
+        let valid_job = sample_job("job-valid", &fs.data_root);
+        db.save_job(&valid_job).expect("save valid job");
+        insert_malformed_job(&fs.db_path, "job-bad", None);
 
         let jobs = db.list_jobs(20, 0, None, None).expect("list jobs");
         assert_eq!(jobs.len(), 1);
         assert_eq!(jobs[0].job_id, "job-valid");
+    }
+
+    #[test]
+    fn list_jobs_for_document_skips_malformed_rows_like_the_other_lists() {
+        let fs = TestDbFs::new();
+        let db = fs.db();
+        db.init().expect("init db");
+
+        db.save_job(&sample_job("job-valid", &fs.data_root)).expect("save valid job");
+        let conn = Connection::open(&fs.db_path).expect("open sqlite");
+        conn.execute("UPDATE jobs SET document_id = 'doc-1' WHERE job_id = 'job-valid'", [])
+            .expect("attach valid job");
+        drop(conn);
+        insert_malformed_job(&fs.db_path, "job-bad", Some("doc-1"));
+
+        let jobs = db.list_jobs_for_document("doc-1", 20, 0).expect("one bad row must not fail the list");
+        assert_eq!(jobs.iter().map(|job| job.job_id.as_str()).collect::<Vec<_>>(), ["job-valid"]);
+    }
+
+    #[test]
+    fn get_job_tells_a_missing_row_from_one_that_cannot_be_read() {
+        let fs = TestDbFs::new();
+        let db = fs.db();
+        db.init().expect("init db");
+        insert_malformed_job(&fs.db_path, "job-bad", None);
+
+        let is_no_rows = |error: &anyhow::Error| {
+            matches!(error.downcast_ref::<rusqlite::Error>(), Some(rusqlite::Error::QueryReturnedNoRows))
+        };
+        let missing = db.get_job("job-nope").expect_err("missing row");
+        assert!(is_no_rows(&missing), "{missing:#}");
+        let unreadable = db.get_job("job-bad").expect_err("unreadable row");
+        assert!(!is_no_rows(&unreadable), "{unreadable:#}");
+        // 书、上传：「没有」同样带 QueryReturnedNoRows，调用方才能把它和别的错误分开。
+        assert!(is_no_rows(&db.get_document("doc-nope").expect_err("missing document")));
+        assert!(is_no_rows(&db.get_upload("up-nope").expect_err("missing upload")));
     }
 }

@@ -4,7 +4,7 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use tower::util::ServiceExt;
 
-use crate::api_tests::jobs_common::{read_json, test_state};
+use crate::api_tests::jobs_common::{read_json, seed_legacy_layout_job, seed_virtual_job, test_state};
 use crate::app::build_app;
 use crate::models::{CreateJobInput, JobSnapshot};
 use crate::storage_paths::{attach_job_paths, build_job_paths};
@@ -49,4 +49,23 @@ async fn quality_routes_summarize_reports_and_list_blocks() {
         assert!(response.status().is_client_error(), "{bad}");
     }
     assert_eq!(get(&state, "/api/v1/jobs/job-missing/reports/quality").await.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn quality_reads_a_merged_reading_job_and_rejects_legacy_layouts() {
+    let state = test_state("quality-virtual");
+    let (job_id, _root) = seed_virtual_job(&state);
+
+    // 合并目录里没有报告：摘要的各部分是 null、清单是空的，不是错误。
+    let response = get(&state, &format!("/api/v1/jobs/{job_id}/reports/quality")).await;
+    assert_eq!(response.status(), StatusCode::OK);
+    let summary = read_json(response).await["data"].clone();
+    assert!(summary["qa"].is_null() && summary["refine"].is_null(), "{summary}");
+    let items = get(&state, &format!("/api/v1/jobs/{job_id}/reports/quality/items?kind=layout")).await;
+    assert_eq!(items.status(), StatusCode::OK);
+    assert_eq!(read_json(items).await["data"]["total"], 0);
+
+    seed_legacy_layout_job(&state, "job-legacy");
+    assert_eq!(get(&state, "/api/v1/jobs/job-legacy/reports/quality").await.status(), StatusCode::CONFLICT);
+    assert_eq!(get(&state, "/api/v1/jobs/job-legacy/reports/quality/items?kind=layout").await.status(), StatusCode::CONFLICT);
 }
