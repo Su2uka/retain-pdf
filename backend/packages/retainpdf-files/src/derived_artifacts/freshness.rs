@@ -14,7 +14,10 @@
 //!
 //! 没有记录文件的产物（这次改动之前生成的缓存、手放进去的文件）照旧按修改时间判断，
 //! 不让所有旧缓存（整本书的 Word 要好几分钟）一起重建；它们下次重建以后就有记录了。
-//! 记录文件在但读不出来、对不上，一律当作过期。
+//! 记录在、但记的不是现在这份产物（多设备同步、手动拷贝换掉了产物，或者换名之后、写记录之前
+//! 进程没了）也按修改时间判断：这份产物不是我们生成的，记录说明不了它。要是这时当作过期，两台
+//! 同步的设备会轮流重建、再把自己的产物同步给对方，没完没了。
+//! 记录读不出来、版本不对，当作过期。
 
 use std::path::{Path, PathBuf};
 
@@ -123,9 +126,13 @@ pub(crate) fn cached_output_is_fresh(
     let Ok(record) = serde_json::from_slice::<Record>(&bytes) else {
         return Ok(false);
     };
-    Ok(record.version == RECORD_VERSION
-        && Stamp::of(output_path).as_ref() == Some(&record.output)
-        && InputStamps::capture(inputs).0 == record.inputs)
+    if record.version != RECORD_VERSION {
+        return Ok(false);
+    }
+    if Stamp::of(output_path).as_ref() != Some(&record.output) {
+        return legacy_mtime_is_fresh(output_path, inputs);
+    }
+    Ok(InputStamps::capture(inputs).0 == record.inputs)
 }
 
 /// 没有记录文件时的老规则：产物的修改时间不早于每个输入。

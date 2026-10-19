@@ -271,18 +271,17 @@ fn a_timed_out_build_kills_the_whole_process_tree() {
     let fixture = Fixture::new();
     let output = fixture.0.join("output.docx");
     let started = Instant::now();
-    let error = build_with_command(&output, "layout-docx", Duration::from_millis(500), &[], |temporary| {
+    // 2 秒：并行跑测试时起两层进程要几百毫秒，太短的话孙进程还没起来就超时了，测不到它。
+    let error = build_with_command(&output, "layout-docx", Duration::from_secs(2), &[], |temporary| {
         fixture.command(temporary, "timeout-with-grandchild")
     })
     .unwrap_err();
     assert!(format!("{error:?}").contains("layout-docx builder timed out"), "{error:?}");
-    assert!(started.elapsed() < Duration::from_secs(5));
-    let grandchild: i32 = (0..100)
-        .find_map(|_| {
-            let pid = std::fs::read_to_string(fixture.0.join("grandchild-pid")).ok()?;
-            pid.parse().ok()
-        })
-        .expect("孙进程没有写下 pid（500 毫秒内没起来？）");
+    assert!(started.elapsed() < Duration::from_secs(6));
+    let grandchild: i32 = std::fs::read_to_string(fixture.0.join("grandchild-pid"))
+        .ok()
+        .and_then(|pid| pid.parse().ok())
+        .expect("孙进程没有写下 pid（2 秒内没起来？）");
     let gone = process_is_gone(grandchild);
     if !gone {
         unsafe { libc::kill(grandchild, libc::SIGKILL) };
@@ -352,5 +351,46 @@ fn caches_without_an_input_record_still_follow_modification_times() {
     set(&output, now);
     assert!(cached_output_is_fresh(&output, &[&input]).unwrap());
     set(&input, now + Duration::from_secs(60));
+    assert!(!cached_output_is_fresh(&output, &[&input]).unwrap());
+}
+
+#[test]
+fn an_output_replaced_from_elsewhere_falls_back_to_modification_times() {
+    // 多设备同步把另一台机器生成的产物拷过来：记录里的产物戳对不上，说明不了这份产物。
+    // 当作过期的话两台设备会轮流重建、互相同步，所以退回修改时间。
+    let fixture = Fixture::new();
+    let input = fixture.0.join("translated.pdf");
+    std::fs::write(&input, b"%PDF").unwrap();
+    let output = fixture.0.join("job-side-by-side.pdf");
+    build_with_command(&output, "side-by-side", Duration::from_secs(10), &[&input], |temporary| {
+        fixture.command(temporary, "success")
+    })
+    .unwrap();
+    let copied = fixture.0.join("synced.pdf");
+    std::fs::write(&copied, b"%PDF-from-the-other-device").unwrap();
+    std::fs::rename(&copied, &output).unwrap();
+    let now = std::time::SystemTime::now();
+    let set = |path: &Path, time| {
+        std::fs::File::options().write(true).open(path).unwrap().set_modified(time).unwrap()
+    };
+    set(&input, now - Duration::from_secs(60));
+    set(&output, now);
+    assert!(cached_output_is_fresh(&output, &[&input]).unwrap(), "拷过来的产物比输入新，照修改时间算新鲜");
+    set(&input, now + Duration::from_secs(60));
+    assert!(!cached_output_is_fresh(&output, &[&input]).unwrap());
+}
+
+#[test]
+fn an_unreadable_input_record_means_stale() {
+    let fixture = Fixture::new();
+    let input = fixture.0.join("translated.pdf");
+    std::fs::write(&input, b"%PDF").unwrap();
+    let output = fixture.0.join("job-side-by-side.pdf");
+    build_with_command(&output, "side-by-side", Duration::from_secs(10), &[&input], |temporary| {
+        fixture.command(temporary, "success")
+    })
+    .unwrap();
+    assert!(cached_output_is_fresh(&output, &[&input]).unwrap());
+    std::fs::write(fixture.0.join(".job-side-by-side.pdf.inputs.json"), b"{not json").unwrap();
     assert!(!cached_output_is_fresh(&output, &[&input]).unwrap());
 }

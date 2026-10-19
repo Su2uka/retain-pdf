@@ -360,7 +360,9 @@ mod tests {
         false
     }
 
-    const SHORT_TIMEOUT: Duration = Duration::from_millis(500);
+    /// 卡死的假渲染撞上的时限。不能太短：并行跑测试时起一个 sh 要几百毫秒，太短的话 sh 还没
+    /// 起好 `sleep` 就被杀了，测不到孙进程。
+    const SHORT_TIMEOUT: Duration = Duration::from_secs(2);
 
     /// 文件出口共用 `DownloadGeneration` 的 2 个名额。以前页预览的渲染进程没有超时，一个让
     /// fitz 卡死的 PDF 打两次预览，名额就永远被占着，之后所有文件请求（连 translated.pdf
@@ -376,13 +378,13 @@ mod tests {
         let hung = hanging_python(&case.dir);
         let ok = fake_python(&case.dir, 0);
         let generation = Arc::new(DownloadGeneration::default());
-        let render = |python: PathBuf, page: u32| {
+        let render = |python: PathBuf, page: u32, timeout: Duration| {
             let dir = case.dir.clone();
             let source = case.source.clone();
             move || {
                 let deps = DerivedArtifactDeps::new(python.to_str().unwrap());
                 let output = dir.join(format!("preview-p{page}.jpg"));
-                ensure_page_preview_within(deps, &output, &source, page, 1200, 0, SHORT_TIMEOUT)
+                ensure_page_preview_within(deps, &output, &source, page, 1200, 0, timeout)
                     .map(|path| FileDownload::new(path, "image/jpeg", None))
             }
         };
@@ -390,13 +392,14 @@ mod tests {
         let hung_renders: Vec<_> = (0..2)
             .map(|page| {
                 let generation = Arc::clone(&generation);
-                let work = render(hung.clone(), page);
+                let work = render(hung.clone(), page, SHORT_TIMEOUT);
                 tokio::spawn(async move { generation.run(format!("page-{page}"), work).await })
             })
             .collect();
         // 让两个卡死的渲染先占上名额。
         tokio::time::sleep(Duration::from_millis(100)).await;
-        let third = generation.run("page-2".to_string(), render(ok, 2)).await;
+        // 正常的渲染给足时间（起一个 sh 在这台机器上就要两三百毫秒），只让卡死的那两个撞上时限。
+        let third = generation.run("page-2".to_string(), render(ok, 2, Duration::from_secs(10))).await;
         let elapsed = started.elapsed();
         for task in hung_renders {
             let error = task.await.unwrap().unwrap_err();
@@ -407,7 +410,7 @@ mod tests {
         }
         let third = third.expect("名额被卡死的渲染占着，后来的请求没轮上");
         assert_eq!(std::fs::read(&third.path).unwrap(), b"new");
-        assert!(elapsed < Duration::from_secs(5), "等了 {elapsed:?} 才轮到第三个请求");
+        assert!(elapsed < Duration::from_secs(8), "等了 {elapsed:?} 才轮到第三个请求");
         let pids = sleep_pids(&case.dir);
         assert_eq!(pids.len(), 2, "{pids:?}");
         for pid in pids {
@@ -427,7 +430,7 @@ mod tests {
             matches!(&error, AppError::Internal(message) if message.contains("book-image builder timed out")),
             "{error:?}"
         );
-        assert!(started.elapsed() < Duration::from_secs(5));
+        assert!(started.elapsed() < Duration::from_secs(6));
         assert!(!cover.exists(), "超时不能留下半截封面");
         for pid in sleep_pids(&case.dir) {
             assert!(process_is_gone(pid), "超时后渲染进程的子进程 {pid} 还活着");
