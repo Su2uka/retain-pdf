@@ -32,12 +32,18 @@ export function friendlyTranslateError(error: ErrorLike, { reusingOcr = false } 
   return message || "发起翻译失败，请稍后重试。";
 }
 
-// 删除只在文档下还有排队或运行中的任务时被拒（409，后端原文是英文的 "pass force=true"）。
+// 删除被拒（409）有两种：还有排队或运行中的任务（后端原文是英文的 "pass force=true"，没有 reason），
+// 或者删单个任务时别的任务还在用它的产物（reason = job_has_dependents，比如换字体重排出的任务）。
 export const DELETE_BLOCKED_BY_ACTIVE_JOB_MESSAGE = "还有排队或运行中的任务，请先取消再删除。";
+export const DELETE_BLOCKED_BY_DEPENDENTS_MESSAGE = "还有别的任务在用这个任务的产物（比如换字体重排出的版本），请先删掉那些任务再删。";
 
 export function friendlyDocumentDeleteError(error: ErrorLike): string {
   const message = typeof error === "string" ? error : `${error?.message || error || ""}`;
   const status = typeof error === "object" && error ? error.status : undefined;
+  const reason = typeof error === "object" && error ? `${error.reason || ""}`.trim() : "";
+  if (reason === "job_has_dependents") {
+    return DELETE_BLOCKED_BY_DEPENDENTS_MESSAGE;
+  }
   if (status === 409 || message.includes("(409)")) {
     return DELETE_BLOCKED_BY_ACTIVE_JOB_MESSAGE;
   }

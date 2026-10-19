@@ -160,3 +160,24 @@ test("retry-stage 请求体只发后端认的字段，书的信息只用来补�
     globalThis.fetch = originalFetch;
   }
 });
+
+test("删书被拒的 409 带上 error.details.reason，书库能分清“任务在跑”和“别的任务在用它的产物”", async () => {
+  const { deleteLibraryBook } = await import("@retainpdf/api/library-books");
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({
+    code: 409,
+    message: "other jobs still use this job's artifacts: job-r (uses job-a); delete them first or pass force=true",
+    error: { code: "CONFLICT", details: { reason: "job_has_dependents" } },
+  }), { status: 409, headers: { "Content-Type": "application/json" } });
+  try {
+    await assert.rejects(deleteLibraryBook("/api/v1", "job-a"), (error) => {
+      assert.equal(error.status, 409);
+      assert.equal(error.errorCode, "CONFLICT");
+      assert.equal(error.reason, "job_has_dependents");
+      assert.match(error.message, /job-r/);
+      return true;
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
