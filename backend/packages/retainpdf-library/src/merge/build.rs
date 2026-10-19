@@ -20,17 +20,28 @@
 //! 变了就是一个新目录。
 //!
 //! 目录名不可变还有一个好处：用户正在下载旧的合并结果时，新的合并不会把它从脚下替换掉
-//! （断点续传不会拼出半新半旧的 PDF）。旧目录在新目录发布后按年龄清理（`prune_stale`）。
+//! （断点续传不会拼出半新半旧的 PDF）。旧目录在新目录发布后按**最后一次被读**的时间清理
+//! （`prune_stale`）：每次按虚拟 id 读合并目录都会更新目录里的 `.last-used` 标记。
+//!
+//! # 同一份合并只生成一次
+//!
+//! 同一本书同时打开两次（前端一次、AI 服务一次），以前各自在临时目录里生成一遍、后发布的
+//! 丢掉自己的结果；几本书同时打开时子进程数也没有上限。现在按合并目录（指纹）单飞：同一个
+//! 指纹同时只有一个在生成，后到的等它做完直接用；全进程同时最多 [`MAX_CONCURRENT_BUILDS`]
+//! 个在生成，多的排队。不用文件出口的 `DownloadGeneration`：它是异步的、结果类型是要回给
+//! 客户端的文件，而且 2 个名额和文件下载共用（一次合并最多两步各 120 秒，会把下载堵住）；
+//! 合集工作区在阻塞线程里同步调这里，也要去重。
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::time::{Duration, UNIX_EPOCH};
+use std::sync::{Condvar, Mutex, OnceLock};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use sha2::{Digest, Sha256};
 
 use retainpdf_api_base::error::AppError;
-use retainpdf_api_base::job_loading::MergedTranslation;
+use retainpdf_api_base::job_loading::{mark_merged_used, merged_last_used, MergedTranslation};
 use retainpdf_files::{document_artifacts_dir, DerivedArtifactDeps};
 
 use super::plan::PageSource;
@@ -204,6 +215,44 @@ fn run_step(
     Ok(())
 }
 
+/// 全进程同时最多几个合并在生成。一次合并跑两个 Python 子进程。
+const MAX_CONCURRENT_BUILDS: usize = 2;
+
+/// 正在生成的合并目录（按目录路径，也就是按书和指纹）。
+struct InFlightBuilds {
+    building: Mutex<HashSet<PathBuf>>,
+    finished: Condvar,
+}
+
+fn in_flight_builds() -> &'static InFlightBuilds {
+    static BUILDS: OnceLock<InFlightBuilds> = OnceLock::new();
+    BUILDS.get_or_init(|| InFlightBuilds { building: Mutex::new(HashSet::new()), finished: Condvar::new() })
+}
+
+/// 占着「这个合并目录我在生成」，放手（包括出错、panic）时叫醒等着的。
+struct BuildClaim(PathBuf);
+
+impl BuildClaim {
+    /// 等到这个目录没人在生成、而且总数没满，再占上。
+    fn acquire(root: &Path) -> Self {
+        let builds = in_flight_builds();
+        let mut building = builds.building.lock().unwrap_or_else(|e| e.into_inner());
+        while building.contains(root) || building.len() >= MAX_CONCURRENT_BUILDS {
+            building = builds.finished.wait(building).unwrap_or_else(|e| e.into_inner());
+        }
+        building.insert(root.to_path_buf());
+        Self(root.to_path_buf())
+    }
+}
+
+impl Drop for BuildClaim {
+    fn drop(&mut self) {
+        let builds = in_flight_builds();
+        builds.building.lock().unwrap_or_else(|e| e.into_inner()).remove(&self.0);
+        builds.finished.notify_all();
+    }
+}
+
 /// 拿到（必要时生成）这本书当前的合并译文目录。
 pub(crate) fn ensure_merged_translation(
     deps: DerivedArtifactDeps<'_>,
@@ -216,6 +265,13 @@ pub(crate) fn ensure_merged_translation(
     let fingerprint = merge_fingerprint(source_pdf, plan, jobs)?;
     let root = merged_root(data_root, document_id, &fingerprint)?;
     if root.is_dir() {
+        mark_merged_used(&root, SystemTime::now());
+        return Ok(MergedTranslation { root });
+    }
+    let _claim = BuildClaim::acquire(&root);
+    // 等的这段时间里，同一个指纹的另一次请求可能已经生成好了。
+    if root.is_dir() {
+        mark_merged_used(&root, SystemTime::now());
         return Ok(MergedTranslation { root });
     }
     let parent = root.parent().expect("merged root has a parent");
@@ -273,20 +329,24 @@ pub(crate) fn ensure_merged_translation(
         Err(_) if root.is_dir() => {}
         Err(error) => return Err(error.into()),
     }
-    prune_stale(parent, &root, std::time::SystemTime::now());
+    let now = SystemTime::now();
+    mark_merged_used(&root, now);
+    prune_stale(parent, &root, now);
     Ok(MergedTranslation { root })
 }
 
-/// 旧的合并目录保留多久。不在新目录一发布就删：可能有人正拿着旧的虚拟 id 开着阅读器、
-/// 或者正在下载旧的合并 PDF（虚拟 id 带指纹，读的就是那个目录）。
+/// 旧的合并目录多久没人读就删。不在新目录一发布就删：可能有人正拿着旧的虚拟 id 开着阅读器、
+/// 或者正在下载旧的合并 PDF（虚拟 id 带指纹，读的就是那个目录）。年龄从最后一次被读算起
+/// （`.last-used` 标记，见 `job_loading::merged_last_used`），不是从生成时算起。
+/// 删掉以后旧 id 的读请求是 404 + `merged_reading_expired`，客户端重新问阅读入口。
 const STALE_MERGED_AFTER: Duration = Duration::from_secs(24 * 60 * 60);
 /// `.building-*` 是生成中的临时目录；进程崩溃会把它留下。生成最多跑两步子进程，各自
 /// 有 `BUILD_TIMEOUT`，一小时还在的一定是残骸。
 const STALE_BUILDING_AFTER: Duration = Duration::from_secs(60 * 60);
 
-/// 删掉 `merged/` 下除 `keep` 之外、足够旧的合并目录和残留的临时目录。尽力而为：清理失败
-/// 不影响这次合并。
-fn prune_stale(merged_dir: &Path, keep: &Path, now: std::time::SystemTime) {
+/// 删掉 `merged/` 下除 `keep`（阅读入口现在指向的那个）之外、足够久没人读的合并目录和残留的
+/// 临时目录。尽力而为：清理失败不影响这次合并。
+fn prune_stale(merged_dir: &Path, keep: &Path, now: SystemTime) {
     let Ok(entries) = std::fs::read_dir(merged_dir) else { return };
     for entry in entries.flatten() {
         let path = entry.path();
@@ -294,19 +354,15 @@ fn prune_stale(merged_dir: &Path, keep: &Path, now: std::time::SystemTime) {
             continue;
         }
         let name = entry.file_name().to_string_lossy().into_owned();
-        let max_age = if name.starts_with(".building-") {
-            STALE_BUILDING_AFTER
+        let (max_age, last_touched) = if name.starts_with(".building-") {
+            (STALE_BUILDING_AFTER, entry.metadata().and_then(|meta| meta.modified()).ok())
         } else if name.len() == 16 && name.bytes().all(|b| b.is_ascii_hexdigit()) {
-            STALE_MERGED_AFTER
+            (STALE_MERGED_AFTER, merged_last_used(&path))
         } else {
             // 不认识的东西不碰。
             continue;
         };
-        let age = entry
-            .metadata()
-            .and_then(|meta| meta.modified())
-            .ok()
-            .and_then(|modified| now.duration_since(modified).ok());
+        let age = last_touched.and_then(|modified| now.duration_since(modified).ok());
         if age.is_some_and(|age| age > max_age) {
             let _ = std::fs::remove_dir_all(&path);
         }

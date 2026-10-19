@@ -18,8 +18,8 @@ use retainpdf_core::storage_paths::{
 };
 
 pub use merged::{
-    contributing_jobs, is_virtual_job_id, load_virtual_job, MergedTranslation, ReadingSidecar,
-    VirtualJobId, SIDECAR,
+    contributing_jobs, is_virtual_job_id, load_virtual_job, mark_merged_used, merged_last_used,
+    MergedTranslation, ReadingSidecar, VirtualJobId, LAST_USED_MARKER, MERGED_READING_EXPIRED, SIDECAR,
 };
 
 /// 没有这个任务是 404；有记录但读不出来（行解码失败、库被锁……）是 500，不能说成「找不到」。
