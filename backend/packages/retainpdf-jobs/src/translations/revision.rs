@@ -6,12 +6,12 @@
 //! 这里不重写一遍。
 
 use std::path::{Path, PathBuf};
-use std::process::Stdio;
+use std::process::{Output, Stdio};
 use std::time::Duration;
 
 use axum::http::StatusCode;
 use serde_json::{json, Value};
-use tokio::io::AsyncWriteExt;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::process::Command;
 
 use retainpdf_api_base::error::AppError;
@@ -30,6 +30,9 @@ const MAX_REVISION_TEXT_CHARS: usize = 20_000;
 const MAX_REVISION_REASON_CHARS: usize = 2_000;
 /// 写回只读写本任务的几十个页文件,正常是亚秒级;超时说明进程卡住了。
 const REVISION_TIMEOUT: Duration = Duration::from_secs(120);
+/// 超时后先发 SIGTERM,让 Python 的处理函数把这一次写回原样回滚;宽限期过了才 SIGKILL。
+/// SIGKILL 之后留下的半截状态由 Python 侧的意图记录在下一次进来时恢复。
+const REVISION_TERM_GRACE_SECS: u64 = 5;
 /// 重翻一条要调一次模型,比写回慢得多;超时说明进程或上游卡住了,进程随请求一起被杀。
 pub(super) const REPLAY_TIMEOUT: Duration = Duration::from_secs(300);
 
@@ -111,32 +114,14 @@ pub(crate) async fn revise_translation_item(
         "reason": request.reason,
         "expected_generation": request.expected_generation,
     });
-    let mut command = Command::new(deps.pipeline_command);
-    command
-        .arg("translation-revise")
-        .arg("--job-root")
-        .arg(&job_root)
-        .arg("--item-id")
-        .arg(item_id)
-        .current_dir(deps.project_root)
-        .env("PYTHONUNBUFFERED", "1")
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .kill_on_drop(true);
-    let mut child = command
-        .spawn()
-        .map_err(|err| AppError::internal(format!("spawn translation-revise: {err}")))?;
-    if let Some(mut stdin) = child.stdin.take() {
-        stdin
-            .write_all(body.to_string().as_bytes())
-            .await
-            .map_err(|err| AppError::internal(format!("write translation-revise stdin: {err}")))?;
-    }
-    let output = tokio::time::timeout(REVISION_TIMEOUT, child.wait_with_output())
-        .await
-        .map_err(|_| AppError::internal("translation-revise timed out"))?
-        .map_err(|err| AppError::internal(format!("wait translation-revise: {err}")))?;
+    let process = ReviseProcess {
+        program: deps.pipeline_command.to_string(),
+        project_root: deps.project_root.to_path_buf(),
+        job_root: job_root.clone(),
+        item_id: item_id.to_string(),
+        stdin_body: body.to_string(),
+    };
+    let output = run_revise_detached(process).await?;
     let secrets = sensitive_values(&job.request_payload);
     if !output.status.success() {
         let stderr = redact_text(String::from_utf8_lossy(&output.stderr).trim(), &secrets);
@@ -157,6 +142,92 @@ pub(crate) async fn revise_translation_item(
         ))
     })?;
     outcome_from_payload(payload, job_root.join("translated"))
+}
+
+/// 起一个 `translation-revise` 子进程要的全部输入(自有的,好交给独立任务)。
+struct ReviseProcess {
+    program: String,
+    project_root: PathBuf,
+    job_root: PathBuf,
+    item_id: String,
+    stdin_body: String,
+}
+
+/// 在独立任务里跑子进程,请求这边只等任务的结果。
+///
+/// 客户端断开时 axum 会丢弃处理函数的 future;子进程若归这个 future 所有,就被
+/// SIGKILL 在「页文件已改、checkpoint 未写」的半路上。现在子进程归 spawn 出去的
+/// 任务所有,处理函数被丢弃只是不再等结果,写回照样做完。
+async fn run_revise_detached(process: ReviseProcess) -> Result<Output, AppError> {
+    tokio::spawn(run_revise_process(
+        process,
+        REVISION_TIMEOUT,
+        REVISION_TERM_GRACE_SECS,
+    ))
+    .await
+    .map_err(|err| AppError::internal(format!("translation-revise task failed: {err}")))?
+}
+
+async fn run_revise_process(
+    process: ReviseProcess,
+    timeout: Duration,
+    term_grace_secs: u64,
+) -> Result<Output, AppError> {
+    let mut command = Command::new(&process.program);
+    command
+        .arg("translation-revise")
+        .arg("--job-root")
+        .arg(&process.job_root)
+        .arg("--item-id")
+        .arg(&process.item_id)
+        .current_dir(&process.project_root)
+        .env("PYTHONUNBUFFERED", "1")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        // 不靠 drop 杀进程:任务被取消(运行时关闭)时让它自己写完,
+        // 写不完的半截状态由 Python 侧的意图记录恢复。
+        .kill_on_drop(false);
+    // 自成进程组,超时才能连子孙一起 SIGTERM/SIGKILL。
+    retainpdf_proc::configure_child_process(&mut command);
+    let mut child = command
+        .spawn()
+        .map_err(|err| AppError::internal(format!("spawn translation-revise: {err}")))?;
+    if let Some(mut stdin) = child.stdin.take() {
+        stdin
+            .write_all(process.stdin_body.as_bytes())
+            .await
+            .map_err(|err| AppError::internal(format!("write translation-revise stdin: {err}")))?;
+    }
+    let mut stdout_pipe = child.stdout.take();
+    let mut stderr_pipe = child.stderr.take();
+    let work = async {
+        let stdout = async {
+            let mut buffer = Vec::new();
+            if let Some(pipe) = stdout_pipe.as_mut() {
+                let _ = pipe.read_to_end(&mut buffer).await;
+            }
+            buffer
+        };
+        let stderr = async {
+            let mut buffer = Vec::new();
+            if let Some(pipe) = stderr_pipe.as_mut() {
+                let _ = pipe.read_to_end(&mut buffer).await;
+            }
+            buffer
+        };
+        let (status, stdout, stderr) = tokio::join!(child.wait(), stdout, stderr);
+        status.map(|status| Output { status, stdout, stderr })
+    };
+    match tokio::time::timeout(timeout, work).await {
+        Ok(result) => {
+            result.map_err(|err| AppError::internal(format!("wait translation-revise: {err}")))
+        }
+        Err(_) => {
+            retainpdf_proc::terminate_child_process_tree(&mut child, term_grace_secs).await;
+            Err(AppError::internal("translation-revise timed out"))
+        }
+    }
 }
 
 fn outcome_from_payload(
@@ -266,6 +337,89 @@ mod tests {
         for invalid in ["", "../x", "p1 b2", "p1/b2", &"a".repeat(129)] {
             assert!(validate_item_id(invalid).is_err(), "{invalid}");
         }
+    }
+
+    #[cfg(unix)]
+    fn fake_revise(dir: &Path, name: &str, script_body: &str) -> ReviseProcess {
+        use std::os::unix::fs::PermissionsExt;
+        let program = dir.join(name);
+        std::fs::write(&program, format!("#!/bin/sh\n{script_body}\n")).expect("write script");
+        std::fs::set_permissions(&program, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        ReviseProcess {
+            program: program.to_string_lossy().into_owned(),
+            project_root: dir.to_path_buf(),
+            job_root: dir.to_path_buf(),
+            item_id: "p001-b001".to_string(),
+            stdin_body: "{}".to_string(),
+        }
+    }
+
+    #[cfg(unix)]
+    fn temp_dir(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("revise-{name}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        dir
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn timeout_sends_sigterm_first_so_the_child_can_roll_back() {
+        let dir = temp_dir("term");
+        let marker = dir.join("got-term");
+        let process = fake_revise(
+            &dir,
+            "revise.sh",
+            &format!("trap 'echo term > {}; exit 143' TERM\nsleep 30 &\nwait $!", marker.display()),
+        );
+        // 超时要留足:macOS 上第一次执行刚写出的脚本可能要上百毫秒,太早发 SIGTERM
+        // 会赶在脚本装 trap 之前。
+        let started = std::time::Instant::now();
+        let error = run_revise_process(process, Duration::from_secs(2), 10)
+            .await
+            .expect_err("must time out");
+        assert!(format!("{error:?}").contains("timed out"), "{error:?}");
+        // 子进程自己处理了 SIGTERM 并退出:没有等满宽限期,更没有被 SIGKILL。
+        assert!(marker.exists(), "child never saw SIGTERM");
+        assert!(started.elapsed() < Duration::from_secs(6), "{:?}", started.elapsed());
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn timeout_escalates_to_sigkill_after_the_grace_period() {
+        let dir = temp_dir("kill");
+        let pid_file = dir.join("pid");
+        let process = fake_revise(
+            &dir,
+            "revise.sh",
+            &format!("trap '' TERM\necho $$ > {}\nwhile true; do sleep 1; done", pid_file.display()),
+        );
+        let started = std::time::Instant::now();
+        let error = run_revise_process(process, Duration::from_secs(2), 1)
+            .await
+            .expect_err("must time out");
+        assert!(format!("{error:?}").contains("timed out"), "{error:?}");
+        assert!(started.elapsed() >= Duration::from_secs(3), "SIGKILL came before the grace period: {:?}", started.elapsed());
+        let pid: u32 = std::fs::read_to_string(&pid_file).expect("pid").trim().parse().expect("pid");
+        assert!(!retainpdf_proc::worker_process_exists(pid), "child survived SIGKILL");
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn dropping_the_waiting_future_does_not_kill_the_child() {
+        let dir = temp_dir("detach");
+        let marker = dir.join("finished");
+        let process = fake_revise(
+            &dir,
+            "revise.sh",
+            &format!("sleep 1\necho done > {}\necho '{{}}'", marker.display()),
+        );
+        let waiting = run_revise_detached(process);
+        // 等的这一边在子进程跑到一半时被丢弃(客户端断开)。
+        let _ = tokio::time::timeout(Duration::from_millis(200), waiting).await;
+        assert!(!marker.exists());
+        tokio::time::sleep(Duration::from_millis(2500)).await;
+        assert!(marker.exists(), "child was killed together with the dropped future");
     }
 
     #[test]
