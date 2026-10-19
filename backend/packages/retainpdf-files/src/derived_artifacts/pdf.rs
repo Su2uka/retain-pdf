@@ -4,7 +4,7 @@ use std::time::Duration;
 use retainpdf_api_base::error::AppError;
 use retainpdf_core::models::domain::JobSnapshot;
 
-use super::job_artifacts_dir;
+use super::{cached_output_is_fresh, job_artifacts_dir};
 
 pub fn linearized_pdf_or_original(
     data_root: &Path,
@@ -18,12 +18,8 @@ pub fn linearized_pdf_or_original(
     let output_dir = job_artifacts_dir(data_root, job)?;
     let safe_label = label.replace('/', "_");
     let output_pdf = output_dir.join(format!("{safe_label}.linearized.pdf"));
-    let input_meta = std::fs::metadata(input_pdf)?;
-    if output_pdf.exists() && output_pdf.is_file() {
-        let output_meta = std::fs::metadata(&output_pdf)?;
-        if output_meta.modified().ok() >= input_meta.modified().ok() {
-            return Ok(output_pdf);
-        }
+    if cached_output_is_fresh(&output_pdf, &[input_pdf])? {
+        return Ok(output_pdf);
     }
     if !linearize_pdf_with_qpdf(input_pdf, &output_pdf) {
         return Ok(input_pdf.to_path_buf());
@@ -41,6 +37,7 @@ fn linearize_pdf_with_qpdf(input_pdf: &Path, output_pdf: &Path) -> bool {
         output_pdf,
         "linearized-pdf",
         Duration::from_secs(120),
+        &[input_pdf],
         |temporary| {
         let mut command = std::process::Command::new(qpdf);
         command.arg("--linearize").arg(input_pdf).arg(temporary);

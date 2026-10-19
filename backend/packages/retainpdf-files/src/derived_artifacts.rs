@@ -3,10 +3,13 @@ use std::path::{Path, PathBuf};
 use retainpdf_api_base::error::AppError;
 use retainpdf_core::models::domain::JobSnapshot;
 
+mod freshness;
 pub(crate) mod pdf;
 pub(crate) mod preview;
 pub(crate) mod side_by_side;
 pub(crate) mod word;
+
+pub(crate) use freshness::cached_output_is_fresh;
 
 #[derive(Clone, Copy)]
 pub struct DerivedArtifactDeps<'a> {
@@ -58,20 +61,4 @@ pub fn document_artifacts_dir(
     let output_dir = data_root.join("documents").join(document_id);
     std::fs::create_dir_all(&output_dir)?;
     Ok(output_dir)
-}
-
-pub(crate) fn cached_output_is_fresh(
-    output_path: &Path,
-    inputs: &[&Path],
-) -> Result<bool, AppError> {
-    if !output_path.exists() || !output_path.is_file() {
-        return Ok(false);
-    }
-    let output_modified = std::fs::metadata(output_path)?.modified().ok();
-    Ok(inputs.iter().all(|input| {
-        let input_modified = std::fs::metadata(input)
-            .and_then(|meta| meta.modified())
-            .ok();
-        output_modified >= input_modified
-    }))
 }

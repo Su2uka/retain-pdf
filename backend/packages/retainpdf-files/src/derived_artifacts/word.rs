@@ -28,7 +28,7 @@ impl Default for LayoutDocxOptions {
 ///
 /// # 为什么需要它
 ///
-/// 缓存只比**输入文件**的 mtime（源 PDF、译文 PDF）—— 代码改动不是输入。于是导出器
+/// 缓存只看**输入文件**（源 PDF、译文 PDF）变没变 —— 代码改动不是输入。于是导出器
 /// 改了多少次，`cached_output_is_fresh` 都认为旧产物还新鲜，直接把老文件发出去。
 ///
 /// 真发生过：2026-10-05 连修三个排版缺陷（空底数上标的虚线框、markdown 星号、西文
@@ -70,6 +70,7 @@ pub fn ensure_layout_docx(
             &output_docx,
             "layout-docx",
             BUILD_TIMEOUT,
+            &inputs,
             |temporary| {
                 let mut command = std::process::Command::new(deps.pipeline_command);
                 command
