@@ -12,7 +12,9 @@ use crate::views::{
 use retainpdf_core::models::domain::UploadRecord;
 use retainpdf_jobs::cleanup_deleted_job_credentials;
 
-use super::books::{ensure_deletable, ensure_no_dependents, remove_job_files, remove_path_if_exists};
+use super::books::{
+    ensure_deletable, ensure_no_dependents, find_job, remove_job_files, remove_path_if_exists,
+};
 use retainpdf_data::db::Db;
 use super::LibraryDeps;
 
@@ -46,7 +48,7 @@ pub(crate) fn require_document_upload(
     let document = deps
         .db
         .get_document(document_id)
-        .map_err(|_| AppError::not_found(format!("document not found: {document_id}")))?;
+        .map_err(|error| AppError::from_lookup(error, format!("document not found: {document_id}")))?;
     let upload = deps
         .db
         .find_upload_for_document(document_id)?
@@ -79,7 +81,12 @@ pub fn list_documents(
         // 合并结果的虚拟 id 不在 jobs 表里，但 id 本身就写着它属于哪本书。阅读器拿书名和
         // 原文 PDF、AI 服务核对「这个任务属于哪个文档」走的都是这条路。
         let by_job = match retainpdf_core::storage_paths::MergedJobId::parse(job_id) {
-            Some(merged) => deps.db.get_document(&merged.document_id).ok(),
+            // 书不在：列表是空的；读不出来是 500。
+            Some(merged) => match deps.db.get_document(&merged.document_id) {
+                Ok(document) => Some(document),
+                Err(error) if AppError::is_record_missing(&error) => None,
+                Err(error) => return Err(error.into()),
+            },
             None => deps.db.get_document_by_job_id(job_id)?,
         };
         let documents: Vec<_> = by_job
@@ -112,18 +119,18 @@ pub fn get_document(
     let document = deps
         .db
         .get_document(document_id)
-        .map_err(|_| AppError::not_found(format!("document not found: {document_id}")))?;
+        .map_err(|error| AppError::from_lookup(error, format!("document not found: {document_id}")))?;
     Ok(with_document_media_urls(document, base_url))
 }
 
 /// 强制删除前要先取消的任务编号(名下全部任务 + 各自的 `-ocr` 子任务)，见 `book_delete_job_ids`。
 pub fn document_delete_job_ids(db: &Db, document_id: &str) -> Result<Vec<String>, AppError> {
     db.get_document(document_id)
-        .map_err(|_| AppError::not_found(format!("document not found: {document_id}")))?;
+        .map_err(|error| AppError::from_lookup(error, format!("document not found: {document_id}")))?;
     let mut job_ids = db.job_ids_for_document(document_id)?;
     for job_id in job_ids.clone() {
         let child = format!("{job_id}-ocr");
-        if !job_ids.contains(&child) && db.get_job(&child).is_ok() {
+        if !job_ids.contains(&child) && find_job(db, &child)?.is_some() {
             job_ids.push(child);
         }
     }
@@ -147,7 +154,7 @@ pub fn delete_document(
     // 逐个校验可删(运行中的 job 需 force)
     let mut jobs = Vec::new();
     for job_id in &job_ids {
-        if let Ok(job) = deps.db.get_job(job_id) {
+        if let Some(job) = find_job(deps.db, job_id)? {
             ensure_deletable(&job, force)?;
             jobs.push(job);
         }
@@ -229,6 +236,6 @@ pub fn patch_document(
             payload.title.as_deref().map(str::trim),
             payload.reading_status.as_deref(),
         )
-        .map_err(|_| AppError::not_found(format!("document not found: {document_id}")))?;
+        .map_err(|error| AppError::from_lookup(error, format!("document not found: {document_id}")))?;
     Ok(with_document_media_urls(document, base_url))
 }

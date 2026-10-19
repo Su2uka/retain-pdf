@@ -21,7 +21,7 @@ pub fn create_conversation(
     } else {
         deps.db
             .get_document(document_id)
-            .map_err(|_| AppError::not_found(format!("document not found: {document_id}")))?;
+            .map_err(|error| AppError::from_lookup(error, format!("document not found: {document_id}")))?;
         Some(document_id)
     };
     Ok(deps.db.create_conversation(
@@ -136,7 +136,7 @@ pub fn fork_conversation(
     } else {
         deps.db
             .get_document(document_id)
-            .map_err(|_| AppError::not_found(format!("document not found: {document_id}")))?;
+            .map_err(|error| AppError::from_lookup(error, format!("document not found: {document_id}")))?;
         Some(document_id)
     };
     let title = payload.title.trim();

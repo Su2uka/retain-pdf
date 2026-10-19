@@ -62,7 +62,7 @@ pub fn patch_collection(
     }
     deps.db
         .update_collection(collection_id, name, payload.sort_order)
-        .map_err(|_| AppError::not_found(format!("collection not found: {collection_id}")))
+        .map_err(|error| AppError::from_lookup(error, format!("collection not found: {collection_id}")))
 }
 
 pub fn delete_collection(
@@ -98,11 +98,9 @@ pub fn add_collection_documents(
         .filter(|id| !id.is_empty())
         .collect();
     for document_id in &document_ids {
-        if deps.db.get_document(document_id).is_err() {
-            return Err(AppError::not_found(format!(
-                "document not found: {document_id}"
-            )));
-        }
+        deps.db
+            .get_document(document_id)
+            .map_err(|error| AppError::from_lookup(error, format!("document not found: {document_id}")))?;
     }
     deps.db
         .add_documents_to_collection(collection_id, &document_ids)?;

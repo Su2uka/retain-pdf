@@ -147,6 +147,29 @@ async fn deleting_a_running_book_without_force_is_refused_and_touches_nothing() 
     let _ = worker.wait();
 }
 
+/// 不带 force 删在跑的书 / 文档：409 带 `error.details.reason = "job_active"`（和任务操作同一个值），
+/// 客户端不用再靠「409 且不是 job_has_dependents」去猜。
+#[tokio::test]
+async fn deleting_with_an_active_job_says_job_active() {
+    let state = test_state("delete-safety-job-active-reason");
+    seed_document(&state);
+    seed_job(&state, "job-run", WorkflowKind::Book, JobStatusKind::Running, None, None);
+    seed_job(&state, "job-queued", WorkflowKind::Book, JobStatusKind::Queued, None, None);
+
+    for uri in [
+        "/api/v1/library/books/job-run".to_string(),
+        "/api/v1/library/books/job-queued".to_string(),
+        format!("/api/v1/documents/{DOCUMENT_ID}"),
+    ] {
+        let (status, body) = delete(&state, &uri).await;
+        assert_eq!(status, StatusCode::CONFLICT, "{uri}: {body}");
+        assert_eq!(body["error"]["details"]["reason"], "job_active", "{uri}: {body}");
+        assert_eq!(body["error"]["code"], "CONFLICT", "{uri}: {body}");
+    }
+    assert!(state.db.get_job("job-run").is_ok());
+    assert!(state.db.get_job("job-queued").is_ok());
+}
+
 /// 整本删除（文档）同样：名下运行中的任务要先取消。
 #[tokio::test]
 async fn force_deleting_a_document_cancels_its_running_jobs() {

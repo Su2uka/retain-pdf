@@ -13,7 +13,6 @@ use retainpdf_files::DerivedArtifactDeps;
 use crate::merge::coverage::{translation_coverage, TranslationCoverageView};
 use crate::merge::reading::{resolve_reading_target, DocumentReadingView, ReadingTarget};
 
-use super::documents::get_document;
 use super::media::document_source;
 use super::LibraryDeps;
 
@@ -42,10 +41,10 @@ pub async fn document_reading(
     deps: &LibraryDeps<'_>,
     document_id: &str,
 ) -> Result<DocumentReadingView, AppError> {
-    let (_document, source_pdf) = document_source(deps.db, deps.data_root, document_id)?;
     let owned = OwnedReadingDeps::from(deps);
     let document_id = document_id.to_string();
     tokio::task::spawn_blocking(move || {
+        let (_document, source_pdf) = document_source(&owned.db, &owned.data_root, &document_id)?;
         let artifact_deps = DerivedArtifactDeps::with_pipeline_command(&owned.python_bin, &owned.pipeline_command);
         resolve_reading_target(&owned.db, &owned.data_root, artifact_deps, &document_id, &source_pdf)
             .map(|target| target.view(&owned.data_root))
@@ -59,10 +58,16 @@ pub async fn document_translation_coverage(
     deps: &LibraryDeps<'_>,
     document_id: &str,
 ) -> Result<TranslationCoverageView, AppError> {
-    let page_count = get_document(deps, document_id, "")?.page_count;
     let owned = OwnedReadingDeps::from(deps);
     let document_id = document_id.to_string();
-    tokio::task::spawn_blocking(move || translation_coverage(&owned.db, &owned.data_root, &document_id, page_count))
+    tokio::task::spawn_blocking(move || {
+        let page_count = owned
+            .db
+            .get_document(&document_id)
+            .map_err(|error| AppError::from_lookup(error, format!("document not found: {document_id}")))?
+            .page_count;
+        translation_coverage(&owned.db, &owned.data_root, &document_id, page_count)
+    })
         .await
         .map_err(|_| AppError::internal("translation coverage task failed"))?
 }

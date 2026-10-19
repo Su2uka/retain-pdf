@@ -63,7 +63,7 @@ impl Db {
     }
 
     /// 改名和/或调整排序位置,两个字段都可选、按需更新;更新后返回最新记录
-    /// (记录不存在时报错,路由层转 404)。
+    /// (记录不存在时报 QueryReturnedNoRows,路由层转 404)。
     pub fn update_collection(
         &self,
         collection_id: &str,
@@ -83,7 +83,9 @@ impl Db {
                 params![sort_order, collection_id],
             )?;
         }
+        // 「没有这个合集」带 QueryReturnedNoRows（调用方凭它判 404），行读不出来是别的错误（500）。
         self.get_collection(collection_id)?
+            .ok_or(rusqlite::Error::QueryReturnedNoRows)
             .with_context(|| format!("collection not found: {collection_id}"))
     }
 
