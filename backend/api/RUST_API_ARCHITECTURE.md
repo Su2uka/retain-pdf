@@ -549,7 +549,7 @@ routes/library*.rs, collections.rs
 | `reader/` | 阅读 | `reader_regions/`、原文 Markdown |
 | `translations/` | 译文 | 逐条看、人工改、修改历史、重翻一条 |
 | `data/` | 数据 | 按登记表通用取数 |
-| `ai/` | AI | 阅读路径、概念图、画板 |
+| `ai/` | AI | 画板 |
 
 根目录只放各类共用的：`facade.rs`、`deps/`、`presentation/`、`query.rs`、`runtime_gateway.rs`、
 `summary_loaders/`、`support.rs`。

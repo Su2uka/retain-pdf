@@ -168,9 +168,8 @@ Every job file download goes through one entry point,
 
 Routes only pick those three values; they do not resolve paths. Adding a file
 means adding a `JobFile` variant and a `locate` branch, not another download
-function. AI-written files under `<job>/ai/` (reading path, canvas, board) stay
-outside `open` because that directory is agent-writable and only fixed names may
-be read.
+function. AI-written files under `<job>/ai/` (the board) stay outside `open` because that
+directory is agent-writable and the file name needs its own checks.
 
 The response contract for all download endpoints is pinned in
 `docs/file-responses.txt` (`src/api_tests/file_responses.rs`).

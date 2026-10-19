@@ -247,66 +247,6 @@ def test_denying_nothing_is_expressible(tmp_path: Path) -> None:
     assert block["shell"] == {"*": "allow"}
 
 
-# ---------------------------------------------------------------- 界面契约
-#
-# canvas.v1.json / reading-path.v1.json 是 agent 写、前端读的。字段名分别写在两
-# 个语言的两个文件里，没有共享定义 —— 所以这里跨文件对一遍。不对的话表现是
-# 「agent 照文档写了，界面什么都不显示」，而且两边看起来都没错。
-
-
-def _reader_domain_dir():
-    """前端 reader 功能的 domain 目录。找不到就让测试红 —— 不 skip。
-
-    skip 的话文档漂了没人知道，而这正是这一节唯一要防的事。
-    """
-    from pathlib import Path as _Path
-
-    here = _Path(__file__).resolve()
-    for parent in here.parents:
-        candidate = parent / "frontend/web/src/features/reader/domain"
-        if candidate.is_dir():
-            return candidate
-    raise AssertionError(f"找不到前端 domain 目录（从 {here} 往上找）")
-
-
-def _parser_source() -> str:
-    """画布相关的前端源码，整个目录拼起来。
-
-    **不认具体文件名**：这些模块会被拆分（canvas-doc 就拆成过 doc/render/cards），
-    写死文件名的话拆一次这条门禁就指向空气。上一次拆分正是这么把它弄红的，
-    而当时只跑了前端测试没跑这边。
-    """
-    return "\n".join(
-        path.read_text(encoding="utf-8")
-        for path in sorted(_reader_domain_dir().glob("reading-canvas*.ts"))
-    )
-
-
-def _indented_json_example(text: str, marker: str) -> dict:
-    r"""把说明里那段缩进 4 格的 JSON 例子抠出来解析。
-
-    不用正则找结尾：`.*?\]\}` 这种非贪婪写法会在**内层**的 `}]}` 提前收尾，
-    例子只截到一半（notes 的例子就是这么漏的；canvas 的例子当时碰巧没踩到）。
-    按缩进取到块尾才可靠。
-    """
-    import json
-
-    lines = text.splitlines()
-    start = next(i for i, line in enumerate(lines) if marker in line)
-    body = []
-    for line in lines[start:]:
-        if line.strip() and not line.startswith("    "):
-            break
-        body.append(line[4:])
-        # 逐行试解析，第一次成功就收尾。按缩进取到块尾会一路吃进后面的字段表
-        # （那张表也缩进 4 格）。
-        try:
-            return json.loads("\n".join(body))
-        except ValueError:
-            continue
-    raise AssertionError(f"{marker} 的例子解析不出来：\n" + "\n".join(body))
-
-
 def _board_section(tmp_path: Path) -> str:
     text = build_job_workspace_instructions(_job(tmp_path, "job-1"))
     start = text.index("丢进 `./board/`")
