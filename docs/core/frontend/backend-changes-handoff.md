@@ -10,6 +10,34 @@
 ---
 
 
+## 0000000000. 书库标签残留清掉、`/assets` 两个接口删掉
+
+分支 `chore/drop-tags-and-assets`（2026-10-19）。对应书库审计 A2、B11、B12，决定和取舍见
+[删标签残留和资产接口](../../ops/planning/api-reorg/20261019-删标签残留和资产接口.md)。
+
+### 变了什么
+
+1. `POST /api/v1/assets`、`GET /api/v1/assets/:asset_id` 删了（404）。前端没有调用方，不用改。
+2. 后端不再提标签：AI 的 `list_documents` 工具去掉 `tag` 参数和结果里的 `tags`；接口目录里书的 PATCH 说明改成「书名、阅读状态」；
+   `library-api.md` 去掉 `tag=`、`tags[]`、`tags?`。**接口行为没变**：书列表的 `tag`、PATCH 的 `tags` 照旧被静默忽略。
+
+### 前端要做什么
+
+前端已在 `refactor/drop-document-tags` 改完（那个分支还没合），这里记下对照：
+
+| 文件 | 旧写法 | 新写法 |
+|---|---|---|
+| `frontend/packages/api/src/documents.ts` | `DocumentListQuery.tag`，非空时 `params.set("tag", …)` | 去掉；`GET /documents` 只发 `limit`、`offset`、`reading_status`、`collection_id`、`q` |
+| `frontend/web/src/features/library/domain/documents/update-document.ts` | `payload.tags !== undefined` 时把 `tags` 发给 PATCH 并回填卡片 | 去掉；`PATCH /documents/:id` 只发 `title`、`reading_status` |
+| `frontend/web/src/features/library/ui/page/LibraryFilterMenu.tsx` | 按 `item.tags` 过滤（恒为空） | 去掉标签过滤 |
+
+### 以后
+
+前端和 AI 都不发以后（`refactor/drop-document-tags` 合进 main 之后），后端会给书列表的查询参数（`ListDocumentsQuery`）和
+PATCH 的请求体（`PatchDocumentInput`）加 `deny_unknown_fields`：再发 `tag`、`tags` 或别的不认识的字段会 400。这一步这次不做。
+
+---
+
 ## 0000000. 还没产出：404 带 `error.details.reason = "not_ready"`，任务不存在是不带 reason 的 404
 
 分支 `fix/not-ready-404`（2026-10-19）。对应审计 C3、D2，规矩见 [错误约定](../../api/00-约定/02-认证与错误.md#还没产出404)，
