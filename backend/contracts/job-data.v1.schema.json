@@ -22,7 +22,7 @@
         "400": "BAD_REQUEST：未登记的字段、不能筛选的字段、值类型不对、limit 越界",
         "404": "NOT_FOUND：任务或数据集不存在"
       },
-      "note": "文件不存在时 available=false、没有记录，不报错。记录类数据集返回 rows；带 group_by 返回 groups；单对象数据集返回 object。每条记录都带公共字段 item_id（译文条目编号，三位）、reader_item_id（阅读页编号，四位）、page（1 起），取得到才有。",
+      "note": "文件不存在时 available=false、没有记录，不报错。记录类数据集返回 rows；带 group_by 返回 groups（offset/limit 翻的是分组，分组个数在 group_total，total 仍是筛选后的行数）；单对象数据集返回 object。每条记录都带公共字段 item_id（译文条目编号，三位）、reader_item_id（阅读页编号，四位）、page（1 起），取得到才有。",
       "rust_view": "services/job_data :: JobDataView",
       "ts_consumer": "@retainpdf/contracts/job-data :: JobDataView"
     }
@@ -84,7 +84,7 @@
     "JobDataView": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["job_id", "dataset", "kind", "available", "total", "offset", "limit"],
+      "required": ["job_id", "dataset", "kind", "available", "total", "offset", "limit", "has_more"],
       "properties": {
         "job_id": { "type": "string" },
         "dataset": { "type": "string" },
@@ -93,6 +93,8 @@
         "total": { "type": "integer", "minimum": 0, "description": "筛选后的记录数（分组前）。单对象数据集为 0 或 1。" },
         "offset": { "type": "integer", "minimum": 0 },
         "limit": { "type": "integer", "minimum": 0 },
+        "has_more": { "type": "boolean", "description": "这一页之后还有没有：有 rows 时按 total 算，有 groups 时按 group_total 算，单对象数据集恒为 false。" },
+        "group_total": { "type": "integer", "minimum": 0, "description": "只有 group_by 时给：分组的个数。此时 total 仍是筛选后的行数，offset/limit 翻的是分组。" },
         "rows": { "type": "array", "items": { "type": "object", "additionalProperties": { "$ref": "#/definitions/JsonValue" } } },
         "groups": { "type": "array", "items": { "$ref": "#/definitions/JobDataGroup" } },
         "object": { "type": "object", "additionalProperties": { "$ref": "#/definitions/JsonValue" } }

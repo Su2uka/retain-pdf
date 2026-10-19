@@ -134,6 +134,7 @@ pub struct ListJobEventsQuery {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ListTranslationItemsQuery {
     #[serde(default = "default_limit")]
     pub limit: u32,

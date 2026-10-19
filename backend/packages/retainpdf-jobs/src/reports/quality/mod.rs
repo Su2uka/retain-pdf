@@ -387,6 +387,7 @@ pub struct QualityItemsView {
     pub total: u64,
     pub offset: usize,
     pub limit: usize,
+    pub has_more: bool,
     pub items: Vec<QualityItem>,
 }
 
@@ -497,12 +498,15 @@ pub fn quality_items(sources: &QualitySources, query: &QualityItemsQuery) -> Qua
         .into_iter()
         .filter(|item| query.page.is_none_or(|page| item.page == Some(page)))
         .collect();
+    let total = filtered.len();
+    let items: Vec<QualityItem> = filtered.into_iter().skip(query.offset).take(query.limit).collect();
     QualityItemsView {
         kind: query.kind.clone(),
-        total: filtered.len() as u64,
+        total: total as u64,
         offset: query.offset,
         limit: query.limit,
-        items: filtered.into_iter().skip(query.offset).take(query.limit).collect(),
+        has_more: query.offset.saturating_add(items.len()) < total,
+        items,
     }
 }
 

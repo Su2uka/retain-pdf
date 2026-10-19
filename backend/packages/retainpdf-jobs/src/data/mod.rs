@@ -399,6 +399,11 @@ pub struct JobDataView {
     pub total: u64,
     pub offset: usize,
     pub limit: usize,
+    /// 这一页之后还有没有：有 `rows` 时按 `total`（筛选后的行数）算，有 `groups` 时按 `group_total` 算。
+    pub has_more: bool,
+    /// 只有 `group_by` 时给：分组的个数。此时 `total` 仍是筛选后的行数，`offset`/`limit` 翻的是分组。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub group_total: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rows: Option<Vec<Map<String, Value>>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -578,6 +583,8 @@ pub fn query(
             total: 0,
             offset,
             limit,
+            has_more: false,
+            group_total: group_by.as_ref().map(|_| 0),
             rows: is_rows(spec).then(Vec::new),
             groups: group_by.as_ref().map(|_| Vec::new()),
             object: None,
@@ -596,6 +603,8 @@ pub fn query(
             total: 1,
             offset: 0,
             limit,
+            has_more: false,
+            group_total: None,
             rows: None,
             groups: None,
             object: Some(object),
@@ -633,12 +642,14 @@ pub fn query(
             }
         }
         counts.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| compare(&a.0, &b.0)));
-        let groups = counts
+        let group_total = counts.len();
+        let groups: Vec<JobDataGroup> = counts
             .into_iter()
             .skip(offset)
             .take(limit)
             .map(|(value, count)| JobDataGroup { value, count })
             .collect();
+        let has_more = offset.saturating_add(groups.len()) < group_total;
         return Ok(JobDataView {
             job_id: job_id.to_string(),
             dataset: dataset.to_string(),
@@ -647,6 +658,8 @@ pub fn query(
             total,
             offset,
             limit,
+            has_more,
+            group_total: Some(group_total as u64),
             rows: None,
             groups: Some(groups),
             object: None,
@@ -662,7 +675,7 @@ pub fn query(
         });
     }
 
-    let rows = selected
+    let rows: Vec<Map<String, Value>> = selected
         .into_iter()
         .skip(offset)
         .take(limit)
@@ -684,6 +697,8 @@ pub fn query(
         total,
         offset,
         limit,
+        has_more: (offset as u64).saturating_add(rows.len() as u64) < total,
+        group_total: None,
         rows: Some(rows),
         groups: None,
         object: None,

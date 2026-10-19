@@ -19,6 +19,9 @@ pub struct JobListSelection<'a> {
     pub job_ids: Option<&'a [String]>,
     /// Join source metadata only for callers that actually search filenames.
     pub include_upload_filename: bool,
+    /// 小写的子串：所属文档的标题（`documents.title`，ASCII 小写后）含这段就算命中。
+    /// 命中和 `matches` 回调是「或」的关系，所以只给要搜书名的调用方；会连带 join 上传表。
+    pub title_contains: Option<&'a str>,
     pub limit: Option<u32>,
     pub offset: u32,
     /// 只要这个账号的任务（多用户模式）；None = 不按归属过滤。
@@ -94,13 +97,27 @@ impl Db {
         } else {
             format!("WHERE {}", conditions.join(" AND "))
         };
-        let query = if selection.include_upload_filename {
+        let joined = selection.include_upload_filename || selection.title_contains.is_some();
+        let query = if joined {
             values.push(UPLOAD_ID_WHITESPACE.to_string().into());
+            // 第 28 列：书名命中（没要搜书名时恒为 0）。命中条件放在 JOIN 里，参数顺序跟着文本走。
+            let (title_column, title_join) = match selection.title_contains {
+                Some(needle) => {
+                    values.push(needle.to_string().into());
+                    (
+                        "documents.document_id IS NOT NULL",
+                        " LEFT JOIN documents ON documents.document_id = uploads.content_hash \
+                         AND instr(lower(documents.title), ?) > 0",
+                    )
+                }
+                None => ("0", ""),
+            };
             format!(
                 "SELECT candidates.*, uploads.filename, uploads.stored_path, uploads.bytes, \
-                 uploads.page_count, uploads.uploaded_at, uploads.developer_mode, uploads.content_hash \
+                 uploads.page_count, uploads.uploaded_at, uploads.developer_mode, uploads.content_hash, \
+                 {title_column} \
                  FROM ({JOB_SELECT_SQL} {predicate}) AS candidates \
-                 LEFT JOIN uploads ON uploads.upload_id = trim(candidates.upload_id, ?) \
+                 LEFT JOIN uploads ON uploads.upload_id = trim(candidates.upload_id, ?){title_join} \
                  ORDER BY candidates.updated_at DESC, candidates.job_id DESC"
             )
         } else {
@@ -135,7 +152,9 @@ impl Db {
                 .include_upload_filename
                 .then(|| joined_upload_filename(row, &self.data_root))
                 .flatten();
-            if !matches(&job, upload_filename.as_deref()) {
+            let title_hit = selection.title_contains.is_some()
+                && row.get::<_, i64>(28).map(|hit| hit != 0).unwrap_or(false);
+            if !title_hit && !matches(&job, upload_filename.as_deref()) {
                 continue;
             }
             if remaining_offset > 0 {

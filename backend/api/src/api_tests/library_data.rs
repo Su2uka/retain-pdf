@@ -1968,6 +1968,21 @@ async fn document_jobs_return_authoritative_pagination_and_retry_metadata() {
         payload["data"]["items"][0]["last_retry_at"],
         "2026-09-01T01:59:00Z"
     );
+
+    // limit 越界是 400，不静默夹。
+    for limit in ["0", "501"] {
+        let response = build_app(state.clone())
+            .oneshot(
+                Request::builder()
+                    .uri(format!("/api/v1/documents/{document_id}/jobs?limit={limit}"))
+                    .header("X-API-Key", "test-key")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("jobs response");
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST, "limit={limit}");
+    }
 }
 
 // P0-2:删单个 job 后,悬空的 active_job_id 被 reconcile(重指剩余 job 或 NULL)

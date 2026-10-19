@@ -42,6 +42,11 @@ async fn quality_routes_summarize_reports_and_list_blocks() {
 
     let items = read_json(get(&state, "/api/v1/jobs/job-quality/reports/quality/items?kind=layout&page=4").await).await["data"].clone();
     assert_eq!(items["total"], 1);
+    assert_eq!((items["limit"].as_u64(), items["has_more"].as_bool()), (Some(200), Some(false)));
+    let first_page = read_json(get(&state, "/api/v1/jobs/job-quality/reports/quality/items?kind=layout&limit=1").await).await["data"].clone();
+    assert_eq!((first_page["total"].as_u64(), first_page["limit"].as_u64(), first_page["has_more"].as_bool()), (Some(2), Some(1), Some(true)));
+    let last_page = read_json(get(&state, "/api/v1/jobs/job-quality/reports/quality/items?kind=layout&limit=1&offset=1").await).await["data"].clone();
+    assert_eq!(last_page["has_more"], false);
     assert_eq!((items["items"][0]["item_id"].as_str(), items["items"][0]["reason"].as_str()), (Some("p004-b0001"), Some("small_scale")));
 
     for bad in ["kind=everything", "kind=qa&limit=0", "kind=qa&limit=5000", "kind=qa&unknown=1"] {

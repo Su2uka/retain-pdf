@@ -26,6 +26,14 @@ pub(crate) fn build_submission_view(
     }
 }
 
+/// 列表的 `limit` 校验：1..=`max`，越界返回 400，不静默夹（分页规矩见 `docs/api/00-约定/`）。
+pub(crate) fn checked_limit(limit: u32, max: u32) -> Result<u32, AppError> {
+    if limit == 0 || limit > max {
+        return Err(AppError::bad_request(format!("limit must be 1..={max}")));
+    }
+    Ok(limit)
+}
+
 pub(crate) fn ensure_cancelable(job: &JobSnapshot) -> Result<(), AppError> {
     if !matches!(job.status, JobStatusKind::Queued | JobStatusKind::Running) {
         return Err(AppError::conflict(format!(

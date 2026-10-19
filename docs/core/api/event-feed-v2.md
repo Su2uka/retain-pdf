@@ -9,7 +9,7 @@ unchanged and its sequence numbers are not event-feed cursors.
 
 - Initial window: `?start=tail&limit=500` (the default). Full history: `start=head`.
 - Continue using `?cursor=<next_cursor>&limit=500`; follow `has_more` until caught up.
-- Limit is clamped to 1–500. `offset`, unknown parameters and `start` with `cursor`
+- `limit` must be 1–500; anything else is `400` (no silent clamping). `offset`, unknown parameters and `start` with `cursor`
   are rejected. Cursor scope includes the job and ordinary/OCR route.
 - Success retains the API envelope. Data contains `protocol_version: 2`,
   `items`, `next_cursor`, `has_more`, and `limit`.

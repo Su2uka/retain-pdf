@@ -141,9 +141,9 @@ Response:
 
 The list is computed on every call from the manifest and its page files (the same files `GET .../translations/{item_id}` reads), so after a `PATCH` revision `translated_preview`, `final_status` and the `q` search reflect the revised text. `translation_debug_index.json` is only used when the manifest cannot be found.
 
-Query parameters:
+Query parameters (any other parameter is `400`):
 
-- `limit`
+- `limit` (default `20`, `1..=500`; outside that range `400`)
 - `offset`
 - `page`
 - `final_status`
@@ -181,7 +181,8 @@ Response:
     ],
     "total": 1,
     "limit": 20,
-    "offset": 0
+    "offset": 0,
+    "has_more": false
   }
 }
 ```
