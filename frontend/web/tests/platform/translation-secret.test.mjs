@@ -1,10 +1,9 @@
-// 重跑类请求（retry-stage / resume / rerun）带上设置里当前的翻译密钥：用户换了 Key 之后，
+// 重跑类请求（retry-stage / resume）带上设置里当前的翻译密钥：用户换了 Key 之后，
 // 不该还用原任务那把被拒的旧 Key。
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
   createTranslationSecretInjector,
-  jobIdFromActionUrl,
   withCurrentTranslationSecret,
 } from "../../src/platform/api/translation-secret.js";
 
@@ -81,15 +80,4 @@ test("调用方已指定密钥时不覆盖；换了接口时按它要换去的�
     sourceBaseUrl: "https://api.deepseek.com/v1", current: { baseUrl: DASHSCOPE, modelApiKey: NEW_KEY },
   });
   assert.equal(switched.overrides.translation.api_key, NEW_KEY);
-});
-
-test("rerun / resume 的动作链接里取任务号", () => {
-  assert.equal(jobIdFromActionUrl("http://127.0.0.1:41000/api/v1/jobs/20261010-ab12/rerun"), "20261010-ab12");
-  assert.equal(jobIdFromActionUrl("http://127.0.0.1:41000/api/v1/jobs/20261010-ab12/resume"), "20261010-ab12", "后端会把 rerun 链接换成 resume");
-  // 任务接口按类分前缀后的新地址：/actions/rerun、/actions/resume。取不到任务号重跑就会悄悄不带 Key。
-  assert.equal(jobIdFromActionUrl("http://127.0.0.1:41000/api/v1/jobs/20261010-ab12/actions/rerun"), "20261010-ab12");
-  assert.equal(jobIdFromActionUrl("http://127.0.0.1:41000/api/v1/jobs/20261010-ab12/actions/resume?x=1"), "20261010-ab12");
-  assert.equal(jobIdFromActionUrl("/api/v1/jobs/job%2F1/rerun?x=1"), "job/1");
-  assert.equal(jobIdFromActionUrl("/api/v1/jobs"), "");
-  assert.equal(jobIdFromActionUrl(""), "");
 });

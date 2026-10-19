@@ -43,16 +43,20 @@ export function resolveJobActions(job) {
         || artifactActions.open_markdown_raw?.enabled
         || markdownContract.ready
         || artifactDisplayReady(job, "markdown"));
-    const rerunEnabled = Boolean(actions.rerun?.enabled ?? artifactActions.rerun?.enabled);
+    // 续跑一律发 POST /jobs/:id/actions/resume（resumeJob），这里只判断能不能点。
+    // actions.rerun 是同一个动作的旧名（后端为兼容留着），只在 actions.resume 还没有时拿来判断。
+    const resumeEnabled = Boolean(actions.resume?.enabled
+        ?? artifactActions.resume?.enabled
+        ?? actions.rerun?.enabled
+        ?? artifactActions.rerun?.enabled);
     return {
         cancelEnabled: Boolean(actions.cancel?.enabled ?? artifactActions.cancel?.enabled ?? (job.status === "queued" || job.status === "running")),
-        rerunEnabled,
+        resumeEnabled,
         bundleEnabled,
         pdfEnabled,
         markdownJsonEnabled,
         markdownRawEnabled,
         cancel: resolveResourceUrl(firstNonEmpty(actions.cancel?.url, artifactActions.cancel?.url, actions.cancel_url, links.cancel_url, links.cancel_path)),
-        rerun: resolveResourceUrl(firstNonEmpty(actions.rerun?.url, artifactActions.rerun?.url, actions.rerun?.path, artifactActions.rerun?.path, actions.rerun_url, links.rerun_url, links.rerun_path)),
         bundle: resolveResourceUrl(firstNonEmpty(actions.download_bundle?.url, actions.download_bundle?.path, artifactActions.download_bundle?.url, artifactActions.download_bundle?.path, artifacts.bundle?.url, artifacts.bundle?.path, artifacts.bundle_url, artifacts.bundle_path, job.bundle_url, job.bundle_path, artifactDisplayUrl(job, "bundle", "download_bundle", "archive"))),
         pdf: resolveResourceUrl(firstNonEmpty(actions.download_pdf?.url, actions.download_pdf?.path, artifactActions.download_pdf?.url, artifactActions.download_pdf?.path, artifacts.pdf?.url, artifacts.pdf?.path, artifacts.pdf_url, artifacts.pdf_path, job.pdf_url, job.pdf_path, artifactDisplayUrl(job, "output_pdf", "pdf", "translated_pdf", "result_pdf"))),
         markdownJson: markdownContract.jsonUrl || artifactDisplayUrl(job, "markdown") || resolveResourceUrl(firstNonEmpty(actions.open_markdown?.url, actions.open_markdown?.path, artifactActions.open_markdown?.url, artifactActions.open_markdown?.path)),

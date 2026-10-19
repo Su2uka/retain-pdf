@@ -1,7 +1,8 @@
 /** 列表失败简报的字段名，两端必须一致。
  *
- * 后端 `JobFailureBriefView` 是 serde 直接序列化的（没有 rename），所以 JSON 的键名
- * **就是** Rust 的字段名；前端 `JobFailureBrief` 按这些键硬读。
+ * 真值是契约 `contracts/library-books.v1.schema.json#/definitions/JobFailureBriefView`
+ * （后端测试 failed_job_list_item_failure_matches_published_schema 拿真实接口输出对照它）；
+ * 前端 `JobFailureBrief` 按这些键硬读。
  *
  * 只改一边时 tsc 不报 —— 那些字段在 TS 侧是可选的，取值处还有 `as` 强转
  * （`(ocrJob as { failure?: JobFailureBrief })?.failure`）。两边单测也照样全绿：
@@ -30,28 +31,51 @@ function definitionBody(source, startMarker, endMarker) {
 
 const TS_SOURCE = read("../../src/platform/contracts/library-payloads.ts");
 
-const tsFields = () => [
-  ...definitionBody(TS_SOURCE, "export type JobFailureBrief = {", "\n};")
-    .matchAll(/^\s{2}([a-z_]+)\??:/gm),
-].map((m) => m[1]);
+// 字段名 → 是否可选（`?:`）。
+const tsDeclared = () => new Map(
+  [
+    ...definitionBody(TS_SOURCE, "export type JobFailureBrief = {", "\n};")
+      .matchAll(/^\s{2}([a-z_]+)(\??):/gm),
+  ].map((m) => [m[1], m[2] === "?"]),
+);
+const tsFields = () => [...tsDeclared().keys()];
 
-const rustFields = () => {
-  const rust = definitionBody(
-    read("../../../../backend/packages/retainpdf-jobs/src/views/job_types.rs"),
-    "pub struct JobFailureBriefView {",
-    "\n}",
-  );
-  const fields = [...rust.matchAll(/^\s*pub ([a-z_]+):/gm)].map((m) => m[1]);
+const SCHEMA = JSON.parse(read("../../../../contracts/library-books.v1.schema.json"));
+
+const schemaBrief = () => {
+  const brief = SCHEMA.definitions?.JobFailureBriefView;
+  assert.ok(brief, "契约里找不到 JobFailureBriefView —— 它被改名或搬走了，这条契约没在守任何东西");
+  const fields = Object.keys(brief.properties || {});
   // 抽取失效时要红，不能在空集合上恒真。
-  assert.ok(fields.length >= 7, `只解析出 ${fields.length} 个 Rust 字段，解析逻辑失效了`);
-  return fields;
+  assert.ok(fields.length >= 7, `契约里只有 ${fields.length} 个字段，解析逻辑失效了`);
+  return { brief, fields };
 };
 
 test("列表失败简报的字段名两端一致 —— 漂一个，卡片上就空一行", () => {
   assert.deepEqual(
     [...tsFields()].sort(),
-    [...rustFields()].sort(),
+    [...schemaBrief().fields].sort(),
     "两端字段名不一致 —— 多出来的那个永远是 undefined，少掉的那个永远画不出来",
+  );
+});
+
+test("哪些字段必有、哪些可能缺，两端一致 —— retryable 必须是布尔", () => {
+  const { brief } = schemaBrief();
+  const required = new Set(brief.required || []);
+  for (const [field, optional] of tsDeclared()) {
+    assert.equal(
+      optional,
+      !required.has(field),
+      `${field}：契约里${required.has(field) ? "必有" : "可能缺（空的时候整个键不出现）"}，TS 却写成${optional ? "可选" : "必有"}`,
+    );
+  }
+  assert.equal(brief.properties.retryable?.type, "boolean");
+});
+
+test("列表项的 failure 指向这份定义", () => {
+  assert.equal(
+    SCHEMA.definitions?.JobListItemView?.properties?.failure?.$ref,
+    "#/definitions/JobFailureBriefView",
   );
 });
 

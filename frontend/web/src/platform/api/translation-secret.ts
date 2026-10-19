@@ -1,4 +1,4 @@
-// 重跑类请求（retry-stage / resume / rerun）带上设置里当前的翻译密钥，而不是原任务当初的那把。
+// 重跑类请求（retry-stage / resume）带上设置里当前的翻译密钥，而不是原任务当初的那把。
 //
 // 事故（2026-10-09）：用户换了新密钥、在设置里检测通过，再连点 4 次重试，4 次都 401——后端
 // 重跑时照搬原任务的 translation（含 credential_ref），前端只发后端给的 body，新密钥根本没送到。
@@ -82,14 +82,4 @@ export function createTranslationSecretInjector({
       return body;
     }
   };
-}
-
-/**
- * rerun 只给动作链接（后端给的完整地址）：从里面取任务号。旧地址 …/jobs/<id>/rerun、
- * 新地址 …/jobs/<id>/actions/rerun（任务接口按类分前缀后）都认——取不到任务号时重跑会
- * 悄悄不带当前的翻译 Key（上面说的 401）。
- */
-export function jobIdFromActionUrl(actionUrl: string): string {
-  const match = /\/jobs\/([^/?#]+)\/(?:actions\/)?[^/?#]+\/?(?:[?#].*)?$/.exec(text(actionUrl));
-  return match ? decodeURIComponent(match[1]) : "";
 }

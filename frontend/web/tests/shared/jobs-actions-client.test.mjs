@@ -13,6 +13,7 @@ const {
   cancelJob,
   cancelOcrJob,
   resolveOcrAmbiguity,
+  retryJobStage,
 } = await import("@retainpdf/api/jobs-actions");
 
 function okResponse(data) {
@@ -75,6 +76,53 @@ test("jobs actions:409 错误保留 status 供前端刷新诊断", async () => {
       }),
       (error) => error.status === 409 && /revision stale/.test(error.message),
     );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("retry-stage 请求体只发后端认的字段，书的信息只用来补返回值", async () => {
+  const calls = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, options) => {
+    calls.push({ url: `${url}`, options });
+    return new Response(JSON.stringify({ code: 0, message: "ok", data: { job_id: "job-retry-1", workflow: "book" } }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+  try {
+    const result = await retryJobStage("job-1", "/api/v1", "refine", {
+      // 书籍详情、任务卡会把书的信息和请求字段混在一个对象里传进来。
+      document_id: "doc-1",
+      title: "书名",
+      display_name: "书名",
+      cover_url: "/cover.jpg",
+      thumbnail_url: "/thumb.jpg",
+      page_count: 12,
+      mode: "fresh",
+      create_new_job: false,
+      overrides: { render: { engine: "typst" } },
+      ambiguous_request_policy: "accept_duplicate_risk",
+      refine: { mode: "editorial", start_page: 3 },
+    });
+    assert.equal(calls.length, 1);
+    assert.match(calls[0].url, /\/api\/v1\/jobs\/job-1\/actions\/retry-stage$/);
+    assert.deepEqual(JSON.parse(calls[0].options.body), {
+      stage: "refine",
+      mode: "fresh",
+      create_new_job: false,
+      overrides: { render: { engine: "typst" } },
+      ambiguous_request_policy: "accept_duplicate_risk",
+      refine: { mode: "editorial", start_page: 3 },
+    });
+    assert.equal(result.job_id, "job-retry-1");
+    assert.equal(result.document_id, "doc-1");
+    assert.equal(result.title, "书名");
+    assert.equal(result.page_count, 12);
+
+    await retryJobStage("job-1", "/api/v1", "render", { document_id: "doc-1", title: "书名" });
+    assert.deepEqual(JSON.parse(calls[1].options.body), { stage: "render" }, "没给请求字段时只发 stage");
   } finally {
     globalThis.fetch = originalFetch;
   }

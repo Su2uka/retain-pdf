@@ -375,7 +375,8 @@ test("StatusDetailDialog：失败 tab 重放（rerun）成功 → 关闭对话�
     () => services.features.jobRuntimeFeature.currentJobId() !== originalJobId,
     "rerun 成功后 startPolling 切换到新 job",
   );
-  assert.match(services.features.jobRuntimeFeature.currentJobId(), /^mock-rerun-/);
+  // 续跑走 resumeJob（POST /jobs/:id/actions/resume），不再走 rerun 地址。
+  assert.match(services.features.jobRuntimeFeature.currentJobId(), /^mock-resume-/);
 
   root.unmount();
   services.dispose();

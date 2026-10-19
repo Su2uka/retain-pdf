@@ -96,7 +96,6 @@ function makePorts() {
       fetchProtected: async () => {
         throw new Error("本测试不应发起受保护请求");
       },
-      rerunJob: async () => ({}),
       resumeJob: async () => ({}),
     },
   };

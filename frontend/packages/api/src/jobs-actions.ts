@@ -152,10 +152,21 @@ export async function fetchJobStageActions(jobId: string, apiPrefix?: string): P
   return unwrapEnvelope<JobStageActionsView>(await resp.json());
 }
 
+/** retry-stage 请求体认的字段（后端 RetryStageRequest）。后端会对不认识的字段报 400。 */
+const RETRY_STAGE_BODY_FIELDS = ["mode", "create_new_job", "overrides", "ambiguous_request_policy", "refine"] as const;
+
+/**
+ * `payload` 里既有请求体字段，也可能带书的信息（document_id、title、cover_url…），后者只用来补返回值。
+ * 请求体只发 RETRY_STAGE_BODY_FIELDS 里的字段。
+ */
 export async function retryJobStage(jobId: string, apiPrefix: string | undefined, stage: string, payload: Record<string, unknown> = {}): Promise<any> {
   const normalizedStage = `${stage || ""}`.trim();
   if (!normalizedStage) throw new Error("阶段重试失败: 缺少 stage");
-  const result: any = await submitJson(`${buildJobDetailEndpoint(jobId, apiPrefix)}/actions/retry-stage`, { stage: normalizedStage, ...payload });
+  const body: Record<string, unknown> = { stage: normalizedStage };
+  for (const field of RETRY_STAGE_BODY_FIELDS) {
+    if (payload?.[field] !== undefined) body[field] = payload[field];
+  }
+  const result: any = await submitJson(`${buildJobDetailEndpoint(jobId, apiPrefix)}/actions/retry-stage`, body);
   const bookMeta: any = payload && typeof payload === "object" ? payload : {};
   const nextJobId = `${result?.job_id || result?.id || jobId}`.trim();
   return {
@@ -173,7 +184,3 @@ export async function retryJobStage(jobId: string, apiPrefix: string | undefined
   };
 }
 
-/** body 同 resumeJob：可带 overrides.translation 换 key，不带时行为不变。 */
-export async function rerunJob(actionUrl: string, body: Record<string, unknown> = {}): Promise<any> {
-  return submitJson(actionUrl, body);
-}

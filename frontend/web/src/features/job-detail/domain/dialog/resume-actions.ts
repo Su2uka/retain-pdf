@@ -16,10 +16,9 @@ export interface ResumePlanLike {
   reruns_stages?: string[];
 }
 
-/** 任务动作里和重跑相关的字段（resolveJobActions 的子集） */
+/** 任务动作里和续跑相关的字段（resolveJobActions 的子集） */
 export interface RerunActionsLike {
-  rerun?: string;
-  rerunEnabled?: boolean;
+  resumeEnabled?: boolean;
 }
 
 export type RerunActionResolver = (job: JobLike | JobPayload) => RerunActionsLike;
@@ -37,7 +36,8 @@ export interface SyncRerunActionOptions extends RerunContext {
 
 export interface RerunCurrentJobOptions {
   rerunContext?: RerunContext;
-  rerunJob: (actionUrl: string) => Promise<unknown>;
+  /** POST /jobs/:id/actions/resume */
+  resumeJob: (jobId: string) => Promise<unknown>;
   setText?: (id: string, message: string) => void;
   startPolling?: (jobId: string) => void;
   viewPort: StatusDetailResumeViewPort;
@@ -72,7 +72,7 @@ function firstJobIdFromPayload(payload: unknown) {
 // tests/architecture/domain-package-duplicate-exports.test.mjs 里锁住这条分叉的用例。
 //
 // 这一份只服务下面的 syncRerunAction，而那里的 `||` 需要一个「我没话可说」的信号：
-// plan 为空但 actions.rerunEnabled && actions.rerun 时按钮是可点的，返回非空句子会
+// plan 为空但 actions.resumeEnabled 时按钮是可点的，返回非空句子会
 // 把 `||` 短路掉，于是按钮可点、旁边却写着「不可恢复」。空串还让 syncRerunAction 的
 // 两条兜底跟 snapshot.ts 的 buildStatusDetailSnapshot 对齐——同一个 rerun.status
 // 字段有这两个生产者，文案必须逐字相同。
@@ -104,14 +104,15 @@ export function syncRerunAction({
   resolveActions = () => ({}),
 }: SyncRerunActionOptions = {} as SyncRerunActionOptions) {
   const actions: RerunActionsLike = job ? resolveActions(job) : {};
-  const enabled = Boolean(resumePlan?.can_resume || (actions.rerunEnabled && actions.rerun));
+  const enabled = Boolean(resumePlan?.can_resume || actions.resumeEnabled);
   viewPort.setRerunAction({
     enabled,
     status: statusText || (enabled
       ? summarizeResumePlan(resumePlan) || "后端支持从当前任务产物创建恢复任务。"
       : summarizeResumePlan(resumePlan) || "当前任务暂不可从断点恢复。"),
   });
-  return actions.rerun || "";
+  // 续跑的目标：POST /jobs/<这个任务>/actions/resume。
+  return firstNonEmptyText(job?.job_id, (job as { id?: string } | null)?.id);
 }
 
 // 后端在拿不准某些翻译请求是否已经发出/计费时，会暂停通用重跑并回 409
@@ -128,7 +129,7 @@ export function isAmbiguousTranslationRerunError(error: unknown) {
 
 export async function rerunCurrentJob({
   rerunContext,
-  rerunJob,
+  resumeJob,
   setText,
   startPolling,
   viewPort,
@@ -140,7 +141,7 @@ export async function rerunCurrentJob({
   const riskRetryJobId = confirmDuplicateRisk && retryTranslationWithRisk
     ? firstNonEmptyText(rerunContext?.job?.job_id, rerunContext?.job?.id)
     : "";
-  const actionUrl = syncRerunAction({
+  const resumeJobId = syncRerunAction({
     ...rerunContext,
     statusText: riskRetryJobId ? "已确认风险，正在从翻译阶段重试..." : "正在提交恢复任务...",
     viewPort,
@@ -164,7 +165,7 @@ export async function rerunCurrentJob({
     }
     return;
   }
-  if (!actionUrl) {
+  if (!resumeJobId) {
     syncRerunAction({
       ...rerunContext,
       statusText: "当前任务暂不可从断点恢复（缺少恢复入口，请刷新后重试）。",
@@ -176,7 +177,7 @@ export async function rerunCurrentJob({
     return;
   }
   try {
-    const payload = await rerunJob(actionUrl);
+    const payload = await resumeJob(resumeJobId);
     finishResubmission({ payload, rerunContext, setText, startPolling, viewPort, resolveActions });
   } catch (error) {
     if (retryTranslationWithRisk && isAmbiguousTranslationRerunError(error)) {

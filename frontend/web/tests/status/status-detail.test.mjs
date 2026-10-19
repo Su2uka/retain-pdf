@@ -244,19 +244,18 @@ test("status detail resume actions route UI side effects through view port", asy
   const textCalls = [];
   const pollingCalls = [];
   const resolveActions = (job) => ({
-    rerun: job.actions.rerun.url,
-    rerunEnabled: job.actions.rerun.enabled,
+    resumeEnabled: job.actions.rerun.enabled,
   });
 
-  const actionUrl = syncRerunAction({
+  const resumeJobId = syncRerunAction({
     ...rerunContext,
     viewPort,
     resolveActions,
   });
   await rerunCurrentJob({
     rerunContext,
-    rerunJob: async (url) => {
-      calls.push(["rerun", url]);
+    resumeJob: async (jobId) => {
+      calls.push(["resume", jobId]);
       return { job_id: "job-resumed-action" };
     },
     setText: (...args) => textCalls.push(args),
@@ -265,12 +264,13 @@ test("status detail resume actions route UI side effects through view port", asy
     resolveActions,
   });
 
-  assert.match(actionUrl, /\/api\/v1\/jobs\/job-resume-action\/rerun$/);
+  // 续跑一律 POST /jobs/<当前任务>/actions/resume，不再用 actions.rerun.url。
+  assert.equal(resumeJobId, "job-resume-action");
   assert.deepEqual(calls, [
     ["action", true, "可从 translation 恢复"],
     ["action", true, "正在提交恢复任务..."],
     ["disabled", true],
-    ["rerun", actionUrl],
+    ["resume", "job-resume-action"],
     ["close"],
     // finally 语义：settled 即解禁，成功也不残留禁用。
     ["disabled", false],
@@ -625,8 +625,8 @@ test("status detail rerun: 409 translation ambiguity asks for confirmation, seco
       },
     },
     dialogStore: { close: () => calls.push(["close"]) },
-    rerunJob: async (url) => {
-      calls.push(["rerun", url]);
+    resumeJob: async (jobId) => {
+      calls.push(["resume", jobId]);
       throw new Error("提交失败: 409 translation request outcome is ambiguous; generic rerun is paused. Use retry-stage with stage=translation and ambiguous_request_policy=accept_duplicate_risk");
     },
     retryTranslationWithRisk: async (jobId) => {
@@ -635,19 +635,19 @@ test("status detail rerun: 409 translation ambiguity asks for confirmation, seco
     },
     setText: () => {},
     startPolling: (jobId) => calls.push(["poll", jobId]),
-    resolveActions: (job) => ({ rerun: job.actions.rerun.url, rerunEnabled: job.actions.rerun.enabled }),
+    resolveActions: (job) => ({ resumeEnabled: job.actions.rerun.enabled }),
   });
 
   // 第一次：通用重跑被 409 拦下 → 不报英文原文，给出二次确认提示，按钮仍可点。
   await resume.rerunCurrentJob();
-  assert.deepEqual(calls, [["rerun", "/api/v1/jobs/job-ambiguous/rerun"]]);
+  assert.deepEqual(calls, [["resume", "job-ambiguous"]]);
   assert.equal(overviews.at(-1).status, TRANSLATION_DUPLICATE_RISK_PROMPT);
   assert.equal(overviews.at(-1).enabled, true);
 
   // 换了任务：确认不能带过去，仍先走通用重跑。
   currentJob = jobFor("job-other");
   await resume.rerunCurrentJob();
-  assert.deepEqual(calls.at(-1), ["rerun", "/api/v1/jobs/job-other/rerun"]);
+  assert.deepEqual(calls.at(-1), ["resume", "job-other"]);
 
   // 回到原任务需要重新确认：再被 409 拦一次 → 第二次点击才走 retry-stage(translation)。
   currentJob = jobFor("job-ambiguous");
@@ -655,7 +655,7 @@ test("status detail rerun: 409 translation ambiguity asks for confirmation, seco
   await resume.rerunCurrentJob();
   await resume.rerunCurrentJob();
   assert.deepEqual(calls, [
-    ["rerun", "/api/v1/jobs/job-ambiguous/rerun"],
+    ["resume", "job-ambiguous"],
     ["retry-translation", "job-ambiguous"],
     ["close"],
     ["poll", "job-retried"],
@@ -664,7 +664,7 @@ test("status detail rerun: 409 translation ambiguity asks for confirmation, seco
   // 确认只用一次：之后再点又回到通用重跑。
   calls.length = 0;
   await resume.rerunCurrentJob();
-  assert.deepEqual(calls[0], ["rerun", "/api/v1/jobs/job-ambiguous/rerun"]);
+  assert.deepEqual(calls[0], ["resume", "job-ambiguous"]);
 });
 
 test("status detail rerun: non-ambiguity errors are still shown as-is", async () => {
@@ -674,14 +674,14 @@ test("status detail rerun: non-ambiguity errors are still shown as-is", async ()
       job: { job_id: "job-x", status: "failed", actions: { rerun: { enabled: true, url: "/r" } } },
       resumePlan: null,
     },
-    rerunJob: async () => { throw new Error("提交失败: 500 boom"); },
+    resumeJob: async () => { throw new Error("提交失败: 500 boom"); },
     retryTranslationWithRisk: async () => { throw new Error("must not be called"); },
     viewPort: {
       closeDialog: () => {},
       setRerunAction: (payload) => overviews.push(payload.status),
       setRerunDisabled: () => {},
     },
-    resolveActions: (job) => ({ rerun: job.actions.rerun.url, rerunEnabled: true }),
+    resolveActions: () => ({ resumeEnabled: true }),
   });
   assert.equal(overviews.at(-1), "提交失败: 500 boom");
 });
