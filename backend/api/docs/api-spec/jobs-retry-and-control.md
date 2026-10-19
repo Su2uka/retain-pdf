@@ -152,6 +152,12 @@ reasons in the table below (the same values a refused `retry-stage` returns in
 `can_retry=true` and reports `disabled_code=ambiguous_translation_request` (retry needs
 `ambiguous_request_policy=accept_duplicate_risk`).
 
+The same gate applies to the automatic resume after a runtime restart: a job that
+was in the translation stage with an unfinished request in the journal is not
+resumed; it ends `failed` with `failure_code=translation_request_ambiguous`
+(`resume_from=translation`) and the retry above is the way forward. A clean or
+missing journal still resumes automatically; render/refine stages ignore the journal.
+
 ### Refusals: 400 versus 409, and `error.details.reason`
 
 A request that is itself malformed is `400` regardless of the job's state:

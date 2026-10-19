@@ -136,6 +136,10 @@ const CATALOGUE: &[(&str, FailureRecovery)] = &[
     }),
 
     // —— 翻译阶段的具体失败：OCR 产物完好，从翻译续跑 ——
+    ("translation_request_ambiguous", FailureRecovery {
+        resume_from: Some(ResumeFrom::Translation),
+        hint: "重启时有已发出但结果不明的翻译请求，已暂停自动续跑。确认可接受重复请求（可能重复计费）后，从翻译阶段重试。",
+    }),
     ("translation_protocol_shell", FailureRecovery {
         resume_from: Some(ResumeFrom::Translation),
         hint: "翻译模型返回了协议或 JSON 外壳而非译文。OCR 产物完好，从翻译阶段续跑。",

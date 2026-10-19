@@ -6,6 +6,10 @@ use crate::config::AppConfig;
 use crate::db::Db;
 use crate::job_events::persist_job_with_resources;
 use crate::models::domain::{now_iso, JobFailureInfo, JobStatusKind};
+use crate::storage_paths::{JobPaths, TRANSLATION_REQUEST_JOURNAL_FILE_NAME};
+use retainpdf_core::translation_request_journal::{
+    parse_translation_request_journal, TranslationRequestJournalState,
+};
 
 use super::worker_process::{terminate_job_process_tree_blocking, worker_process_exists};
 
@@ -18,6 +22,32 @@ enum StaleReason {
     /// The recorded pid is still alive, but the owning runtime restarted and
     /// can no longer consume its stdout or mark it finished.
     Orphaned(u32),
+}
+
+/// 重启前翻译阶段结果不明的请求：失败分类（登记在 job_failure_catalogue）。
+const AMBIGUOUS_TRANSLATION_CATEGORY: &str = "translation_request_ambiguous";
+
+/// 任务重启前停在翻译阶段、且 journal 显示有结果不明的请求（或 journal 读不了）时，
+/// 返回 journal 的读取结论；其余情况（别的阶段、没有 journal、journal 干净）返回 `None`。
+///
+/// 只看翻译阶段：渲染 / 精修阶段不重发翻译请求，翻译完成后 journal 里残留的历史歧义
+/// 不该挡住渲染的自动续跑。
+fn ambiguous_translation_requests(
+    config: &AppConfig,
+    db: &Db,
+    job_id: &str,
+) -> Result<Option<TranslationRequestJournalState>> {
+    if db.running_pipeline_stage_key(job_id)?.as_deref() != Some("translate") {
+        return Ok(None);
+    }
+    let journal = JobPaths::for_job(&config.output_root, job_id)
+        .translated_dir
+        .join(TRANSLATION_REQUEST_JOURNAL_FILE_NAME);
+    if !journal.is_file() {
+        return Ok(None);
+    }
+    let state = parse_translation_request_journal(&journal);
+    Ok(state.requires_confirmation.then_some(state))
 }
 
 /// Reconcile workers only when the process that owns the runtime starts.
@@ -71,7 +101,15 @@ pub fn reconcile_stale_running_jobs(config: &AppConfig, db: &Db) -> Result<usize
             ),
         };
         let timestamp = now_iso();
-        let resumable = db.has_running_pipeline_attempt(&job_record.job_id)?;
+        let has_attempt = db.has_running_pipeline_attempt(&job_record.job_id)?;
+        // 翻译阶段有「已发出、没有终态」的请求时不自动续跑：续跑的 Python 会把它们
+        // 原样再发一遍，用户没机会拒绝重复计费。手动重试要确认重复风险，自动路径同理。
+        let ambiguous_translation = if has_attempt {
+            ambiguous_translation_requests(config, db, &job_record.job_id)?
+        } else {
+            None
+        };
+        let resumable = has_attempt && ambiguous_translation.is_none();
         match db.get_job(&job_record.job_id) {
             Ok(mut job) => {
                 job.updated_at = timestamp.clone();
@@ -105,6 +143,47 @@ pub fn reconcile_stale_running_jobs(config: &AppConfig, db: &Db) -> Result<usize
                     job.error = None;
                     job.finished_at = None;
                     job.replace_failure_info(None);
+                } else if let Some(journal) = ambiguous_translation.as_ref() {
+                    let summary = format!(
+                        "重启前翻译阶段有 {} 个已发出但结果不明的上游请求（journal 状态 {}），不自动续跑",
+                        journal.unresolved_dispatches.max(journal.active_ambiguous_request_keys),
+                        journal.status
+                    );
+                    job.append_log(&format!("WARN: {detail}"));
+                    job.append_log(&format!("ERROR: {summary}"));
+                    job.status = JobStatusKind::Failed;
+                    job.stage = Some("failed".to_string());
+                    job.stage_detail = Some(summary.clone());
+                    job.error = Some(summary.clone());
+                    job.finished_at = Some(timestamp.clone());
+                    let recovery = retainpdf_core::job_failure_catalogue::recovery_for(
+                        AMBIGUOUS_TRANSLATION_CATEGORY,
+                    );
+                    job.replace_failure_info(Some(JobFailureInfo {
+                        stage: "translation".to_string(),
+                        category: AMBIGUOUS_TRANSLATION_CATEGORY.to_string(),
+                        code: None,
+                        failed_stage: Some("translation".to_string()),
+                        failure_code: Some(AMBIGUOUS_TRANSLATION_CATEGORY.to_string()),
+                        failure_category: Some("translation".to_string()),
+                        provider_stage: None,
+                        provider_code: None,
+                        summary: "重启时翻译请求的结果不明，已暂停自动续跑".to_string(),
+                        root_cause: Some(summary.clone()),
+                        retryable: true,
+                        upstream_host: None,
+                        provider: None,
+                        suggestion: Some(
+                            "确认可接受重复请求（可能重复计费）后，用 retry-stage（translation）并带 ambiguous_request_policy=accept_duplicate_risk 重试".to_string(),
+                        ),
+                        last_log_line: Some(summary.clone()),
+                        raw_excerpt: Some(summary.clone()),
+                        raw_error_excerpt: Some(summary.clone()),
+                        raw_diagnostic: None,
+                        ai_diagnostic: None,
+                        resume_from: recovery.resume_from.map(|s| s.as_str().to_string()),
+                        recovery_hint: Some(recovery.hint.to_string()),
+                    }));
                 } else {
                     job.append_log(&format!("ERROR: {detail}"));
                     job.status = JobStatusKind::Failed;
@@ -146,6 +225,9 @@ pub fn reconcile_stale_running_jobs(config: &AppConfig, db: &Db) -> Result<usize
                 persist_job_with_resources(db, &config.data_root, &config.output_root, &job)?;
                 if committed_render_output {
                     db.finish_latest_pipeline_attempt(&job_record.job_id, "succeeded")?;
+                } else if ambiguous_translation.is_some() {
+                    // 任务已落 Failed：attempt 必须收尾，否则它还会出现在自动续跑名单里。
+                    db.finish_latest_pipeline_attempt(&job_record.job_id, "failed")?;
                 }
             }
             Err(error) => {
@@ -420,5 +502,75 @@ mod tests {
 
         // 幂等：再启动一次什么都不剩。
         assert!(db.list_unsettled_ocr_children().unwrap().is_empty());
+    }
+
+    const DISPATCH_T1: &str = "{\"schema\":\"translation_request_journal_v1\",\"schema_version\":1,\"event\":\"dispatch\",\"request_token\":\"t1\",\"request_key\":\"k1\"}\n";
+    const TERMINAL_T1: &str = "{\"schema\":\"translation_request_journal_v1\",\"schema_version\":1,\"event\":\"terminal\",\"request_token\":\"t1\",\"request_key\":\"k1\",\"outcome\":\"succeeded\"}\n";
+
+    /// 重启前正在翻译阶段的 Running 任务：和真实启动序列一样，先 `reconcile_stale_running_jobs`，
+    /// 再看 `list_resumable_pipeline_job_ids`（API / jobsd 就是据此自动续跑的）。
+    fn seed_running_translation_job(
+        deps: &crate::job_runner::ProcessRuntimeDeps,
+        job_id: &str,
+        journal: Option<&str>,
+    ) {
+        let mut job = JobSnapshot::new(job_id.to_string(), CreateJobInput::default(), vec![]);
+        job.status = crate::models::domain::JobStatusKind::Running;
+        job.stage = Some("translating".to_string());
+        deps.db.save_job(&job).expect("save job");
+        deps.db
+            .acquire_pipeline_attempt(job_id, &format!("attempt:{job_id}"), "translate", 0)
+            .expect("attempt");
+        if let Some(journal) = journal {
+            let dir = deps.config.output_root.join(job_id).join("translated");
+            fs::create_dir_all(&dir).expect("translated dir");
+            fs::write(dir.join("translation-request-journal.v1.jsonl"), journal)
+                .expect("write journal");
+        }
+    }
+
+    /// 回归：journal 里有已发出但没有终态的请求（结果不明），重启后不能自动续跑——
+    /// 续跑的 Python 会把这些请求原样再发一遍，用户没机会拒绝重复计费。
+    /// 应当落成 Failed（带 translation_request_ambiguous），由用户走
+    /// retry-stage(translation) + accept_duplicate_risk 确认。
+    #[test]
+    fn startup_does_not_auto_resume_translation_with_ambiguous_request_journal() {
+        use crate::models::domain::JobStatusKind::*;
+        let deps = crate::job_runner::process_runner::tests::test_runtime_deps(1);
+        let db = deps.db.as_ref();
+        seed_running_translation_job(&deps, "tr-ambiguous", Some(DISPATCH_T1));
+
+        super::reconcile_stale_running_jobs(&deps.config, db).expect("startup recovery");
+
+        let job = db.get_job("tr-ambiguous").unwrap();
+        assert_eq!(job.status, Failed, "结果不明的在途请求不能被自动续跑");
+        assert!(
+            !db.list_resumable_pipeline_job_ids().unwrap().contains(&"tr-ambiguous".to_string()),
+            "不能出现在启动自动续跑名单里"
+        );
+        assert!(!db.has_running_pipeline_attempt("tr-ambiguous").unwrap(), "attempt 要收尾");
+        let failure = job.failure.as_ref().expect("failure info");
+        assert_eq!(failure.failure_code.as_deref(), Some("translation_request_ambiguous"));
+        assert_eq!(failure.resume_from.as_deref(), Some("translation"));
+        assert!(job.finished_at.is_some());
+        let _ = fs::remove_dir_all(deps.config.project_root.clone());
+    }
+
+    /// journal 干净（每个 dispatch 都有终态）或还没有 journal：照旧自动续跑。
+    #[test]
+    fn startup_still_auto_resumes_translation_with_clean_or_missing_journal() {
+        use crate::models::domain::JobStatusKind::*;
+        let deps = crate::job_runner::process_runner::tests::test_runtime_deps(1);
+        let db = deps.db.as_ref();
+        seed_running_translation_job(&deps, "tr-clean", Some(&format!("{DISPATCH_T1}{TERMINAL_T1}")));
+        seed_running_translation_job(&deps, "tr-nojournal", None);
+
+        super::reconcile_stale_running_jobs(&deps.config, db).expect("startup recovery");
+
+        for id in ["tr-clean", "tr-nojournal"] {
+            assert_eq!(db.get_job(id).unwrap().status, Queued, "{id}");
+            assert!(db.list_resumable_pipeline_job_ids().unwrap().contains(&id.to_string()), "{id}");
+        }
+        let _ = fs::remove_dir_all(deps.config.project_root.clone());
     }
 }

@@ -388,3 +388,20 @@ OCR 专用的取消 (`POST /api/v1/ocr/jobs/{job_id}/cancel`) 只在任务还是
 它可能永远不变），只是现在窗口很短。
 
 详见 [任务重试与控制](../../../backend/api/docs/api-spec/jobs-retry-and-control.md#cancel-job)。
+
+---
+
+## 重启后翻译自动续跑先看请求日志（fix/translation-resume-journal-gate）
+
+后端提交：`fix(runner): 重启后翻译自动续跑先看请求 journal，结果不明就落 failed`
+
+### 变了什么
+
+API / jobsd 重启时，翻译阶段运行中的任务以前一律自动续跑，续跑的 Python 会把重启前在途、结果不明的请求原样再发一遍（可能重复计费），而手动重试要用户确认。
+现在：请求日志里有「已发出、没有终态」的请求（或日志读不了）时，任务不再自动续跑，落成 `failed`，`failure_code = translation_request_ambiguous`，
+`translation_request_recovery.requires_confirmation = true`。日志干净或没有日志时仍自动续跑。
+
+### 前端要做什么
+
+**不用改代码。** 失败任务走的就是已有的歧义路径：`GET actions` 里 translation 的 `can_retry=true`、`disabled_code=ambiguous_translation_request`，
+`retry-stage` 不带 `accept_duplicate_risk` 返回 409 `ambiguous_translation_request`。`failure_code` 是新增的取值，前端按「不认识的值显示 `summary`」处理即可。
