@@ -428,3 +428,19 @@ fn books_over_the_cap_are_reported_in_skipped() {
     seen.sort();
     assert_eq!(seen, ["doc-a", "doc-b", "doc-c"]);
 }
+
+/// 删合集清目录：`books/` 下是指向任务目录的符号链接，清掉的只能是链接，任务的产物要还在。
+#[test]
+fn removing_the_collection_directory_keeps_the_linked_job_outputs() {
+    let fx = Fixture::new();
+    let job_root = fx.book("doc-a", "要留下的书", "job-a");
+    fx.collect(COL, &["doc-a"]);
+    ensure_collection_workspace(&fx.db, &fx.root, COL, &|d| fx.reading_book(d)).unwrap();
+    assert!(fx.workspace(COL).join("books/要留下的书/ocr/document.v1.json").is_file());
+
+    remove_collection_dir(&fx.root, COL);
+    assert!(!fx.root.join("collections").join(COL).exists(), "合集目录没清掉");
+    assert!(job_root.join("ocr/document.v1.json").is_file(), "清合集目录时顺着链接删了任务产物");
+    // 再清一次（目录已经没了）不报错。
+    remove_collection_dir(&fx.root, COL);
+}
