@@ -434,3 +434,23 @@ API / jobsd 重启时，翻译阶段运行中的任务以前一律自动续跑�
 
 **不用改代码。** 失败任务走的就是已有的歧义路径：`GET actions` 里 translation 的 `can_retry=true`、`disabled_code=ambiguous_translation_request`，
 `retry-stage` 不带 `accept_duplicate_risk` 返回 409 `ambiguous_translation_request`。`failure_code` 是新增的取值，前端按「不认识的值显示 `summary`」处理即可。
+
+---
+
+## 数据库恢复后对账、自动续跑次数上限（fix/recover-after-restore-and-crash-loop）
+
+### 变了什么
+
+1. **数据库恢复**（`POST /api/v1/backups/{id}/restore`）：备份时在排队 / 运行的任务，以前恢复出来一直是 running（没人在跑，一直转圈、rerun 409）。
+   现在恢复时清掉它们的旧 pid，并立即按重启时的规则对账：有断点的回到 `queued` 自动续跑，没有的落 `failed`（`failure_code = worker_process_missing`）。
+   任务跑在 jobsd 里时由 jobsd 的巡检接手，最多约 2 分半。接口的请求、返回都没变。
+2. **自动续跑次数上限**：同一次运行连续 3 次自动续跑都没有新进度就又中断，第 4 次不再续跑，任务落 `failed`，
+   `failure_code = auto_resume_limit_exceeded`（`failure_category=internal`、`retryable=true`、`resume_from=null`），
+   `summary`「自动续跑次数超过上限，疑似导致运行时崩溃」，`recovery_hint` 提示先看日志再手动重试。
+
+### 前端要做什么
+
+**不用改代码。** 恢复后本来就要整页刷新，任务列表读到的就是对账后的状态。`auto_resume_limit_exceeded` 是新增的 `failure_code` 取值，
+现有的失败弹窗按 `summary` / `recovery_hint` 显示（`failure-recovery.ts` 优先用后端的 `recovery_hint`），重试按钮照 `retryable` 和 `GET actions`。
+
+详见 [失败结构](../../api/08-调试诊断/01-失败结构.md)、[数据库备份](../../api/10-备份/01-数据库备份.md)。
