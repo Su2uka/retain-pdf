@@ -58,12 +58,9 @@ test("local 文件能盖掉默认：合并顺序 base→local，local 值胜出"
     "index.html 应先加载 runtime-config.js 再加载 runtime-config.local.js",
   );
 
-  // runtime-config.local.js 是 gitignore 的本地文件，CI 干净检出里没有；
-  // 有就读真的，没有就用同形 fixture，保证单测 hermetic。
-  const localPath = path.join(frontendRoot, "runtime-config.local.js");
-  const localText = fs.existsSync(localPath)
-    ? fs.readFileSync(localPath, "utf8")
-    : 'window.__FRONT_RUNTIME_CONFIG__ = { apiBase: "http://127.0.0.1:41000" };';
+  // runtime-config.local.js 是 gitignore 的本机文件：不读真的。它因人而异（同源部署时 apiBase 本来就是空的），
+  // 里面还可能有本机的 key；这里只验合并顺序，用同形 fixture 保证单测 hermetic。
+  const localText = 'window.__FRONT_RUNTIME_CONFIG__ = { apiBase: "http://127.0.0.1:41000" };';
   const baseApi = lastConfigValue(baseText, "apiBase");
   const localApi = lastConfigValue(localText, "apiBase");
   assert.ok(localApi, "runtime-config.local.js 应给出本地 apiBase 覆盖");
