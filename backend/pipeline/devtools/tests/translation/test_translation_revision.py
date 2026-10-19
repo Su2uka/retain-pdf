@@ -10,6 +10,12 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import os
+import signal
+import subprocess
+import sys
+import textwrap
+import time
 from copy import deepcopy
 from pathlib import Path
 
@@ -23,6 +29,7 @@ from retainpdf_translation.public import revise_translation_item
 from retainpdf_translation.workflow.checkpoint.contract import project_progress
 from retainpdf_translation.workflow.checkpoint.store import CheckpointStore
 from retainpdf_translation.workflow.revision import load_item_revisions
+from retainpdf_translation.workflow import revision as revision_module
 
 
 _CONTRACT = {
@@ -454,3 +461,273 @@ def test_replay_commit_writes_back_through_the_validated_revision_path(
         "refine", "replay: 更口语一些", replayed_text,
     )
     _assert_publication_consistent(translated)
+
+
+
+# ---------------------------------------------------------------------------
+# 崩溃一致性:进程在写回的任何两步之间被杀(SIGKILL、断电),重新进入时必须
+# 得到「完全是旧的」或「完全是新的」,不能是页文件领先 checkpoint 的混合状态,
+# 之后的修订也不能一直 409 publication_inconsistent。
+# ---------------------------------------------------------------------------
+
+NEW_TEXT = "谐振子是描述分子振动的模型体系。"
+_REQUEST = RevisionRequest(item_id="p001-b001", translated_text=NEW_TEXT, source="user", reason="崩溃")
+
+
+class _Crash(BaseException):
+    """模拟进程在这一刻被杀:不是 Exception,所以普通的 except Exception 拦不住。"""
+
+
+class _Tracer:
+    def __init__(self, crash_index: int | None = None) -> None:
+        self.crash_index = crash_index
+        self.events: list[str] = []
+
+    def tick(self, label: str) -> None:
+        index = len(self.events)
+        self.events.append(label)
+        if index == self.crash_index:
+            raise _Crash(label)
+
+
+def _install_tracer(monkeypatch, tracer: _Tracer, *, killed: bool) -> None:
+    """给写盘的每一步前后各记一个事件;``killed`` 时把进程内回滚也去掉(进程死了谁来回滚)。"""
+
+    real_write = revision_module._atomic_write_bytes
+
+    def write(path, data):
+        tracer.tick(f"pre:write {Path(path).name}")
+        real_write(path, data)
+        tracer.tick(f"post:write {Path(path).name}")
+
+    monkeypatch.setattr(revision_module, "_atomic_write_bytes", write)
+    for name, label in (("save", "checkpoint save"), ("snapshot_pages", "snapshot")):
+        real = getattr(CheckpointStore, name)
+
+        def wrapped(self, payload, _real=real, _label=label):
+            tracer.tick(f"pre:{_label}")
+            _real(self, payload)
+            tracer.tick(f"post:{_label}")
+
+        monkeypatch.setattr(CheckpointStore, name, wrapped)
+    if hasattr(revision_module, "_remove_intent"):
+        real_remove = revision_module._remove_intent
+
+        def remove(path):
+            tracer.tick("pre:intent remove")
+            real_remove(path)
+            tracer.tick("post:intent remove")
+
+        monkeypatch.setattr(revision_module, "_remove_intent", remove)
+    if killed:
+        monkeypatch.setattr(revision_module, "_rollback", lambda **_kwargs: None)
+
+
+def _trace_clean_run(tmp_path, monkeypatch) -> list[str]:
+    translated = _build_job(tmp_path / "trace")
+    tracer = _Tracer()
+    with monkeypatch.context() as patch:
+        _install_tracer(patch, tracer, killed=True)
+        revise_translation_item(tmp_path / "trace", _REQUEST)
+    assert any(event.startswith("pre:write page-") for event in tracer.events)
+    return tracer.events
+
+
+def _item_text(translated: Path, item_id: str = "p001-b001") -> str:
+    return _items_by_id(translated)[item_id]["translated_text"]
+
+
+def test_kill_at_every_step_never_leaves_the_job_stuck(tmp_path, monkeypatch):
+    events = _trace_clean_run(tmp_path, monkeypatch)
+    for crash_index, label in enumerate(events):
+        root = tmp_path / f"kill-{crash_index}"
+        translated = _build_job(root)
+        with monkeypatch.context() as patch:
+            _install_tracer(patch, _Tracer(crash_index), killed=True)
+            with pytest.raises(_Crash):
+                revise_translation_item(root, _REQUEST)
+
+        # 重发同一个请求:不得 409 publication_inconsistent,最终必须是干净的「新」。
+        try:
+            result = revise_translation_item(root, _REQUEST)
+        except RevisionOutcome as outcome:
+            pytest.fail(f"killed at {label!r}: next revise refused with {outcome.reason}")
+        assert result["outcome"] in {"committed", "unchanged"}, label
+        assert result["generation"] == 8, label
+        _assert_publication_consistent(translated)
+        assert _item_text(translated) == NEW_TEXT, label
+        records = load_item_revisions(translated, "p001-b001")
+        assert len(records) == 1 and records[0]["generation"] == 8, label
+        assert records[0]["page_hashes"] == {
+            "page-001-deepseek.json": _checkpoint(translated)["pages"][0]["page_hash"]
+        }, label
+        assert not (translated / revision_module.TRANSLATION_REVISION_INTENT_FILE_NAME).exists(), label
+
+
+def test_recovery_after_kill_yields_all_old_or_all_new(tmp_path, monkeypatch):
+    events = _trace_clean_run(tmp_path, monkeypatch)
+    outcomes = set()
+    for crash_index, label in enumerate(events):
+        root = tmp_path / f"recover-{crash_index}"
+        translated = _build_job(root)
+        before = _snapshot(translated)
+        with monkeypatch.context() as patch:
+            _install_tracer(patch, _Tracer(crash_index), killed=True)
+            with pytest.raises(_Crash):
+                revise_translation_item(root, _REQUEST)
+
+        store = CheckpointStore(translated / "translation-checkpoint.v1.json")
+        store.acquire()
+        try:
+            revision_module.recover_incomplete_revision(translated, store)
+        finally:
+            store.close()
+
+        checkpoint = _checkpoint(translated)
+        _assert_publication_consistent(translated) if checkpoint["generation"] == 8 else None
+        if checkpoint["generation"] == 7:
+            outcomes.add("old")
+            # 回到修订之前,逐字节一致:页、checkpoint、快照目录、临时文件、日志、意图文件。
+            assert _snapshot(translated) == before, label
+        else:
+            outcomes.add("new")
+            assert checkpoint["generation"] == 8, label
+            assert _item_text(translated) == NEW_TEXT, label
+            [record] = load_item_revisions(translated, "p001-b001")
+            assert record["page_hashes"]["page-001-deepseek.json"] == checkpoint["pages"][0]["page_hash"], label
+            assert not (translated / revision_module.TRANSLATION_REVISION_INTENT_FILE_NAME).exists(), label
+            assert not [p for p in translated.iterdir() if p.name.endswith(".tmp")], label
+    # 两种结局都得出现过:checkpoint 落盘之前被杀 → 旧;之后被杀 → 新(日志补上)。
+    assert outcomes == {"old", "new"}
+
+
+def test_kill_while_rolling_back_still_recovers(tmp_path, monkeypatch):
+    # 写 checkpoint 失败 → 进程内回滚开始 → 回滚途中进程又被杀。
+    clean_events: list[str] = []
+
+    def failing_save(self, payload):
+        raise OSError("disk full")
+
+    root = tmp_path / "rb-trace"
+    _build_job(root)
+    tracer = _Tracer()
+    with monkeypatch.context() as patch:
+        _install_tracer(patch, tracer, killed=False)
+        patch.setattr(CheckpointStore, "save", failing_save)
+        with pytest.raises(OSError):
+            revise_translation_item(root, _REQUEST)
+        clean_events = tracer.events
+    failure_at = max(i for i, event in enumerate(clean_events) if event.startswith("pre:snapshot")) + 1
+    assert len(clean_events) > failure_at + 1
+
+    for crash_index in range(failure_at, len(clean_events)):
+        root = tmp_path / f"rb-{crash_index}"
+        translated = _build_job(root)
+        with monkeypatch.context() as patch:
+            _install_tracer(patch, _Tracer(crash_index), killed=False)
+            patch.setattr(CheckpointStore, "save", failing_save)
+            with pytest.raises((OSError, _Crash)):
+                revise_translation_item(root, _REQUEST)
+        result = revise_translation_item(root, _REQUEST)
+        assert result["outcome"] in {"committed", "unchanged"}, clean_events[crash_index]
+        _assert_publication_consistent(translated)
+        assert _item_text(translated) == NEW_TEXT
+        assert len(load_item_revisions(translated, "p001-b001")) == 1
+
+
+def test_pages_ahead_of_checkpoint_without_intent_are_healed_not_409(tmp_path):
+    # 修这个问题之前被杀留下的现场:页文件已是新内容,checkpoint 还是旧的,没有意图记录。
+    translated = _build_job(tmp_path)
+    page_path = translated / "page-001-deepseek.json"
+    pages = json.loads(page_path.read_text(encoding="utf-8"))
+    pages[0]["translated_text"] = "页文件里没提交的内容。"
+    # 和真实写回一样换 inode(快照是硬链接,原地改写会连快照一起改掉)。
+    page_path.unlink()
+    page_path.write_text(json.dumps(pages, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    result = revise_translation_item(tmp_path, _REQUEST)
+
+    assert result["outcome"] == "committed" and result["generation"] == 8
+    _assert_publication_consistent(translated)
+    assert _item_text(translated) == NEW_TEXT
+
+
+def test_stale_intent_from_another_generation_is_discarded(tmp_path):
+    translated = _build_job(tmp_path)
+    (translated / revision_module.TRANSLATION_REVISION_INTENT_FILE_NAME).write_text(json.dumps({
+        "schema": "translation_revision_intent_v1",
+        "revision_id": "rev-stale",
+        "previous_generation": 3,
+        "new_generation": 4,
+        "previous_checkpoint_sha256": "0" * 64,
+        "record": {"revision_id": "rev-stale", "page_hashes": {"page-001-deepseek.json": "1" * 64}},
+    }), encoding="utf-8")
+
+    result = revise_translation_item(tmp_path, _REQUEST)
+
+    assert result["generation"] == 8
+    assert not (translated / revision_module.TRANSLATION_REVISION_INTENT_FILE_NAME).exists()
+    assert [r["revision_id"] for r in load_item_revisions(translated, "p001-b001")] == [
+        result["revision"]["revision_id"]
+    ]
+
+
+_SLOW_REVISE = textwrap.dedent("""
+    import sys, time
+    from pathlib import Path
+    from retainpdf_translation.workflow.checkpoint.store import CheckpointStore
+    from retainpdf_translation.public import RevisionRequest, revise_translation_item
+
+    real_save = CheckpointStore.save
+
+    def slow_save(self, payload):
+        # 页文件已写、checkpoint 还没写:正是修订最脆弱的那一段。
+        Path(sys.argv[2]).write_text("in-window")
+        time.sleep(30)
+        real_save(self, payload)
+
+    CheckpointStore.save = slow_save
+    revise_translation_item(Path(sys.argv[1]), RevisionRequest(
+        item_id="p001-b001", translated_text=sys.argv[3], source="user"))
+""")
+
+
+def _start_slow_revise(root: Path) -> tuple[subprocess.Popen, Path]:
+    marker = root / "in-window.marker"
+    env = {**os.environ, "PYTHONPATH": os.pathsep.join(sys.path)}
+    child = subprocess.Popen(
+        [sys.executable, "-c", _SLOW_REVISE, str(root), str(marker), NEW_TEXT],
+        env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    )
+    deadline = time.time() + 30
+    while not marker.exists():
+        assert child.poll() is None, child.stderr.read().decode()
+        assert time.time() < deadline, "revise never reached the checkpoint write"
+        time.sleep(0.02)
+    return child, marker
+
+
+def test_real_sigkill_between_page_write_and_checkpoint_is_recovered(tmp_path):
+    translated = _build_job(tmp_path)
+    child, _marker = _start_slow_revise(tmp_path)
+    child.kill()
+    child.wait()
+    # 现场:页文件领先 checkpoint。
+    on_disk = json.loads((translated / "page-001-deepseek.json").read_text(encoding="utf-8"))
+    assert on_disk[0]["translated_text"] == NEW_TEXT and _checkpoint(translated)["generation"] == 7
+
+    result = revise_translation_item(tmp_path, _REQUEST)
+
+    assert result["generation"] == 8
+    _assert_publication_consistent(translated)
+    assert len(load_item_revisions(translated, "p001-b001")) == 1
+
+
+def test_sigterm_rolls_the_revision_back_in_process(tmp_path):
+    translated = _build_job(tmp_path)
+    before = _snapshot(translated)
+    child, _marker = _start_slow_revise(tmp_path)
+    child.send_signal(signal.SIGTERM)
+    child.wait(timeout=20)
+    # 子命令入口装了 SIGTERM 处理:走进程内回滚,不是被信号直接带走。
+    assert _snapshot(translated) == before

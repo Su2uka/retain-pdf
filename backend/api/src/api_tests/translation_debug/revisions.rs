@@ -25,8 +25,18 @@ pub(super) const ITEM_ID: &str = "p001-b001";
 pub(super) const ORIGINAL_TEXT: &str = "谐振子是分子振动的模型体系。";
 pub(super) const REVISED_TEXT: &str = "谐振子是描述分子振动的模型体系。";
 
-fn pipeline_source_root() -> PathBuf {
+pub(super) fn pipeline_source_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../pipeline")
+}
+
+/// 修订写回的代码在翻译包里(`retainpdf_translation`),同样要钉到这棵源码树,
+/// 否则 worktree 里测的是主检出的旧代码。
+pub(super) fn python_path() -> String {
+    format!(
+        "{}:{}",
+        pipeline_source_root().display(),
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../translation").display()
+    )
 }
 
 /// 指向本 crate 同一棵源码树的 `retainpdf-pipeline`。共享 venv 是 editable 安装,
@@ -37,7 +47,7 @@ fn pipeline_wrapper(root: &Path) -> String {
         &wrapper,
         format!(
             "#!/bin/sh\nPYTHONPATH='{}' exec '{}' -m retainpdf_pipeline.entrypoints.console \"$@\"\n",
-            pipeline_source_root().display(),
+            python_path(),
             project_venv_bin("python").display(),
         ),
     )
@@ -52,8 +62,14 @@ fn pipeline_wrapper(root: &Path) -> String {
 
 pub(super) fn state_with_pipeline(name: &str) -> crate::AppState {
     let base = test_state(name);
+    let command = pipeline_wrapper(&base.config.data_root);
+    state_with_pipeline_command(base, command)
+}
+
+/// 用指定的 `pipeline_command` 重建状态(测试要换成会拖慢、会卡住的假子命令)。
+pub(super) fn state_with_pipeline_command(base: crate::AppState, command: String) -> crate::AppState {
     let config = AppConfig {
-        pipeline_command: pipeline_wrapper(&base.config.data_root),
+        pipeline_command: command,
         ..(*base.config).clone()
     };
     build_state(Arc::new(config)).expect("build state")
