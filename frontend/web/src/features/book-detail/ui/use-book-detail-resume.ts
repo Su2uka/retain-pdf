@@ -6,6 +6,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  describeActionError,
   fetchResumePlan as fetchResumePlanRequest,
   resumeJob as resumeJobRequest,
 } from "@/platform/api/index.js";
@@ -98,7 +99,7 @@ export function useBookDetailResume({
       }
       return receipt;
     } catch (cause) {
-      setError(`${(cause as Error)?.message || cause || "提交失败，请稍后再试。"}`);
+      setError(describeActionError(cause, "提交失败，请稍后再试。"));
       return null;
     } finally {
       setPending(false);

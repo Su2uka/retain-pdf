@@ -61,7 +61,7 @@ export function createRecentJobActions({
     navigationPort.openJob(normalizedJobId);
   }
 
-  // 409 = 任务还在排队或运行中，不自动 force，让用户先取消。
+  // 409（任务还在跑，或别的任务还在用它的产物）不自动 force，让用户先处理。
   function friendlyDeleteError(error: unknown) {
     return friendlyDocumentDeleteError(error as ErrorLike);
   }

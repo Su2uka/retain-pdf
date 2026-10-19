@@ -1,5 +1,6 @@
 // Library books API — standalone, typed by @retainpdf/contracts/library-books
 // No frontend/web deps; browser-aware (reads window.__FRONT_RUNTIME_CONFIG__ for apiBase / X-API-Key if present).
+import { attachErrorDetails } from "./http.js";
 import { apiFetch } from "./internal/runtime.js";
 import { buildApiHeaders, buildApiUrl, unwrapEnvelope } from "./internal/runtime.js";
 import { stripOcrSuffix } from "./utils/strip-ocr.js";
@@ -33,7 +34,8 @@ export async function deleteLibraryBook(apiPrefix, jobId, { force = false } = {}
         const message = typeof envelope?.message === "string" ? envelope.message : "删除任务失败，请稍后重试。";
         const error = new Error(`${message}(${resp.status})`);
         error.status = resp.status;
-        throw error;
+        // 409 的 error.details.reason 区分“任务还在跑”和“别的任务还在用它的产物”（job_has_dependents）。
+        throw attachErrorDetails(error, envelope);
     }
     return unwrapEnvelope(await resp.json());
 }

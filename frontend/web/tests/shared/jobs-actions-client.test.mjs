@@ -81,6 +81,39 @@ test("jobs actions:409 错误保留 status 供前端刷新诊断", async () => {
   }
 });
 
+test("jobs actions:409 的 error.code 和 details.reason 挂到错误对象上", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(
+    JSON.stringify({
+      code: 40900,
+      message: "job is running; cancel it first",
+      error: { code: "CONFLICT", http_status: 409, details: { reason: "job_active" } },
+    }),
+    { status: 409, headers: { "Content-Type": "application/json" } },
+  );
+  try {
+    await assert.rejects(
+      retryJobStage("job-1", "/api/v1", "render", {}),
+      (error) => error.status === 409 && error.errorCode === "CONFLICT" && error.reason === "job_active",
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+  // 普通错误的 details 是 {}：不挂 reason。
+  globalThis.fetch = async () => new Response(
+    JSON.stringify({ code: 40000, message: "bad", error: { code: "BAD_REQUEST", details: {} } }),
+    { status: 400, headers: { "Content-Type": "application/json" } },
+  );
+  try {
+    await assert.rejects(
+      retryJobStage("job-1", "/api/v1", "render", {}),
+      (error) => error.status === 400 && error.reason === undefined && error.errorCode === "BAD_REQUEST",
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("retry-stage 请求体只发后端认的字段，书的信息只用来补返回值", async () => {
   const calls = [];
   const originalFetch = globalThis.fetch;
@@ -123,6 +156,27 @@ test("retry-stage 请求体只发后端认的字段，书的信息只用来补�
 
     await retryJobStage("job-1", "/api/v1", "render", { document_id: "doc-1", title: "书名" });
     assert.deepEqual(JSON.parse(calls[1].options.body), { stage: "render" }, "没给请求字段时只发 stage");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("删书被拒的 409 带上 error.details.reason，书库能分清“任务在跑”和“别的任务在用它的产物”", async () => {
+  const { deleteLibraryBook } = await import("@retainpdf/api/library-books");
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({
+    code: 409,
+    message: "other jobs still use this job's artifacts: job-r (uses job-a); delete them first or pass force=true",
+    error: { code: "CONFLICT", details: { reason: "job_has_dependents" } },
+  }), { status: 409, headers: { "Content-Type": "application/json" } });
+  try {
+    await assert.rejects(deleteLibraryBook("/api/v1", "job-a"), (error) => {
+      assert.equal(error.status, 409);
+      assert.equal(error.errorCode, "CONFLICT");
+      assert.equal(error.reason, "job_has_dependents");
+      assert.match(error.message, /job-r/);
+      return true;
+    });
   } finally {
     globalThis.fetch = originalFetch;
   }

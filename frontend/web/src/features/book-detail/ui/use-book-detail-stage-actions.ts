@@ -4,7 +4,7 @@ import type {
   JobStageActionsView,
   JobStageRetryActionView,
 } from "@/platform/api/index.js";
-import { fetchJobPayload } from "@/platform/api/index.js";
+import { describeActionError, fetchJobPayload } from "@/platform/api/index.js";
 import { API_PREFIX } from "@/platform/config/api-constants.js";
 import type { DocumentJobSummary } from "@/features/library/domain.js";
 import { resolveTranslationOwnerId, type TranslationSourceView } from "../domain/translation-owner.js";
@@ -191,7 +191,7 @@ export function useBookDetailStageActions({
       }
       return result;
     } catch (cause) {
-      setError(`${(cause as Error)?.message || cause || "重新处理失败"}`);
+      setError(describeActionError(cause, "重新处理失败"));
       throw cause;
     } finally {
       setPendingStage("");

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { describeActionError } from "@/platform/api/index.js";
 import { usePageRange } from "./use-page-range.js";
 import type {
   DocumentJobSummary,
@@ -71,7 +72,7 @@ export function useBookDetailOcr({
       await actions.cancelJob?.(id, "ocr");
       await onCancelled?.();
     } catch (cause) {
-      setError(`${(cause as { message?: string } | null)?.message || cause || "取消 OCR 失败"}`);
+      setError(describeActionError(cause, "取消 OCR 失败"));
     } finally {
       setCancelling(false);
     }

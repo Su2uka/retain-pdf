@@ -1,4 +1,5 @@
 import type { JobLike, JobPayload } from "@retainpdf/domain/job";
+import { describeActionError } from "@/platform/api/index.js";
 import type { StatusDetailResumeViewPort } from "./controller-types.js";
 import {
   asRecord,
@@ -122,7 +123,15 @@ export function syncRerunAction({
 export const TRANSLATION_DUPLICATE_RISK_PROMPT =
   "检测到重复翻译风险：部分翻译请求可能已经计费，重跑可能产生重复费用。再点一次按钮确认仍要从翻译阶段重试。";
 
+/**
+ * 只认「翻译请求结果拿不准」这一种 409：后端在 error.details.reason 里写 ambiguous_translation_request。
+ * 「OCR 派发拿不准」（ambiguous_ocr_dispatch）、「任务在跑」（job_active）等别的 409 不算，
+ * 拿翻译阶段重试去处理它们只会引导用户多花钱。
+ * 后端没给 reason（旧版本）时退回看 409 和那句英文原文。
+ */
 export function isAmbiguousTranslationRerunError(error: unknown) {
+  const reason = (error as { reason?: unknown } | null)?.reason;
+  if (typeof reason === "string" && reason) return reason === "ambiguous_translation_request";
   const message = `${(error as { message?: string } | null)?.message || error || ""}`;
   return /\b409\b/.test(message) && /translation request outcome is ambiguous/i.test(message);
 }
@@ -156,7 +165,7 @@ export async function rerunCurrentJob({
     } catch (error) {
       syncRerunAction({
         ...rerunContext,
-        statusText: (error as { message?: string } | null)?.message || String(error),
+        statusText: describeActionError(error, String(error)),
         viewPort,
         resolveActions,
       });
@@ -192,7 +201,7 @@ export async function rerunCurrentJob({
     }
     syncRerunAction({
       ...rerunContext,
-      statusText: (error as { message?: string } | null)?.message || String(error),
+      statusText: describeActionError(error, String(error)),
       viewPort,
       resolveActions,
     });

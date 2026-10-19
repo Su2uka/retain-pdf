@@ -38,6 +38,17 @@ function summarizeJobRequestContext(payload) {
         parts.push(`source.artifact_job_id=${artifactJobId}`);
     return parts.length > 0 ? ` [${parts.join(", ")}]` : "";
 }
+/** 读后端错误信封里的 error.code 和 error.details.reason，挂到错误对象上。 */
+export function attachErrorDetails(error, errorPayload) {
+    const structured = errorPayload?.error && typeof errorPayload.error === "object" ? errorPayload.error : null;
+    const code = typeof structured?.code === "string" ? structured.code.trim() : "";
+    if (code)
+        error.errorCode = code;
+    const reason = typeof structured?.details?.reason === "string" ? structured.details.reason.trim() : "";
+    if (reason)
+        error.reason = reason;
+    return error;
+}
 /** 多用户按页额度：建任务时余额不够，后端回 402 + 这个错误码，message 是给用户看的中文。 */
 export const PAGE_QUOTA_EXCEEDED = "PAGE_QUOTA_EXCEEDED";
 function finiteOrNull(value) {
@@ -111,7 +122,7 @@ export async function submitJson(url, payload, options = {}) {
             const error = new Error(`提交失败: ${resp.status} ${errorPayload.message || JSON.stringify(errorPayload)}${requestContext}`);
             error.status = resp.status;
             error.url = url;
-            throw error;
+            throw attachErrorDetails(error, errorPayload);
         }
         const text = await resp.text();
         const error = new Error(`提交失败: ${resp.status} ${text}${requestContext}`);

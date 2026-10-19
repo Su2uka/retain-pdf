@@ -1,4 +1,5 @@
 import type { JobLike } from "@retainpdf/domain/job";
+import { describeActionError } from "@/platform/api/index.js";
 import type { CurrentJobStatePort } from "./current-job-state.js";
 
 /**
@@ -12,8 +13,9 @@ import type { CurrentJobStatePort } from "./current-job-state.js";
 export const CANCEL_FETCH_TIMEOUT_MS = 8000;
 
 function describeCancelError(cause: unknown): string {
-  const message = `${(cause as Error)?.message || cause || ""}`.trim();
-  const base = message || "取消请求失败";
+  // 任务已经不在跑（job_not_active）：再取消也没用，不提示重试。
+  if ((cause as { reason?: string } | null)?.reason === "job_not_active") return describeActionError(cause);
+  const base = describeActionError(cause, "取消请求失败");
   const punctuated = /[。！？!?.]$/.test(base) ? base : `${base}。`;
   return `${punctuated}可重试取消，或去详情页确认任务状态。`;
 }

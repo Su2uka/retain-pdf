@@ -32,10 +32,19 @@ test("错误文案：凭据缺失、OCR 复用失败", () => {
   assert.equal(friendlyTranslateError(""), "发起翻译失败，请稍后重试。");
 
   assert.equal(friendlyDocumentDeleteError(new Error("boom")), "boom");
-  // 409 只剩"还有排队或运行中的任务"这一种（收藏挡删除的 409 后端已删）。
+  // 没带 reason 的 409 是"还有排队或运行中的任务"（收藏挡删除的 409 后端已删）。
   const conflict = Object.assign(new Error("book is Running; pass force=true to delete it(409)"), { status: 409 });
   assert.equal(friendlyDocumentDeleteError(conflict), "还有排队或运行中的任务，请先取消再删除。");
   assert.equal(friendlyDocumentDeleteError(new Error("x(409)")), "还有排队或运行中的任务，请先取消再删除。");
+  // 别的任务还在用它的产物：按 reason 单独提示，不说成“任务在跑”。
+  const dependents = Object.assign(
+    new Error("other jobs still use this job's artifacts: job-r (uses job-a); delete them first or pass force=true(409)"),
+    { status: 409, errorCode: "CONFLICT", reason: "job_has_dependents" },
+  );
+  assert.equal(
+    friendlyDocumentDeleteError(dependents),
+    "还有别的任务在用这个任务的产物（比如换字体重排出的版本），请先删掉那些任务再删。",
+  );
 });
 
 test("提交载荷：凭据基座 + overrides 叠加；复用 OCR 时删掉 ocr 字段", () => {
