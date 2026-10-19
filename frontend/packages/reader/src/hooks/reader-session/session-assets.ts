@@ -455,8 +455,10 @@ export function useSessionAssets(options: {
         // overwrite this terminal state with another progress update.
         fence.markFailed();
         const status = Number((err as Error & { status?: number })?.status);
+        const reason = `${(err as Error & { reason?: string })?.reason || ""}`;
         if (isStaleDocumentJobFailure({
           status,
+          reason,
           jobId,
           routeDocumentId,
           documentJobId,

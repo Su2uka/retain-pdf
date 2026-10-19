@@ -418,6 +418,25 @@ test("loadProtectedPdfFile throws on non-ok response", async () => {
   );
 });
 
+test("loadProtectedPdfFile 把 404 的 error.details.reason 挂到错误上（not_ready = 译文 PDF 还没产出）", async () => {
+  await assert.rejects(
+    () => loadProtectedPdfFile("http://x/not-ready.pdf", async () => ({
+      ok: false,
+      status: 404,
+      json: async () => ({ code: 404, message: "translated.pdf not ready", error: { code: "NOT_FOUND", details: { reason: "not_ready" } } }),
+    })),
+    (error) => error.status === 404 && error.reason === "not_ready",
+  );
+  await assert.rejects(
+    () => loadProtectedPdfFile("http://x/not-json.pdf", async () => ({
+      ok: false,
+      status: 404,
+      json: async () => { throw new SyntaxError("not json"); },
+    })),
+    (error) => error.status === 404 && error.reason === undefined,
+  );
+});
+
 import {
   clampReaderZoom,
   comparePaneWidth,

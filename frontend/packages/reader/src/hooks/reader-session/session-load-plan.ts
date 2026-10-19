@@ -93,15 +93,18 @@ export function planJobLoad(input: {
  * document 链路 stale active job 的 404 回退判定。
  * 仅当 sessionJobId 确实来自 document 解析（sessionJobId === documentJobId）
  * 且当前 route 是 document 链路（!jobId 有显式 job）时成立。
+ * 404 带 reason=not_ready 说明任务还在、只是产物还没产出（比如译文 PDF），不算 stale。
  */
 export function isStaleDocumentJobFailure(input: {
   status: number;
+  reason?: string;
   jobId: string;
   routeDocumentId: string;
   documentJobId: string;
   sessionJobId: string;
 }): boolean {
   return input.status === 404
+    && input.reason !== "not_ready"
     && !input.jobId
     && Boolean(input.routeDocumentId)
     && Boolean(input.documentJobId)
