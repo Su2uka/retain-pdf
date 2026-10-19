@@ -146,6 +146,11 @@ pub(super) const MIGRATIONS: &[Migration] = &[
         name: "pipeline_auto_resume",
         sql: include_str!("v27_pipeline_auto_resume.sql"),
     },
+    Migration {
+        version: 28,
+        name: "legacy_user_titles",
+        sql: include_str!("v28_legacy_user_titles.sql"),
+    },
 ];
 
 #[cfg(test)]
