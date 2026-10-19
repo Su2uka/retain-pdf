@@ -10,10 +10,12 @@ use crate::models::api::{
 };
 use crate::routes::common::request_base_url;
 use crate::routes::common::{
-    build_library_route_deps, ok_json, run_read_query_once, ApiPath, ApiQuery,
+    build_jobs_route_deps, build_library_route_deps, jobs_facade, ok_json, run_read_query_once,
+    ApiPath, ApiQuery,
 };
 use crate::services::library::{
-    delete_library_book_view, get_library_book_view, list_library_books_view,
+    book_delete_job_ids_view, delete_library_book_view, get_library_book_view,
+    list_library_books_view,
 };
 use crate::AppState;
 
@@ -55,6 +57,13 @@ pub async fn delete_book(
     ApiQuery(query): ApiQuery<LibraryDeleteQuery>,
 ) -> Result<Json<ApiResponse<LibraryDeleteResultView>>, AppError> {
     let deps = build_library_route_deps(&state);
+    if query.force {
+        // 强删运行中的书：先走取消的同一条路径（登记取消 + 终止 worker），再删。
+        let job_ids = book_delete_job_ids_view(&deps.library, &job_id)?;
+        jobs_facade(build_jobs_route_deps(&state))
+            .cancel_before_delete(&job_ids)
+            .await;
+    }
     Ok(ok_json(delete_library_book_view(
         &deps.library,
         &job_id,

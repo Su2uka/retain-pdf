@@ -433,3 +433,31 @@ fn title_contains_matches_the_document_title_or_the_callback() {
     assert_eq!(ids(&select("mechanics 2e")), ["3-renamed", "2-by-callback"]);
     assert_eq!(ids(&select("biology")), ["2-by-callback"]);
 }
+
+/// CAS 写不许在行不存在时 INSERT：行没了就是「被删了」，写的人该收手。
+/// 以前这里直接 upsert，强制删除后 runner 的下一次落库把已删任务复活成 running 的幽灵行。
+#[test]
+fn cas_save_never_inserts_a_missing_row() {
+    let test = TestDb::new();
+    let mut job = JobSnapshot::new("deleted".into(), CreateJobInput::default(), vec![]);
+    job.status = JobStatusKind::Running;
+    test.db.save_job(&job).unwrap();
+    test.db.delete_jobs(&["deleted".to_string()]).unwrap();
+
+    assert!(
+        !test.db.cas_save_job(&job, &["queued", "running"]).unwrap(),
+        "行不存在时 CAS 必须返回 false"
+    );
+    assert!(test.db.get_job("deleted").is_err(), "CAS 不能把已删除的任务写回来");
+    assert!(test.db.job_status("deleted").unwrap().is_none());
+
+    // 行在时的行为不变：期望状态对得上就写，对不上就不写。
+    test.db.save_job(&job).unwrap();
+    let mut next = job.clone();
+    next.stage = Some("translating".into());
+    assert!(test.db.cas_save_job(&next, &["queued", "running"]).unwrap());
+    let mut canceled = job.clone();
+    canceled.status = JobStatusKind::Canceled;
+    test.db.save_job(&canceled).unwrap();
+    assert!(!test.db.cas_save_job(&next, &["queued", "running"]).unwrap());
+}

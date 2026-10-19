@@ -1,5 +1,5 @@
 use anyhow::Result;
-use rusqlite::{params, TransactionBehavior};
+use rusqlite::{params, OptionalExtension, TransactionBehavior};
 
 use crate::models::domain::{JobArtifactRecord, JobSnapshot};
 use crate::storage_paths::{collect_job_artifact_entries, normalize_job_paths_for_storage};
@@ -120,6 +120,11 @@ impl Db {
 
     /// CAS terminal write: only succeeds if current DB status is in expected_statuses.
     /// Returns true if row was updated, false if already terminal (no-op).
+    ///
+    /// 行不存在也返回 false，**绝不 INSERT**：CAS 只更新已有的行。行没了说明任务被删了
+    /// （强制删除运行中的任务 / 整本书），写的人（runner）应当当作「被取消」收手；
+    /// 以前这里 upsert，删除后 runner 的下一次落库把任务复活成没有 document_id 的幽灵行，
+    /// worker 接着在被重建的目录里跑完。新建行用 `save_job`。
     pub fn cas_save_job(&self, job: &JobSnapshot, expected_statuses: &[&str]) -> Result<bool> {
         let mut stored_job = job.clone();
         stored_job.sync_runtime_state();
@@ -154,15 +159,16 @@ impl Db {
                 params![stored_job.job_id],
                 |row| row.get(0),
             )
-            .ok();
-        if let Some(current) = current_status {
-            let is_expected = expected_statuses.iter().any(|s| {
-                let quoted = format!("\"{}\"", s);
-                current == quoted || current == *s
-            });
-            if !is_expected {
-                return Ok(false);
-            }
+            .optional()?;
+        let Some(current) = current_status else {
+            return Ok(false);
+        };
+        let is_expected = expected_statuses.iter().any(|s| {
+            let quoted = format!("\"{}\"", s);
+            current == quoted || current == *s
+        });
+        if !is_expected {
+            return Ok(false);
         }
         tx.execute(
             r#"

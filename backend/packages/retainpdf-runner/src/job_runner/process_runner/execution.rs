@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 use std::process::ExitStatus;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -53,6 +54,8 @@ pub(super) enum TimeoutKind {
 enum WaitOutcome {
     Exited(ExitStatus),
     TimedOut(TimeoutKind),
+    /// 任务行被删了（强制删除）：没有人再关心这个 worker 的结果，必须停掉它。
+    RowGone,
 }
 
 /// 同时盯总时长与空闲时长。轮询而不是 select,因为空闲的截止时刻会随每一行
@@ -65,14 +68,15 @@ async fn wait_with_limits(
     no_output_secs: i64,
     last_output_at: &Mutex<Instant>,
     started: Instant,
+    row_gone: &AtomicBool,
 ) -> Result<WaitOutcome> {
-    if total_secs <= 0 && no_output_secs <= 0 {
-        return Ok(WaitOutcome::Exited(child.wait().await?));
-    }
     let poll = Duration::from_millis(250);
     loop {
         if let Ok(status) = timeout(poll, child.wait()).await {
             return Ok(WaitOutcome::Exited(status?));
+        }
+        if row_gone.load(Ordering::SeqCst) {
+            return Ok(WaitOutcome::RowGone);
         }
         if total_secs > 0 && started.elapsed() >= Duration::from_secs(total_secs as u64) {
             return Ok(WaitOutcome::TimedOut(TimeoutKind::Total));
@@ -103,6 +107,7 @@ pub(super) async fn collect_process_execution(
     let no_output_secs = job.request_payload.runtime.no_output_timeout_seconds;
     let started = Instant::now();
     let last_output_at = Arc::new(Mutex::new(started));
+    let row_gone = Arc::new(AtomicBool::new(false));
     let stdout_handle = tokio::spawn(read_stdout(
         persist.clone(),
         canceled_jobs.clone(),
@@ -111,6 +116,7 @@ pub(super) async fn collect_process_execution(
         runtime_secrets.clone(),
         extra_cancel_job_ids.to_vec(),
         last_output_at.clone(),
+        row_gone.clone(),
     ));
     let stderr_handle = tokio::spawn(read_stream(stderr, runtime_secrets));
 
@@ -121,10 +127,18 @@ pub(super) async fn collect_process_execution(
             no_output_secs,
             &last_output_at,
             started,
+            &row_gone,
         )
         .await?
         {
             WaitOutcome::Exited(status) => status,
+            WaitOutcome::RowGone => {
+                // 任务被强制删除：终止整棵进程树并回收，之后照常收尾（收尾会认出行已删，不再写任何东西）。
+                tracing::warn!("job={job_id}: 任务行已被删除，终止 worker 进程");
+                terminate_child_process_tree(&mut child, worker_runtime.worker_terminate_grace_secs)
+                    .await;
+                child.wait().await?
+            }
             WaitOutcome::TimedOut(kind) => {
                 // 边发信号边 wait()：退出即返回并回收，不会留下僵尸（child
                 // 没有 kill_on_drop，下面丢弃它之前必须回收）；SIGKILL 后的

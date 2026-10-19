@@ -20,13 +20,14 @@ use crate::models::api::{
 };
 use crate::models::request::CreateJobInput;
 use crate::routes::common::{
-    build_jobs_route_deps, build_library_route_deps, ok_json, request_base_url, run_job_query_once,
-    ApiJson, ApiPath, ApiQuery,
+    build_jobs_route_deps, build_library_route_deps, jobs_facade, ok_json, request_base_url,
+    run_job_query_once, ApiJson, ApiPath, ApiQuery,
 };
 use crate::routes::download_response::file_download_response;
 use crate::services::library::{
     apply_document_metadata_suggestion_view, create_document_metadata_suggestion_view,
-    delete_document_view, document_files, document_reading, document_translation_coverage,
+    delete_document_view, document_delete_job_ids_view, document_files, document_reading,
+    document_translation_coverage,
     get_document, list_document_metadata_suggestions_view, list_documents, ocr_document_view,
     open_document_file, patch_document, search_blocks_view, translate_document_view, Disposition,
     DocumentFile, DocumentReadingView, TranslationCoverageView,
@@ -194,6 +195,13 @@ pub async fn delete_document_route(
     ApiQuery(query): ApiQuery<LibraryDeleteQuery>,
 ) -> Result<Json<ApiResponse<DocumentDeleteResultView>>, AppError> {
     let deps = build_library_route_deps(&state);
+    if query.force {
+        // 强删文档：名下运行中的任务先走取消的同一条路径（登记取消 + 终止 worker），再删。
+        let job_ids = document_delete_job_ids_view(&deps.library, &document_id)?;
+        jobs_facade(build_jobs_route_deps(&state))
+            .cancel_before_delete(&job_ids)
+            .await;
+    }
     Ok(ok_json(delete_document_view(
         &deps.library,
         &document_id,

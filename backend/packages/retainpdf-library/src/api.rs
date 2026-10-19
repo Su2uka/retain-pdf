@@ -32,7 +32,8 @@ use super::{
     add_collection_documents, append_message, apply_metadata_suggestion,
     create_collection, create_conversation,
     create_metadata_suggestion, delete_collection, delete_conversation,
-    delete_document, delete_library_book, document_files_view, get_conversation, get_library_book, list_collections,
+    book_delete_job_ids, delete_document, delete_library_book, document_delete_job_ids,
+    document_files_view, get_conversation, get_library_book, list_collections,
     list_conversations, list_library_books, list_metadata_suggestions, load_asset,
     ocr_document, patch_collection, patch_conversation, remove_collection_document,
     search_blocks, store_asset, translate_document, AssetDownload, LibraryDeps,
@@ -66,7 +67,23 @@ pub fn delete_library_book_view(
     delete_library_book(deps, job_id, force)
 }
 
+/// 强制删除一本书前要先取消的任务(书本身 + `-ocr` 子任务)。
+pub fn book_delete_job_ids_view(
+    deps: &LibraryDeps<'_>,
+    job_id: &str,
+) -> Result<Vec<String>, AppError> {
+    book_delete_job_ids(deps.db, job_id)
+}
+
 // --- documents ---
+
+/// 强制删除一篇文档前要先取消的任务(名下全部任务 + `-ocr` 子任务)。
+pub fn document_delete_job_ids_view(
+    deps: &LibraryDeps<'_>,
+    document_id: &str,
+) -> Result<Vec<String>, AppError> {
+    document_delete_job_ids(deps.db, document_id)
+}
 
 pub fn delete_document_view(
     deps: &LibraryDeps<'_>,
