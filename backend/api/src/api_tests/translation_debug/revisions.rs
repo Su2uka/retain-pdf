@@ -390,14 +390,23 @@ async fn revision_request_shape_is_strict() {
     for body in [
         json!({"translated_text": REVISED_TEXT, "source": "robot"}),
         json!({"translated_text": REVISED_TEXT}),
-        json!({"translated_text": REVISED_TEXT, "source": "user", "unknown": 1}),
     ] {
-        // 请求体形状不对走 ApiJson 的统一 422(UNPROCESSABLE_ENTITY),和校验不过的
+        // 字段值或缺字段不合 schema 走 ApiJson 的统一 422(UNPROCESSABLE_ENTITY),和校验不过的
         // TRANSLATION_REVISION_REJECTED 靠 error.code 区分。
         let (status, payload) = patch_item(&state, "job-revision-400", ITEM_ID, body).await;
         assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{payload}");
         assert_eq!(payload["error"]["code"], "UNPROCESSABLE_ENTITY");
     }
+    // 不认识的字段是请求写错了：400，message 带字段名。
+    let (status, payload) = patch_item(
+        &state,
+        "job-revision-400",
+        ITEM_ID,
+        json!({"translated_text": REVISED_TEXT, "source": "user", "unknown": 1}),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{payload}");
+    assert!(payload["message"].as_str().unwrap_or_default().contains("unknown field `unknown`"), "{payload}");
     let (status, payload) = patch_item(
         &state,
         "job-revision-400",

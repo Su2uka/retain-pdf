@@ -208,7 +208,7 @@ fn persist_ocr_recovery(
         .db
         .create_ocr_recovery_job_state(recovery.dispatch, &job, recovery.resolution, recovery.receipt)?
     {
-        return Err(AppError::conflict(
+        return Err(crate::views::ActionBlockReason::StaleResolution.conflict(
             "OCR ambiguity was already resolved by another request",
         ));
     }

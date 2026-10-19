@@ -73,7 +73,7 @@ pub use reports::usage::api::{
 pub use runtime_gateway::{JobDriverRegistry, JobRuntime, JobRuntimeLauncher};
 pub use summary_loaders::SummaryCache;
 pub use views::{
-    AmbiguousRequestPolicy, BookSummaryView, DocumentJobListView,
+    ActionBlockReason, AmbiguousRequestPolicy, BookSummaryView, DocumentJobListView,
     EscalatedItemView, GlossaryUsageSummaryView, InvocationSummaryView, JobContractsView, JobDetailView, JobDiagnosticsView, JobEventFeedItem,
     JobEventListView, JobFailureBriefView,
     JobFailureDiagnosticView, JobFilesQuery, JobLinksView, JobListInvocationSummaryView,

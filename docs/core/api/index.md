@@ -301,6 +301,7 @@ Reader 宿主接入 job/artifact、Markdown、区域、页面元数据和实时�
       "label": "重试翻译",
       "can_retry": true,
       "disabled_reason": "",
+      "disabled_code": null,
       "will_reuse": ["source_pdf", "ocr_result"],
       "will_rerun": ["translation", "render"],
       "danger": false,
@@ -532,7 +533,8 @@ provider、operation、`resolution_revision`、允许的解决方式和需要填
   "resume_workflow": "render",
   "reuses_artifacts": ["source_pdf", "translations_dir", "normalized_document_json"],
   "reruns_stages": ["rendering"],
-  "reason": null
+  "reason": null,
+  "reason_code": null
 }
 ```
 

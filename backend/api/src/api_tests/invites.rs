@@ -159,7 +159,7 @@ async fn only_admins_manage_invites_and_inputs_are_validated() {
         assert_eq!(json["error"]["details"]["field"], field, "{json}");
     }
     let unknown = send(&state, Method::POST, "/api/v1/admin/invites", Some(&admin), Some(json!({ "pages": 5 }))).await;
-    assert_eq!(unknown.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    assert_eq!(unknown.status(), StatusCode::BAD_REQUEST, "不认识的字段是请求写错了");
 
     let expiring = create_invite(&state, &admin, json!({ "expires_in_days": 7, "max_uses": 30 })).await;
     assert_ne!(expiring["expires_at"], "");

@@ -1,6 +1,7 @@
 use std::path::Path;
 
-use crate::views::RetryStageKind;
+use retainpdf_api_base::error::AppError;
+use crate::views::{ActionBlockReason, RetryStageKind};
 use retainpdf_core::models::domain::{JobSnapshot, JobStatusKind, WorkflowKind};
 use crate::actions::translation_request_recovery::load_translation_request_recovery;
 use crate::runtime_gateway::{
@@ -14,6 +15,8 @@ pub(crate) struct JobStagePlan {
     pub label: String,
     pub can_retry: bool,
     pub disabled_reason: String,
+    /// `disabled_reason` 的机器可读版本；`disabled_reason` 为空时为 None。
+    pub disabled_code: Option<ActionBlockReason>,
     pub will_reuse: Vec<String>,
     pub will_rerun: Vec<String>,
     pub retry_workflow: WorkflowKind,
@@ -28,6 +31,30 @@ pub(crate) struct JobResumePlan {
     pub reuses_artifacts: Vec<String>,
     pub reruns_stages: Vec<String>,
     pub reason: Option<String>,
+    /// `reason` 的机器可读版本；能续跑时为 None。
+    pub reason_code: Option<ActionBlockReason>,
+}
+
+impl JobStagePlan {
+    /// 这个阶段现在不能重试时的 409（带 `disabled_code` 作 reason）。
+    pub(crate) fn blocked_error(&self) -> AppError {
+        blocked_error(self.disabled_code, &self.disabled_reason)
+    }
+}
+
+impl JobResumePlan {
+    pub(crate) fn blocked_error(&self) -> AppError {
+        blocked_error(
+            self.reason_code,
+            self.reason
+                .as_deref()
+                .unwrap_or("source job has no reusable checkpoint for rerun"),
+        )
+    }
+}
+
+fn blocked_error(code: Option<ActionBlockReason>, message: &str) -> AppError {
+    code.unwrap_or(ActionBlockReason::ArtifactsMissing).conflict(message)
 }
 
 pub(crate) fn stage_plans(job: &JobSnapshot, data_root: &Path) -> Vec<JobStagePlan> {
@@ -61,6 +88,15 @@ fn stage_plan_with(
     let running = matches!(job.status, JobStatusKind::Queued | JobStatusKind::Running);
     let mut plan = base_stage_plan(stage, availability);
 
+    // 在跑最先判：不管是什么阶段、什么类型的任务，先取消再说。
+    if running {
+        plan.can_retry = false;
+        plan.disabled_reason =
+            "job is queued or running; cancel it before retrying a stage".to_string();
+        plan.disabled_code = Some(ActionBlockReason::JobActive);
+        return plan;
+    }
+
     // 精修在 Python 渲染子进程里直接调模型；Rust 模型执行器的任务不允许回落到
     // Python transport（job_launcher 同一条规则），所以这类任务不提供精修。
     if matches!(plan.stage, RetryStageKind::Refine)
@@ -70,6 +106,7 @@ fn stage_plan_with(
         plan.disabled_reason =
             "refine runs model calls inside the Python render worker; jobs bound to a Rust model execution_connection are not supported"
                 .into();
+        plan.disabled_code = Some(ActionBlockReason::ModelExecutorUnsupported);
         return plan;
     }
 
@@ -80,15 +117,14 @@ fn stage_plan_with(
         plan.disabled_reason =
             "Rust model retry requires receipt-preserving recovery; legacy retry is disabled"
                 .into();
+        plan.disabled_code = Some(ActionBlockReason::ModelExecutorUnsupported);
         return plan;
     }
 
-    if running {
-        plan.can_retry = false;
-        plan.disabled_reason =
-            "job is queued or running; cancel it before retrying a stage".to_string();
-    } else if !plan.can_retry {
-        plan.disabled_reason = disabled_reason_for_stage(&plan.stage, availability);
+    if !plan.can_retry {
+        let (reason, code) = disabled_reason_for_stage(&plan.stage, availability);
+        plan.disabled_reason = reason;
+        plan.disabled_code = Some(code);
     }
     plan
 }
@@ -102,6 +138,7 @@ pub(crate) fn resume_plan(job: &JobSnapshot, data_root: &Path) -> JobResumePlan 
             reuses_artifacts: Vec::new(),
             reruns_stages: Vec::new(),
             reason: Some("job is queued or running; cancel it before resuming".to_string()),
+            reason_code: Some(ActionBlockReason::JobActive),
         };
     }
     let availability = StageArtifactAvailability::from_job(job, data_root);
@@ -117,6 +154,7 @@ pub(crate) fn resume_plan(job: &JobSnapshot, data_root: &Path) -> JobResumePlan 
             ],
             reruns_stages: vec!["rendering".to_string()],
             reason: None,
+            reason_code: None,
         };
     }
     if job.uses_model_executor()
@@ -131,6 +169,7 @@ pub(crate) fn resume_plan(job: &JobSnapshot, data_root: &Path) -> JobResumePlan 
                 "Rust model recovery requires successful receipt reuse; legacy resume is disabled"
                     .into(),
             ),
+            reason_code: Some(ActionBlockReason::ModelExecutorUnsupported),
         };
     }
     if availability.ocr_available && availability.translation_retry_requires_confirmation {
@@ -148,6 +187,11 @@ pub(crate) fn resume_plan(job: &JobSnapshot, data_root: &Path) -> JobResumePlan 
                 "translation recovery is blocked; consult supported retry policies before retrying"
                     .to_string(),
             ),
+            reason_code: Some(if availability.translation_request_journal_corrupt {
+                ActionBlockReason::RequestJournalCorrupt
+            } else {
+                ActionBlockReason::AmbiguousTranslationRequest
+            }),
         };
     }
     if availability.ocr_available {
@@ -167,6 +211,7 @@ pub(crate) fn resume_plan(job: &JobSnapshot, data_root: &Path) -> JobResumePlan 
             reuses_artifacts,
             reruns_stages: vec!["translation".to_string(), "rendering".to_string()],
             reason: None,
+            reason_code: None,
         };
     }
     JobResumePlan {
@@ -176,6 +221,7 @@ pub(crate) fn resume_plan(job: &JobSnapshot, data_root: &Path) -> JobResumePlan 
         reuses_artifacts: Vec::new(),
         reruns_stages: Vec::new(),
         reason: Some(resume_unavailable_reason(&availability)),
+        reason_code: Some(ActionBlockReason::ArtifactsMissing),
     }
 }
 
@@ -202,6 +248,7 @@ fn base_stage_plan(
             label: "重试 OCR".to_string(),
             can_retry: availability.source_retryable_from_request,
             disabled_reason: String::new(),
+            disabled_code: None,
             will_reuse: vec!["source_pdf".to_string()],
             will_rerun: vec![
                 "ocr".to_string(),
@@ -214,12 +261,24 @@ fn base_stage_plan(
         RetryStageKind::Translation => JobStagePlan {
             stage,
             label: "重试翻译".to_string(),
-            can_retry: availability.ocr_available,
-            disabled_reason: if availability.translation_retry_requires_confirmation {
+            can_retry: availability.ocr_available
+                && !availability.translation_request_journal_corrupt,
+            // 请求结果不确定时仍可重试（带 accept_duplicate_risk）；请求日志损坏则不行：
+            // 接受重复风险也修不好控制状态损坏。
+            disabled_reason: if availability.translation_request_journal_corrupt {
+                TRANSLATION_JOURNAL_CORRUPT_REASON.to_string()
+            } else if availability.translation_retry_requires_confirmation {
                 "request outcome is ambiguous; retry requires explicit duplicate-risk acceptance"
                     .to_string()
             } else {
                 String::new()
+            },
+            disabled_code: if availability.translation_request_journal_corrupt {
+                Some(ActionBlockReason::RequestJournalCorrupt)
+            } else if availability.translation_retry_requires_confirmation {
+                Some(ActionBlockReason::AmbiguousTranslationRequest)
+            } else {
+                None
             },
             will_reuse: {
                 let mut artifacts = vec!["source_pdf".to_string(), "ocr_result".to_string()];
@@ -237,6 +296,7 @@ fn base_stage_plan(
             label: "重新渲染".to_string(),
             can_retry: availability.translations_available,
             disabled_reason: String::new(),
+            disabled_code: None,
             will_reuse: vec![
                 "source_pdf".to_string(),
                 "ocr_result".to_string(),
@@ -254,6 +314,7 @@ fn base_stage_plan(
             can_retry: availability.translations_available
                 && availability.translations_owned_by_job,
             disabled_reason: String::new(),
+            disabled_code: None,
             will_reuse: vec![
                 "source_pdf".to_string(),
                 "ocr_result".to_string(),
@@ -266,32 +327,43 @@ fn base_stage_plan(
     }
 }
 
+/// 阶段不能重试时的文字说明和机器可读原因（`disabled_reason` / `disabled_code`）。
 fn disabled_reason_for_stage(
     stage: &RetryStageKind,
     availability: &StageArtifactAvailability,
-) -> String {
+) -> (String, ActionBlockReason) {
+    use ActionBlockReason::{ArtifactsMissing, RequestJournalCorrupt, TranslationsNotOwned};
+    let missing = |text: &str| (text.to_string(), ArtifactsMissing);
     match stage {
-        RetryStageKind::Ocr if !availability.has_request_source => {
-            "OCR retry currently requires the original upload_id or source_url on the job; re-upload the source PDF to start a new task"
-                .to_string()
+        RetryStageKind::Ocr if !availability.has_request_source => missing(
+            "OCR retry currently requires the original upload_id or source_url on the job; re-upload the source PDF to start a new task",
+        ),
+        RetryStageKind::Ocr => missing("source PDF is not available"),
+        RetryStageKind::Translation
+            if availability.ocr_available && availability.translation_request_journal_corrupt =>
+        {
+            (
+                TRANSLATION_JOURNAL_CORRUPT_REASON.to_string(),
+                RequestJournalCorrupt,
+            )
         }
-        RetryStageKind::Ocr => "source PDF is not available".to_string(),
         RetryStageKind::Translation => {
-            "need source_pdf and normalized_document_json to retry translation".to_string()
+            missing("need source_pdf and normalized_document_json to retry translation")
         }
-        RetryStageKind::Render => {
-            "need source_pdf and translations_dir to retry render".to_string()
-        }
-        RetryStageKind::Refine if availability.translations_available => {
+        RetryStageKind::Render => missing("need source_pdf and translations_dir to retry render"),
+        RetryStageKind::Refine if availability.translations_available => (
             "refine writes revisions back into this job's own <job_root>/translated, but this job renders translations owned by another job (created with create_new_job=true); refine the source job instead"
-                .to_string()
-        }
-        RetryStageKind::Refine => {
-            "need source_pdf and committed translations (translations_dir) to refine; translate the document first"
-                .to_string()
-        }
+                .to_string(),
+            TranslationsNotOwned,
+        ),
+        RetryStageKind::Refine => missing(
+            "need source_pdf and committed translations (translations_dir) to refine; translate the document first",
+        ),
     }
 }
+
+const TRANSLATION_JOURNAL_CORRUPT_REASON: &str =
+    "translation request journal is corrupt; retry remains paused because duplicate-risk acceptance cannot repair control-state corruption";
 
 fn resume_unavailable_reason(availability: &StageArtifactAvailability) -> String {
     if !availability.source_available {
@@ -314,6 +386,8 @@ struct StageArtifactAvailability {
     translations_owned_by_job: bool,
     translation_request_journal_available: bool,
     translation_retry_requires_confirmation: bool,
+    /// 请求日志读不了或内容坏了（`requires_confirmation` 也为 true，但接受重复风险修不好它）。
+    translation_request_journal_corrupt: bool,
 }
 
 impl StageArtifactAvailability {
@@ -346,6 +420,9 @@ impl StageArtifactAvailability {
                 .is_some_and(|(actual, expected)| actual == expected);
         let translation_request_recovery = load_translation_request_recovery(job, data_root);
         let translation_request_journal_available = translation_request_recovery.is_some();
+        let translation_request_journal_corrupt = translation_request_recovery
+            .as_ref()
+            .is_some_and(|state| state.status == "corrupt");
         let translation_retry_requires_confirmation =
             translation_request_recovery.is_some_and(|state| state.requires_confirmation);
         Self {
@@ -358,6 +435,7 @@ impl StageArtifactAvailability {
             translations_owned_by_job,
             translation_request_journal_available,
             translation_retry_requires_confirmation,
+            translation_request_journal_corrupt,
         }
     }
 }

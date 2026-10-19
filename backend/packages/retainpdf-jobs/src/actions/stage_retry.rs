@@ -1,6 +1,6 @@
 use retainpdf_api_base::error::AppError;
 use crate::views::{
-    AmbiguousRequestPolicy, RetryStageKind, RetryStageRequest, RetryStageSubmissionView,
+    ActionBlockReason, AmbiguousRequestPolicy, RetryStageKind, RetryStageRequest, RetryStageSubmissionView,
     StageActionsView,
 };
 use crate::actions::stage_plan::stage_plan;
@@ -54,6 +54,15 @@ impl<'a> JobsFacade<'a> {
                 "refine options are only accepted with stage=refine",
             ));
         }
+        // 只有 render / refine 能原地执行；ocr / translation 一律新建任务。这是请求写错了（400），
+        // 和任务现在是什么状态无关，所以放在最前面，不让「在跑」的 409 盖住它。
+        if !request.creates_new_job()
+            && !matches!(request.stage, RetryStageKind::Render | RetryStageKind::Refine)
+        {
+            return Err(AppError::bad_request(
+                "create_new_job=false is currently supported only for render and refine retry",
+            ));
+        }
         let refine_override = if matches!(request.stage, RetryStageKind::Refine) {
             if request.creates_new_job() {
                 return Err(AppError::bad_request(
@@ -69,6 +78,15 @@ impl<'a> JobsFacade<'a> {
         if let Some(refine_override) = refine_override {
             return self.submit_in_place_refine(base_url, source_job, &request, refine_override);
         }
+        let plan = stage_plan(
+            &source_job,
+            request.stage.clone(),
+            self.command.control.data_root,
+        );
+        // 在跑最先判：不管哪个阶段、什么类型的任务，都是「先取消」。
+        if plan.disabled_code == Some(ActionBlockReason::JobActive) {
+            return Err(plan.blocked_error());
+        }
         if !matches!(request.stage, RetryStageKind::Render)
             && source_job
                 .request_payload
@@ -76,7 +94,7 @@ impl<'a> JobsFacade<'a> {
                 .execution_connection
                 .is_some()
         {
-            return Err(AppError::conflict("Rust model translation retry requires receipt-preserving recovery; legacy retry is disabled even with duplicate-risk acceptance"));
+            return Err(ActionBlockReason::ModelExecutorUnsupported.conflict("Rust model translation retry requires receipt-preserving recovery; legacy retry is disabled even with duplicate-risk acceptance"));
         }
         let ambiguous_ocr = if matches!(request.stage, RetryStageKind::Ocr) {
             ambiguous_ocr_dispatch(self.command.db, source_job_id)?
@@ -86,32 +104,24 @@ impl<'a> JobsFacade<'a> {
         if ambiguous_ocr.is_some()
             && request.ambiguous_request_policy != AmbiguousRequestPolicy::AcceptDuplicateRisk
         {
-            return Err(AppError::conflict(
+            return Err(ActionBlockReason::AmbiguousOcrDispatch.conflict(
                 "OCR request outcome is ambiguous; retry is paused. Use the OCR ambiguity resolution endpoint to bind an existing provider task, or retry-stage with ambiguous_request_policy=accept_duplicate_risk",
             ));
         }
-        let plan = stage_plan(
-            &source_job,
-            request.stage.clone(),
-            self.command.control.data_root,
-        );
         if !plan.can_retry {
-            return Err(AppError::bad_request(plan.disabled_reason));
+            return Err(plan.blocked_error());
         }
         if matches!(request.stage, RetryStageKind::Translation) {
+            // 请求日志损坏已在上面的 plan 里挡住（request_journal_corrupt）；这里只剩
+            // 「结果不确定、没接受重复风险」。
             if let Some(state) =
                 load_translation_request_recovery(&source_job, self.command.control.data_root)
             {
-                if state.status == "corrupt" {
-                    return Err(AppError::conflict(
-                        "translation request journal is corrupt; retry remains paused because duplicate-risk acceptance cannot repair control-state corruption",
-                    ));
-                }
                 if state.requires_confirmation
                     && request.ambiguous_request_policy
                         != AmbiguousRequestPolicy::AcceptDuplicateRisk
                 {
-                    return Err(AppError::conflict(
+                    return Err(ActionBlockReason::AmbiguousTranslationRequest.conflict(
                         "translation request outcome is ambiguous; retry is paused. Resubmit retry-stage with ambiguous_request_policy=accept_duplicate_risk to acknowledge possible duplicate upstream work or billing",
                     ));
                 }
@@ -145,6 +155,7 @@ impl<'a> JobsFacade<'a> {
                 request.ambiguous_request_policy,
             ));
         } else {
+            // 上面已拒绝 ocr / translation 的 create_new_job=false，走不到这里；留一道防线。
             return Err(AppError::bad_request(
                 "create_new_job=false is currently supported only for render and refine retry",
             ));
@@ -187,31 +198,13 @@ impl<'a> JobsFacade<'a> {
         refine_override: retainpdf_core::models::domain::RefineOverride,
     ) -> Result<RetryStageSubmissionView, AppError> {
         let source_job_id = source_job.job_id.clone();
-        // 先判「在跑」：plan 也会挡，但那条走 400，这里按 rerender 的规则给 409。
-        if matches!(
-            source_job.status,
-            retainpdf_core::models::domain::JobStatusKind::Queued
-                | retainpdf_core::models::domain::JobStatusKind::Running
-        ) {
-            return Err(AppError::conflict(
-                "job is already queued or running; cancel it or wait before refining",
-            ));
-        }
         let plan = stage_plan(
             &source_job,
             RetryStageKind::Refine,
             self.command.control.data_root,
         );
         if !plan.can_retry {
-            if source_job
-                .request_payload
-                .translation
-                .execution_connection
-                .is_some()
-            {
-                return Err(AppError::conflict(plan.disabled_reason));
-            }
-            return Err(AppError::bad_request(plan.disabled_reason));
+            return Err(plan.blocked_error());
         }
         // 换了 key 后带来的明文 key 先导入凭据库；锁持有到 relaunch_in_place 落库之后。
         let (overrides, _credential_usage) =

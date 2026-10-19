@@ -216,6 +216,7 @@ async fn refine_retry_conflicts_while_job_is_running() {
 
     let response = retry(&state, id, json!({"stage": "refine"})).await;
     assert_eq!(response.status(), StatusCode::CONFLICT);
+    assert_eq!(read_json(response).await["error"]["details"]["reason"], "job_active");
     assert!(read_override(&state, id).is_none());
 }
 
@@ -235,8 +236,10 @@ async fn refine_retry_requires_committed_translations() {
     state.db.save_job(&job).expect("save job");
 
     let response = retry(&state, id, json!({"stage": "refine"})).await;
-    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    // 译文还没有：任务当前的产物状态不允许精修，是 409 而不是请求写错了的 400。
+    assert_eq!(response.status(), StatusCode::CONFLICT);
     let payload = read_json(response).await;
+    assert_eq!(payload["error"]["details"]["reason"], "artifacts_missing", "{payload}");
     assert!(payload.to_string().contains("committed translations"), "{payload}");
 
     let actions = build_app(state.clone())
@@ -382,8 +385,10 @@ async fn refine_retry_rejects_jobs_rendering_another_jobs_translations() {
     state.db.save_job(&job).expect("save job");
 
     let response = retry(&state, id, json!({"stage": "refine"})).await;
-    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-    assert!(read_json(response).await.to_string().contains("source job"));
+    assert_eq!(response.status(), StatusCode::CONFLICT);
+    let payload = read_json(response).await;
+    assert_eq!(payload["error"]["details"]["reason"], "translations_not_owned", "{payload}");
+    assert!(payload.to_string().contains("source job"));
     assert!(read_override(&state, id).is_none());
 }
 

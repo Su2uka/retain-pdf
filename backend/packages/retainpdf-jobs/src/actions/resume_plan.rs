@@ -25,5 +25,6 @@ pub(crate) fn build_resume_plan_view(
         reuses_artifacts: plan.reuses_artifacts,
         reruns_stages: plan.reruns_stages,
         reason: plan.reason,
+        reason_code: plan.reason_code,
     }
 }
