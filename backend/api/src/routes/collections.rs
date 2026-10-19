@@ -88,10 +88,10 @@ pub async fn remove_collection_document_route(
     ))
 }
 
-/// 物化这个文件夹的 agent 工作区，返回清单。
+/// 物化这个文件夹的 agent 工作区，返回清单。`POST`，旧地址是同一路径的 `GET`。
 ///
-/// 每次调用都重建 `books/` —— 成员和 active_job 都会变，而那个目录是纯派生物。
-/// 所以前端在开终端**之前**打一次就行，不需要额外的失效逻辑。
+/// 每次调用都重建 `books/` —— 成员和各书的译文都会变，而那个目录是纯派生物。
+/// 所以前端在开终端**之前**打一次就行，不需要额外的失效逻辑。编号不合格 400，合集不存在 404。
 pub async fn collection_agent_workspace_route(
     State(state): State<AppState>,
     ApiPath(collection_id): ApiPath<String>,

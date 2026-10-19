@@ -146,12 +146,20 @@ fn directory() -> String {
         out.push("|---|---|---|---|---|---|".to_string());
         for endpoint in items.iter().filter(|e| e.replaced_by.is_none()) {
             // 旧地址可能登记在别的路由文件里（比如任务下的封面现在在书下面），所以在全部接口里找。
+            // 同一地址换方法的旧地址（比如 GET 换成 POST）方法和新地址不同，显示时带上方法。
             let olds: Vec<String> = endpoints
                 .iter()
-                .filter(|old| old.replaced_by == Some(endpoint.path) && old.method == endpoint.method)
-                .map(|old| match old.summary.trim() {
-                    "" => format!("`{}`", short(old.path)),
-                    note => format!("`{}`（{}）", short(old.path), note.replace('|', "\\|")),
+                .filter(|old| old.replaced_by == Some(endpoint.path) && replaces(old, endpoint))
+                .map(|old| {
+                    let address = if old.method == endpoint.method {
+                        short(old.path)
+                    } else {
+                        format!("{} {}", old.method, short(old.path))
+                    };
+                    match old.summary.trim() {
+                        "" => format!("`{address}`"),
+                        note => format!("`{address}`（{}）", note.replace('|', "\\|")),
+                    }
                 })
                 .collect();
             out.push(format!(
@@ -168,7 +176,13 @@ fn directory() -> String {
     out.join("\n") + "\n"
 }
 
-/// 登记表自己的规矩：现用地址都要有说明；旧地址要指向一个存在的、方法相同的新地址。
+/// 旧地址 `old` 算不算 `new` 的旧写法：方法相同；或者地址相同、只换了方法（GET 换 POST 这种）。
+fn replaces(old: &crate::app::endpoints::Endpoint, new: &crate::app::endpoints::Endpoint) -> bool {
+    old.method == new.method || old.path == new.path
+}
+
+/// 登记表自己的规矩：现用地址都要有说明；旧地址要指向一个存在的、方法相同的新地址，
+/// 或者同一地址的另一个方法（只换方法时）。
 #[test]
 fn endpoint_registry_is_complete() {
     let endpoints = crate::app::registered_endpoints();
@@ -184,8 +198,8 @@ fn endpoint_registry_is_complete() {
             Some(replacement) => assert!(
                 endpoints
                     .iter()
-                    .any(|e| e.path == replacement && e.method == endpoint.method && e.replaced_by.is_none()),
-                "{} {}：旧地址指向的新地址 {replacement} 不在登记表里（或者方法不同、它自己也是旧地址）",
+                    .any(|e| e.path == replacement && replaces(endpoint, e) && e.replaced_by.is_none()),
+                "{} {}：旧地址指向的新地址 {replacement} 不在登记表里（或者方法不同又不是同一地址换方法、它自己也是旧地址）",
                 endpoint.method,
                 endpoint.path
             ),

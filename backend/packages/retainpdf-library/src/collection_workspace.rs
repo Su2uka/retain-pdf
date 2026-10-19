@@ -40,11 +40,13 @@ use serde::Serialize;
 
 use retainpdf_data::db::Db;
 use retainpdf_api_base::error::AppError;
-use retainpdf_core::storage_paths::resolve_job_root;
 
 /// 一次最多纳入多少本。工作区是给模型读的，超过这个数它也摸不完，
-/// 而 `ls books/` 刷屏本身就是一种噪音。
-const MAX_BOOKS: u32 = 200;
+/// 而 `ls books/` 刷屏本身就是一种噪音。超过的书写进 `skipped`，不悄悄少掉。
+const MAX_BOOKS: usize = 200;
+
+/// 从数据库一页读多少本成员书（只为把上限以外的也写进 `skipped`）。
+const LIST_PAGE: u32 = 200;
 
 /// 链接名的长度上限。文件系统的上限是 255 字节，中文标题一个字三字节。
 const MAX_LINK_NAME_BYTES: usize = 120;
@@ -75,17 +77,64 @@ pub struct CollectionWorkspace {
 pub struct CollectionWorkspaceSkip {
     pub document_id: String,
     pub title: String,
-    pub reason: &'static str,
+    pub reason: String,
+}
+
+/// 合集编号是不是 `new_collection_id` 生成的形状：`col-` + 14 位数字时间 + `-` + 6 位小写十六进制
+/// （`col-20260917055937-8f4844`）。
+///
+/// 编号要拼进磁盘路径，而路径参数会被百分号解码（`%2E%2E` 就是 `..`），所以只认生成器的形状，
+/// 不做"去掉危险字符"这种黑名单。
+pub(crate) fn is_valid_collection_id(collection_id: &str) -> bool {
+    let Some(rest) = collection_id.strip_prefix("col-") else {
+        return false;
+    };
+    let bytes = rest.as_bytes();
+    bytes.len() == 21
+        && bytes[..14].iter().all(u8::is_ascii_digit)
+        && bytes[14] == b'-'
+        && bytes[15..].iter().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(b))
+}
+
+/// 编号形状不对回 400。
+pub(crate) fn validate_collection_id(collection_id: &str) -> Result<(), AppError> {
+    if is_valid_collection_id(collection_id) {
+        Ok(())
+    } else {
+        Err(AppError::bad_request(format!("invalid collection_id: {collection_id}")))
+    }
+}
+
+/// 一个合集在磁盘上的目录：`<data_root>/collections/<id>/`。编号不合格回 400，不拼路径。
+pub(crate) fn collection_dir(data_root: &Path, collection_id: &str) -> Result<PathBuf, AppError> {
+    validate_collection_id(collection_id)?;
+    Ok(data_root.join("collections").join(collection_id))
 }
 
 /// 工作区的绝对路径：`<data_root>/collections/<id>/ai/`。
 ///
 /// 和 job 工作区同构（`jobs/<id>/ai/`），Python 那边就能用同一套规则。
-pub fn collection_workspace_dir(data_root: &Path, collection_id: &str) -> PathBuf {
-    data_root
-        .join("collections")
-        .join(collection_id)
-        .join("ai")
+pub fn collection_workspace_dir(data_root: &Path, collection_id: &str) -> Result<PathBuf, AppError> {
+    Ok(collection_dir(data_root, collection_id)?.join("ai"))
+}
+
+/// 删合集以后清掉它的目录（工作区、agent 留下的东西）。合集已经删了，清不掉只记日志。
+pub(crate) fn remove_collection_dir(data_root: &Path, collection_id: &str) {
+    let dir = match collection_dir(data_root, collection_id) {
+        Ok(dir) => dir,
+        Err(_) => {
+            eprintln!("[library] not removing collection directory for invalid collection_id {collection_id:?}");
+            return;
+        }
+    };
+    match fs::remove_dir_all(&dir) {
+        Ok(()) => {}
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => {}
+        Err(err) => eprintln!(
+            "[library] failed to remove collection directory {}: {err}",
+            dir.display()
+        ),
+    }
 }
 
 /// 把标题削成一个能当目录名的东西。
@@ -140,10 +189,6 @@ fn link_book(link: &Path, target: &Path) -> std::io::Result<()> {
     std::os::windows::fs::symlink_dir(target, link)
 }
 
-/// 物化（或刷新）一个文件夹的 agent 工作区。
-///
-/// 每次调用都重建 `books/`：成员和 active_job 都会变，而这个目录是纯派生物，
-/// 重建比对账便宜，也不会有「链接指向一个已删除的 job」这种状态。
 /// 一本书在工作区里该指向哪里：阅读入口说的那个任务（一个任务覆盖整本就是它；多次范围
 /// 翻译就是合并目录，目录结构和普通任务一样）。
 pub struct ReadingBook {
@@ -151,17 +196,35 @@ pub struct ReadingBook {
     pub root: std::path::PathBuf,
 }
 
+/// 物化（或刷新）一个文件夹的 agent 工作区。
+///
+/// 每次调用都重建 `books/`：成员和各书的译文都会变，而这个目录是纯派生物，
+/// 重建比对账便宜，也不会有「链接指向一个已删除的 job」这种状态。
+///
+/// 编号不合格回 400，合集不存在回 404，都在碰磁盘之前。
 pub fn ensure_collection_workspace(
     db: &Db,
     data_root: &Path,
     collection_id: &str,
     reading_book: &dyn Fn(&retainpdf_core::models::api::DocumentRecord) -> Option<ReadingBook>,
 ) -> Result<CollectionWorkspace, AppError> {
-    let documents = db
-        .list_documents(MAX_BOOKS, 0, None, Some(collection_id), None)
-        .map_err(|err| AppError::internal(format!("list collection documents: {err}")))?;
+    materialize_collection_workspace(db, data_root, collection_id, reading_book, MAX_BOOKS)
+}
 
-    let workspace = collection_workspace_dir(data_root, collection_id);
+/// [`ensure_collection_workspace`] 的本体，上限可调（测试不必真建 200 本书）。
+pub(crate) fn materialize_collection_workspace(
+    db: &Db,
+    data_root: &Path,
+    collection_id: &str,
+    reading_book: &dyn Fn(&retainpdf_core::models::api::DocumentRecord) -> Option<ReadingBook>,
+    max_books: usize,
+) -> Result<CollectionWorkspace, AppError> {
+    let workspace = collection_workspace_dir(data_root, collection_id)?;
+    if db.get_collection(collection_id)?.is_none() {
+        return Err(AppError::not_found(format!("collection not found: {collection_id}")));
+    }
+    let documents = list_member_documents(db, collection_id)?;
+
     let books_dir = workspace.join("books");
     // 整个重建 books/，但**不碰 ai/ 下别的东西** —— agent 的产出在那儿。
     let _ = fs::remove_dir_all(&books_dir);
@@ -172,58 +235,36 @@ pub fn ensure_collection_workspace(
     let mut skipped = Vec::new();
     let mut taken = HashSet::new();
 
-    for document in documents {
-        // 多次范围翻译的书：链到合并目录，agent 看到的是整本，不是最后翻的那几页。
-        if let Some(book) = reading_book(&document) {
-            let name = link_name(&document.title, &document.document_id, &mut taken);
-            let dir = link_book(&books_dir.join(&name), &book.root).ok().map(|()| name);
-            let relative = retainpdf_core::storage_paths::to_relative_data_path(data_root, &book.root)
-                .unwrap_or_else(|_| format!("jobs/{}", book.job_id));
-            books.push(CollectionWorkspaceBook {
+    for (index, document) in documents.into_iter().enumerate() {
+        if index >= max_books {
+            skipped.push(CollectionWorkspaceSkip {
                 document_id: document.document_id,
                 title: document.title,
-                dir,
-                // 三层 ..：ai → <collection_id> → collections → data_root。
-                job_root: format!("../../../{relative}"),
-                job_id: book.job_id,
-                page_count: document.page_count,
+                reason: format!("超过一次最多纳入 {max_books} 本的上限"),
             });
             continue;
         }
-        let Some(job_id) = document.active_job_id.clone().filter(|id| !id.is_empty()) else {
+        // 阅读入口说的那个任务；多次范围翻译的书是合并目录，agent 看到的是整本。
+        // 没有可读的译文就跳过，不退回书卡的 `active_job_id`：它可能指着还在跑的任务，链过去是半成品。
+        let Some(book) = reading_book(&document) else {
             skipped.push(CollectionWorkspaceSkip {
                 document_id: document.document_id,
                 title: document.title,
-                reason: "还没有可用的翻译",
+                reason: "还没有可读的译文".to_string(),
             });
             continue;
         };
-        let Ok(job) = db.get_job(&job_id) else {
-            skipped.push(CollectionWorkspaceSkip {
-                document_id: document.document_id,
-                title: document.title,
-                reason: "active_job 指向一个已经不存在的任务",
-            });
-            continue;
-        };
-        let Some(job_root) = resolve_job_root(&job, data_root) else {
-            skipped.push(CollectionWorkspaceSkip {
-                document_id: document.document_id,
-                title: document.title,
-                reason: "任务没有产物目录",
-            });
-            continue;
-        };
-
         let name = link_name(&document.title, &document.document_id, &mut taken);
-        let dir = link_book(&books_dir.join(&name), &job_root).ok().map(|()| name);
+        let dir = link_book(&books_dir.join(&name), &book.root).ok().map(|()| name);
+        let relative = retainpdf_core::storage_paths::to_relative_data_path(data_root, &book.root)
+            .unwrap_or_else(|_| format!("jobs/{}", book.job_id));
         books.push(CollectionWorkspaceBook {
             document_id: document.document_id,
             title: document.title,
             dir,
             // 三层 ..：ai → <collection_id> → collections → data_root。
-            job_root: format!("../../../jobs/{job_id}"),
-            job_id,
+            job_root: format!("../../../{relative}"),
+            job_id: book.job_id,
             page_count: document.page_count,
         });
     }
@@ -239,4 +280,23 @@ pub fn ensure_collection_workspace(
     fs::write(workspace.join("collection.v1.json"), json)
         .map_err(|err| AppError::internal(format!("write collection manifest: {err}")))?;
     Ok(manifest)
+}
+
+/// 合集里的全部成员书（分页读完）。上限以外的也要读出来，才能写进 `skipped`。
+fn list_member_documents(
+    db: &Db,
+    collection_id: &str,
+) -> Result<Vec<retainpdf_core::models::api::DocumentRecord>, AppError> {
+    let mut documents = Vec::new();
+    loop {
+        let offset = u32::try_from(documents.len()).unwrap_or(u32::MAX);
+        let page = db
+            .list_documents(LIST_PAGE, offset, None, Some(collection_id), None)
+            .map_err(|err| AppError::internal(format!("list collection documents: {err}")))?;
+        let done = page.len() < LIST_PAGE as usize;
+        documents.extend(page);
+        if done {
+            return Ok(documents);
+        }
+    }
 }

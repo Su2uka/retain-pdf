@@ -8,9 +8,11 @@ use crate::views::{
 };
 use retainpdf_core::models::domain::build_job_id;
 
+use super::collection_workspace::remove_collection_dir;
 use super::LibraryDeps;
 
-fn new_collection_id() -> String {
+/// 合集编号的形状只有这一个来源：工作区目录按它校验（`collection_workspace::is_valid_collection_id`）。
+pub(crate) fn new_collection_id() -> String {
     format!("col-{}", build_job_id())
 }
 
@@ -75,6 +77,8 @@ pub fn delete_collection(
             "collection not found: {collection_id}"
         )));
     }
+    // 合集删了，它的工作区（`data/collections/<id>/`）也没用了。清不掉只记日志，不让删除失败。
+    remove_collection_dir(deps.data_root, collection_id);
     Ok(CollectionMutationResult {
         deleted: Some(true),
         removed: None,
