@@ -142,6 +142,13 @@ Canonical JSON request:
 }
 ```
 
+`runtime.job_id` is server-assigned. Public entries (`POST /api/v1/jobs`,
+`POST /api/v1/documents/{document_id}/translate|ocr`, `POST /api/v1/translate/bundle`)
+reject a non-empty value with `400` (`runtime.job_id is set by the server; do not
+send it`); send it empty or omit it. As a backstop, `submit_job` refuses a new job
+whose id is not `[A-Za-z0-9_-]{1,128}` (`400`) or already exists (`409`). Internal
+paths (retry, rerun, OCR-ambiguity recovery) clear the field and get a fresh id.
+
 Timeout note:
 
 `timeout_seconds` and `no_output_timeout_seconds` are two independent limits and

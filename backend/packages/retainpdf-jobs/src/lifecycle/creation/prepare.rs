@@ -136,16 +136,9 @@ pub(super) fn prepare_ocr_input(
         resolved.workflow = WorkflowKind::Ocr;
         return Ok(PreparedOcrInput { spec: resolved });
     }
-    eprintln!(
-        "[prepare_ocr_input] no file/upload_id/source_url: upload={:?} upload_id='{}' source_url='{}' workflow={:?}",
-        upload.map(|u| &u.upload_id),
-        input.source.upload_id,
-        input.source.source_url,
-        input.workflow
-    );
-    return Err(AppError::bad_request(
+    Err(AppError::bad_request(
         "either file, upload_id, or source_url is required",
-    ));
+    ))
 }
 
 fn require_translation_upload(

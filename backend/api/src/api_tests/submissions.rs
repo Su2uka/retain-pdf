@@ -343,6 +343,20 @@ async fn single_user_cases(recorder: &mut Recorder) {
         })
         .await;
 
+    // 客户端不许自己指定任务编号：已有编号会被覆盖，`..` 会跑出输出目录。
+    for (title, job_id) in [
+        ("POST /jobs  带 runtime.job_id（已有任务的编号）", "src-translated"),
+        ("POST /jobs  带 runtime.job_id（路径穿越）", "../../escape"),
+    ] {
+        recorder
+            .case(&fixture, title, None, || async {
+                let mut request = book_with_keys("up-book");
+                request["runtime"] = json!({ "job_id": job_id });
+                view(jobs.create_submission(BASE_URL, &input(request)))
+            })
+            .await;
+    }
+
     translated_source(&fixture, "src-translated", &upload);
     recorder
         .case(&fixture, "POST /jobs  render，用已有任务的译文", None, || async {
@@ -495,6 +509,37 @@ async fn single_user_cases(recorder: &mut Recorder) {
                 input(request),
                 BASE_URL,
             ))
+        })
+        .await;
+    recorder
+        .case(&fixture, "POST /documents/:id/translate  带 runtime.job_id", None, || async {
+            let mut request = book_with_keys("");
+            request["source"] = json!({});
+            request["runtime"] = json!({ "job_id": "custom-id" });
+            view(crate::services::library::translate_document_view(
+                &library,
+                &jobs,
+                "doc-up-library",
+                input(request),
+                BASE_URL,
+            ))
+        })
+        .await;
+    recorder
+        .case(&fixture, "POST /documents/:id/ocr  带 runtime.job_id", None, || async {
+            view(
+                crate::services::library::ocr_document_view(
+                    &library,
+                    &jobs,
+                    "doc-up-library",
+                    input(json!({
+                        "ocr": { "provider": "mineru", "mineru_token": "mineru-user-token" },
+                        "runtime": { "job_id": "custom-id" }
+                    })),
+                    BASE_URL,
+                )
+                .await,
+            )
         })
         .await;
     recorder
