@@ -574,6 +574,15 @@ export interface TranslationRequestRecoveryView {
 export interface JobListView {
   items: JobListItemView[];
   invocation_summary: JobListInvocationSummaryView;
+  /**
+   * 实际生效的条数上限。越界（0 或大于 500）是 400，不会被夹，所以总等于请求的值；没传是 20。
+   */
+  limit: number;
+  offset: number;
+  /**
+   * 这一页之后还有没有。
+   */
+  has_more: boolean;
 }
 /**
  * job_types.rs :: JobListItemView — 列表卡用；关键字段 job_id / display_name / workflow / status / stage_snapshot / progress(经 stage_snapshot.progress) / cover_url 均在契约内。

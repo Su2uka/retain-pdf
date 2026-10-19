@@ -86,6 +86,7 @@ pub struct TranslationDebugListView {
     pub total: usize,
     pub limit: u32,
     pub offset: u32,
+    pub has_more: bool,
 }
 
 #[derive(Debug, Serialize)]

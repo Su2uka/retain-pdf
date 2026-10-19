@@ -1,4 +1,9 @@
-use std::env;
+//! 列表接口的 `limit` 默认值和上限。都是常量，不读环境变量：以前有一组读
+//! `RUST_API_MAX_*_LIMIT` 的函数，没有任何调用方，已删（2026-10-19）。要改上限就改这里。
+//!
+//! 越界怎么办按接口分：`/api/v1/jobs` 一族（任务列表、书的任务、译文、质量条目、数据、事件）
+//! `limit` 超出 1..=上限一律返回 400（规矩见 `docs/api/00-约定/`）；`/documents`、
+//! `/library/books`、`/conversations`、`/search` 暂时还是静默夹到上限。
 
 /// Default `limit` for paginated lists when the query param is absent.
 /// Centralized default — `serde(default = "default_limit")` in `models` delegates here.
@@ -16,47 +21,3 @@ pub const MAX_DOCUMENT_LIMIT: u32 = MAX_LIST_LIMIT;
 pub const MAX_JOB_LIMIT: u32 = MAX_LIST_LIMIT;
 /// Alias for job events; kept equal to `MAX_JOB_LIMIT`.
 pub const MAX_JOB_EVENT_LIMIT: u32 = MAX_JOB_LIMIT;
-
-fn resolve_limit(specific_env: &str, fallback: u32) -> u32 {
-    if let Ok(raw) = env::var(specific_env) {
-        if let Ok(parsed) = raw.trim().parse::<u32>() {
-            if parsed > 0 {
-                return parsed;
-            }
-        }
-    }
-    if let Ok(raw) = env::var("RUST_API_MAX_LIST_LIMIT") {
-        if let Ok(parsed) = raw.trim().parse::<u32>() {
-            if parsed > 0 {
-                return parsed;
-            }
-        }
-    }
-    fallback
-}
-
-/// Env-aware limit for conversations. Reads `RUST_API_MAX_CONVERSATION_LIMIT`
-/// then `RUST_API_MAX_LIST_LIMIT`, else `MAX_CONVERSATION_LIMIT`.
-pub fn max_conversation_limit() -> u32 {
-    resolve_limit("RUST_API_MAX_CONVERSATION_LIMIT", MAX_CONVERSATION_LIMIT)
-}
-
-/// Env-aware limit for search. Reads `RUST_API_MAX_SEARCH_LIMIT` then generic.
-pub fn max_search_limit() -> u32 {
-    resolve_limit("RUST_API_MAX_SEARCH_LIMIT", MAX_SEARCH_LIMIT)
-}
-
-/// Env-aware limit for documents.
-pub fn max_document_limit() -> u32 {
-    resolve_limit("RUST_API_MAX_DOCUMENT_LIMIT", MAX_DOCUMENT_LIMIT)
-}
-
-/// Env-aware limit for jobs (list and events).
-pub fn max_job_limit() -> u32 {
-    resolve_limit("RUST_API_MAX_JOB_LIMIT", MAX_JOB_LIMIT)
-}
-
-/// Env-aware limit for job events. Reads `RUST_API_MAX_JOB_EVENT_LIMIT` then generic.
-pub fn max_job_event_limit() -> u32 {
-    resolve_limit("RUST_API_MAX_JOB_EVENT_LIMIT", MAX_JOB_EVENT_LIMIT)
-}

@@ -9,6 +9,8 @@ use crate::views::{
 };
 use retainpdf_core::models::domain::JobSnapshot;
 
+use crate::support::checked_limit;
+use retainpdf_core::config::limits::MAX_LIST_LIMIT;
 use crate::translations::artifacts::{
     load_manifest_pages, read_translation_debug_index_file, translation_manifest_path,
 };
@@ -19,11 +21,12 @@ pub(crate) fn load_translation_debug_list_view(
     job: &JobSnapshot,
     query: &ListTranslationItemsQuery,
 ) -> Result<TranslationDebugListView, AppError> {
+    let limit = checked_limit(query.limit, MAX_LIST_LIMIT)?;
     let mut items = load_translation_debug_index(data_root, job)?.items;
     apply_translation_item_filters(&mut items, query);
     let total = items.len();
     let start = query.offset as usize;
-    let end = start.saturating_add(query.limit as usize).min(total);
+    let end = start.saturating_add(limit as usize).min(total);
     let items = if start >= total {
         Vec::new()
     } else {
@@ -32,8 +35,9 @@ pub(crate) fn load_translation_debug_list_view(
     Ok(TranslationDebugListView {
         items,
         total,
-        limit: query.limit,
+        limit,
         offset: query.offset,
+        has_more: end < total,
     })
 }
 

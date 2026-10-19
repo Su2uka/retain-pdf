@@ -31,6 +31,15 @@ export type JobStageStateView =
 export interface JobListView {
   items: JobListItemView[];
   invocation_summary: JobListInvocationSummaryView;
+  /**
+   * 实际生效的条数上限。越界（0 或大于 500）是 400，不会被夹，所以总等于请求的值；没传是 20。
+   */
+  limit: number;
+  offset: number;
+  /**
+   * 这一页之后还有没有。
+   */
+  has_more: boolean;
 }
 /**
  * job_types.rs :: JobListItemView — /api/v1/jobs 列表项，含 stage_snapshot 与 cover/thumbnail 双图。

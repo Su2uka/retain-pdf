@@ -48,6 +48,14 @@ export interface JobDataView {
   total: number;
   offset: number;
   limit: number;
+  /**
+   * 这一页之后还有没有：有 rows 时按 total 算，有 groups 时按 group_total 算，单对象数据集恒为 false。
+   */
+  has_more: boolean;
+  /**
+   * 只有 group_by 时给：分组的个数。此时 total 仍是筛选后的行数，offset/limit 翻的是分组。
+   */
+  group_total?: number;
   rows?: {
     [k: string]: JsonValue;
   }[];

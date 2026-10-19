@@ -89,8 +89,8 @@ addition to `items` and `invocation_summary`, this projection returns:
 - `limit` / `offset`: the effective page request
 - `has_more`: whether another page exists
 
-The omitted `limit` defaults to `20`; the effective value is clamped to
-`1..500`. Ordering is `updated_at DESC, job_id DESC`, so equal timestamps do
+The omitted `limit` defaults to `20`; a `limit` outside `1..=500` is rejected
+with `400` (not clamped, rule 3 of `docs/api/00-约定/03-分页.md`). Ordering is `updated_at DESC, job_id DESC`, so equal timestamps do
 not move records between repeated page reads.
 
 Every `JobListItemView` exposes durable retry metadata from `runtime_json`:

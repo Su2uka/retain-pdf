@@ -394,3 +394,42 @@ fn document_id_for_job_treats_null_and_empty_as_unlinked() {
     // 根本不存在的 job 也是 None,不是错误。
     assert_eq!(db.db.document_id_for_job("no-such-job").unwrap(), None);
 }
+
+#[test]
+fn title_contains_matches_the_document_title_or_the_callback() {
+    let test = TestDb::new();
+    for id in ["3-renamed", "2-by-callback", "1-none"] {
+        test.seed(id, WorkflowKind::Book, JobStatusKind::Queued, OcrProviderKind::Local);
+    }
+    let upload = UploadRecord {
+        upload_id: "upload-a".into(),
+        filename: "plain.pdf".into(),
+        stored_path: "uploads/a.pdf".into(),
+        bytes: 4,
+        page_count: 1,
+        uploaded_at: "2026-01-01T00:00:00Z".into(),
+        developer_mode: false,
+        content_hash: "hash-a".into(),
+    };
+    test.db.save_upload(&upload).unwrap();
+    test.db.upsert_document_from_upload(&upload).unwrap();
+    let conn = test.db.connect().unwrap();
+    conn.execute("UPDATE documents SET title = 'Quantum Mechanics 2e' WHERE document_id = 'hash-a'", []).unwrap();
+    conn.execute("UPDATE jobs SET upload_id = 'upload-a' WHERE job_id = '3-renamed'", []).unwrap();
+    let select = |needle: &str| {
+        test.db
+            .select_jobs(
+                &JobListSelection {
+                    include_upload_filename: true,
+                    title_contains: Some(needle),
+                    ..Default::default()
+                },
+                |job, _| job.job_id == "2-by-callback",
+            )
+            .unwrap()
+    };
+    // 书名命中（ASCII 不分大小写，调用方传小写）或回调命中，先过滤再分页。
+    assert_eq!(ids(&select("quantum")), ["3-renamed", "2-by-callback"]);
+    assert_eq!(ids(&select("mechanics 2e")), ["3-renamed", "2-by-callback"]);
+    assert_eq!(ids(&select("biology")), ["2-by-callback"]);
+}

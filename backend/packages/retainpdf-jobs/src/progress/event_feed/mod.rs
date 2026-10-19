@@ -13,6 +13,8 @@ use retainpdf_core::models::api::JobEventRecord;
 use crate::views::{JobEventFeedItem, JobEventListView, ListJobEventsQuery, ListJobEventsStart};
 use retainpdf_core::models::domain::JobSnapshot;
 
+use crate::support::checked_limit;
+use retainpdf_core::config::limits::MAX_JOB_EVENT_LIMIT;
 use sync::synchronize;
 
 pub(crate) fn read_events(
@@ -31,8 +33,8 @@ pub(crate) fn read_events(
         .as_deref()
         .map(|raw| cursor::Cursor::decode(raw, job_id))
         .transpose()?;
+    let limit = checked_limit(query.limit, MAX_JOB_EVENT_LIMIT)?;
     let state = synchronize(db, data_root, &job)?;
-    let limit = query.limit.clamp(1, 500);
     let (after, upper, tail) = match cursor {
         Some(cursor) => {
             if cursor.epoch != state.epoch {

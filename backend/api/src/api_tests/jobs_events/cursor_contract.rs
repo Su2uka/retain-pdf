@@ -156,17 +156,20 @@ async fn parent_import_does_not_advance_the_ocr_childs_independent_checkpoint() 
 }
 
 #[tokio::test]
-async fn limit_is_clamped_and_legacy_or_ambiguous_queries_are_rejected() {
+async fn limit_out_of_range_and_legacy_or_ambiguous_queries_are_rejected() {
     let state = test_state("events-v2-query-validation");
     seed_job(&state, "query-feed", WorkflowKind::Book);
     append_events(&state, "query-feed", 1, 2);
     let app = build_app(state);
-    for (requested, expected) in [(0, 1), (500, 500), (501, 500), (u32::MAX, 500)] {
+    for (requested, expected) in [(1, 1), (500, 500)] {
         let data = page(&app, "query-feed", &format!("limit={requested}")).await;
         assert_eq!(data["limit"], expected);
         assert_eq!(items(&data).len(), usize::min(expected as usize, 2));
     }
     for query in [
+        "limit=0",
+        "limit=501",
+        "limit=4294967295",
         "offset=0",
         "unknown=1",
         "start=middle",

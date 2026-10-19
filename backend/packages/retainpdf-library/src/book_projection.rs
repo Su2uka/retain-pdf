@@ -11,7 +11,7 @@ use retainpdf_core::models::domain::{JobSnapshot, UploadRecord};
 
 use retainpdf_files::{
     build_artifacts_display, display_title, document_titles_for, job_upload_id, source_file_name,
-    source_url_file_name, DocumentTitles,
+    DocumentTitles,
 };
 use retainpdf_jobs::{
     book_document_id, job_readiness, load_live_stage_snapshots, LiveStageSnapshot, SummaryCache,
@@ -203,21 +203,7 @@ fn list_books_filtered(db: &Db, query: &ListJobsQuery) -> Result<Vec<JobSnapshot
 }
 
 fn library_search_text(job: &JobSnapshot, upload_filename: Option<&str>) -> String {
-    let source_filename = upload_filename
-        .map(str::trim)
-        .filter(|name| !name.is_empty())
-        .map(str::to_string)
-        .or_else(|| source_url_file_name(job.source_url()));
-    [
-        job.job_id.as_str(),
-        job.stage.as_deref().unwrap_or(""),
-        job.stage_detail.as_deref().unwrap_or(""),
-        job.error.as_deref().unwrap_or(""),
-        job.source_url(),
-        source_filename.as_deref().unwrap_or(""),
-    ]
-    .join(" ")
-    .to_ascii_lowercase()
+    retainpdf_jobs::job_search_text(job, upload_filename)
 }
 
 #[cfg(test)]

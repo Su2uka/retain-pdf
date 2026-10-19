@@ -112,6 +112,26 @@ fn group_by_counts_and_sort_and_paging() {
 }
 
 #[test]
+fn has_more_follows_rows_and_group_total_follows_groups() {
+    let roots = full_fixture("has-more");
+    // 行：total 是筛选后的行数。
+    let first = query("job", "revisions", &roots, &params(&[("limit", "2")])).unwrap();
+    assert_eq!((first.total, first.limit, first.has_more, first.group_total), (3, 2, true, None));
+    let last = query("job", "revisions", &roots, &params(&[("limit", "2"), ("offset", "2")])).unwrap();
+    assert_eq!((last.rows.unwrap().len(), last.has_more), (1, false));
+    // 分组：total 仍是行数（3），翻页的是分组（2 个）。
+    let groups = query("job", "revisions", &roots, &params(&[("group_by", "item_id"), ("limit", "1")])).unwrap();
+    assert_eq!((groups.total, groups.group_total, groups.has_more), (3, Some(2), true));
+    let groups = query("job", "revisions", &roots, &params(&[("group_by", "item_id"), ("limit", "1"), ("offset", "1")])).unwrap();
+    assert_eq!((groups.group_total, groups.has_more), (Some(2), false));
+    // object 数据集和读不到文件：没有下一页。
+    let object = query("job", "domain_context", &roots, &params(&[])).unwrap();
+    assert!(!object.has_more && object.group_total.is_none());
+    let missing = query("job", "escalated", &fixture("has-more-missing"), &params(&[("group_by", "item_id")])).unwrap();
+    assert_eq!((missing.available, missing.has_more, missing.group_total), (false, false, Some(0)));
+}
+
+#[test]
 fn object_datasets_return_only_registered_fields() {
     let roots = full_fixture("object");
     let view = query("job", "domain_context", &roots, &params(&[])).unwrap();

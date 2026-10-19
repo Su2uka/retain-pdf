@@ -344,7 +344,7 @@ Reader 宿主接入 job/artifact、Markdown、区域、页面元数据和实时�
 
 任务查询：
 
-- `GET /api/v1/jobs?limit=20&offset=0&status=&workflow=&provider=`
+- `GET /api/v1/jobs?limit=20&offset=0&status=&workflow=&provider=&q=`：`limit` 1..=500（越界 400），回包带 `limit`、`offset`、`has_more`；`q` 和 `job_ids` 生效，见 [任务列表](../../api/01-任务/03-任务列表.md)
 - `GET /api/v1/jobs/{job_id}`
 
 列表项直接返回 `attempt`、`retry_count` 和 `last_retry_at`，用于稳定展示重试状态。
@@ -382,7 +382,7 @@ Reader 宿主接入 job/artifact、Markdown、区域、页面元数据和实时�
 
 事件：
 
-`GET /api/v1/jobs/{job_id}/progress/events?limit=200&offset=0`
+`GET /api/v1/jobs/{job_id}/progress/events?limit=200`（游标翻页，不认 `offset`，`limit` 1..=500，越界 400；见 [事件游标](event-feed-v2.md)）
 
 前端应消费的稳定字段：
 
@@ -662,7 +662,7 @@ ETag: "..."
 - `GET /api/v1/jobs/{job_id}/data/{dataset}`：按名字取。参数：
   - `fields=a,b`：只要这些字段；
   - `<字段>=值[,值…]`：等值筛选，逗号为「或」，只能用登记为可筛选的字段；
-  - `group_by=字段`：按字段计数；`sort=字段` / `sort=-字段`；`offset`、`limit`（1..=1000，默认 200）。
+  - `group_by=字段`：按字段计数；`sort=字段` / `sort=-字段`；`offset`、`limit`（1..=1000，默认 200，越界 400）。回包带 `has_more`；`group_by` 时 `offset` / `limit` 翻分组，分组个数在 `group_total`，`total` 仍是筛选后的行数。
 - 每条记录统一带 `item_id`（三位，改译文用）、`reader_item_id`（四位，阅读页跳转用）、`page`（1 起）。
 - 文件不存在时 `available=false`、不报错；未登记的数据集 404，未登记 / 不能筛选的字段 400。
 
@@ -738,7 +738,7 @@ PDF 元数据：
 `/api/v1/ocr/jobs` 这一组别名已于 2026-10-18 删除（返回 404）。只做 OCR 的任务走 `/jobs`：
 
 - 创建：先 `POST /api/v1/uploads` 上传 PDF，再 `POST /api/v1/jobs`（JSON，`workflow: "ocr"`，`source.upload_id`）
-- 列表：`GET /api/v1/jobs?workflow=ocr&limit=20&offset=0&status=&provider=`
+- 列表：`GET /api/v1/jobs?workflow=ocr&limit=20&offset=0&status=&provider=`（分页规矩见 [分页](../../api/00-约定/03-分页.md)）
 - 详情、事件、文件、取消：`GET /api/v1/jobs/{job_id}`、`/progress/events`、`/files`、`POST /actions/cancel`（取消按任务类型分支）
 - 规范化文档和报告：`/files/internal/normalized-document.json`、`/files/internal/normalization-report.json`
 
