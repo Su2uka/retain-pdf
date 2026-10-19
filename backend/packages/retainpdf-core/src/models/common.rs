@@ -72,6 +72,12 @@ pub fn now_iso() -> String {
     Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true)
 }
 
+/// `now_iso()` 格式的时间戳距现在过去了几秒；解析不出来返回 None（调用方按「不知道」处理，别当成很久）。
+pub fn seconds_since_iso(timestamp: &str) -> Option<i64> {
+    let parsed = chrono::DateTime::parse_from_rfc3339(timestamp).ok()?;
+    Some((Utc::now() - parsed.with_timezone(&Utc)).num_seconds())
+}
+
 pub fn build_job_id() -> String {
     let ts = Utc::now().format("%Y%m%d%H%M%S").to_string();
     let rand = format!("{:06x}", fastrand::u32(..=0xFFFFFF));

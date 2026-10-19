@@ -1,4 +1,5 @@
 use super::*;
+use crate::job_events::cas_persist_job_with_resources;
 use crate::models::request::CreateJobInput;
 use std::sync::{
     atomic::{AtomicUsize, Ordering},
@@ -83,7 +84,7 @@ async fn repeated_launch_has_one_driver_even_while_queued() {
     drop(permit);
     handle.await.unwrap();
     assert_eq!(count.load(Ordering::SeqCst), 1);
-    assert!(fixture.deps.job_drivers.claim("same").is_some());
+    assert!(fixture.deps.job_drivers.claim("same", 0).is_some());
 }
 
 #[tokio::test]
@@ -178,7 +179,7 @@ async fn failure_and_abort_release_driver_ownership() {
         fixture.deps.db.get_job("error").unwrap().status,
         JobStatusKind::Failed
     );
-    assert!(fixture.deps.job_drivers.claim("error").is_some());
+    assert!(fixture.deps.job_drivers.claim("error", 0).is_some());
     fixture.job("abort", JobStatusKind::Queued);
     let handle = spawn_job_with_workflow(fixture.deps.clone(), "abort".into(), |_, _| async {
         std::future::pending().await
@@ -186,7 +187,7 @@ async fn failure_and_abort_release_driver_ownership() {
     .unwrap();
     handle.abort();
     assert!(handle.await.unwrap_err().is_cancelled());
-    assert!(fixture.deps.job_drivers.claim("abort").is_some());
+    assert!(fixture.deps.job_drivers.claim("abort", 0).is_some());
 }
 
 #[tokio::test]
@@ -312,6 +313,409 @@ async fn cancel_while_waiting_for_a_slot_still_lands_a_terminal_state() {
         "队列门消费掉标记之后必须落终态；停在 {:?} 就是永久挂起",
         after.status
     );
+}
+
+// ── 运行代次：取消后立刻原地重跑，旧 driver 的收尾不许碰新的一次运行 ─────────────
+
+/// 模拟 `cancel_job` 的非 OCR 路径：读最新行，CAS 写 Canceled（期望 queued/running）。
+fn api_cancel(fx: &Fixture, id: &str) -> bool {
+    let mut job = fx.deps.db.get_job(id).unwrap();
+    job.status = JobStatusKind::Canceled;
+    job.stage = Some("canceled".into());
+    job.finished_at = Some(now_iso());
+    job.sync_runtime_state();
+    cas_persist_job_with_resources(
+        fx.deps.db.as_ref(),
+        &fx.deps.persist.data_root,
+        &fx.deps.persist.output_root,
+        &job,
+        &["queued", "running"],
+    )
+    .unwrap()
+}
+
+/// 模拟 `relaunch_in_place`：把行重置为 Queued，整行落库并开启新的一次运行。
+fn relaunch_in_place_like(fx: &Fixture, id: &str) {
+    let mut job = fx.deps.db.get_job(id).unwrap();
+    job.status = JobStatusKind::Queued;
+    job.stage = Some("queued".into());
+    job.finished_at = None;
+    job.error = None;
+    job.sync_runtime_state();
+    crate::job_events::persist_job_as_new_run_with_resources(
+        fx.deps.db.as_ref(),
+        &fx.deps.persist.data_root,
+        &fx.deps.persist.output_root,
+        &job,
+    )
+    .unwrap();
+}
+
+/// 取消 → 立刻原地重跑：旧 driver 还在收尾（登记表里还有它），新的发射不能被丢掉，
+/// 旧 driver 最后那次 CAS 也不能把新一次运行的 Queued 行盖成它自己的 Canceled。
+///
+/// 反证：去掉 `cas_save_job` 的代次比对、或让 `claim` 对老代次 driver 直接拒绝，这个测试变红。
+#[tokio::test]
+async fn cancel_then_immediate_relaunch_old_driver_never_touches_the_new_run() {
+    let fx = Fixture::new(2);
+    fx.job("rerun", JobStatusKind::Queued);
+    let old_entered = Arc::new(Notify::new());
+    let old_release = Arc::new(Notify::new());
+    let (entered, release) = (old_entered.clone(), old_release.clone());
+    let old = spawn_job_with_workflow(fx.deps.clone(), "rerun".into(), move |_, mut job| async move {
+        entered.notify_one();
+        release.notified().await;
+        // 被取消的旧运行，收尾时带回的是 Canceled 快照。
+        job.status = JobStatusKind::Canceled;
+        Ok(job)
+    })
+    .unwrap();
+    old_entered.notified().await;
+
+    assert!(api_cancel(&fx, "rerun"), "API 取消先赢终态 CAS");
+    relaunch_in_place_like(&fx, "rerun");
+
+    let new_runs = Arc::new(AtomicUsize::new(0));
+    let new_entered = Arc::new(Notify::new());
+    let new_release = Arc::new(Notify::new());
+    let (runs, entered, release) = (new_runs.clone(), new_entered.clone(), new_release.clone());
+    let new = spawn_job_with_workflow(fx.deps.clone(), "rerun".into(), move |deps, job| async move {
+        runs.fetch_add(1, Ordering::SeqCst);
+        entered.notify_one();
+        release.notified().await;
+        succeeded(deps, job).await
+    });
+    let new = new.expect("旧 driver 还在收尾时重跑的发射不能被丢弃");
+
+    // 旧 driver 此刻才收尾：它的终态 CAS 必须落空，行仍是新一次运行的 Queued。
+    old_release.notify_one();
+    old.await.unwrap();
+    assert_ne!(
+        fx.deps.db.get_job("rerun").unwrap().status,
+        JobStatusKind::Canceled,
+        "旧运行的 Canceled 快照盖掉了新一次运行"
+    );
+
+    new_entered.notified().await;
+    assert_eq!(new_runs.load(Ordering::SeqCst), 1);
+    new_release.notify_one();
+    new.await.unwrap();
+    assert_eq!(
+        fx.deps.db.get_job("rerun").unwrap().status,
+        JobStatusKind::Succeeded
+    );
+}
+
+/// 旧 driver 在任务被重跑之后又 `get_job` 重读了一次行（深处的阶段代码常这么写）：
+/// 重读到的快照带着新一次运行的代次，但 driver 的写仍钉在它自己那次运行上，必须落空。
+#[tokio::test]
+async fn a_superseded_driver_that_reloads_the_job_still_cannot_write() {
+    let fx = Fixture::new(2);
+    fx.job("reload", JobStatusKind::Queued);
+    let entered = Arc::new(Notify::new());
+    let release = Arc::new(Notify::new());
+    let (e, r) = (entered.clone(), release.clone());
+    let wrote = Arc::new(std::sync::Mutex::new(None));
+    let wrote_in_driver = wrote.clone();
+    let old = spawn_job_with_workflow(fx.deps.clone(), "reload".into(), move |deps, job| async move {
+        e.notify_one();
+        r.notified().await;
+        let mut reloaded = deps.db.get_job("reload").unwrap();
+        reloaded.status = JobStatusKind::Failed;
+        reloaded.sync_runtime_state();
+        let updated = cas_persist_job_with_resources(
+            deps.db.as_ref(),
+            &deps.persist.data_root,
+            &deps.persist.output_root,
+            &reloaded,
+            &["queued", "running"],
+        )
+        .unwrap();
+        *wrote_in_driver.lock().unwrap() = Some(updated);
+        Ok(job)
+    })
+    .unwrap();
+    entered.notified().await;
+    assert!(api_cancel(&fx, "reload"));
+    relaunch_in_place_like(&fx, "reload");
+    release.notify_one();
+    old.await.unwrap();
+    assert_eq!(*wrote.lock().unwrap(), Some(false), "旧 driver 重读后的写居然成功了");
+    assert_eq!(fx.deps.db.get_job("reload").unwrap().status, JobStatusKind::Queued);
+}
+
+/// 成功后立刻原地重跑：旧 driver 赢了终态 CAS 之后还在善后，新一次运行的发射同样不能丢。
+#[tokio::test]
+async fn relaunch_while_previous_driver_is_still_finishing_is_not_dropped() {
+    let fx = Fixture::new(2);
+    fx.job("after-success", JobStatusKind::Queued);
+    let old = spawn_job_with_workflow(fx.deps.clone(), "after-success".into(), succeeded).unwrap();
+    // 不让 tokio 调度旧 driver：它的 guard 已经登记了，等同于「善后中」。
+    relaunch_in_place_like(&fx, "after-success");
+    let runs = Arc::new(AtomicUsize::new(0));
+    let counter = runs.clone();
+    let new = spawn_job_with_workflow(fx.deps.clone(), "after-success".into(), move |deps, job| async move {
+        counter.fetch_add(1, Ordering::SeqCst);
+        succeeded(deps, job).await
+    })
+    .expect("重跑的发射不能因旧 driver 还登记着而被丢弃");
+    old.await.unwrap();
+    new.await.unwrap();
+    assert_eq!(runs.load(Ordering::SeqCst), 1, "新一次运行必须真的跑一遍");
+    assert_eq!(
+        fx.deps.db.get_job("after-success").unwrap().status,
+        JobStatusKind::Succeeded
+    );
+}
+
+// ── API 取消先赢终态 CAS：pipeline attempt 要被收尾 ────────────────────────────────
+
+fn running_attempt(fx: &Fixture, id: &str) {
+    fx.deps
+        .db
+        .acquire_pipeline_attempt(id, "worker-1", "translate", 1)
+        .unwrap();
+    assert!(fx.deps.db.has_running_pipeline_attempt(id).unwrap());
+}
+
+/// driver 的 workflow 正常返回（带回 Canceled 快照），但 API 的取消已经先落了终态：
+/// driver 走 `!updated` 分支，必须把这次运行的 attempt 收尾，否则它永远是 running，
+/// 之后的译文修订登记一直 pending。
+#[tokio::test]
+async fn api_cancel_winning_the_cas_still_closes_the_attempt_on_the_normal_exit() {
+    let fx = Fixture::new(1);
+    fx.job("cancel-attempt", JobStatusKind::Queued);
+    let entered = Arc::new(Notify::new());
+    let release = Arc::new(Notify::new());
+    let (e, r) = (entered.clone(), release.clone());
+    let fx_ref = &fx;
+    let handle = spawn_job_with_workflow(fx.deps.clone(), "cancel-attempt".into(), move |deps, mut job| async move {
+        deps.db
+            .acquire_pipeline_attempt("cancel-attempt", "worker-1", "translate", 1)
+            .unwrap();
+        e.notify_one();
+        r.notified().await;
+        job.status = JobStatusKind::Canceled;
+        Ok(job)
+    })
+    .unwrap();
+    entered.notified().await;
+    assert!(fx_ref.deps.db.has_running_pipeline_attempt("cancel-attempt").unwrap());
+    assert!(api_cancel(&fx, "cancel-attempt"));
+    release.notify_one();
+    handle.await.unwrap();
+    assert!(
+        !fx.deps.db.has_running_pipeline_attempt("cancel-attempt").unwrap(),
+        "API 取消赢了 CAS 之后，attempt 仍是 running"
+    );
+}
+
+/// 同上，但 workflow 以错误退出（被杀的 worker 常见）：错误分支看到行已是 Canceled 就跳过，
+/// 同样不能把 attempt 留成 running。
+#[tokio::test]
+async fn api_cancel_winning_the_cas_still_closes_the_attempt_on_the_error_exit() {
+    let fx = Fixture::new(1);
+    fx.job("cancel-attempt-err", JobStatusKind::Queued);
+    let entered = Arc::new(Notify::new());
+    let release = Arc::new(Notify::new());
+    let (e, r) = (entered.clone(), release.clone());
+    let handle = spawn_job_with_workflow(fx.deps.clone(), "cancel-attempt-err".into(), move |deps, _| async move {
+        deps.db
+            .acquire_pipeline_attempt("cancel-attempt-err", "worker-1", "translate", 1)
+            .unwrap();
+        e.notify_one();
+        r.notified().await;
+        anyhow::bail!("worker killed")
+    })
+    .unwrap();
+    entered.notified().await;
+    assert!(api_cancel(&fx, "cancel-attempt-err"));
+    release.notify_one();
+    handle.await.unwrap();
+    assert!(
+        !fx.deps.db.has_running_pipeline_attempt("cancel-attempt-err").unwrap(),
+        "错误退出时 attempt 仍是 running"
+    );
+    let _ = running_attempt;
+}
+
+// ── 取消标记不跨运行泄漏 ─────────────────────────────────────────────────────
+
+/// 对没有 driver 的任务点取消：API 自己 CAS 落 Canceled，内存里的标记没人消费，留了下来。
+/// 随后原地重跑——新一次运行不能被这个旧标记立刻取消。
+#[tokio::test]
+async fn cancel_flag_left_by_a_driverless_cancel_does_not_cancel_the_next_run() {
+    let fx = Fixture::new(1);
+    fx.job("leaky", JobStatusKind::Running);
+    // cancel_job：登记标记 + CAS 落终态；这个任务没有 driver，没人会清标记。
+    super::super::cancel_registry::request_cancel_with_registry(
+        fx.deps.canceled_jobs.as_ref(),
+        "leaky",
+    )
+    .await;
+    assert!(api_cancel(&fx, "leaky"));
+
+    relaunch_in_place_like(&fx, "leaky");
+    let runs = Arc::new(AtomicUsize::new(0));
+    let counter = runs.clone();
+    launch_job_with_workflow(fx.deps.clone(), "leaky".into(), move |deps, job| async move {
+        counter.fetch_add(1, Ordering::SeqCst);
+        succeeded(deps, job).await
+    })
+    .await
+    .unwrap();
+
+    assert_eq!(runs.load(Ordering::SeqCst), 1, "新一次运行被上一次遗留的取消标记吃掉了");
+    assert_eq!(
+        fx.deps.db.get_job("leaky").unwrap().status,
+        JobStatusKind::Succeeded
+    );
+}
+
+/// 重复发射仍然去重（`launch_job` 只是先清标记，不绕过登记表）。
+#[tokio::test]
+async fn launch_job_still_deduplicates_by_driver_registry() {
+    let fx = Fixture::new(1);
+    fx.job("dup", JobStatusKind::Queued);
+    let hold = fx.deps.job_slots.clone().acquire_owned().await.unwrap();
+    let runs = Arc::new(AtomicUsize::new(0));
+    let mut handles = Vec::new();
+    for _ in 0..5 {
+        let counter = runs.clone();
+        handles.push(launch_job_with_workflow(
+            fx.deps.clone(),
+            "dup".into(),
+            move |deps, job| async move {
+                counter.fetch_add(1, Ordering::SeqCst);
+                succeeded(deps, job).await
+            },
+        ));
+    }
+    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    drop(hold);
+    for handle in handles {
+        handle.await.unwrap();
+    }
+    assert_eq!(runs.load(Ordering::SeqCst), 1);
+}
+
+// ── 发射丢了：运行期巡检 ──────────────────────────────────────────────────────────
+
+fn age(fx: &Fixture, id: &str, updated_at: &str) {
+    let mut job = fx.deps.db.get_job(id).unwrap();
+    job.updated_at = updated_at.to_string();
+    // save_job 不动代次；直接整行写回，只改 updated_at。
+    fx.deps.db.save_job(&job).unwrap();
+}
+
+const LONG_AGO: &str = "2020-01-01T00:00:00Z";
+
+/// 发射丢了（队列里没有 driver）的 queued 任务：巡检重新发射，真的把它跑完。
+#[tokio::test]
+async fn sweep_relaunches_a_queued_job_whose_launch_was_lost() {
+    let fx = Fixture::new(1);
+    fx.job("lost", JobStatusKind::Queued);
+    age(&fx, "lost", LONG_AGO);
+
+    let handles = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let sink = handles.clone();
+    let handled = super::super::driverless_sweep::sweep_driverless_jobs_with(
+        &fx.deps,
+        std::time::Duration::from_secs(30),
+        move |deps, job_id| {
+            sink.lock()
+                .unwrap()
+                .push(spawn_job_with_workflow(deps, job_id, succeeded).unwrap());
+        },
+    )
+    .unwrap();
+    assert_eq!(handled, 1);
+    let handle = handles.lock().unwrap().pop().unwrap();
+    handle.await.unwrap();
+    assert_eq!(
+        fx.deps.db.get_job("lost").unwrap().status,
+        JobStatusKind::Succeeded
+    );
+}
+
+/// 巡检不碰：有 driver 在管的、刚落库还在宽限期内的、已终态的。
+#[tokio::test]
+async fn sweep_leaves_owned_fresh_and_terminal_jobs_alone() {
+    let fx = Fixture::new(1);
+    // 有 driver 在管（排队等槽位）。
+    fx.job("owned", JobStatusKind::Queued);
+    age(&fx, "owned", LONG_AGO);
+    let hold = fx.deps.job_slots.clone().acquire_owned().await.unwrap();
+    let owner = spawn_job_with_workflow(fx.deps.clone(), "owned".into(), succeeded).unwrap();
+    tokio::task::yield_now().await;
+    // 宽限期内。
+    fx.job("fresh", JobStatusKind::Queued);
+    // 终态。
+    fx.job("done", JobStatusKind::Succeeded);
+    age(&fx, "done", LONG_AGO);
+
+    let handled = super::super::driverless_sweep::sweep_driverless_jobs_with(
+        &fx.deps,
+        std::time::Duration::from_secs(30),
+        |_, job_id| panic!("sweep must not launch {job_id}"),
+    )
+    .unwrap();
+    assert_eq!(handled, 0);
+    assert_eq!(fx.deps.db.get_job("fresh").unwrap().status, JobStatusKind::Queued);
+    assert_eq!(fx.deps.db.get_job("done").unwrap().status, JobStatusKind::Succeeded);
+    drop(hold);
+    owner.await.unwrap();
+}
+
+/// running 但没有 driver、worker 也不在了：落失败（和启动恢复同一套规则），而不是永远转圈。
+#[tokio::test]
+async fn sweep_fails_a_running_job_with_no_driver_and_no_worker() {
+    let fx = Fixture::new(1);
+    fx.job("zombie", JobStatusKind::Running);
+    age(&fx, "zombie", LONG_AGO);
+    let handled = super::super::driverless_sweep::sweep_driverless_jobs_with(
+        &fx.deps,
+        std::time::Duration::from_secs(30),
+        |_, job_id| panic!("sweep must not launch {job_id}"),
+    )
+    .unwrap();
+    assert_eq!(handled, 1);
+    let job = fx.deps.db.get_job("zombie").unwrap();
+    assert_eq!(job.status, JobStatusKind::Failed);
+    assert!(job.error.is_some());
+}
+
+/// 有 driver 的 running 任务不能被巡检判成失败（driver 在跑，行的 updated_at 再旧也一样）。
+#[tokio::test]
+async fn sweep_does_not_fail_a_running_job_that_has_a_driver() {
+    let fx = Fixture::new(1);
+    fx.job("alive", JobStatusKind::Running);
+    age(&fx, "alive", LONG_AGO);
+    let _guard = fx.deps.job_drivers.claim("alive", 0).unwrap();
+    let handled = super::super::driverless_sweep::sweep_driverless_jobs_with(
+        &fx.deps,
+        std::time::Duration::from_secs(30),
+        |_, job_id| panic!("sweep must not launch {job_id}"),
+    )
+    .unwrap();
+    assert_eq!(handled, 0);
+    assert_eq!(fx.deps.db.get_job("alive").unwrap().status, JobStatusKind::Running);
+}
+
+/// 发射交不出去（壳转发给 jobsd 重试后仍失败）：queued 的任务落成失败并写清原因；
+/// 已经有 driver 动过的不碰。
+#[tokio::test]
+async fn unlaunched_job_is_failed_with_a_clear_reason_but_only_while_queued() {
+    let fx = Fixture::new(1);
+    fx.job("undelivered", JobStatusKind::Queued);
+    assert!(fail_unlaunched_job(&fx.deps, "undelivered", "任务服务不可用").unwrap());
+    let job = fx.deps.db.get_job("undelivered").unwrap();
+    assert_eq!(job.status, JobStatusKind::Failed);
+    assert!(job.error.as_deref().unwrap().contains("任务服务不可用"), "{:?}", job.error);
+
+    fx.job("running-now", JobStatusKind::Running);
+    assert!(!fail_unlaunched_job(&fx.deps, "running-now", "x").unwrap());
+    assert_eq!(fx.deps.db.get_job("running-now").unwrap().status, JobStatusKind::Running);
 }
 
 // ── 任务成功后 active_job_id 换不换 ────────────────────────────────────────

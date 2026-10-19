@@ -1,5 +1,5 @@
 use anyhow::Result;
-use rusqlite::{params, TransactionBehavior};
+use rusqlite::{params, OptionalExtension, TransactionBehavior};
 
 use crate::models::domain::{JobArtifactRecord, JobSnapshot};
 use crate::storage_paths::{collect_job_artifact_entries, normalize_job_paths_for_storage};
@@ -118,6 +118,43 @@ impl Db {
         Ok(())
     }
 
+    /// 开始新的一次运行：整行落库（同 `save_job`），并在**同一个事务里**把 `run_generation` 加一，
+    /// 返回新的代次。建任务、原地重跑（`relaunch_in_place`）走这里；此后上一次运行遗留的 driver
+    /// 拿着旧代次做的 CAS 写全部落空。
+    ///
+    /// 代次只在这里变：`save_job` / `cas_save_job` 的 upsert 都不写这一列，所以启动恢复等别的
+    /// 整行写不会把它冲掉。
+    pub fn save_job_as_new_run(&self, job: &JobSnapshot) -> Result<u64> {
+        let prepared = prepare_job_write(self, job)?;
+        let mut conn = self.connect()?;
+        let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        persist_prepared_job(&tx, prepared)?;
+        tx.execute(
+            "UPDATE jobs SET run_generation = run_generation + 1 WHERE job_id = ?1",
+            params![job.job_id],
+        )?;
+        let generation: i64 = tx.query_row(
+            "SELECT run_generation FROM jobs WHERE job_id = ?1",
+            params![job.job_id],
+            |row| row.get(0),
+        )?;
+        tx.commit()?;
+        Ok(generation.max(0) as u64)
+    }
+
+    /// 只读任务当前的运行代次；没有这条任务返回 None。
+    pub fn job_run_generation(&self, job_id: &str) -> Result<Option<u64>> {
+        let conn = self.connect()?;
+        let generation: Option<i64> = conn
+            .query_row(
+                "SELECT run_generation FROM jobs WHERE job_id = ?1",
+                params![job_id],
+                |row| row.get(0),
+            )
+            .optional()?;
+        Ok(generation.map(|value| value.max(0) as u64))
+    }
+
     /// CAS terminal write: only succeeds if current DB status is in expected_statuses.
     /// Returns true if row was updated, false if already terminal (no-op).
     pub fn cas_save_job(&self, job: &JobSnapshot, expected_statuses: &[&str]) -> Result<bool> {
@@ -148,19 +185,24 @@ impl Db {
         // locked"。IMMEDIATE 在 BEGIN 时就取写锁，此时 busy_timeout 正常生效。
         let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
         // Check current status
-        let current_status: Option<String> = tx
+        let current_row: Option<(String, i64)> = tx
             .query_row(
-                "SELECT status_json FROM jobs WHERE job_id = ?1",
+                "SELECT status_json, run_generation FROM jobs WHERE job_id = ?1",
                 params![stored_job.job_id],
-                |row| row.get(0),
+                |row| Ok((row.get(0)?, row.get(1)?)),
             )
             .ok();
-        if let Some(current) = current_status {
+        if let Some((current, current_generation)) = current_row {
             let is_expected = expected_statuses.iter().any(|s| {
                 let quoted = format!("\"{}\"", s);
                 current == quoted || current == *s
             });
             if !is_expected {
+                return Ok(false);
+            }
+            // 状态对得上还不够：行可能已经被原地重跑重新排队（状态又是 queued），而写的人
+            // 还是上一次运行遗留的 driver。代次不同就是别人的运行，一律不写。
+            if stored_job.run_generation != current_generation.max(0) as u64 {
                 return Ok(false);
             }
         }

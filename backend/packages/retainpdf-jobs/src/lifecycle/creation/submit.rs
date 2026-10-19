@@ -15,7 +15,7 @@ use serde_json::Value;
 
 use retainpdf_data::db::PipelineDispatchRecord;
 use retainpdf_api_base::error::AppError;
-use retainpdf_data::job_events::persist_job_with_resources;
+use retainpdf_data::job_events::persist_job_as_new_run_with_resources;
 use retainpdf_core::models::domain::{JobSnapshot, WorkflowKind};
 use retainpdf_core::models::request::CreateJobInput;
 use crate::deps::JobSubmitDeps;
@@ -188,11 +188,16 @@ fn persist_and_launch(
     // 预扣放在落库之前：余额不够就不留下任务行。原地重跑也经过这里（只重新渲染不计费，
     // 规则见 accounts::page_quota）。
     let reserved = deps.page_quota && retainpdf_accounts::reserve_for_job(deps.db, &job)?;
-    if let Err(error) = persist_job_with_resources(deps.db, deps.data_root, deps.output_root, &job) {
-        if reserved {
-            retainpdf_accounts::release_for_job(deps.db, &job.job_id);
+    // 落库同时把运行代次加一：此后上一次运行遗留的 driver（取消后还在收尾的、成功后还在善后的）
+    // 写不进这一次运行的行，也占不住这一次的发射。
+    match persist_job_as_new_run_with_resources(deps.db, deps.data_root, deps.output_root, &job) {
+        Ok(persisted) => job = persisted,
+        Err(error) => {
+            if reserved {
+                retainpdf_accounts::release_for_job(deps.db, &job.job_id);
+            }
+            return Err(error.into());
         }
-        return Err(error.into());
     }
     link_new_job_to_document(deps.db, &job, derived_from);
     deps.runtime.launch(job.job_id.clone());
