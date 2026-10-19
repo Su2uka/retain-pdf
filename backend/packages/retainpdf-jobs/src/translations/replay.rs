@@ -8,12 +8,18 @@ use retainpdf_core::models::domain::JobSnapshot;
 use retainpdf_core::storage_paths::resolve_job_root;
 
 use crate::deps::ReplayDeps;
+use crate::translations::item::load_translation_debug_item_view;
+use crate::translations::revision::{validate_item_id, REPLAY_TIMEOUT};
 
 pub(crate) async fn replay_translation_item(
     deps: &ReplayDeps<'_>,
     job: &JobSnapshot,
     item_id: &str,
 ) -> Result<TranslationReplayView, AppError> {
+    // 和 PATCH 一样先挡坏编号(400),再确认条目存在(404):条目编号会直接做 argv,
+    // 条目不存在时 Python 只会抛 RuntimeError,对外成了 500。
+    validate_item_id(item_id)?;
+    load_translation_debug_item_view(deps.data_root, job, item_id)?;
     let job_root = resolve_job_root(job, deps.data_root)
         .ok_or_else(|| AppError::not_found(format!("job root not found: {}", job.job_id)))?;
     let script_path = deps
@@ -35,7 +41,9 @@ pub(crate) async fn replay_translation_item(
         .arg("--item-id")
         .arg(item_id)
         .current_dir(deps.project_root)
-        .env("PYTHONUNBUFFERED", "1");
+        .env("PYTHONUNBUFFERED", "1")
+        // 超时或客户端断开时 future 被丢弃,进程跟着被杀,不留在后台调模型。
+        .kill_on_drop(true);
     let runtime_secret = if let Some(api_key) = job.inline_translation_api_key() {
         Some(api_key.to_string())
     } else if let Some(credential_ref) = job.translation_credential_ref() {
@@ -58,9 +66,9 @@ pub(crate) async fn replay_translation_item(
         secrets.push(secret);
     }
 
-    let output = command
-        .output()
+    let output = tokio::time::timeout(REPLAY_TIMEOUT, command.output())
         .await
+        .map_err(|_| AppError::internal("translation replay timed out"))?
         .map_err(|err| AppError::internal(format!("spawn replay script: {err}")))?;
     if !output.status.success() {
         let stderr = redact_text(String::from_utf8_lossy(&output.stderr).trim(), &secrets);

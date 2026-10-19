@@ -37,16 +37,28 @@ pub(crate) fn load_translation_debug_list_view(
     })
 }
 
+/// 列表的数据来源：优先从 manifest + 页文件现算，不信 `translation_debug_index.json`。
+///
+/// 索引文件只在翻译阶段结束时写一次，之后手改、精修（`translation-revise`）只改页文件，
+/// 不碰它；读它会让 `translated_preview`、`final_status` 和 `?q=` 搜索停在改之前。
+/// 单条接口本来就每次全扫页文件，列表跟着现算不多花一个量级。
+/// 只有找不到 manifest 的老产物才退回读索引文件。
 pub(super) fn load_translation_debug_index(
     data_root: &Path,
     job: &JobSnapshot,
 ) -> Result<TranslationDebugIndexView, AppError> {
-    if let Some(mut payload) = read_translation_debug_index_file(data_root, job)? {
-        normalize_page_numbers(&mut payload.items);
-        return Ok(payload);
-    }
-
-    let manifest_path = translation_manifest_path(data_root, job)?;
+    let manifest_path = match translation_manifest_path(data_root, job) {
+        Ok(path) => path,
+        Err(not_found) => {
+            return match read_translation_debug_index_file(data_root, job)? {
+                Some(mut payload) => {
+                    normalize_page_numbers(&mut payload.items);
+                    Ok(payload)
+                }
+                None => Err(not_found),
+            };
+        }
+    };
     let mut items = Vec::new();
     for (page_idx, _page_path, page_items) in load_manifest_pages(&manifest_path)? {
         for item in page_items {
@@ -64,10 +76,10 @@ pub(super) fn load_translation_debug_index(
 ///
 /// Python 侧写这个 artifact 时就没有 `page_number` 这个字段（实测产物 25 个键里
 /// 没有它），而视图字段带 `#[serde(default)]`，于是反序列化出来恒为 0——
-/// `?page=N`（N≥1）永远匹配不上任何条目。下面那条 manifest 兜底路径在
+/// `?page=N`（N≥1）永远匹配不上任何条目。从 manifest 重建的那条路径在
 /// `build_index_item_from_value` 里算了 `page_idx + 1`，两条路径的不变式对不上。
 ///
-/// 这里在汇合点补齐，让「从索引文件读」和「从 manifest 重建」产出同一个契约。
+/// 退回读索引文件时在这里补齐，让两条路径产出同一个契约。
 /// 非零值原样保留：哪天 Python 真开始写这个字段，以它为准。
 fn normalize_page_numbers(items: &mut [TranslationDebugListItemView]) {
     for item in items.iter_mut() {

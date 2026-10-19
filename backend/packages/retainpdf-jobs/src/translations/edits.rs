@@ -21,6 +21,14 @@ impl<'a> JobsFacade<'a> {
         job_id: &str,
         item_id: &str,
     ) -> Result<TranslationReplayView, AppError> {
+        if retainpdf_api_base::job_loading::is_virtual_job_id(job_id) {
+            return Err(AppError::translation_revision(
+                StatusCode::CONFLICT,
+                "read_only_job",
+                "merged reading results are read-only; replay the source job instead",
+                Value::Null,
+            ));
+        }
         let job = load_supported_job(self.command.db, self.command.control.data_root, job_id)?;
         replay_translation_item(&self.query.replay, &job, item_id).await
     }

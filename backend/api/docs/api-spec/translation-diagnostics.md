@@ -6,7 +6,7 @@
 
 ## Translation Diagnostics Contract
 
-These endpoints are for fast item-level debugging. They expose the translation diagnostics artifact, the per-item debug index, the saved item payload, and a replay hook that reruns the current translation code on a single item without mutating job artifacts.
+These endpoints are for fast item-level debugging. They expose the translation diagnostics artifact, the per-item list, the saved item payload, and a replay hook that reruns the current translation code on a single item without mutating job artifacts. The write-back (`PATCH`) and revision-history endpoints are documented at the end of this page.
 
 Security:
 
@@ -14,11 +14,12 @@ Security:
 - structured secret fields such as `api_key`, `mineru_token`, and `paddle_token` are blanked
 - inline secret substrings are replaced with `[REDACTED]`
 
-All four endpoints are job-local and currently read from:
+All endpoints on this page are job-local and read from:
 
-- `DATA_ROOT/jobs/<job_id>/artifacts/translation_diagnostics.json`
-- `DATA_ROOT/jobs/<job_id>/artifacts/translation_debug_index.json`
-- `DATA_ROOT/jobs/<job_id>/translated/translation-manifest.json`
+- `DATA_ROOT/jobs/<job_id>/artifacts/translation_diagnostics.json` (diagnostics summary)
+- `DATA_ROOT/jobs/<job_id>/artifacts/translation_qa.v1.json`, `fit_report.v1.json`, `refine_report.v1.json` (the three report endpoints)
+- `DATA_ROOT/jobs/<job_id>/translated/translation-manifest.json` and the page files it points to (item list, raw item, replay, revisions)
+- `DATA_ROOT/jobs/<job_id>/artifacts/translation_debug_index.json` only as a fallback for the item list when the manifest is missing (it is written once when translation finishes and is not updated by revisions)
 
 ## Translation Diagnostics Summary
 
@@ -65,7 +66,7 @@ Response:
   "data": {
     "job_id": "20261006023250-703433",
     "report": {
-      "schema": "translation_qa_v1",
+      "schema": "translation_qa.v1",
       "generator": {"mode": "post_render"},
       "checks": {"layout_fit": {"status": "ok", "violation_count": 17}},
       "summary": {"by_severity": {"critical": 0, "major": 17, "minor": 16}},
@@ -138,6 +139,8 @@ Response:
 
 `GET /api/v1/jobs/{job_id}/translations`
 
+The list is computed on every call from the manifest and its page files (the same files `GET .../translations/{item_id}` reads), so after a `PATCH` revision `translated_preview`, `final_status` and the `q` search reflect the revised text. `translation_debug_index.json` is only used when the manifest cannot be found.
+
 Query parameters:
 
 - `limit`
@@ -187,19 +190,7 @@ Response:
 
 `GET /api/v1/jobs/{job_id}/translations/{item_id}`
 
-Response:
-
-- same payload shape as the saved translated item
-- sensitive fields and inline secrets are redacted
-
-## Replay Translation Item: Response Projection
-
-`POST /api/v1/jobs/{job_id}/translations/{item_id}/replay`
-
-Response:
-
-- replay output is returned as JSON payload
-- replay payload is redacted with the same rules as diagnostics/item endpoints
+Response: the item is wrapped; the saved translated item is under `data.item`. Sensitive fields and inline secrets are redacted. Unknown items return 404.
 
 ```json
 {
@@ -228,7 +219,7 @@ Response:
 }
 ```
 
-## Replay Translation Item: Execution Behavior
+## Replay Translation Item
 
 `POST /api/v1/jobs/{job_id}/translations/{item_id}/replay`
 
@@ -237,9 +228,18 @@ Behavior:
 - launches `backend/pipeline/devtools/replay_translation_item.py`
 - re-applies current policy to the saved item payload
 - if the item still qualifies for translation, reruns `translate_batch([item])`
-- never writes back to the original job directory
+- never writes back to the original job directory (dry run; use `PATCH` to write a result back)
+- the replay payload is redacted with the same rules as the diagnostics and item endpoints
+- the process is killed when the request is dropped, and after 300 seconds the call fails with 500
 
-Response:
+Errors:
+
+- `400`: `item_id` is not a valid item id (letters, digits, `-`, `_`, `:`, `.`; at most 128 characters)
+- `404`: the job, its translation manifest, or the item does not exist
+- `409 TRANSLATION_REVISION_CONFLICT` (`read_only_job`): merged reading results (`merged-…` job ids) have no translations of their own; replay the source job
+- `500`: the replay script failed or timed out
+
+Response (`data.payload` is the script output):
 
 ```json
 {
