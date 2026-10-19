@@ -8,6 +8,9 @@ use serde::Serialize;
 use serde_json::{json, Value};
 use thiserror::Error;
 
+/// 「还没产出」的 `error.details.reason`（404）。见 `docs/api/00-约定/02-认证与错误.md`。
+pub const NOT_READY: &str = "not_ready";
+
 #[derive(Clone, Debug, Error)]
 pub enum AppError {
     #[error("{0}")]
@@ -236,6 +239,18 @@ impl AppError {
             message: msg.into(),
             reason,
         }
+    }
+
+    /// 任务（或书）在，要的原始文件、报告还没产出：404，`reason` 是 [`NOT_READY`]，
+    /// 文案统一成 `<名字> not ready`（`what` 是文件名或报告名，如 `translated.pdf`、`refine report`）。
+    /// 任务本身不存在仍用普通的 [`AppError::not_found`]，不带 reason。
+    pub fn not_ready(what: &str) -> Self {
+        Self::not_found_because(NOT_READY, format!("{what} not ready"))
+    }
+
+    /// 是不是 [`AppError::not_ready`]（列表类接口拿它退回空列表）。
+    pub fn is_not_ready(&self) -> bool {
+        matches!(self, Self::Reasoned { status, reason, .. } if *status == StatusCode::NOT_FOUND && *reason == NOT_READY)
     }
 
     pub fn event_cursor_expired(msg: impl Into<String>) -> Self {
@@ -785,6 +800,20 @@ mod tests {
             payload["error"]["details"] = serde_json::json!({});
             assert_eq!(payload, plain_payload);
         }
+    }
+
+    #[tokio::test]
+    async fn not_ready_is_a_404_with_reason_and_uniform_message() {
+        let error = AppError::not_ready("all.zip");
+        assert!(error.is_not_ready());
+        assert!(!AppError::not_found("job not found: x").is_not_ready());
+        assert!(!AppError::conflict_because(NOT_READY, "x").is_not_ready());
+        let (status, payload) = response_json(error).await;
+        assert_eq!(status, StatusCode::NOT_FOUND);
+        assert_eq!(payload["code"], 40400);
+        assert_eq!(payload["message"], "all.zip not ready");
+        assert_eq!(payload["error"]["code"], "NOT_FOUND");
+        assert_eq!(payload["error"]["details"], serde_json::json!({ "reason": "not_ready" }));
     }
 
     #[tokio::test]

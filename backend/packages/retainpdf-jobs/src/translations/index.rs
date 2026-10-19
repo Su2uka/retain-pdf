@@ -22,7 +22,12 @@ pub(crate) fn load_translation_debug_list_view(
     query: &ListTranslationItemsQuery,
 ) -> Result<TranslationDebugListView, AppError> {
     let limit = checked_limit(query.limit, MAX_LIST_LIMIT)?;
-    let mut items = load_translation_debug_index(data_root, job)?.items;
+    // 列表类接口：还没翻译完（没有清单）照旧 200，给空列表；任务不存在的 404 在调用方。
+    let mut items = match load_translation_debug_index(data_root, job) {
+        Ok(index) => index.items,
+        Err(error) if error.is_not_ready() => Vec::new(),
+        Err(error) => return Err(error),
+    };
     apply_translation_item_filters(&mut items, query);
     let total = items.len();
     let start = query.offset as usize;

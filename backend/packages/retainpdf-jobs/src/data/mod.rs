@@ -427,7 +427,8 @@ fn source_available(spec: &DatasetSpec, roots: &JobDataRoots) -> bool {
     }
 }
 
-pub fn catalog(job_id: &str, roots: &JobDataRoots) -> JobDataCatalogView {
+/// `roots` 为 `None`（任务还没有输出目录）时每个数据集都是 `available: false`。
+pub fn catalog(job_id: &str, roots: Option<&JobDataRoots>) -> JobDataCatalogView {
     JobDataCatalogView {
         job_id: job_id.to_string(),
         datasets: registry()
@@ -458,7 +459,7 @@ pub fn catalog(job_id: &str, roots: &JobDataRoots) -> JobDataCatalogView {
                     name: name.clone(),
                     kind: if is_rows(spec) { "rows" } else { "object" },
                     description: spec.description.clone(),
-                    available: source_available(spec, roots),
+                    available: roots.is_some_and(|roots| source_available(spec, roots)),
                     fields,
                 }
             })
@@ -506,7 +507,7 @@ fn compare(a: &Value, b: &Value) -> std::cmp::Ordering {
 pub fn query(
     job_id: &str,
     dataset: &str,
-    roots: &JobDataRoots,
+    roots: Option<&JobDataRoots>,
     params: &HashMap<String, String>,
 ) -> Result<JobDataView, AppError> {
     let spec = registry()
@@ -574,7 +575,7 @@ pub fn query(
         }
     }
 
-    let Some(raw_rows) = load_rows(spec, roots) else {
+    let Some(raw_rows) = roots.and_then(|roots| load_rows(spec, roots)) else {
         return Ok(JobDataView {
             job_id: job_id.to_string(),
             dataset: dataset.to_string(),

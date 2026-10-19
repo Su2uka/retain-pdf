@@ -16,7 +16,7 @@ use retainpdf_files::{
     artifact_is_direct_downloadable, build_bundle_for_job, build_markdown_bundle_for_job,
     ensure_book_image, ensure_layout_docx, ensure_page_preview, ensure_side_by_side_pdf,
     job_download_file_name, job_upload_id, resolve_registry_artifact, BookImageKind, DownloadKind,
-    LayoutDocxOptions,
+    LayoutDocxOptions, JOB_INTERNAL_FILES,
 };
 use retainpdf_core::storage_paths::{
     resolve_job_root, resolve_markdown_images_dir, resolve_markdown_path, resolve_output_pdf,
@@ -33,6 +33,9 @@ use crate::files::downloads::{DownloadJobsDeps, FileDownload};
 const DOCX_CONTENT_TYPE: &str =
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 const MARKDOWN_CONTENT_TYPE: &str = "text/markdown; charset=utf-8";
+/// 「还没产出」报错里用的对外文件名。
+const SOURCE_PDF: &str = "source.pdf";
+const TRANSLATED_PDF: &str = "translated.pdf";
 /// 封面、缩略图按源 PDF 首页生成，一本书不变，浏览器缓存一天。
 const IMAGE_CACHE: &str = "private, max-age=86400";
 /// 译文页预览：译文 PDF 重渲染以后同一个地址的图会变，不能让浏览器直接用缓存。
@@ -213,29 +216,38 @@ fn user_file_name(deps: &DownloadJobsDeps<'_>, job: &JobSnapshot, kind: Download
     Some(job_download_file_name(deps.db, job, kind))
 }
 
-fn require_file(path: Option<PathBuf>, what: &str, job: &JobSnapshot) -> Result<PathBuf, AppError> {
-    path.filter(|path| path.is_file())
-        .ok_or_else(|| AppError::not_found(format!("{what} not ready: {}", job.job_id)))
+/// 任务在、文件还没产出：404 + `reason: not_ready`，文案 `<名字> not ready`（`what` 用对外的文件名）。
+fn require_file(path: Option<PathBuf>, what: &str) -> Result<PathBuf, AppError> {
+    path.filter(|path| path.is_file()).ok_or_else(|| AppError::not_ready(what))
+}
+
+/// `internal/` 组的对外文件名（报错用）；表里没有的退回产物键。
+fn internal_file_name(key: &str) -> String {
+    JOB_INTERNAL_FILES
+        .iter()
+        .find(|(_, registered)| *registered == key)
+        .map_or(key, |(name, _)| *name)
+        .to_string()
 }
 
 fn locate(deps: &DownloadJobsDeps<'_>, job: &JobSnapshot, file: &JobFile) -> Result<Located, AppError> {
     let data_root = deps.data_root;
     match file {
         JobFile::SourcePdf => {
-            let path = require_file(resolve_source_pdf(job, data_root), "source pdf", job)?;
+            let path = require_file(resolve_source_pdf(job, data_root), SOURCE_PDF)?;
             let path = linearized_pdf_or_original(deps, job, &path, ARTIFACT_KEY_SOURCE_PDF)?;
             Ok(Located::new(path, "application/pdf")
                 .named(user_file_name(deps, job, DownloadKind::Source)))
         }
         JobFile::TranslatedPdf => {
-            let path = require_file(resolve_output_pdf(job, data_root), "pdf", job)?;
+            let path = require_file(resolve_output_pdf(job, data_root), TRANSLATED_PDF)?;
             let path = linearized_pdf_or_original(deps, job, &path, "output")?;
             Ok(Located::new(path, "application/pdf")
                 .named(user_file_name(deps, job, DownloadKind::Translated)))
         }
         JobFile::SideBySidePdf => {
-            let source_pdf = require_file(resolve_source_pdf(job, data_root), "source pdf", job)?;
-            let translated_pdf = require_file(resolve_output_pdf(job, data_root), "translated pdf", job)?;
+            let source_pdf = require_file(resolve_source_pdf(job, data_root), SOURCE_PDF)?;
+            let translated_pdf = require_file(resolve_output_pdf(job, data_root), TRANSLATED_PDF)?;
             let output_pdf = ensure_side_by_side_pdf(
                 derived_artifact_deps(deps),
                 data_root,
@@ -249,8 +261,8 @@ fn locate(deps: &DownloadJobsDeps<'_>, job: &JobSnapshot, file: &JobFile) -> Res
         }
         JobFile::TranslatedDocx(options) => {
             let job_root = resolve_job_root(job, data_root)
-                .ok_or_else(|| AppError::not_found(format!("job root not ready: {}", job.job_id)))?;
-            let source_pdf = require_file(resolve_source_pdf(job, data_root), "source pdf", job)?;
+                .ok_or_else(|| AppError::not_ready("translated.docx"))?;
+            let source_pdf = require_file(resolve_source_pdf(job, data_root), SOURCE_PDF)?;
             // 译文 PDF 是**可选**的：有它就从里面读回收敛后的字号和行距（最准），没有就走
             // 阅读器那套字号收敛（html_fit）。只翻译没渲染的任务一样导得出来。
             let translated_pdf = resolve_output_pdf(job, data_root).filter(|path| path.is_file());
@@ -267,8 +279,7 @@ fn locate(deps: &DownloadJobsDeps<'_>, job: &JobSnapshot, file: &JobFile) -> Res
                 .named(user_file_name(deps, job, DownloadKind::Layout)))
         }
         JobFile::OcrMarkdown => {
-            let path = resolve_markdown_path(job, data_root)
-                .ok_or_else(|| AppError::not_found(format!("markdown not found: {}", job.job_id)))?;
+            let path = resolve_markdown_path(job, data_root).ok_or_else(|| AppError::not_ready("ocr.md"))?;
             Ok(Located::new(path, MARKDOWN_CONTENT_TYPE)
                 .named(user_file_name(deps, job, DownloadKind::OcrMarkdown)))
         }
@@ -279,9 +290,9 @@ fn locate(deps: &DownloadJobsDeps<'_>, job: &JobSnapshot, file: &JobFile) -> Res
                 .named(user_file_name(deps, job, DownloadKind::MarkdownBundle)))
         }
         JobFile::OcrImage(relative) => {
-            let images_dir = resolve_markdown_images_dir(job, data_root).ok_or_else(|| {
-                AppError::not_found(format!("markdown images not found: {}", job.job_id))
-            })?;
+            // 图片目录还没有 = Markdown 还没产出；目录在、要的那张不在 = 没有这个文件（普通 404）。
+            let images_dir =
+                resolve_markdown_images_dir(job, data_root).ok_or_else(|| AppError::not_ready("ocr/images"))?;
             let path = images_dir.join(safe_markdown_image_path(relative)?);
             if !path.is_file() {
                 return Err(AppError::not_found(format!("markdown image not found: {relative}")));
@@ -290,8 +301,9 @@ fn locate(deps: &DownloadJobsDeps<'_>, job: &JobSnapshot, file: &JobFile) -> Res
             Ok(Located::new(path, mime.as_ref()))
         }
         JobFile::All => {
+            // 只给成功的任务打包；没成功（排队、在跑、失败、取消）就是还没产出，和其它文件一样 404。
             if !matches!(job.status, JobStatusKind::Succeeded) {
-                return Err(AppError::conflict("job is not finished successfully"));
+                return Err(AppError::not_ready("all.zip"));
             }
             let path = build_bundle_for_job(deps.db, data_root, deps.downloads_dir, job)?;
             Ok(Located {
@@ -305,8 +317,7 @@ fn locate(deps: &DownloadJobsDeps<'_>, job: &JobSnapshot, file: &JobFile) -> Res
                 JobFile::Cover => BookImageKind::Cover,
                 _ => BookImageKind::Thumbnail,
             };
-            let source_pdf = resolve_source_pdf(job, data_root)
-                .ok_or_else(|| AppError::not_found(format!("source pdf not ready: {}", job.job_id)))?;
+            let source_pdf = resolve_source_pdf(job, data_root).ok_or_else(|| AppError::not_ready(SOURCE_PDF))?;
             let path = ensure_book_image(
                 derived_artifact_deps(deps),
                 data_root,
@@ -322,12 +333,12 @@ fn locate(deps: &DownloadJobsDeps<'_>, job: &JobSnapshot, file: &JobFile) -> Res
         JobFile::Page(spec) => {
             let kind = preview_kind(&spec.kind)?;
             let pdf = match kind {
-                PagePreviewKind::Source => resolve_source_pdf(job, data_root).ok_or_else(|| {
-                    AppError::not_found(format!("source pdf not ready: {}", job.job_id))
-                })?,
-                PagePreviewKind::Translated => resolve_output_pdf(job, data_root).ok_or_else(|| {
-                    AppError::not_found(format!("translated pdf not ready: {}", job.job_id))
-                })?,
+                PagePreviewKind::Source => {
+                    resolve_source_pdf(job, data_root).ok_or_else(|| AppError::not_ready(SOURCE_PDF))?
+                }
+                PagePreviewKind::Translated => {
+                    resolve_output_pdf(job, data_root).ok_or_else(|| AppError::not_ready(TRANSLATED_PDF))?
+                }
             };
             let page_index = spec
                 .page
@@ -365,11 +376,9 @@ fn locate(deps: &DownloadJobsDeps<'_>, job: &JobSnapshot, file: &JobFile) -> Res
             })
         }
         JobFile::Registered(key) => {
+            // 产物清单里还没登记 = 还没产出（名字本身不认识的，在 catalog 里就是普通 404）。
             let Some((item, path)) = resolve_registry_artifact(deps.db, data_root, job, key)? else {
-                return Err(AppError::not_found(format!(
-                    "artifact not found: {}/{key}",
-                    job.job_id
-                )));
+                return Err(AppError::not_ready(&internal_file_name(key)));
             };
             if !artifact_is_direct_downloadable(&item) {
                 return Err(AppError::conflict(format!(
@@ -377,10 +386,7 @@ fn locate(deps: &DownloadJobsDeps<'_>, job: &JobSnapshot, file: &JobFile) -> Res
                 )));
             }
             if !item.ready || !path.is_file() {
-                return Err(AppError::not_found(format!(
-                    "artifact not ready: {}/{key}",
-                    job.job_id
-                )));
+                return Err(AppError::not_ready(&internal_file_name(key)));
             }
             Ok(Located::new(path, item.content_type).named(item.file_name))
         }

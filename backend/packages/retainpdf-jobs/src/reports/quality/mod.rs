@@ -333,9 +333,10 @@ fn untranslated_items(sources: &QualitySources) -> Vec<QualityItem> {
     items
 }
 
-pub fn quality_summary(job_id: &str, sources: &QualitySources) -> QualitySummaryView {
+/// `sources` 为 `None`（任务还没有输出目录）时各段 null、计数全 0。
+pub fn quality_summary(job_id: &str, sources: Option<&QualitySources>) -> QualitySummaryView {
     let mut untranslated = UntranslatedSummary::default();
-    for item in untranslated_items(sources) {
+    for item in sources.map(untranslated_items).unwrap_or_default() {
         match item.reason.as_str() {
             "failed" => untranslated.failed += 1,
             "formula" => untranslated.formula += 1,
@@ -345,10 +346,10 @@ pub fn quality_summary(job_id: &str, sources: &QualitySources) -> QualitySummary
     }
     QualitySummaryView {
         job_id: job_id.to_string(),
-        preparation: preparation_status(sources),
-        qa: qa_summary(sources),
-        layout: layout_summary(sources),
-        refine: refine_summary(sources),
+        preparation: sources.and_then(preparation_status),
+        qa: sources.and_then(qa_summary),
+        layout: sources.and_then(layout_summary),
+        refine: sources.and_then(refine_summary),
         untranslated,
     }
 }
@@ -486,12 +487,14 @@ fn escalated_items(sources: &QualitySources) -> Vec<QualityItem> {
 }
 
 /// 调用方已校验过 kind 在 [`QUALITY_ITEM_KINDS`] 里、limit 在 1..=1000。
-pub fn quality_items(sources: &QualitySources, query: &QualityItemsQuery) -> QualityItemsView {
-    let items = match query.kind.as_str() {
-        "layout" => layout_items(sources),
-        "untranslated" => untranslated_items(sources),
-        "qa" => qa_items(sources, query.severity.as_deref()),
-        "escalated" => escalated_items(sources),
+/// `sources` 为 `None`（任务还没有输出目录）时是空清单。
+pub fn quality_items(sources: Option<&QualitySources>, query: &QualityItemsQuery) -> QualityItemsView {
+    let items = match (sources, query.kind.as_str()) {
+        (None, _) => Vec::new(),
+        (Some(sources), "layout") => layout_items(sources),
+        (Some(sources), "untranslated") => untranslated_items(sources),
+        (Some(sources), "qa") => qa_items(sources, query.severity.as_deref()),
+        (Some(sources), "escalated") => escalated_items(sources),
         _ => Vec::new(),
     };
     let filtered: Vec<QualityItem> = items

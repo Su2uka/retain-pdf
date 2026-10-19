@@ -91,16 +91,12 @@ pub fn build_markdown_bundle_for_job(
     job: &JobSnapshot,
     include_job_dir: bool,
 ) -> Result<(JobArtifactRecord, PathBuf), AppError> {
+    // 任务在、Markdown 还没产出：404 + `reason: not_ready`（文案用对外文件名，见 `AppError::not_ready`）。
     let markdown_item = find_registry_artifact(db, data_root, job, ARTIFACT_KEY_MARKDOWN_RAW)?
-        .ok_or_else(|| AppError::not_found(format!("markdown not found: {}", job.job_id)))?;
-    if !markdown_item.ready {
-        return Err(AppError::not_found(format!(
-            "markdown not ready: {}",
-            job.job_id
-        )));
-    }
+        .filter(|item| item.ready)
+        .ok_or_else(|| AppError::not_ready("ocr.md"))?;
     let bundle_item = find_registry_artifact(db, data_root, job, ARTIFACT_KEY_MARKDOWN_BUNDLE_ZIP)?
-        .ok_or_else(|| AppError::not_found(format!("markdown bundle not found: {}", job.job_id)))?;
+        .ok_or_else(|| AppError::not_ready("ocr.zip"))?;
     let registered_zip_path = resolve_registered_artifact_path(data_root, &bundle_item)
         .map_err(|err| AppError::internal(err.to_string()))?;
     let zip_path = markdown_bundle_variant_path(&registered_zip_path, include_job_dir);

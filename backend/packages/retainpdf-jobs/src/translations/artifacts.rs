@@ -27,9 +27,9 @@ pub(super) fn translation_manifest_path(
     data_root: &Path,
     job: &JobSnapshot,
 ) -> Result<PathBuf, AppError> {
-    stored_path(job, data_root, StoredFile::TranslationManifest).ok_or_else(|| {
-        AppError::not_found(format!("translation manifest not found: {}", job.job_id))
-    })
+    // 任务在、还没翻译完：404 + `reason: not_ready`。列表接口接住它退回空列表。
+    stored_path(job, data_root, StoredFile::TranslationManifest)
+        .ok_or_else(|| AppError::not_ready("translation manifest"))
 }
 
 pub(super) fn load_manifest_pages(

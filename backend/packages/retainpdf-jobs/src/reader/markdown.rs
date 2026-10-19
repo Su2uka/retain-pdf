@@ -33,8 +33,8 @@ async fn markdown_document_view(
     base_url: &str,
 ) -> Result<MarkdownDocumentView, AppError> {
     let job = load_supported_job(deps.db, deps.data_root, job_id)?;
-    let markdown_path = resolve_markdown_path(&job, deps.data_root)
-        .ok_or_else(|| AppError::not_found(format!("markdown not found: {job_id}")))?;
+    let markdown_path =
+        resolve_markdown_path(&job, deps.data_root).ok_or_else(|| AppError::not_ready("markdown"))?;
     let content = tokio::fs::read_to_string(&markdown_path).await?;
     let raw_path = job_ocr_markdown_path(&job.job_id);
     let markdown_path_url = job_markdown_view_path(&job.job_id);

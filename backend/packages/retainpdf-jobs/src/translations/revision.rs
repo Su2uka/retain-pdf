@@ -78,11 +78,9 @@ fn validate_request(request: &ReviseTranslationItemRequest) -> Result<(), AppErr
 /// 修订只写任务自己的 `translated/`。从别的任务复用译文的渲染任务(retry-stage
 /// create_new_job=true 产生的)指向源任务的目录,在这里改会悄悄改掉源任务。
 fn owned_job_root(data_root: &Path, job: &JobSnapshot) -> Result<PathBuf, AppError> {
-    let job_root = resolve_job_root(job, data_root)
-        .ok_or_else(|| AppError::not_found(format!("job root not found: {}", job.job_id)))?;
-    let manifest = stored_path(job, data_root, StoredFile::TranslationManifest).ok_or_else(|| {
-        AppError::not_found(format!("translation manifest not found: {}", job.job_id))
-    })?;
+    let job_root = resolve_job_root(job, data_root).ok_or_else(|| AppError::not_ready("translation manifest"))?;
+    let manifest = stored_path(job, data_root, StoredFile::TranslationManifest)
+        .ok_or_else(|| AppError::not_ready("translation manifest"))?;
     let owned = manifest
         .parent()
         .and_then(|dir| dir.canonicalize().ok())
@@ -289,9 +287,8 @@ pub(crate) fn load_translation_revision_history(
 ) -> Result<TranslationRevisionHistoryView, AppError> {
     validate_item_id(item_id)?;
     load_translation_debug_item_view(data_root, job, item_id)?;
-    let manifest = stored_path(job, data_root, StoredFile::TranslationManifest).ok_or_else(|| {
-        AppError::not_found(format!("translation manifest not found: {}", job.job_id))
-    })?;
+    let manifest = stored_path(job, data_root, StoredFile::TranslationManifest)
+        .ok_or_else(|| AppError::not_ready("translation manifest"))?;
     let path = manifest
         .parent()
         .unwrap_or(&manifest)
