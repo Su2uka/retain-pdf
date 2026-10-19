@@ -35,9 +35,9 @@ pub(super) fn load_translation_manifest_pages(
     data_root: &Path,
     job: &JobSnapshot,
 ) -> Result<Vec<(i64, Vec<Value>)>, AppError> {
-    let manifest_path = stored_path(job, data_root, StoredFile::TranslationManifest).ok_or_else(|| {
-        AppError::not_found(format!("translation manifest not found: {}", job.job_id))
-    })?;
+    // 调用方先看过 `has_translation_manifest`；万一走到这里也按「还没产出」报。
+    let manifest_path = stored_path(job, data_root, StoredFile::TranslationManifest)
+        .ok_or_else(|| AppError::not_ready("translation manifest"))?;
     load_manifest_pages(&manifest_path)
 }
 
