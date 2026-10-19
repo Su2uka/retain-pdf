@@ -22,9 +22,10 @@ pub use merged::{
     VirtualJobId, SIDECAR,
 };
 
+/// 没有这个任务是 404；有记录但读不出来（行解码失败、库被锁……）是 500，不能说成「找不到」。
 pub fn load_job_or_404(db: &Db, job_id: &str) -> Result<JobSnapshot, AppError> {
     db.get_job(job_id)
-        .map_err(|_| AppError::not_found(format!("job not found: {job_id}")))
+        .map_err(|error| AppError::from_lookup(error, format!("job not found: {job_id}")))
 }
 
 fn ensure_supported_job_layout(data_root: &Path, job: &JobSnapshot) -> Result<(), AppError> {

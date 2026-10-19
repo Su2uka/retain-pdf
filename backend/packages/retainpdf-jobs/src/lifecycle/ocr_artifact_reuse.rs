@@ -60,7 +60,10 @@ fn validate_reusable_source(
     source_job_id: &str,
     expected_document_id: Option<&str>,
 ) -> Result<(JobSnapshot, PathBuf), AppError> {
-    let source_job = db.get_job(source_job_id).map_err(|_| {
+    let source_job = db.get_job(source_job_id).map_err(|error| {
+        if !AppError::is_record_missing(&error) {
+            return AppError::from(error);
+        }
         reuse_error(
             StatusCode::NOT_FOUND,
             "OCR_JOB_NOT_FOUND",

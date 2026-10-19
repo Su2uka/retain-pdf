@@ -211,7 +211,9 @@ impl Db {
 
     pub fn get_document(&self, document_id: &str) -> Result<DocumentRecord> {
         let conn = self.connect()?;
+        // 「没有这本书」带上 QueryReturnedNoRows，和 `get_job` 一样：调用方凭它判 404，其余错误是 500。
         let record = query_document(&conn, document_id)?
+            .ok_or(rusqlite::Error::QueryReturnedNoRows)
             .with_context(|| format!("document not found: {document_id}"))?;
         Ok(record)
     }

@@ -115,7 +115,7 @@ impl Db {
             let job = match row_to_job_snapshot(row) {
                 Ok(job) => job,
                 Err(error) => {
-                    eprintln!("[db] skipping malformed job row during select_jobs: {error}");
+                    tracing::warn!("[db] skipping malformed job row during select_jobs: {error}");
                     continue;
                 }
             };
@@ -213,7 +213,7 @@ impl Db {
             match row {
                 Ok(job) => jobs.push(job),
                 Err(error) => {
-                    eprintln!("[db] skipping malformed job row during list_jobs: {error}");
+                    tracing::warn!("[db] skipping malformed job row during list_jobs: {error}");
                 }
             }
         }
@@ -236,9 +236,17 @@ impl Db {
             params![document_id, i64::from(limit), i64::from(offset)],
             row_to_job_snapshot,
         )?;
+        // 和 select_jobs / list_jobs 一样：读不出来的行跳过并记日志，一本书里有一条坏行不该让整本书的任务列表打不开。
         let mut jobs = Vec::new();
         for row in rows {
-            jobs.push(row?);
+            match row {
+                Ok(job) => jobs.push(job),
+                Err(error) => {
+                    tracing::warn!(
+                        "[db] skipping malformed job row during list_jobs_for_document: {error}"
+                    );
+                }
+            }
         }
         Ok(jobs)
     }
@@ -334,7 +342,7 @@ impl Db {
             match row {
                 Ok(job) => jobs.push(job),
                 Err(error) => {
-                    eprintln!(
+                    tracing::warn!(
                         "[db] skipping malformed job row during list_jobs_with_status: {error}"
                     );
                 }

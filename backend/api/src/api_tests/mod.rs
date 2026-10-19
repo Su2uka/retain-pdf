@@ -21,6 +21,7 @@ mod http_contract;
 mod isolation;
 mod job_view_contract;
 mod job_data;
+mod job_loading_errors;
 pub(crate) mod jobs_common;
 mod merged_reading;
 mod model_executor;

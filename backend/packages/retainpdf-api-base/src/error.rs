@@ -229,6 +229,26 @@ impl AppError {
         Self::Internal(msg.into())
     }
 
+    /// 数据库里「没有这条记录」。`Db::get_job` 等按编号取一条的方法用 `QueryReturnedNoRows`
+    /// 报这件事（原样保留在错误链里），其余错误（库被锁、行解码失败……）都不是。
+    pub fn is_record_missing(error: &anyhow::Error) -> bool {
+        matches!(
+            error.downcast_ref::<rusqlite::Error>(),
+            Some(rusqlite::Error::QueryReturnedNoRows)
+        )
+    }
+
+    /// 按编号取一条记录失败时翻成接口错误：没有这条记录是 404（消息用 `not_found_msg`），
+    /// 其余是 500，原因只进日志。不要再写 `map_err(|_| not_found(..))`：把「有记录但读不出来」
+    /// 报成 not found，会让人去查错地方。
+    pub fn from_lookup(error: anyhow::Error, not_found_msg: impl Into<String>) -> Self {
+        if Self::is_record_missing(&error) {
+            Self::NotFound(not_found_msg.into())
+        } else {
+            Self::from(error)
+        }
+    }
+
     pub fn ocr_artifact_reuse(
         status: StatusCode,
         code: &'static str,
