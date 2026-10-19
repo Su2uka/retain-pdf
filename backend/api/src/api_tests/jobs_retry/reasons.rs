@@ -349,3 +349,36 @@ async fn malformed_retry_requests_stay_400() {
         assert_eq!(payload["error"]["details"], json!({}), "{name}");
     }
 }
+
+/// OCR 上传到一半被用户取消：派发记录会标成拿不准（请求可能已经到了服务商）。处理入口
+/// （失败诊断里的 `ocr_ambiguity`、resolve-ocr-ambiguity）以前只认失败的任务，已取消的任务
+/// 续跑被 409 `ambiguous_ocr_dispatch` 拦住、提示去处理，处理入口却又说「任务不是失败态」。
+#[tokio::test]
+async fn canceled_job_with_ambiguous_ocr_dispatch_can_be_resolved() {
+    let state = test_state("reasons-canceled-ocr");
+    let id = "job-reasons-canceled-ocr";
+    let mut job = source_job_with_artifacts(id, JobArtifacts::default());
+    job.status = JobStatusKind::Canceled;
+    job.request_payload.source.upload_id = super::common::seed_ocr_upload(&state, "upload-canceled-ocr").upload_id;
+    job.request_payload.ocr.provider = "mineru".to_string();
+    job.request_payload.ocr.mineru_token = "mineru-test-token".to_string();
+    state.db.save_job(&job).expect("save canceled job");
+    seed_ambiguous_ocr_dispatch(&state, id, "mineru", "apply_upload_url");
+
+    assert_conflict(&post(&state, id, "rerun", None).await, "ambiguous_ocr_dispatch", "canceled rerun");
+    let (status, diagnostics) =
+        call(&state, Method::GET, &format!("/api/v1/jobs/{id}/reports/failure"), None).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(diagnostics["data"]["failure_code"], "ocr_request_ambiguous", "{diagnostics}");
+    let revision = diagnostics["data"]["ocr_ambiguity"]["resolution_revision"].clone();
+    assert!(revision.is_number(), "已取消的任务也要给出歧义处理入口：{diagnostics}");
+
+    let (status, resolved) = post(
+        &state,
+        id,
+        "resolve-ocr-ambiguity",
+        Some(json!({"resolution": "accept_duplicate_risk", "resolution_revision": revision})),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{resolved}");
+}

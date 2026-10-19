@@ -65,7 +65,7 @@ message 形如 ``unknown field `x`, expected one of ... in the request body``（
    | `request_journal_corrupt` | 翻译请求日志损坏，确认也修不好 | retry-stage translation、resume/rerun |
    | `model_executor_unsupported` | 绑定了 Rust 模型执行器，这条旧路径不支持 | retry-stage、resume/rerun |
    | `stale_resolution` | OCR 歧义的 `resolution_revision` 过期，或被别的请求处理了 | resolve-ocr-ambiguity |
-   | `no_ocr_dispatch` | 没有可处理的 OCR 歧义（已不是失败态，或没有派发记录） | resolve-ocr-ambiguity |
+   | `no_ocr_dispatch` | 没有可处理的 OCR 歧义（既不是失败也不是已取消，或没有派发记录） | resolve-ocr-ambiguity |
    | `ocr_dispatch_unsupported` | 该服务商/操作不支持绑定收据 | resolve-ocr-ambiguity |
 
    `reason` 只增不改，不认识的值按「状态不允许，看 `message`」处理。

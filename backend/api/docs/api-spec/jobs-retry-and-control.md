@@ -185,7 +185,7 @@ returned `400` here (refine returned `409`); they are all `409` now.
 | `request_journal_corrupt` | translation request journal is corrupt; `accept_duplicate_risk` cannot repair it | retry-stage `stage=translation`, resume/rerun |
 | `model_executor_unsupported` | job is bound to a Rust model executor; legacy retry/resume/refine is disabled | retry-stage, resume/rerun |
 | `stale_resolution` | `resolution_revision` is stale, or another request already resolved the ambiguity | resolve-ocr-ambiguity |
-| `no_ocr_dispatch` | job is no longer failed, or has no ambiguous OCR dispatch | resolve-ocr-ambiguity |
+| `no_ocr_dispatch` | job is neither failed nor canceled, or has no ambiguous OCR dispatch | resolve-ocr-ambiguity |
 | `ocr_dispatch_unsupported` | the ambiguous dispatch is for a provider/operation whose receipt cannot be bound | resolve-ocr-ambiguity |
 
 Request fields:
@@ -293,7 +293,7 @@ upload was in flight is also left ambiguous; use `retry-stage` with
 `ambiguous_request_policy=accept_duplicate_risk` to retry it.
 
 `GET /api/v1/jobs/{job_id}/reports/failure` returns `ocr_ambiguity` only while the
-job is failed and its latest `ocr-submit` dispatch is still ambiguous. The
+job is failed or canceled (an upload canceled midway may have reached the provider) and its latest `ocr-submit` dispatch is still ambiguous. The
 projection contains the authoritative `provider`, `operation`,
 `resolution_revision`, `allowed_resolutions`, and backend-derived
 `receipt_fields`. An absent or resolved ambiguity is returned as `null`.
@@ -325,7 +325,7 @@ duplicate-submit acceptance. The job must still be failed, the dispatch must
 still be ambiguous, and `resolution_revision` must equal the dispatch
 generation; otherwise the backend returns `409` so stale UI state cannot bind
 the wrong dispatch. The `reason` says which precondition failed: `job_active`
-(queued/running), `no_ocr_dispatch` (not failed, or nothing ambiguous),
+(queued/running), `no_ocr_dispatch` (neither failed nor canceled, or nothing ambiguous),
 `stale_resolution` (revision mismatch, or lost the race to another request).
 Unknown request fields are `400`.
 
