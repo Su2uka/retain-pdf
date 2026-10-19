@@ -9,6 +9,7 @@ mod ai_proxy;
 mod ai_terminal;
 mod conversations_contract;
 mod credentials;
+mod document_metadata;
 mod document_operations;
 mod file_responses;
 mod glossaries;

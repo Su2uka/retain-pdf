@@ -1,9 +1,13 @@
+//! 书的元数据建议（目前只有书名）：从原文 PDF 的 Info Title 和规范化 OCR 文档里挑候选。
+
+mod normalized;
+mod pdf_info;
+
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
 use axum::http::StatusCode;
-use lopdf::Object;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 
@@ -16,86 +20,39 @@ use crate::views::{
     ListDocumentMetadataSuggestionsQuery,
 };
 use retainpdf_core::models::domain::build_job_id;
-use retainpdf_core::storage_paths::resolve_job_root;
 use retainpdf_data::db::{ApplyDocumentMetadataSuggestionResult, StoredDocumentMetadataSuggestion};
 
-use super::documents::require_document_upload;
+use super::documents::{require_document_upload, with_document_media_urls};
 use super::LibraryDeps;
+use normalized::{read_title_pages, NormalizedReadError};
 use retainpdf_jobs::{stored_path, StoredFile};
 
 const MAX_NORMALIZED_DOCUMENT_BYTES: u64 = 256 * 1024 * 1024;
 const MAX_SUGGESTIONS: u32 = 100;
 const MAX_TITLE_CHARS: usize = 512;
 
-pub fn create_metadata_suggestion(
+pub async fn create_metadata_suggestion(
     deps: &LibraryDeps<'_>,
     document_id: &str,
     input: &CreateDocumentMetadataSuggestionInput,
 ) -> Result<DocumentMetadataSuggestionView, AppError> {
     validate_fields(&input.fields)?;
     let (document, upload) = require_document_upload(deps, document_id)?;
-
-    let mut candidates = Vec::new();
-    if let Some(title) = read_pdf_metadata_title(Path::new(&upload.stored_path)) {
-        candidates.push(DocumentTitleCandidateView {
-            value: title,
-            source: "pdf_metadata".to_string(),
-            confidence: 0.92,
-            evidence: vec![DocumentMetadataEvidenceView {
-                source: "pdf_info_title".to_string(),
-                page_idx: None,
-                block_id: None,
-                structure_role: None,
-                layout_role: None,
-            }],
-        });
-    }
-
     let normalized = resolve_normalized_source(deps, document_id, input.job_id.as_deref())?;
-    let mut evidence_hasher = Sha256::new();
-    // document_id is already the uploaded PDF's SHA-256 content hash.
-    evidence_hasher.update(b"source_pdf_sha256\0");
-    evidence_hasher.update(document_id.as_bytes());
-    let mut source_job_id = None;
-    if let Some((job_id, path)) = normalized {
-        let metadata = fs::metadata(&path).map_err(|error| {
-            AppError::document_metadata(
-                StatusCode::CONFLICT,
-                "DOCUMENT_METADATA_SOURCE_NOT_READY",
-                format!("无法读取 OCR 规范化产物: {error}"),
-            )
-        })?;
-        if metadata.len() > MAX_NORMALIZED_DOCUMENT_BYTES {
-            return Err(AppError::document_metadata(
-                StatusCode::PAYLOAD_TOO_LARGE,
-                "DOCUMENT_METADATA_SOURCE_TOO_LARGE",
-                "OCR 规范化产物过大，无法生成元数据建议",
-            ));
-        }
-        let evidence_bytes = fs::read(&path).map_err(|error| {
-            AppError::document_metadata(
-                StatusCode::CONFLICT,
-                "DOCUMENT_METADATA_SOURCE_NOT_READY",
-                format!("无法读取 OCR 规范化产物: {error}"),
-            )
-        })?;
-        evidence_hasher.update(b"normalized_document\0");
-        evidence_hasher.update(&evidence_bytes);
-        let value: Value = serde_json::from_slice(&evidence_bytes).map_err(|error| {
-            AppError::document_metadata(
-                StatusCode::UNPROCESSABLE_ENTITY,
-                "DOCUMENT_METADATA_SOURCE_INVALID",
-                format!("OCR 规范化产物不是有效 JSON: {error}"),
-            )
-        })?;
-        candidates.extend(extract_ocr_title_candidates(&value));
-        source_job_id = Some(job_id);
-    }
+
+    // 读原文 PDF、逐字节读规范化文档都是阻塞的文件活，放进阻塞线程。
+    let source_pdf = PathBuf::from(&upload.stored_path);
+    let evidence_document_id = document_id.to_string();
+    let TitleEvidence { candidates, artifact_sha256, source_job_id } = tokio::task::spawn_blocking(
+        move || collect_title_evidence(&evidence_document_id, &source_pdf, normalized),
+    )
+    .await
+    .map_err(|_| AppError::internal("metadata suggestion evidence task failed"))??;
 
     let candidates = rank_and_deduplicate_candidates(candidates);
     let Some(selected) = candidates.first() else {
         return Err(AppError::document_metadata(
-            StatusCode::UNPROCESSABLE_ENTITY,
+            StatusCode::CONFLICT,
             "DOCUMENT_TITLE_CANDIDATE_NOT_FOUND",
             "没有找到可靠的文档标题；请先完成 OCR 或手工命名",
         ));
@@ -104,7 +61,6 @@ pub fn create_metadata_suggestion(
         || candidates
             .get(1)
             .is_some_and(|next| (selected.confidence - next.confidence).abs() < 0.05);
-    let artifact_sha256 = hex_digest(evidence_hasher.finalize());
     let fields = vec!["title".to_string()];
     let record = deps.db.insert_document_metadata_suggestion(
         &format!("meta-{}", build_job_id()),
@@ -170,6 +126,7 @@ pub fn apply_metadata_suggestion(
     document_id: &str,
     suggestion_id: &str,
     input: &ApplyDocumentMetadataSuggestionInput,
+    base_url: &str,
 ) -> Result<DocumentMetadataSuggestionApplyView, AppError> {
     match deps.db.apply_document_metadata_suggestion(
         document_id,
@@ -181,7 +138,8 @@ pub fn apply_metadata_suggestion(
             document,
         } => Ok(DocumentMetadataSuggestionApplyView {
             suggestion: stored_to_view(suggestion, &document)?,
-            document,
+            // 和 GET / PATCH 返回的书一样带原文、封面、缩略图链接。
+            document: with_document_media_urls(document, base_url),
         }),
         ApplyDocumentMetadataSuggestionResult::SuggestionNotFound => {
             Err(AppError::document_metadata(
@@ -267,17 +225,82 @@ fn resolve_normalized_source(
     Ok(None)
 }
 
+/// 任务登记的规范化文档（任务包的 `stored_path`）。没登记就是没有：不再按任务目录猜
+/// `ocr/normalized/document.v1.json`，复用 OCR、重试读的也都是登记的这一份。
 fn normalized_document_path(
     job: &retainpdf_core::models::domain::JobSnapshot,
     data_root: &Path,
 ) -> Option<PathBuf> {
-    stored_path(job, data_root, StoredFile::NormalizedDocument)
-        .filter(|path| path.is_file())
-        .or_else(|| {
-            resolve_job_root(job, data_root)
-                .map(|root| root.join("ocr/normalized/document.v1.json"))
-                .filter(|path| path.is_file())
-        })
+    stored_path(job, data_root, StoredFile::NormalizedDocument).filter(|path| path.is_file())
+}
+
+/// 阻塞线程里收集的候选和证据。
+struct TitleEvidence {
+    candidates: Vec<DocumentTitleCandidateView>,
+    artifact_sha256: String,
+    source_job_id: Option<String>,
+}
+
+fn collect_title_evidence(
+    document_id: &str,
+    source_pdf: &Path,
+    normalized: Option<(String, PathBuf)>,
+) -> Result<TitleEvidence, AppError> {
+    let mut candidates = Vec::new();
+    if let Some(title) = read_pdf_metadata_title(source_pdf) {
+        candidates.push(DocumentTitleCandidateView {
+            value: title,
+            source: "pdf_metadata".to_string(),
+            confidence: 0.92,
+            evidence: vec![DocumentMetadataEvidenceView {
+                source: "pdf_info_title".to_string(),
+                page_idx: None,
+                block_id: None,
+                structure_role: None,
+                layout_role: None,
+            }],
+        });
+    }
+
+    let mut evidence_hasher = Sha256::new();
+    // document_id is already the uploaded PDF's SHA-256 content hash.
+    evidence_hasher.update(b"source_pdf_sha256\0");
+    evidence_hasher.update(document_id.as_bytes());
+    let mut source_job_id = None;
+    if let Some((job_id, path)) = normalized {
+        let metadata = fs::metadata(&path).map_err(|error| source_not_ready(&error))?;
+        if metadata.len() > MAX_NORMALIZED_DOCUMENT_BYTES {
+            return Err(AppError::document_metadata(
+                StatusCode::PAYLOAD_TOO_LARGE,
+                "DOCUMENT_METADATA_SOURCE_TOO_LARGE",
+                "OCR 规范化产物过大，无法生成元数据建议",
+            ));
+        }
+        let pages = read_title_pages(&path, &mut evidence_hasher).map_err(|error| match error {
+            NormalizedReadError::Io(error) => source_not_ready(&error),
+            // 产物在、但坏了：状态问题（换一份 OCR 就好），不是请求写错。
+            NormalizedReadError::Invalid(error) => AppError::document_metadata(
+                StatusCode::CONFLICT,
+                "DOCUMENT_METADATA_SOURCE_INVALID",
+                format!("OCR 规范化产物不是有效 JSON: {error}"),
+            ),
+        })?;
+        candidates.extend(extract_ocr_title_candidates(&serde_json::json!({ "pages": pages })));
+        source_job_id = Some(job_id);
+    }
+    Ok(TitleEvidence {
+        candidates,
+        artifact_sha256: hex_digest(evidence_hasher.finalize()),
+        source_job_id,
+    })
+}
+
+fn source_not_ready(error: &std::io::Error) -> AppError {
+    AppError::document_metadata(
+        StatusCode::CONFLICT,
+        "DOCUMENT_METADATA_SOURCE_NOT_READY",
+        format!("无法读取 OCR 规范化产物: {error}"),
+    )
 }
 
 fn extract_ocr_title_candidates(document: &Value) -> Vec<DocumentTitleCandidateView> {
@@ -394,15 +417,8 @@ fn rank_and_deduplicate_candidates(
 }
 
 fn read_pdf_metadata_title(path: &Path) -> Option<String> {
-    let document = lopdf::Document::load(path).ok()?;
-    let info = document.trailer.get(b"Info").ok()?;
-    let dictionary = match info {
-        Object::Reference(id) => document.get_object(*id).ok()?.as_dict().ok()?,
-        Object::Dictionary(dictionary) => dictionary,
-        _ => return None,
-    };
-    let bytes = dictionary.get(b"Title").ok()?.as_str().ok()?;
-    normalize_title(&decode_pdf_string(bytes))
+    let bytes = pdf_info::pdf_info_title_bytes(path)?;
+    normalize_title(&decode_pdf_string(&bytes))
 }
 
 fn decode_pdf_string(bytes: &[u8]) -> String {
@@ -452,10 +468,9 @@ fn stored_to_view(
     let applied = record.status == "applied"
         && document.title == record.selected_title
         && document.title_source != "user";
-    let can_apply = applied
-        || (!document.title_locked
-            && document.title_source == "filename"
-            && document.title == default_title_from_filename(&document.source_filename));
+    // 「书名还是默认值」只看来源和锁：同一本书换个文件名再传，source_filename 会变、书名不变，
+    // 拿书名和文件名比会误判成用户改过（数据库层的应用守卫同样只看这两项）。
+    let can_apply = applied || (!document.title_locked && document.title_source == "filename");
     Ok(DocumentMetadataSuggestionView {
         suggestion_id: record.suggestion_id,
         document_id: record.document_id,
@@ -472,15 +487,6 @@ fn stored_to_view(
         created_at: record.created_at,
         updated_at: record.updated_at,
     })
-}
-
-fn default_title_from_filename(filename: &str) -> String {
-    filename
-        .strip_suffix(".pdf")
-        .or_else(|| filename.strip_suffix(".PDF"))
-        .unwrap_or(filename)
-        .trim()
-        .to_string()
 }
 
 #[cfg(test)]
@@ -559,5 +565,25 @@ mod tests {
         let candidates = rank_and_deduplicate_candidates(candidates);
         assert_eq!(candidates[0].value, "OCR paper title");
         assert_eq!(candidates[0].source, "ocr_legacy_structure");
+    }
+
+    fn temp_pdf(bytes: &[u8]) -> PathBuf {
+        let path = std::env::temp_dir().join(format!("metadata-title-{}.pdf", fastrand::u64(..)));
+        fs::write(&path, bytes).unwrap();
+        path
+    }
+
+    /// 只拿 trailer 指的那个 Info 对象，不解析整本：交叉引用表坏了（整本解析会失败）也读得到。
+    #[test]
+    fn pdf_title_is_read_from_the_info_object_without_parsing_the_whole_file() {
+        let pdf = b"%PDF-1.4\n\
+1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n\
+2 0 obj\n<< /Type /Pages /Kids [] /Count 0 >>\nendobj\n\
+3 0 obj\n<< /Producer (x) /Title (A  Light   Title) >>\nendobj\n\
+xref\n0 4\n0000000000 65535 f \n\
+trailer\n<< /Size 4 /Root 1 0 R /Info 3 0 R >>\nstartxref\n999999\n%%EOF\n";
+        let path = temp_pdf(pdf);
+        assert_eq!(read_pdf_metadata_title(&path).as_deref(), Some("A Light Title"));
+        let _ = fs::remove_file(path);
     }
 }

@@ -7,7 +7,9 @@ use retainpdf_core::models::api::{
 };
 use retainpdf_files::ArtifactDisplayItemView;
 use retainpdf_jobs::JobProgressView;
+use retainpdf_api_base::error::AppError;
 use retainpdf_core::models::domain::JobStatusKind;
+use retainpdf_core::models::request::CreateJobInput;
 use serde::{Deserialize, Serialize};
 
 fn default_documents_limit() -> u32 {
@@ -69,8 +71,10 @@ pub struct PatchDocumentInput {
     pub reading_status: Option<String>,
 }
 
-/// POST /api/v1/documents/:id/metadata-suggestions
+/// POST /api/v1/documents/:id/metadata-suggestions。不认识的字段 400（拼错的 `apply_if_default`
+/// 不会悄悄变成「不自动应用」）。
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct CreateDocumentMetadataSuggestionInput {
     /// 缺省时选择该文档最新的可读规范化 OCR 产物。
     #[serde(default)]
@@ -90,12 +94,32 @@ pub struct ListDocumentMetadataSuggestionsQuery {
     pub limit: u32,
 }
 
-/// POST /api/v1/documents/:id/metadata-suggestions/:suggestion_id/apply
+/// POST /api/v1/documents/:id/metadata-suggestions/:suggestion_id/apply。不认识的字段 400
+/// （拼错的版本护栏不会悄悄变成「不检查」）。
 #[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ApplyDocumentMetadataSuggestionInput {
     /// 可选的文档版本护栏；不匹配时返回 409。
     #[serde(default)]
     pub expected_document_updated_at: Option<String>,
+}
+
+/// `POST /documents/:id/translate`、`/ocr` 的请求体：和 `POST /jobs` 同一个 `CreateJobInput`
+/// （同样的解析、同样的 `invalid job payload: …` 提示），另记下客户端写没写 `workflow`——
+/// `workflow` 缺省是 book，`/ocr` 要分清「没写」和「写了 book」，后者是和入口矛盾的请求。
+#[derive(Debug, Clone)]
+pub struct DocumentJobRequest {
+    pub(crate) input: CreateJobInput,
+    pub(crate) workflow_given: bool,
+}
+
+impl DocumentJobRequest {
+    pub fn from_api_value(value: serde_json::Value) -> Result<Self, AppError> {
+        let workflow_given = value.get("workflow").is_some();
+        let input = CreateJobInput::from_api_value(value)
+            .map_err(|error| AppError::bad_request(format!("invalid job payload: {error}")))?;
+        Ok(Self { input, workflow_given })
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
