@@ -1,6 +1,6 @@
 import { firstJobIdFromPayload, firstNonEmpty as firstNonEmptyText } from "@retainpdf/domain/job";
 import { buildDetailPageUrl } from "./routing.js";
-import { retryJobStage } from "@/platform/api/index.js";
+import { describeActionError, retryJobStage } from "@/platform/api/index.js";
 import { API_PREFIX } from "@/platform/config/api-constants.js";
 import { isAmbiguousTranslationRerunError } from "../dialog/resume-actions.js";
 import type { JobDetailPageState } from "./page-state.js";
@@ -58,7 +58,7 @@ export function bindRerunButton({
         button.disabled = false;
         return;
       }
-      setText("detail-rerun-status", message);
+      setText("detail-rerun-status", describeActionError(error, message));
       if (button.dataset) button.dataset.confirmRisk = "";
       button.disabled = false;
     }
@@ -91,7 +91,7 @@ async function retryTranslationWithRisk({
     window.location.href = buildDetailPageUrl(retryJobId);
     return;
   } catch (retryError) {
-    setText("detail-rerun-status", (retryError as { message?: string } | null)?.message || String(retryError));
+    setText("detail-rerun-status", describeActionError(retryError, String(retryError)));
     clearConfirm();
     button.disabled = false;
     return;

@@ -81,6 +81,39 @@ test("jobs actions:409 错误保留 status 供前端刷新诊断", async () => {
   }
 });
 
+test("jobs actions:409 的 error.code 和 details.reason 挂到错误对象上", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(
+    JSON.stringify({
+      code: 40900,
+      message: "job is running; cancel it first",
+      error: { code: "CONFLICT", http_status: 409, details: { reason: "job_active" } },
+    }),
+    { status: 409, headers: { "Content-Type": "application/json" } },
+  );
+  try {
+    await assert.rejects(
+      retryJobStage("job-1", "/api/v1", "render", {}),
+      (error) => error.status === 409 && error.errorCode === "CONFLICT" && error.reason === "job_active",
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+  // 普通错误的 details 是 {}：不挂 reason。
+  globalThis.fetch = async () => new Response(
+    JSON.stringify({ code: 40000, message: "bad", error: { code: "BAD_REQUEST", details: {} } }),
+    { status: 400, headers: { "Content-Type": "application/json" } },
+  );
+  try {
+    await assert.rejects(
+      retryJobStage("job-1", "/api/v1", "render", {}),
+      (error) => error.status === 400 && error.reason === undefined && error.errorCode === "BAD_REQUEST",
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("retry-stage 请求体只发后端认的字段，书的信息只用来补返回值", async () => {
   const calls = [];
   const originalFetch = globalThis.fetch;
