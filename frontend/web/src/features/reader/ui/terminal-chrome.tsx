@@ -117,11 +117,14 @@ export function TerminalScopeBar({
   const [busy, setBusy] = useState(false);
 
   const fetchJson = useCallback(
-    async (path: string) => {
+    async (path: string, init: { method?: string } = {}) => {
       const response = await fetch(new URL(path, baseUrl), {
+        method: init.method || "GET",
         headers: { "X-API-Key": apiKey },
       });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      if (!response.ok) {
+        throw Object.assign(new Error(`HTTP ${response.status}`), { status: response.status });
+      }
       return await response.json();
     },
     [baseUrl, apiKey],

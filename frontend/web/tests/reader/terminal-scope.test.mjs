@@ -100,6 +100,29 @@ test("物化成功返回 null，失败返回能看懂的原因", async () => {
     /格式不对/,
   );
   assert.ok(await ensureCollectionWorkspace(async () => { throw new Error("HTTP 500"); }, "col-1"));
+  // 文件夹已经被删了：后端 404，说人话。
+  assert.equal(
+    await ensureCollectionWorkspace(
+      async () => { throw Object.assign(new Error("HTTP 404"), { status: 404 }); },
+      "col-1",
+    ),
+    "这个文件夹已经不存在了",
+  );
+});
+
+test("物化用 POST —— 它会重建磁盘目录，GET 是后端标了旧地址的写法", async () => {
+  const calls = [];
+  await ensureCollectionWorkspace(async (path, init) => {
+    calls.push([path, init?.method]);
+    return { data: { books: [{}] } };
+  }, "col-20261019120000-abc123");
+  assert.deepEqual(calls, [
+    ["/api/v1/collections/col-20261019120000-abc123/agent-workspace", "POST"],
+  ]);
+  // 面板里的 fetchJson 要把方法真的带给 fetch，并把状态码挂在错误上（上面的 404 提示靠它）。
+  const fetchJsonFn = CHROME.slice(CHROME.indexOf("const fetchJson = useCallback"), CHROME.indexOf("useEffect("));
+  assert.match(fetchJsonFn, /method: init\.method \|\| "GET"/);
+  assert.match(fetchJsonFn, /status: response\.status/);
 });
 
 test("collectionId 进 URL 要转义", async () => {
