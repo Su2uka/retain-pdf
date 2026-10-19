@@ -69,7 +69,9 @@ pub fn load_virtual_job(db: &Db, data_root: &Path, job_id: &str) -> Result<JobSn
     if sidecar.document_id != id.document_id {
         return Err(not_found());
     }
-    let base = db.get_job(&sidecar.base_job_id).map_err(|_| not_found())?;
+    let base = db
+        .get_job(&sidecar.base_job_id)
+        .map_err(|error| AppError::from_lookup(error, format!("job not found: {job_id}")))?;
     let relative = |path: &Path| {
         to_relative_data_path(data_root, path).unwrap_or_else(|_| path.to_string_lossy().into_owned())
     };

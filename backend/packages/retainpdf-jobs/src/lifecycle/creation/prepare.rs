@@ -15,7 +15,7 @@ use crate::deps::SnapshotBuildDeps;
 
 fn load_upload_or_404(db: &retainpdf_data::db::Db, upload_id: &str) -> Result<UploadRecord, AppError> {
     db.get_upload(upload_id)
-        .map_err(|_| AppError::not_found(format!("upload not found: {upload_id}")))
+        .map_err(|error| AppError::from_lookup(error, format!("upload not found: {upload_id}")))
 }
 
 pub(super) struct PreparedTranslationUpload {
@@ -93,11 +93,11 @@ pub(super) fn prepare_render_input(
             "source.artifact_job_id is required for render workflow",
         ));
     }
-    let source_job = ctx.db.get_job(&input.source.artifact_job_id).map_err(|_| {
-        AppError::not_found(format!(
-            "artifact job not found: {}",
-            input.source.artifact_job_id
-        ))
+    let source_job = ctx.db.get_job(&input.source.artifact_job_id).map_err(|error| {
+        AppError::from_lookup(
+            error,
+            format!("artifact job not found: {}", input.source.artifact_job_id),
+        )
     })?;
     reject_paddle_cli_artifact(&source_job)?;
     validate_render_options(input)?;

@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 use retainpdf_data::db::Db;
 use retainpdf_api_base::error::AppError;
+use retainpdf_api_base::job_loading::load_supported_job;
 use retainpdf_core::storage_paths::{resolve_data_path, resolve_job_root};
 
 pub use super::{JobDataCatalogView, JobDataView};
@@ -25,10 +26,9 @@ impl JobDataApiDeps {
 }
 
 fn roots_for(deps: &JobDataApiDeps, job_id: &str) -> Result<JobDataRoots, AppError> {
-    let job = deps
-        .db
-        .get_job(job_id)
-        .map_err(|_| AppError::not_found(format!("job not found: {job_id}")))?;
+    // 和其余读任务的接口一样走 `load_supported_job`：认合并阅读的虚拟 id，旧目录格式的任务报 409。
+    // 虚拟任务的目录是合并目录，里面没有的数据集照常 `available: false`。
+    let job = load_supported_job(&deps.db, &deps.data_root, job_id)?;
     let job_root = resolve_job_root(&job, &deps.data_root)
         .ok_or_else(|| AppError::not_found(format!("job has no output directory: {job_id}")))?;
     // 新任务式重渲染的译文在源任务目录里；报告、日志在本任务目录里。

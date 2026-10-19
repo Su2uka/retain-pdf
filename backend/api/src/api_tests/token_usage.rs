@@ -4,7 +4,7 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use tower::util::ServiceExt;
 
-use crate::api_tests::jobs_common::{read_json, test_state};
+use crate::api_tests::jobs_common::{read_json, seed_legacy_layout_job, seed_virtual_job, test_state};
 use crate::app::build_app;
 use crate::models::{CreateJobInput, JobSnapshot};
 
@@ -56,4 +56,34 @@ async fn usage_routes_summarize_the_job_ledgers() {
     assert_eq!((document["scope"].as_str(), document["totals"]["requests"].as_u64()), (Some("document"), Some(0)));
 
     assert_eq!(get(&state, "/api/v1/jobs/job-missing/reports/usage").await.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn job_usage_follows_the_same_loading_rules_as_the_other_job_reads() {
+    let state = test_state("token-usage-loading");
+
+    // 合并阅读的虚拟任务认；合并结果自己没有用量账本，给空汇总。
+    let (virtual_id, _root) = seed_virtual_job(&state);
+    let response = get(&state, &format!("/api/v1/jobs/{virtual_id}/reports/usage")).await;
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(read_json(response).await["data"]["totals"]["requests"], 0);
+
+    // 旧目录格式的任务：409。
+    seed_legacy_layout_job(&state, "job-legacy");
+    assert_eq!(get(&state, "/api/v1/jobs/job-legacy/reports/usage").await.status(), StatusCode::CONFLICT);
+
+    // 有意保留：库里没有记录、任务目录还在，照样给用量（账本在目录里，删掉记录不丢）。
+    let ledger = crate::services::jobs::job_usage_ledger_path(&state.config.output_root, "job-dir-only");
+    std::fs::create_dir_all(ledger.parent().unwrap()).unwrap();
+    std::fs::write(
+        &ledger,
+        concat!(r#"{"ts":"2026-10-10T00:00:00Z","stage":"translation","model":"m","host":"h","input":10,"output":5}"#, "\n"),
+    )
+    .unwrap();
+    let response = get(&state, "/api/v1/jobs/job-dir-only/reports/usage").await;
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(read_json(response).await["data"]["totals"]["total_tokens"], 15);
+
+    // 库里没有、目录也没有：404。
+    assert_eq!(get(&state, "/api/v1/jobs/job-nowhere/reports/usage").await.status(), StatusCode::NOT_FOUND);
 }

@@ -17,7 +17,7 @@ impl JobQueries<'_> {
     ) -> Result<DocumentJobListView, AppError> {
         self.db
             .get_document(document_id)
-            .map_err(|_| AppError::not_found(format!("document not found: {document_id}")))?;
+            .map_err(|error| AppError::from_lookup(error, format!("document not found: {document_id}")))?;
         build_document_job_list_view(self.db, self.data_root, document_id, query, base_url)
     }
 

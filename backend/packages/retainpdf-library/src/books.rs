@@ -92,7 +92,7 @@ pub fn delete_library_book(
 fn load_library_job(db: &Db, job_id: &str) -> Result<JobSnapshot, AppError> {
     let job = db
         .get_job(job_id)
-        .map_err(|_| AppError::not_found(format!("book not found: {job_id}")))?;
+        .map_err(|error| AppError::from_lookup(error, format!("book not found: {job_id}")))?;
     if job.workflow == WorkflowKind::Ocr {
         return Err(AppError::not_found(format!("book not found: {job_id}")));
     }
