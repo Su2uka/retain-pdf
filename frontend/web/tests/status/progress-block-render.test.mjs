@@ -12,7 +12,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { JSDOM } from "jsdom";
-import { wait } from "../helpers/async.mjs";
+import { waitFor } from "../helpers/async.mjs";
 
 const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "http://localhost/" });
 for (const key of ["window", "document", "HTMLElement", "Event", "Node", "MutationObserver"]) {
@@ -34,7 +34,8 @@ async function renderProgress(renderOptions) {
   dom.window.document.body.appendChild(host);
   const root = createRoot(host);
   root.render(React.createElement(ProgressBlock, { renderOptions }));
-  await wait(30);
+  // 等真的渲染出来再读：固定等 30ms 在机器忙（负载几十）时不够，读到的全是 null。
+  await waitFor(() => host.firstElementChild, "ProgressBlock 渲染出来");
   const view = {
     ringText: host.querySelector(".status-progress-ring-text")?.textContent ?? null,
     footPercent: host.querySelector(".status-progress-percent")?.textContent ?? null,
