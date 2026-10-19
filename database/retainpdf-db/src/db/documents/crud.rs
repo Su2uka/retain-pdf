@@ -31,6 +31,60 @@ const IN_PROGRESS_JOB_SQL: &str = r#"
     LIMIT 1
 "#;
 
+/// 书里既没有在跑的也没有成功的任务时,书卡退到的最后一档:最近提交的任务(非 OCR 优先),
+/// 多半是失败 / 取消的 —— 与 `release_document_active_job`「没有可退回的就停在失败任务上」一致。
+/// 只给指针为空 / 悬空的卡用,不参与失败回退(那边「没有可换的就不动」)。
+const LATEST_JOB_SQL: &str = r#"
+    SELECT j.job_id FROM jobs j
+    WHERE j.document_id = documents.document_id
+    ORDER BY CASE WHEN j.workflow = '"ocr"' THEN 1 ELSE 0 END, j.created_at DESC, j.job_id DESC
+    LIMIT 1
+"#;
+
+/// 「明显错」的书卡:指针为空 / 指向已不存在的任务 / 指向别的书(或没归属)的任务,以及指着纯 OCR
+/// 成功任务而这本书已有翻译成功的任务(`active_job_after_success` 的「翻译优先」)。
+/// 指着在跑 / 失败 / 取消 / 成功的翻译任务的卡都不算错,不动 —— 那是运行时规则的产物。
+const WRONG_CARD_SQL: &str = r#"
+    documents.active_job_id IS NULL
+    OR NOT EXISTS (
+        SELECT 1 FROM jobs c
+        WHERE c.job_id = documents.active_job_id AND c.document_id = documents.document_id
+    )
+    OR (
+        EXISTS (
+            SELECT 1 FROM jobs c
+            WHERE c.job_id = documents.active_job_id
+              AND c.status_json = '"succeeded"' AND c.workflow = '"ocr"'
+        )
+        AND EXISTS (
+            SELECT 1 FROM jobs n
+            WHERE n.document_id = documents.document_id
+              AND n.status_json = '"succeeded"' AND n.workflow <> '"ocr"'
+        )
+    )
+"#;
+
+/// 修「明显错」的书卡(`WRONG_CARD_SQL`),换成运行时同一套规则选出的任务:在跑的 →
+/// 最好的成功任务 → 最近的任务。书里没有任务时:指针为空的不动,指着不存在 / 别的书的任务的置 NULL
+/// (降级为干净馆藏)。`document_id` 为 `None` 修所有书
+/// (启动回填,一条语句、没有问题时不逐本查询),`Some` 只修这一本(删任务之后)。返回改了几本。
+pub(super) fn repair_wrong_document_cards(conn: &Connection, document_id: Option<&str>) -> Result<usize> {
+    let pick = format!("COALESCE(({IN_PROGRESS_JOB_SQL}), ({BEST_SUCCEEDED_JOB_SQL}), ({LATEST_JOB_SQL}))");
+    // ?2 是 IN_PROGRESS_JOB_SQL 里「要排除的任务」,这里没有要排除的。
+    let changed = conn.execute(
+        &format!(
+            r#"
+            UPDATE documents SET active_job_id = {pick}, updated_at = ?3
+            WHERE (?1 IS NULL OR documents.document_id = ?1)
+              AND ({WRONG_CARD_SQL})
+              AND ({pick} IS NOT NULL OR documents.active_job_id IS NOT NULL)
+            "#
+        ),
+        params![document_id, "", now_iso()],
+    )?;
+    Ok(changed)
+}
+
 struct DocumentFilterQuery {
     where_sql: String,
     args: Vec<String>,
@@ -557,22 +611,12 @@ impl Db {
         Ok(changed > 0)
     }
 
-    /// 修复悬空的 active_job_id:若它指向的 job 已不存在,优先重指该文档下
-    /// 最新的非 OCR 成功任务；只有 OCR 成功任务时回退到 OCR。完全没有则
+    /// 修复悬空的 active_job_id(`repair_wrong_document_cards`):它指向的 job 已不存在 / 不属于这本书
+    /// 时,按运行时同一套规则重指(在跑的 → 最好的成功任务 → 最近的任务);完全没有任务则
     /// 置 NULL(降级为干净馆藏)。删 job 后必调,防僵尸卡。
     pub fn reconcile_document_active_job(&self, document_id: &str) -> Result<()> {
         let conn = self.connect()?;
-        conn.execute(
-            &format!(
-                r#"
-                UPDATE documents SET active_job_id = ({BEST_SUCCEEDED_JOB_SQL}), updated_at = ?2
-                WHERE documents.document_id = ?1
-                  AND documents.active_job_id IS NOT NULL
-                  AND documents.active_job_id NOT IN (SELECT job_id FROM jobs)
-                "#
-            ),
-            params![document_id, now_iso()],
-        )?;
+        repair_wrong_document_cards(&conn, Some(document_id))?;
         Ok(())
     }
 

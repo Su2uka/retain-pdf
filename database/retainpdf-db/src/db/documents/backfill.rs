@@ -3,7 +3,7 @@ use rusqlite::params;
 
 use crate::storage_paths::resolve_data_path;
 
-use super::crud::BEST_SUCCEEDED_JOB_SQL;
+use super::crud::repair_wrong_document_cards;
 use super::search::fts_normalized_document;
 use super::sha256_hex;
 use crate::db::Db;
@@ -81,8 +81,9 @@ fn backfill_fts_indexes(db: &Db) -> Result<()> {
     Ok(())
 }
 
-/// 启动回填要重建索引的书(规则见 `backfill_fts_indexes`)。
-fn fts_backfill_targets(db: &Db) -> Result<Vec<String>> {
+/// 启动回填要重建索引的书(规则见 `backfill_fts_indexes`)。没有任何成功任务的书(只有失败 / 在跑任务的
+/// 失败卡、在跑卡)没有可建的内容,不算目标 —— 否则它们每次启动都被判成「没有索引」。
+pub(super) fn fts_backfill_targets(db: &Db) -> Result<Vec<String>> {
     let conn = db.connect()?;
     // (document_id, 比索引新的成功任务 —— 没有索引行的书为 NULL)
     let rows: Vec<(String, Option<String>)> = {
@@ -97,6 +98,10 @@ fn fts_backfill_targets(db: &Db) -> Result<Vec<String>> {
             SELECT d.document_id, NULL FROM documents d
             LEFT JOIN indexed i ON i.document_id = d.document_id
             WHERE d.active_job_id IS NOT NULL AND i.document_id IS NULL
+              AND EXISTS (
+                  SELECT 1 FROM jobs s
+                  WHERE s.document_id = d.document_id AND s.status_json = '"succeeded"'
+              )
             UNION ALL
             SELECT d.document_id, j.job_id FROM documents d
             JOIN indexed i ON i.document_id = d.document_id
@@ -206,16 +211,11 @@ fn backfill_job_document_links(db: &Db) -> Result<()> {
     Ok(())
 }
 
+/// 启动只修「明显错」的书卡(指针为空 / 指向已删或别的书的任务 / 纯 OCR 卡而书里已有翻译成功),
+/// 规则和运行时是同一份 SQL(`repair_wrong_document_cards`)。以前这里无条件把每本书的卡改成
+/// 最好的成功任务、没有就清成 NULL,和运行时相反:重启后失败卡、在跑任务的卡都消失,失败卡还不会自愈。
 pub(super) fn backfill_active_jobs(db: &Db) -> Result<()> {
     let conn = db.connect()?;
-    conn.execute(
-        &format!(
-            r#"
-            UPDATE documents SET active_job_id = ({BEST_SUCCEEDED_JOB_SQL})
-            WHERE documents.active_job_id IS NOT ({BEST_SUCCEEDED_JOB_SQL})
-            "#
-        ),
-        [],
-    )?;
+    repair_wrong_document_cards(&conn, None)?;
     Ok(())
 }

@@ -762,3 +762,122 @@ fn release_active_job_prefers_a_job_still_in_progress() {
     assert!(db.release_document_active_job(&document_id, "job-retry").unwrap());
     assert_eq!(db.get_document(&document_id).unwrap().active_job_id.as_deref(), Some("job-old"));
 }
+
+fn insert_job_with_status(
+    db: &Db,
+    document_id: &str,
+    job_id: &str,
+    workflow: &str,
+    status: &str,
+    created_at: &str,
+) {
+    db.connect()
+        .unwrap()
+        .execute(
+            "INSERT INTO jobs (job_id, workflow, status_json, created_at, updated_at, command_json, request_json, \
+             log_tail_json, document_id) VALUES (?1, ?2, ?3, ?4, ?4, '[]', '{}', '[]', ?5)",
+            params![job_id, format!("\"{workflow}\""), format!("\"{status}\""), created_at, document_id],
+        )
+        .unwrap();
+}
+
+/// 回归（状态审计 一 #6）：每次 `Db::init` 都跑的启动回填不能和运行时的书卡规则相反。
+/// 只有失败任务的书保留失败卡（能看到错误、能重试），重启不清成 NULL。
+#[test]
+fn startup_init_keeps_a_failure_card_when_the_book_has_no_success() {
+    let fs = TestDbFs::new("init-keeps-failure-card");
+    let db = fs.db();
+    db.init().expect("init");
+    let document_id = seed_document(&db, "up-failed-only", b"failed only book");
+    insert_job_with_status(&db, &document_id, "job-failed", "book", "failed", "2026-10-01T00:00:00Z");
+    db.set_document_active_job(&document_id, "job-failed", None).expect("active");
+
+    db.init().expect("restart");
+
+    assert_eq!(
+        db.get_document(&document_id).unwrap().active_job_id.as_deref(),
+        Some("job-failed"),
+        "重启把没有成功任务的书的失败卡清掉了"
+    );
+    // 稳态：再启动一次也不变，且全文索引回填不会因为这本书反复重建。
+    db.init().expect("restart again");
+    assert_eq!(db.get_document(&document_id).unwrap().active_job_id.as_deref(), Some("job-failed"));
+}
+
+/// 书里有旧的成功任务和正在跑的新任务，书卡指着在跑的：重启不能改回旧的成功任务。
+#[test]
+fn startup_init_keeps_the_card_on_a_running_job() {
+    let fs = TestDbFs::new("init-keeps-running-card");
+    let db = fs.db();
+    db.init().expect("init");
+    let document_id = seed_document(&db, "up-running", b"running card book");
+    insert_succeeded_job(&db, &document_id, "job-old", WorkflowKind::Book, "2026-10-01T00:00:00Z");
+    insert_job_with_status(&db, &document_id, "job-new", "book", "running", "2026-10-02T00:00:00Z");
+    db.set_document_active_job(&document_id, "job-new", None).expect("active");
+
+    db.init().expect("restart");
+
+    assert_eq!(
+        db.get_document(&document_id).unwrap().active_job_id.as_deref(),
+        Some("job-new"),
+        "重启把在跑任务的书卡改回了旧的成功任务"
+    );
+}
+
+/// 明显错的卡才修，修的规则和运行时一致：指针为空 / 指向已删的任务 / 指向别的书的任务。
+#[test]
+fn startup_init_repairs_only_clearly_wrong_cards_by_the_runtime_rule() {
+    let fs = TestDbFs::new("init-repairs-wrong-cards");
+    let db = fs.db();
+    db.init().expect("init");
+    let card = |document_id: &str| db.get_document(document_id).unwrap().active_job_id;
+
+    // 指向已删的任务：优先在跑的，其次最好的成功任务。
+    let dangling = seed_document(&db, "up-dangling", b"dangling card");
+    insert_succeeded_job(&db, &dangling, "d-done", WorkflowKind::Book, "2026-10-01T00:00:00Z");
+    insert_job_with_status(&db, &dangling, "d-running", "book", "running", "2026-10-02T00:00:00Z");
+    db.set_document_active_job(&dangling, "d-deleted", None).unwrap();
+    // 指针为空，书里有任务：同一条规则（没有成功也没有在跑 → 最近的失败任务）。
+    let empty_failed = seed_document(&db, "up-empty-failed", b"empty card with failed job");
+    insert_job_with_status(&db, &empty_failed, "e-failed", "book", "failed", "2026-10-01T00:00:00Z");
+    let empty_done = seed_document(&db, "up-empty-done", b"empty card with success");
+    insert_succeeded_job(&db, &empty_done, "s-book", WorkflowKind::Book, "2026-10-01T00:00:00Z");
+    insert_succeeded_job(&db, &empty_done, "s-ocr", WorkflowKind::Ocr, "2026-10-02T00:00:00Z");
+    // 指向别的书的任务。
+    let foreign = seed_document(&db, "up-foreign", b"foreign card");
+    let other = seed_document(&db, "up-other", b"other book");
+    insert_succeeded_job(&db, &foreign, "f-own", WorkflowKind::Book, "2026-10-01T00:00:00Z");
+    insert_succeeded_job(&db, &other, "o-own", WorkflowKind::Book, "2026-10-01T00:00:00Z");
+    db.set_document_active_job(&foreign, "o-own", None).unwrap();
+    db.set_document_active_job(&other, "o-own", None).unwrap();
+    // 没有任何任务的书：保持 NULL。
+    let bare = seed_document(&db, "up-bare", b"bare book");
+    // 指向失败任务、书里另有成功任务的卡：不是「明显错」，不动（运行时会在任务终态时处理）。
+    let failed_card = seed_document(&db, "up-failed-card", b"failed card with older success");
+    insert_succeeded_job(&db, &failed_card, "c-done", WorkflowKind::Book, "2026-10-01T00:00:00Z");
+    insert_job_with_status(&db, &failed_card, "c-failed", "book", "failed", "2026-10-02T00:00:00Z");
+    db.set_document_active_job(&failed_card, "c-failed", None).unwrap();
+
+    db.init().expect("restart");
+
+    assert_eq!(card(&dangling).as_deref(), Some("d-running"));
+    assert_eq!(card(&empty_failed).as_deref(), Some("e-failed"));
+    assert_eq!(card(&empty_done).as_deref(), Some("s-book"));
+    assert_eq!(card(&foreign).as_deref(), Some("f-own"));
+    assert_eq!(card(&other).as_deref(), Some("o-own"));
+    assert_eq!(card(&bare), None);
+    assert_eq!(card(&failed_card).as_deref(), Some("c-failed"));
+}
+
+/// 没有成功任务的书不进全文索引回填：保留失败卡后，不能让它每次启动都被判成「没有索引」重建一遍。
+#[test]
+fn fts_backfill_skips_books_without_any_success() {
+    let fs = TestDbFs::new("fts-backfill-skips-failed-only");
+    let db = fs.db();
+    db.init().expect("init");
+    let document_id = seed_document(&db, "up-fts-failed", b"fts failed only book");
+    insert_job_with_status(&db, &document_id, "job-failed", "book", "failed", "2026-10-01T00:00:00Z");
+    db.set_document_active_job(&document_id, "job-failed", None).unwrap();
+
+    assert!(backfill::fts_backfill_targets(&db).unwrap().is_empty());
+}
