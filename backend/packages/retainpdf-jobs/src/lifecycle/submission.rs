@@ -3,7 +3,7 @@ use crate::views::JobSubmissionView;
 use retainpdf_core::models::domain::{JobStatusKind, UploadRecord, WorkflowKind};
 use retainpdf_core::models::request::CreateJobInput;
 
-use crate::lifecycle::creation::{submit_job, NewJob};
+use crate::lifecycle::creation::{reject_client_job_id, submit_job, NewJob};
 use crate::facade::JobsFacade;
 use retainpdf_ingest::UploadedPdfInput;
 
@@ -14,6 +14,7 @@ impl<'a> JobsFacade<'a> {
         base_url: &str,
         request: &CreateJobInput,
     ) -> Result<JobSubmissionView, AppError> {
+        reject_client_job_id(request)?;
         let job = submit_job(&self.command.submit, NewJob::new(request.clone()))?;
         Ok(self.build_submission_view(base_url, &job, JobStatusKind::Queued, request.workflow.clone()))
     }
@@ -25,6 +26,7 @@ impl<'a> JobsFacade<'a> {
         request: &CreateJobInput,
         document_id: &str,
     ) -> Result<JobSubmissionView, AppError> {
+        reject_client_job_id(request)?;
         let job = submit_job(
             &self.command.submit,
             NewJob::new(request.clone()).for_document(document_id),
@@ -41,6 +43,7 @@ impl<'a> JobsFacade<'a> {
         bytes: Vec<u8>,
         developer_mode: bool,
     ) -> Result<JobSubmissionView, AppError> {
+        reject_client_job_id(&request)?;
         // 先存文件：任务建不成，上传也留着（之后可以用 upload_id 再提交）。
         let upload = self
             .store_upload(UploadedPdfInput {

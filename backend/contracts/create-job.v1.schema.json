@@ -281,7 +281,10 @@
       "description": "models/input/runtime.rs :: RuntimeInput",
       "additionalProperties": false,
       "properties": {
-        "job_id": { "type": "string" },
+        "job_id": {
+          "type": "string",
+          "description": "任务编号由服务器分配。公开入口（POST /jobs、书库的翻译和 OCR）收到非空的 runtime.job_id 会返回 400，请留空或不要发。"
+        },
         "timeout_seconds": { "type": "integer" },
         "no_output_timeout_seconds": {
           "type": "integer",

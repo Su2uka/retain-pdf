@@ -12,6 +12,6 @@ mod submit;
 pub use dev_defaults::with_dev_translation_defaults;
 #[cfg(any(test, feature = "test-fixtures"))]
 pub use dev_defaults::{DevDefaultsGuard, DevTranslationDefaults};
-pub use submit::{relaunch_in_place, submit_job, NewJob};
+pub use submit::{reject_client_job_id, relaunch_in_place, submit_job, NewJob};
 #[cfg(any(test, feature = "test-fixtures"))]
 pub use job_builders::{build_ocr_job_snapshot, build_translation_job_snapshot};
