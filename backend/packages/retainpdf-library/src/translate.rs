@@ -5,23 +5,40 @@ use retainpdf_jobs::JobSubmissionView;
 use retainpdf_core::models::domain::WorkflowKind;
 use retainpdf_core::models::request::CreateJobInput;
 use retainpdf_jobs::{
-    reusable_ocr_coverage, validate_ocr_artifact_reuse, validate_ocr_credential_reference,
-    validate_provider_credentials, JobsFacade,
+    reject_client_job_id, reusable_ocr_coverage, validate_ocr_artifact_reuse,
+    validate_ocr_credential_reference, validate_provider_credentials, JobsFacade,
 };
 
 use super::translate_plan::{contiguous_runs, plan_segments, SegmentPlan};
 
 use super::documents::require_document_upload;
 use super::LibraryDeps;
+use crate::views::DocumentJobRequest;
 
 /// Bind `request` to the document's stored upload, normalize workflow, and create a job.
+///
+/// 和 `POST /jobs` 一样严格：`workflow=ocr|render`、`source.source_url` 和这个入口矛盾，400，不悄悄清掉。
+/// 先看请求写没写对（400），再看书、原文、要复用的 OCR 在不在（404 / 409）。
 pub fn translate_document(
     deps: &LibraryDeps<'_>,
     jobs: &JobsFacade<'_>,
     document_id: &str,
-    mut request: CreateJobInput,
+    request: DocumentJobRequest,
     base_url: &str,
 ) -> Result<JobSubmissionView, AppError> {
+    let mut request = request.input;
+    reject_client_job_id(&request)?;
+    if matches!(request.workflow, WorkflowKind::Ocr | WorkflowKind::Render) {
+        return Err(AppError::bad_request(
+            "document translate supports workflow=book or translate; default is book",
+        ));
+    }
+    if !request.source.source_url.trim().is_empty() {
+        return Err(AppError::bad_request(
+            "source.source_url is not accepted on /documents/:document_id/translate: the document's stored PDF is used",
+        ));
+    }
+
     let (document, upload) = require_document_upload(deps, document_id)?;
     // 开发栈的翻译默认值要在拆段预检（会校验翻译凭据）之前补上。
     request = retainpdf_jobs::with_dev_translation_defaults(&request);
@@ -34,13 +51,7 @@ pub fn translate_document(
         ));
     }
     request.source.upload_id = upload.upload_id;
-    request.source.source_url.clear();
 
-    if matches!(request.workflow, WorkflowKind::Ocr | WorkflowKind::Render) {
-        return Err(AppError::bad_request(
-            "document translate supports workflow=book or translate; default is book",
-        ));
-    }
     let reuses_ocr = !request.source.artifact_job_id.trim().is_empty();
     // 复用 OCR + 指定了页：页不连续、或超出所选 OCR 的覆盖范围时，按连续段拆成几个任务
     // （见 `translate_plan`）。一段且覆盖得住就落到下面原来那条路，行为不变。

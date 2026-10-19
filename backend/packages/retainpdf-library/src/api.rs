@@ -19,13 +19,12 @@ use crate::views::{
     AddCollectionDocumentsInput, AppendMessageInput, ApplyDocumentMetadataSuggestionInput,
     CollectionListView, CollectionMutationResult, ConversationDetailView, ConversationListView,
     ConversationMutationResult, CreateCollectionInput, CreateConversationInput,
-    CreateDocumentMetadataSuggestionInput, DocumentDeleteResultView,
+    CreateDocumentMetadataSuggestionInput, DocumentDeleteResultView, DocumentJobRequest,
     DocumentMetadataSuggestionApplyView, DocumentMetadataSuggestionListView,
     DocumentMetadataSuggestionView, LibraryBookListView,
     LibraryDeleteResultView, ListConversationsQuery, ListDocumentMetadataSuggestionsQuery,
     PatchCollectionInput, PatchConversationInput, SearchQuery, SearchResultView,
 };
-use retainpdf_core::models::request::CreateJobInput;
 use retainpdf_jobs::JobsFacade;
 
 use super::{
@@ -84,12 +83,13 @@ pub fn delete_document_view(
     delete_document(deps, document_id, force)
 }
 
-pub fn create_document_metadata_suggestion_view(
+/// 读原文 PDF 和规范化文档的那段放在阻塞线程里，所以是 async。
+pub async fn create_document_metadata_suggestion_view(
     deps: &LibraryDeps<'_>,
     document_id: &str,
     input: &CreateDocumentMetadataSuggestionInput,
 ) -> Result<DocumentMetadataSuggestionView, AppError> {
-    create_metadata_suggestion(deps, document_id, input)
+    create_metadata_suggestion(deps, document_id, input).await
 }
 
 pub fn list_document_metadata_suggestions_view(
@@ -105,8 +105,9 @@ pub fn apply_document_metadata_suggestion_view(
     document_id: &str,
     suggestion_id: &str,
     input: &ApplyDocumentMetadataSuggestionInput,
+    base_url: &str,
 ) -> Result<DocumentMetadataSuggestionApplyView, AppError> {
-    apply_metadata_suggestion(deps, document_id, suggestion_id, input)
+    apply_metadata_suggestion(deps, document_id, suggestion_id, input, base_url)
 }
 
 // --- media ---
@@ -128,7 +129,7 @@ pub fn translate_document_view(
     deps: &LibraryDeps<'_>,
     jobs: &JobsFacade<'_>,
     document_id: &str,
-    request: CreateJobInput,
+    request: DocumentJobRequest,
     base_url: &str,
 ) -> Result<JobSubmissionView, AppError> {
     translate_document(deps, jobs, document_id, request, base_url)
@@ -138,7 +139,7 @@ pub async fn ocr_document_view(
     deps: &LibraryDeps<'_>,
     jobs: &JobsFacade<'_>,
     document_id: &str,
-    request: CreateJobInput,
+    request: DocumentJobRequest,
     base_url: &str,
 ) -> Result<JobSubmissionView, AppError> {
     ocr_document(deps, jobs, document_id, request, base_url).await

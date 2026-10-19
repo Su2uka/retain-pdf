@@ -209,6 +209,20 @@ Workflow contract:
   then runs Translate -> Render without creating an OCR child. This endpoint
   sets the internal `runtime.render_after_translation` policy while preserving
   `workflow=translate` in the public response.
+- The document entries are as strict as `POST /api/v1/jobs` (2026-10-19). They
+  parse the body the same way (unknown or mistyped fields are `400`
+  `invalid job payload: …`) and reject fields that contradict the entry with
+  `400` instead of rewriting them:
+  - `POST /api/v1/documents/{document_id}/ocr`: `workflow` other than `ocr`
+    (omitting it is fine), a non-empty `source.artifact_job_id`, or a non-empty
+    `source.source_url`. Before, any `workflow` was silently turned into `ocr`
+    and the two source fields were silently cleared.
+  - `POST /api/v1/documents/{document_id}/translate`: `workflow=ocr|render`
+    (as before) and a non-empty `source.source_url` (was silently cleared).
+  - `source.upload_id` may be sent; it must equal the document's newest upload.
+  The request is checked before the document's state: a bad request is `400`
+  even when the document does not exist (`404`) or the OCR to reuse is not
+  usable (`404`/`409`). `runtime.job_id` is rejected first, as on `POST /jobs`.
 - OCR reuse failures never fall back silently. They return `409` (or `404` for a
   missing source job) with `code`, `message`, `reason`, and
   `can_fallback_to_ocr=true`; callers must explicitly resubmit without

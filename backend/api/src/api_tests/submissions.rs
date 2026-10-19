@@ -111,6 +111,10 @@ fn input(value: Value) -> CreateJobInput {
     CreateJobInput::from_api_value(value).expect("valid create-job payload")
 }
 
+fn document_input(value: Value) -> crate::models::api::DocumentJobRequest {
+    crate::models::api::DocumentJobRequest::from_api_value(value).expect("valid create-job payload")
+}
+
 fn book_with_keys(upload_id: &str) -> Value {
     json!({
         "workflow": "book",
@@ -475,7 +479,7 @@ async fn single_user_cases(recorder: &mut Recorder) {
                 &library,
                 &jobs,
                 "doc-up-library",
-                input(request),
+                document_input(request),
                 BASE_URL,
             ))
         })
@@ -489,7 +493,7 @@ async fn single_user_cases(recorder: &mut Recorder) {
                 &library,
                 &jobs,
                 "doc-up-library",
-                input(request),
+                document_input(request),
                 BASE_URL,
             ))
         })
@@ -501,7 +505,7 @@ async fn single_user_cases(recorder: &mut Recorder) {
                     &library,
                     &jobs,
                     "doc-up-library",
-                    input(json!({
+                    document_input(json!({
                         "ocr": { "provider": "mineru", "mineru_token": "mineru-user-token" },
                         "runtime": { "job_id": "custom-id" }
                     })),
@@ -517,7 +521,7 @@ async fn single_user_cases(recorder: &mut Recorder) {
                 &library,
                 &jobs,
                 "doc-up-library",
-                input(json!({ "workflow": "ocr" })),
+                document_input(json!({ "workflow": "ocr" })),
                 BASE_URL,
             ))
         })
@@ -529,13 +533,53 @@ async fn single_user_cases(recorder: &mut Recorder) {
                     &library,
                     &jobs,
                     "doc-up-library",
-                    input(json!({ "ocr": { "provider": "mineru", "mineru_token": "mineru-user-token" } })),
+                    document_input(json!({ "ocr": { "provider": "mineru", "mineru_token": "mineru-user-token" } })),
                     BASE_URL,
                 )
                 .await,
             )
         })
         .await;
+    // 书的入口和 POST /jobs 一样严格：和入口矛盾的字段 400，不悄悄改写；先查请求再查状态。
+    let ocr_settings = json!({ "provider": "mineru", "mineru_token": "mineru-user-token" });
+    for (title, body) in [
+        ("POST /documents/:id/ocr  workflow=book", json!({ "workflow": "book", "ocr": ocr_settings })),
+        ("POST /documents/:id/ocr  带 source.artifact_job_id", json!({ "source": { "artifact_job_id": "some-job" }, "ocr": ocr_settings })),
+        ("POST /documents/:id/ocr  带 source.source_url", json!({ "source": { "source_url": "https://example.com/a.pdf" }, "ocr": ocr_settings })),
+    ] {
+        recorder
+            .case(&fixture, title, None, || async {
+                view(
+                    crate::services::library::ocr_document_view(&library, &jobs, "doc-up-library", document_input(body), BASE_URL)
+                        .await,
+                )
+            })
+            .await;
+    }
+    for (title, body) in [
+        ("POST /documents/:id/translate  带 source.source_url", {
+            let mut request = book_with_keys("");
+            request["source"] = json!({ "source_url": "https://example.com/a.pdf" });
+            request
+        }),
+        ("POST /documents/:id/translate  带 runtime.job_id、复用不存在的 OCR", json!({
+            "workflow": "translate",
+            "source": { "artifact_job_id": "missing-ocr" },
+            "runtime": { "job_id": "custom-id" }
+        })),
+    ] {
+        recorder
+            .case(&fixture, title, None, || async {
+                view(crate::services::library::translate_document_view(
+                    &library,
+                    &jobs,
+                    "doc-up-library",
+                    document_input(body),
+                    BASE_URL,
+                ))
+            })
+            .await;
+    }
 }
 
 async fn multi_user_cases(recorder: &mut Recorder) {

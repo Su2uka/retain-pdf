@@ -530,16 +530,13 @@ def is_rust_module_path(path: Path, module: Path) -> bool:
     return path == module.with_suffix(".rs") or path.is_relative_to(module)
 
 
-def rust_code_only(text: str) -> str:
-    """Mask comments and literals, preserving offsets and nested block comments.
+RUST_LEXICAL_TOKEN = re.compile(r'''//|/\*|(?:br|cr|r)\#*"|(?:b|c)?"|b?'(?:\\(?:u\{[^}]*\}|x[0-9a-fA-F]{2}|.)|[^'\\\n])' ''', re.VERBOSE)
 
-    These guards inspect Rust identifiers and braces, not strings or comments.
-    Masking literals also keeps URLs and raw strings from confusing // or {}.
-    """
-    token = re.compile(r'''//|/\*|(?:br|cr|r)\#*"|(?:b|c)?"|b?'(?:\\(?:u\{[^}]*\}|x[0-9a-fA-F]{2}|.)|[^'\\\n])' ''', re.VERBOSE)
-    result = list(text)
+
+def rust_lexical_spans(text: str):
+    """Yield (token, start, end) for each comment and literal, handling nested block comments."""
     cursor = 0
-    while match := token.search(text, cursor):
+    while match := RUST_LEXICAL_TOKEN.search(text, cursor):
         start, end = match.span()
         value = match.group()
         if value == "//":
@@ -562,9 +559,25 @@ def rust_code_only(text: str) -> str:
             else:
                 closing = re.search(r'(?s)(?:\\.|[^"\\])*"', text[end:])
                 end = len(text) if closing is None else end + closing.end()
-        result[start:end] = ["\n" if char == "\n" else " " for char in text[start:end]]
+        yield value, start, end
         cursor = end
+
+
+def rust_code_only(text: str) -> str:
+    """Mask comments and literals, preserving offsets and nested block comments.
+
+    These guards inspect Rust identifiers and braces, not strings or comments.
+    Masking literals also keeps URLs and raw strings from confusing // or {}.
+    """
+    result = list(text)
+    for _, start, end in rust_lexical_spans(text):
+        result[start:end] = ["\n" if char == "\n" else " " for char in text[start:end]]
     return "".join(result)
+
+
+def rust_string_literals(text: str) -> list[str]:
+    """String literals of `text` outside comments (raw strings included, char literals not)."""
+    return [text[start:end] for token, start, end in rust_lexical_spans(text) if token.endswith('"')]
 
 
 def rust_boundary_source(path: Path) -> str:
@@ -1701,6 +1714,10 @@ ARTIFACT_PATH_RESOLVER = re.compile(
     r"|normalization_report|typst_source|typst_pdf|translation_manifest|translation_request_journal"
     r"|markdown_bundle_zip)\b"
 )
+# 正则认不出的另一种自己拼法：任务根目录（`resolve_job_root`）后面接手写的产物相对路径。
+# 2026-10-19 元数据建议里这样拼规范化文档的位置，检查没拦住（书库接口审计 C9）。出口模块以外的
+# 字符串字面量里不许出现流水线产物的存放位置；名单只列现在一处都没有的，免得误伤。
+ARTIFACT_LAYOUT_LITERAL = re.compile(r"ocr/normalized|\bdocument\.v1\.json\b")
 ARTIFACT_PATH_OWNERS = (
     Path("src/services/jobs/files/downloads"),
     # 原文 Markdown 的出口，原来在 downloads 里，按类挪到了阅读。
@@ -1719,6 +1736,16 @@ FILES_ARTIFACT_PATH_OWNERS = (
 KNOWN_ARTIFACT_PATH_READERS: set[Path] = set()
 
 
+def builds_artifact_paths(path: Path) -> bool:
+    """`resolve_*` 产物解析函数，或手写的产物存放位置（只看测试代码以外的字面量）。"""
+    if ARTIFACT_PATH_RESOLVER.search(rust_boundary_source(path)):
+        return True
+    text = path.read_text(encoding="utf-8")
+    test_at = rust_code_only(text).find("\n#[cfg(test)]")
+    non_test = text if test_at < 0 else text[:test_at]
+    return any(ARTIFACT_LAYOUT_LITERAL.search(literal) for literal in rust_string_literals(non_test))
+
+
 def check_artifact_path_ownership(errors: list[str]) -> None:
     readers = set()
     for root in (Path("src/services"), Path("src/routes")):
@@ -1728,7 +1755,7 @@ def check_artifact_path_ownership(errors: list[str]) -> None:
             relative = rel(path)
             if any(is_rust_module_path(relative, owner) for owner in ARTIFACT_PATH_OWNERS):
                 continue
-            if ARTIFACT_PATH_RESOLVER.search(rust_boundary_source(path)):
+            if builds_artifact_paths(path):
                 readers.add(relative)
     files_root = extracted_domain_root("files")
     for path in scan_rs_files(files_root / "src"):
@@ -1737,11 +1764,12 @@ def check_artifact_path_ownership(errors: list[str]) -> None:
         in_crate = path.relative_to(files_root / "src")
         if any(is_rust_module_path(in_crate, owner) for owner in FILES_ARTIFACT_PATH_OWNERS):
             continue
-        if ARTIFACT_PATH_RESOLVER.search(rust_boundary_source(path)):
+        if builds_artifact_paths(path):
             readers.add(Path(EXTRACTED_DOMAINS["files"]) / "src" / in_crate)
     for relative in sorted(readers - KNOWN_ARTIFACT_PATH_READERS):
         errors.append(
-            f"{relative}: builds artifact paths itself (storage_paths::resolve_*); "
+            f"{relative}: builds artifact paths itself (storage_paths::resolve_*, or a hard-coded "
+            "artifact location such as \"ocr/normalized/document.v1.json\"); "
             "find stored job files with services::jobs::stored_path(job, data_root, StoredFile::…), "
             "download them through services::jobs downloads (`open`), or use services::files::artifacts"
         )

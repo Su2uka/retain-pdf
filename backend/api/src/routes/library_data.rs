@@ -7,18 +7,18 @@ use axum::extract::State;
 use axum::http::HeaderMap;
 use axum::response::{IntoResponse, Response};
 use axum::Json;
+use serde_json::Value;
 
 use crate::auth::Principal;
 use crate::error::AppError;
 use crate::models::api::{
     ApiResponse, JobFilesQuery, ApplyDocumentMetadataSuggestionInput, CreateDocumentMetadataSuggestionInput,
-    DocumentDeleteResultView, DocumentJobListView, DocumentListView,
+    DocumentDeleteResultView, DocumentJobListView, DocumentJobRequest, DocumentListView,
     DocumentMetadataSuggestionApplyView, DocumentMetadataSuggestionListView,
     DocumentMetadataSuggestionView, DocumentRecord, JobSubmissionView, LibraryDeleteQuery,
     ListDocumentJobsQuery, ListDocumentMetadataSuggestionsQuery, ListDocumentsQuery,
     PatchDocumentInput, SearchQuery, SearchResultView,
 };
-use crate::models::request::CreateJobInput;
 use crate::routes::common::{
     build_jobs_route_deps, build_library_route_deps, jobs_facade, ok_json, request_base_url,
     run_job_query_once, run_library_blocking, ApiJson, ApiPath, ApiQuery,
@@ -153,17 +153,16 @@ pub async fn patch_document_route(
     ))
 }
 
+/// 读原文 PDF、规范化文档的那段在阻塞线程里跑（前端每个 OCR / 翻译任务成功后都会调一次）。
 pub async fn create_document_metadata_suggestion_route(
     State(state): State<AppState>,
     ApiPath(document_id): ApiPath<String>,
     ApiJson(input): ApiJson<CreateDocumentMetadataSuggestionInput>,
 ) -> Result<Json<ApiResponse<DocumentMetadataSuggestionView>>, AppError> {
     let deps = build_library_route_deps(&state);
-    Ok(ok_json(create_document_metadata_suggestion_view(
-        &deps.library,
-        &document_id,
-        &input,
-    )?))
+    Ok(ok_json(
+        create_document_metadata_suggestion_view(&deps.library, &document_id, &input).await?,
+    ))
 }
 
 pub async fn list_document_metadata_suggestions_route(
@@ -181,15 +180,18 @@ pub async fn list_document_metadata_suggestions_route(
 
 pub async fn apply_document_metadata_suggestion_route(
     State(state): State<AppState>,
+    headers: HeaderMap,
     ApiPath((document_id, suggestion_id)): ApiPath<(String, String)>,
     ApiJson(input): ApiJson<ApplyDocumentMetadataSuggestionInput>,
 ) -> Result<Json<ApiResponse<DocumentMetadataSuggestionApplyView>>, AppError> {
     let deps = build_library_route_deps(&state);
+    let base_url = request_base_url(&headers, deps.default_port, &deps.bind_host);
     Ok(ok_json(apply_document_metadata_suggestion_view(
         &deps.library,
         &document_id,
         &suggestion_id,
         &input,
+        &base_url,
     )?))
 }
 
@@ -221,12 +223,14 @@ pub async fn delete_document_route(
 
 /// POST /api/v1/documents/:id/translate
 /// 复用馆藏文档已存的源 PDF 发起 book 翻译流水线，完成后 lifecycle 会回填 active_job_id。
+/// 请求体和 `POST /jobs` 一样先收成 JSON 再解析（同样的 `invalid job payload: …` 提示）。
 pub async fn translate_document_route(
     State(state): State<AppState>,
     headers: HeaderMap,
     ApiPath(document_id): ApiPath<String>,
-    ApiJson(request): ApiJson<CreateJobInput>,
+    ApiJson(payload): ApiJson<Value>,
 ) -> Result<Json<ApiResponse<JobSubmissionView>>, AppError> {
+    let request = DocumentJobRequest::from_api_value(payload)?;
     let deps = build_library_route_deps(&state);
     let jobs = build_jobs_route_deps(&state).jobs;
     let base_url = request_base_url(&headers, deps.default_port, &deps.bind_host);
@@ -241,12 +245,14 @@ pub async fn translate_document_route(
 
 /// POST /api/v1/documents/:id/ocr
 /// Reuse the document's stored source PDF and create an OCR-only job.
+/// 要分清客户端写没写 `workflow`，所以先收成 JSON。
 pub async fn ocr_document_route(
     State(state): State<AppState>,
     headers: HeaderMap,
     ApiPath(document_id): ApiPath<String>,
-    ApiJson(request): ApiJson<CreateJobInput>,
+    ApiJson(payload): ApiJson<Value>,
 ) -> Result<Json<ApiResponse<JobSubmissionView>>, AppError> {
+    let request = DocumentJobRequest::from_api_value(payload)?;
     let deps = build_library_route_deps(&state);
     let jobs = build_jobs_route_deps(&state).jobs;
     let base_url = request_base_url(&headers, deps.default_port, &deps.bind_host);

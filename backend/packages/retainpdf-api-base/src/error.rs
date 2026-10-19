@@ -61,11 +61,15 @@ pub enum AppError {
         code: &'static str,
         message: String,
     },
+    /// 书的元数据建议接口的错误。顶层 `code` 是建议接口一直在用的字符串码；
+    /// `error.code` 一般和它相同，`error.details.reason` 是小写的稳定原因（见 [`document_metadata_codes`]）。
     #[error("{message}")]
     DocumentMetadata {
         status: StatusCode,
         code: &'static str,
         message: String,
+        error_code: &'static str,
+        reason: Option<&'static str>,
     },
     /// 单块译文修订写回被拒(422 校验不过 / 409 任务在跑、generation 过期……)。
     ///
@@ -360,17 +364,44 @@ impl AppError {
         }
     }
 
+    /// 元数据建议接口的错误。`reason` 和 `error.code` 由 `code` 定（[`document_metadata_codes`]），
+    /// 调用处只写顶层码。
     pub fn document_metadata(
         status: StatusCode,
         code: &'static str,
         message: impl Into<String>,
     ) -> Self {
+        let (error_code, reason) = document_metadata_codes(code);
         Self::DocumentMetadata {
             status,
             code,
             message: message.into(),
+            error_code,
+            reason,
         }
     }
+}
+
+/// 元数据建议接口的顶层码 → (`error.code`, `error.details.reason`)。取值写在
+/// `docs/api/00-约定/02-认证与错误.md`「书的元数据建议」和 `api-spec/document-metadata.md`，只增不改。
+///
+/// `OCR_JOB_NOT_FOUND` 和建任务复用 OCR 的同名码撞车（那边还带 `can_fallback_to_ocr`），所以顶层
+/// `code` 照旧、`error.code` 换成 `DOCUMENT_METADATA_JOB_NOT_FOUND`，两边的 `reason` 都是 `job_not_found`。
+fn document_metadata_codes(code: &'static str) -> (&'static str, Option<&'static str>) {
+    let reason = match code {
+        "DOCUMENT_METADATA_FIELD_UNSUPPORTED" => "field_unsupported",
+        "OCR_JOB_NOT_FOUND" => return ("DOCUMENT_METADATA_JOB_NOT_FOUND", Some("job_not_found")),
+        "DOCUMENT_METADATA_JOB_MISMATCH" => "job_mismatch",
+        "DOCUMENT_METADATA_SOURCE_NOT_READY" => "source_not_ready",
+        "DOCUMENT_METADATA_SOURCE_TOO_LARGE" => "source_too_large",
+        "DOCUMENT_METADATA_SOURCE_INVALID" => "source_invalid",
+        "DOCUMENT_TITLE_CANDIDATE_NOT_FOUND" => "title_candidate_not_found",
+        "DOCUMENT_METADATA_SUGGESTION_NOT_FOUND" => "suggestion_not_found",
+        "DOCUMENT_TITLE_CHANGED" => "title_changed",
+        "DOCUMENT_REVISION_CONFLICT" => "revision_conflict",
+        _ => return (code, None),
+    };
+    (code, Some(reason))
 }
 
 impl IntoResponse for AppError {
@@ -436,14 +467,17 @@ impl IntoResponse for AppError {
             status,
             code,
             message,
+            error_code,
+            reason,
         } = &self
         {
+            let details = reason.map_or_else(|| json!({}), |reason| json!({ "reason": reason }));
             return (
                 *status,
                 Json(DocumentMetadataErrorBody {
                     code,
                     message: message.clone(),
-                    error: StructuredError::empty(code, *status),
+                    error: StructuredError::with_details(error_code, *status, details),
                 }),
             )
                 .into_response();

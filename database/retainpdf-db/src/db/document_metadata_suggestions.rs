@@ -181,12 +181,10 @@ impl Db {
             });
         }
 
-        let default_title =
-            super::documents::rows::default_title_from_filename(&document.source_filename);
-        if document.title_locked
-            || document.title_source != "filename"
-            || document.title != default_title
-        {
+        // 「书名还是默认值」只看来源和锁。不再拿书名和 `source_filename` 比：同一本书换个文件名
+        // 再传，`source_filename` 会被改成新文件名、书名不变，就被误判成用户改过（2026-10-19）。
+        // 有来源记录之前（v12 以前）手改的书名，v28 迁移已经补成 user + 锁定。
+        if document.title_locked || document.title_source != "filename" {
             return Ok(ApplyDocumentMetadataSuggestionResult::TitleChanged(
                 document,
             ));
@@ -238,3 +236,7 @@ impl Db {
         })
     }
 }
+
+#[cfg(test)]
+#[path = "document_metadata_suggestions_tests.rs"]
+mod tests;

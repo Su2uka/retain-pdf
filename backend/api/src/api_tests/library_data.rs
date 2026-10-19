@@ -1845,7 +1845,7 @@ async fn document_ocr_reuses_upload_and_document_jobs_lists_ocr() {
                 .header("host", "127.0.0.1:41000")
                 .body(Body::from(
                     serde_json::json!({
-                        "workflow": "book",
+                        "workflow": "ocr",
                         "ocr": {
                             "provider": "paddle",
                             "paddle_token": "paddle-test-token",
