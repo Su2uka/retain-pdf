@@ -115,11 +115,10 @@ export type DocumentJobSummary = LibraryCardItem & {
 
 /** POST /documents/:id/translate 返回（JobSubmissionView） */
 
+// PATCH /documents/:id 只认这两个字段；后端之后会拒绝不认识的字段（400），这里不留任意键。
 export type UpdateDocumentPayload = {
   title?: string;
   reading_status?: string;
-  tags?: string[];
-  [key: string]: unknown;
 };
 
 export type DeleteCardTarget = {

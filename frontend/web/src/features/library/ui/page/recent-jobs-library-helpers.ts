@@ -26,12 +26,3 @@ export function sortItems(items: LibraryCardItem[], sortMode: string): LibraryCa
 export function libraryItemDocumentId(item: LibraryCardItem) {
   return `${item.document_id || ""}`.trim();
 }
-
-// 标签列表(供筛选面板显示,基于已加载项)。
-export function deriveLibraryTags(items: LibraryCardItem[]) {
-  const tagSet = new Set<string>();
-  for (const item of items) {
-    (Array.isArray(item.tags) ? item.tags : []).forEach((t: unknown) => t && tagSet.add(`${t}`));
-  }
-  return [...tagSet].sort((a: string, b: string) => a.localeCompare(b, "zh-CN"));
-}

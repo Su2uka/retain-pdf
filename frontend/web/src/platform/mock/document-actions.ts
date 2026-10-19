@@ -23,15 +23,12 @@ export function getMockDocumentList({
   limit = 50,
   offset = 0,
   readingStatus = "",
-  tag = "",
   collectionId = "",
   q = "",
 }: MockDocumentListQuery = {}): MockDocumentListResult {
   let list = documents();
   if (`${readingStatus}`.trim()) {
     list = list.filter((item) => item.reading_status === trimId(readingStatus));
-  }
-  if (`${tag}`.trim()) {
   }
   if (`${collectionId}`.trim()) {
     const memberIds = collectionMembership(trimId(collectionId));

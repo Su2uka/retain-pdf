@@ -55,7 +55,7 @@ function DocumentRow({ doc, onOpenReader, onCycleStatus }: {
       >
         <span className="lib-search-doc-title">{doc.title || doc.source_filename}</span>
         <span className="lib-search-doc-meta">
-          {doc.page_count} 页{doc.tags?.length ? ` · ${doc.tags.join(" / ")}` : ""}
+          {doc.page_count} 页
         </span>
       </button>
       <button

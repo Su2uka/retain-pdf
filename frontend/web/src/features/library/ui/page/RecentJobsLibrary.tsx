@@ -48,14 +48,12 @@ export function RecentJobsLibrary({ onBatchModeChange }: { onBatchModeChange?: (
   const [viewMode, setViewMode] = useState("grid");
   const [sortMode, setSortMode] = useState("updated");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [tagFilter, setTagFilter] = useState("");
 
   const items = Array.isArray(recentJobs.items) ? recentJobs.items : [];
 
-  const { tags, statusCounts, visibleItems } = useRecentJobsListDerivation({
+  const { statusCounts, visibleItems } = useRecentJobsListDerivation({
     items,
     statusFilter,
-    tagFilter,
     sortMode,
   });
 
@@ -135,9 +133,6 @@ export function RecentJobsLibrary({ onBatchModeChange }: { onBatchModeChange?: (
               <LibraryFilterMenu
                 statusFilter={statusFilter}
                 setStatusFilter={setStatusFilter}
-                tagFilter={tagFilter}
-                setTagFilter={setTagFilter}
-                tags={tags}
                 statusCounts={statusCounts}
               />
             )}

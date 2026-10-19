@@ -39,7 +39,6 @@ export type FilterableDocument = {
   title?: string;
   source_filename?: string;
   reading_status?: string;
-  tags?: string[];
 };
 
 export function filterDocuments<T extends FilterableDocument>(
@@ -55,11 +54,7 @@ export function filterDocuments<T extends FilterableDocument>(
     if (!normalizedQuery) {
       return true;
     }
-    const haystack = [
-      doc.title,
-      doc.source_filename,
-      ...(Array.isArray(doc.tags) ? doc.tags : []),
-    ].join("\n").toLowerCase();
+    const haystack = [doc.title, doc.source_filename].join("\n").toLowerCase();
     return haystack.includes(normalizedQuery);
   });
 }

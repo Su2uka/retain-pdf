@@ -18,7 +18,6 @@ test("已翻译文档:合并 library/books 活态,保留真实 job_id 与文档�
     page_count: 10,
     active_job_id: "20260601-a",
     reading_status: "reading",
-    tags: ["化学"],
     source_pdf_url: "/api/v1/documents/docA/source.pdf",
     cover_url: "/api/v1/documents/docA/cover",
     updated_at: "2026-06-01T12:00:00Z",
@@ -40,7 +39,7 @@ test("已翻译文档:合并 library/books 活态,保留真实 job_id 与文档�
   assert.equal(item.document_id, "docA");
   assert.equal(item.status, "succeeded");
   assert.equal(item.reading_status, "reading");
-  assert.deepEqual(item.tags, ["化学"]);
+  assert.equal("tags" in item, false, "标签 2026-09-26 已删，书卡不再带 tags");
   assert.equal(item.source_pdf_url, "/api/v1/documents/docA/source.pdf");
   // book 带了 cover → 用 book 的(与现网格视觉一致)
   assert.equal(item.cover_url, "/api/v1/library/books/20260601-a/cover");
@@ -78,7 +77,6 @@ test("馆藏文档(无 active_job_id):合成 job_id + library_only 标记", () =
     page_count: 42,
     active_job_id: null,
     reading_status: "unread",
-    tags: ["工具书"],
     source_pdf_url: "/api/v1/documents/docRef/source.pdf",
     cover_url: "/api/v1/documents/docRef/cover",
     updated_at: "2026-06-10T09:00:00Z",
