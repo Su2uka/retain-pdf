@@ -3,8 +3,8 @@ use std::path::Path;
 use tracing::warn;
 
 use crate::config::AppConfig;
-use crate::db::Db;
-use crate::job_events::persist_job_with_resources;
+use crate::db::{Db, JobProcessRecord};
+use crate::job_events::{cas_persist_job_with_resources, persist_job_with_resources};
 use crate::models::domain::{now_iso, JobFailureInfo, JobStatusKind};
 
 use super::worker_process::{terminate_job_process_tree_blocking, worker_process_exists};
@@ -25,9 +25,25 @@ enum StaleReason {
 /// InProcess mode calls this from the HTTP shell. Remote mode calls it from
 /// retain-jobsd. The shell must never call it for jobsd-owned workers.
 pub fn reconcile_stale_running_jobs(config: &AppConfig, db: &Db) -> Result<usize> {
+    reconcile_running_jobs_matching(config, db, &|_| true, true)
+}
+
+/// 同上，但只处理 `include` 点头的 running 任务。运行期巡检（`driverless_sweep`）用它回收
+/// 「库里是 running、进程内却没有 driver」的任务，规则和启动时完全一样，不另写一份。
+///
+/// `settle_children` 只在启动时为真：父任务已终态的 OCR 子任务那一步假定没有任何 driver 在跑。
+pub(super) fn reconcile_running_jobs_matching(
+    config: &AppConfig,
+    db: &Db,
+    include: &dyn Fn(&JobProcessRecord) -> bool,
+    settle_children: bool,
+) -> Result<usize> {
     let running_jobs = db.list_job_process_records_with_status(&JobStatusKind::Running)?;
     let mut reconciled = 0usize;
     for job_record in running_jobs {
+        if !include(&job_record) {
+            continue;
+        }
         let reason = match job_record.pid {
             Some(pid) if worker_process_exists(pid) => StaleReason::Orphaned(pid),
             Some(pid) => StaleReason::Dead(pid),
@@ -143,7 +159,23 @@ pub fn reconcile_stale_running_jobs(config: &AppConfig, db: &Db) -> Result<usize
                     }));
                 }
                 job.sync_runtime_state();
-                persist_job_with_resources(db, &config.data_root, &config.output_root, &job)?;
+                // 落库前再确认一次没人接手；用 CAS（只认 running），万一这一瞬间 driver 起来
+                // 改了行，就让它的结果算数，不去覆盖。
+                if !include(&job_record)
+                    || !cas_persist_job_with_resources(
+                        db,
+                        &config.data_root,
+                        &config.output_root,
+                        &job,
+                        &["running"],
+                    )?
+                {
+                    warn!(
+                        "stale running job {} changed under reconciliation; left as is",
+                        job_record.job_id
+                    );
+                    continue;
+                }
                 if committed_render_output {
                     db.finish_latest_pipeline_attempt(&job_record.job_id, "succeeded")?;
                 }
@@ -167,7 +199,9 @@ pub fn reconcile_stale_running_jobs(config: &AppConfig, db: &Db) -> Result<usize
     }
     // 放在上面的循环之后：那一轮会把当时在跑的父任务判成 queued（随后恢复）或 failed，
     // 判完再看哪些子任务的父任务已经终态。
-    settle_orphaned_ocr_children(config, db)?;
+    if settle_children {
+        settle_orphaned_ocr_children(config, db)?;
+    }
     Ok(reconciled)
 }
 
@@ -236,7 +270,19 @@ fn settle_orphaned_ocr_children(config: &AppConfig, db: &Db) -> Result<usize> {
 /// `list_resumable_pipeline_job_ids` instead, so the two paths never
 /// double-drive the same job.
 pub fn requeue_stuck_queued_jobs(config: &AppConfig, db: &Db) -> Result<Vec<String>> {
-    let stuck = db.list_stuck_queued_job_ids()?;
+    requeue_stuck_queued_jobs_matching(config, db, &|_| true)
+}
+
+/// 同上，但只处理 `include` 点头的任务；运行期巡检用它排除还有 driver 的、还没过宽限期的。
+/// 「没有 driver」由调用方的 `include` 保证——这正是 `list_stuck_queued_job_ids` 文档里
+/// 「只许启动时调」的那个前提在运行期的替代。
+pub(super) fn requeue_stuck_queued_jobs_matching(
+    config: &AppConfig,
+    db: &Db,
+    include: &dyn Fn(&str) -> bool,
+) -> Result<Vec<String>> {
+    let mut stuck = db.list_stuck_queued_job_ids()?;
+    stuck.retain(|job_id| include(job_id));
     let timestamp = now_iso();
     for job_id in &stuck {
         match db.get_job(job_id) {

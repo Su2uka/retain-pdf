@@ -73,6 +73,7 @@ pub(crate) async fn cancel_job(
                 return Ok(load_job_or_404(deps.db, job_id)?);
             }
             release_document_card_after_cancel(deps.db, job_id);
+            close_attempt_after_cancel(deps.db, job_id);
         }
         return Ok(job);
     }
@@ -95,7 +96,21 @@ pub(crate) async fn cancel_job(
         return Ok(load_job_or_404(deps.db, job_id)?);
     }
     release_document_card_after_cancel(deps.db, job_id);
+    close_attempt_after_cancel(deps.db, job_id);
     Ok(job)
+}
+
+/// 取消由这里的 CAS 落定终态之后,这次运行的 pipeline attempt 要一并收尾。
+///
+/// 收尾 attempt 原本只有「赢了终态 CAS 的 runner」做；API 取消赢了时 runner 的 CAS 落空,
+/// attempt 就永远停在 `running`——之后译文修订登记一直 pending(`publish_page` 看到 running
+/// attempt 就不登记)、原地重跑还会把它当成可续用的 attempt。runner 收尾时也会补一次
+/// (`close_attempt_after_foreign_terminal`),这里是 driver 已经不在时的那一份。
+/// `finish_latest_pipeline_attempt` 没有 running attempt 时是空操作,两边都做不会冲突。
+fn close_attempt_after_cancel(db: &Db, job_id: &str) {
+    if let Err(error) = db.finish_latest_pipeline_attempt(job_id, "canceled") {
+        tracing::error!("cancel: closing pipeline attempt of {job_id} failed: {error}");
+    }
 }
 
 /// 取消由这里的 CAS 落定终态之后,书卡别停在被取消的任务上。
@@ -149,6 +164,36 @@ mod tests {
         let mut job = JobSnapshot::new(job_id.to_string(), input, vec!["noop".to_string()]);
         job.status = status;
         db.save_job(&job).expect("seed job");
+    }
+
+    /// API 取消赢了终态 CAS:这次运行的 pipeline attempt 必须一并收尾,否则永远 running,
+    /// 之后的译文修订登记一直 pending。
+    #[tokio::test]
+    async fn cancel_job_closes_the_running_pipeline_attempt() {
+        let job_id = "cancel-attempt";
+        let (db, data_root) = test_db("cancel-attempt");
+        let mut input = CreateJobInput::default();
+        input.runtime.job_id = job_id.to_string();
+        let mut job = JobSnapshot::new(job_id.to_string(), input, vec!["noop".to_string()]);
+        job.status = JobStatusKind::Running;
+        db.save_job(&job).expect("seed job");
+        db.acquire_pipeline_attempt(job_id, "worker-1", "translate", 1)
+            .expect("attempt");
+        assert!(db.has_running_pipeline_attempt(job_id).unwrap());
+
+        let output_root = data_root.join("jobs");
+        let job_runner = retainpdf_core::config::JobRunnerConfig::default();
+        let job_runtime = crate::runtime_gateway::JobRuntime::in_process(std::sync::Arc::new(
+            RwLock::new(HashSet::new()),
+        ));
+        let deps = ControlDeps::new(&db, &job_runner, &data_root, &output_root, &job_runtime);
+
+        let canceled = cancel_job(&deps, job_id).await.expect("cancel");
+        assert_eq!(canceled.status, JobStatusKind::Canceled);
+        assert!(
+            !db.has_running_pipeline_attempt(job_id).unwrap(),
+            "取消赢了 CAS 之后 attempt 仍是 running"
+        );
     }
 
     // Regression test for the cancel-registry leak: if the job races to a

@@ -46,6 +46,8 @@ async fn rerun_route_prefers_render_when_translations_are_available() {
     let rerun_job = state.db.get_job(rerun_job_id).expect("rerun job");
     assert_eq!(rerun_job.workflow, crate::models::WorkflowKind::Render);
     assert_eq!(rerun_job.status, JobStatusKind::Queued);
+    // 原地重跑开启新的一次运行：代次加一，上一次运行遗留的 driver 的 CAS 写自此落空。
+    assert_eq!(rerun_job.run_generation, 1);
     assert_eq!(
         rerun_job.request_payload.source.artifact_job_id,
         "job-rerun-render-source"

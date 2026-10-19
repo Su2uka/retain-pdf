@@ -5,8 +5,8 @@ use anyhow::Result;
 use crate::config::AppConfig;
 use crate::db::Db;
 use crate::job_runner::{
-    adopt_unlinked_job_sources, reconcile_stale_running_jobs, requeue_stuck_queued_jobs, spawn_job,
-    ProcessRuntimeDeps,
+    adopt_unlinked_job_sources, fail_unlaunched_job, launch_job, reconcile_stale_running_jobs,
+    requeue_stuck_queued_jobs, spawn_driverless_job_sweeper, spawn_job, ProcessRuntimeDeps,
 };
 use crate::services::jobs::{
     build_jobs_facade, CommandJobsDeps, ControlDeps, JobLaunchDeps, JobRuntimeLauncher, JobsFacade,
@@ -45,6 +45,15 @@ pub(super) fn resume_requeued_pipeline_jobs(state: &AppState) -> Result<usize> {
     Ok(job_ids.len() + stuck.len())
 }
 
+/// 运行期巡检：定期回收「库里 queued/running、进程内却没有 driver」的任务（发射丢了的）。
+/// 远端模式 driver 在 jobsd 里，由 jobsd 自己巡检，壳不碰。
+pub(super) fn start_driverless_sweeper(state: &AppState) -> Option<tokio::task::JoinHandle<()>> {
+    if state.config.jobs_service.is_remote() {
+        return None;
+    }
+    Some(spawn_driverless_job_sweeper(build_process_runtime_deps(state)))
+}
+
 fn build_process_runtime_deps(state: &AppState) -> ProcessRuntimeDeps {
     ProcessRuntimeDeps::new(
         state.config.clone(),
@@ -60,14 +69,29 @@ pub fn build_jobs_facade_from_state(state: &AppState) -> JobsFacade<'_> {
     // 于是壳重启不再牵连正在跑的 worker。
     let runtime_launcher = if state.config.jobs_service.is_remote() {
         let job_runtime = state.job_runtime.clone();
+        let runtime_state = state.clone();
         JobRuntimeLauncher::new(Arc::new(move |job_id| {
             let job_runtime = job_runtime.clone();
-            tokio::spawn(async move { job_runtime.launch_remote(job_id).await });
+            let runtime_state = runtime_state.clone();
+            tokio::spawn(async move {
+                // 重试之后仍交不出去：任务行是 queued、jobsd 不知道它，没人会跑 → 落成失败，写清原因。
+                if let Err(error) = job_runtime.launch_remote(job_id.clone()).await {
+                    let deps = build_process_runtime_deps(&runtime_state);
+                    let reason = error.to_string();
+                    let outcome = tokio::task::spawn_blocking(move || {
+                        fail_unlaunched_job(&deps, &job_id, &reason)
+                    })
+                    .await;
+                    if !matches!(outcome, Ok(Ok(_))) {
+                        tracing::error!("remote launch failed and the job could not be marked failed: {outcome:?}");
+                    }
+                }
+            });
         }))
     } else {
         let runtime_state = state.clone();
         JobRuntimeLauncher::new(Arc::new(move |job_id| {
-            spawn_job(build_process_runtime_deps(&runtime_state), job_id)
+            launch_job(build_process_runtime_deps(&runtime_state), job_id)
         }))
     };
     build_jobs_facade_with_launcher(state, runtime_launcher)

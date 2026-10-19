@@ -22,6 +22,20 @@ pub(super) const JOB_SELECT_SQL: &str = r#"
     LEFT JOIN artifacts ON artifacts.job_id = jobs.job_id
 "#;
 
+/// 同 [`JOB_SELECT_SQL`]，末尾多一列 `jobs.run_generation`（列号 21），只给 `get_job` 用。
+/// 不能直接改 `JOB_SELECT_SQL`：`select_jobs`、事件投影的外层查询按固定列号接着往后读。
+pub(super) const JOB_SELECT_SQL_WITH_GENERATION: &str = r#"
+    SELECT
+        jobs.job_id, jobs.workflow, jobs.status_json, jobs.created_at, jobs.updated_at,
+        jobs.started_at, jobs.finished_at, jobs.upload_id, jobs.pid, jobs.command_json,
+        jobs.request_json, jobs.error, jobs.stage, jobs.stage_detail,
+        jobs.progress_current, jobs.progress_total, jobs.log_tail_json, jobs.result_json,
+        jobs.runtime_json, jobs.failure_json,
+        artifacts.artifacts_json, jobs.run_generation
+    FROM jobs
+    LEFT JOIN artifacts ON artifacts.job_id = jobs.job_id
+"#;
+
 pub(super) fn row_to_job_snapshot(row: &Row<'_>) -> rusqlite::Result<JobSnapshot> {
     let result_json: Option<String> = row.get(17)?;
     let runtime_json: Option<String> = row.get(18)?;
@@ -56,6 +70,8 @@ pub(super) fn row_to_job_snapshot(row: &Row<'_>) -> rusqlite::Result<JobSnapshot
                 .and_then(|text| serde_json::from_str::<JobRuntimeInfo>(&text).ok()),
             failure: failure_json
                 .and_then(|text| serde_json::from_str::<JobFailureInfo>(&text).ok()),
+            // 不在 JOB_SELECT_SQL 里（外层查询按固定列号接着读），只有 `get_job` 补上。
+            run_generation: 0,
         },
         artifacts: artifacts_json
             .and_then(|text| serde_json::from_str(&text).ok())

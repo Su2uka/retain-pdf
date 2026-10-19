@@ -4,6 +4,7 @@ mod active_job;
 mod artifact_requirements;
 mod cancel_registry;
 mod driver_registry;
+mod driverless_sweep;
 mod execution_queue;
 mod lifecycle;
 mod ocr_flow;
@@ -30,7 +31,11 @@ mod test_support;
 pub use source_document::{adopt_job_source_document, adopt_unlinked_job_sources};
 pub use cancel_registry::{clear_cancel_request_with_registry, request_cancel_with_registry};
 pub use driver_registry::JobDriverRegistry;
-pub use lifecycle::spawn_job;
+pub use driverless_sweep::{
+    spawn_driverless_job_sweeper, sweep_driverless_jobs, DRIVERLESS_GRACE_SECS,
+    DRIVERLESS_SWEEP_INTERVAL_SECS,
+};
+pub use lifecycle::{fail_unlaunched_job, launch_job, spawn_job};
 pub(crate) use process_runner::{execute_process_job, execute_process_job_stage, ProcessStageKind};
 pub use runtime_deps::{JobPersistDeps, ProcessRuntimeDeps};
 pub(crate) use runtime_state::{

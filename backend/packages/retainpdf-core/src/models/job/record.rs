@@ -29,6 +29,11 @@ pub struct JobRecord {
     pub result: Option<ProcessResult>,
     pub runtime: Option<JobRuntimeInfo>,
     pub failure: Option<JobFailureInfo>,
+    /// 第几次运行：建任务、原地重跑每次加一（`Db::save_job_as_new_run`），只由库写。
+    /// 读出来的快照带着读它时那次运行的代次；runner 的 CAS 写要求它等于库里当前值，
+    /// 所以上一次运行遗留的 driver 在任务被重新排队之后写不进来。
+    #[serde(default)]
+    pub run_generation: u64,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -99,6 +104,7 @@ impl JobSnapshot {
                 result: None,
                 runtime: None,
                 failure: None,
+                run_generation: 0,
             },
             artifacts: Some(JobArtifacts::default()),
         }

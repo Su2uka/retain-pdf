@@ -6,7 +6,7 @@ use anyhow::Result;
 use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
 
-use super::jobs::resume_requeued_pipeline_jobs;
+use super::jobs::{resume_requeued_pipeline_jobs, start_driverless_sweeper};
 use crate::app::cleanup::{
     log_startup_settings_with_interval, run_cleanup_once, spawn_periodic_cleanup_with_interval,
     RetentionSettings,
@@ -39,6 +39,8 @@ async fn serve_with_shutdown(
     if resumed > 0 {
         tracing::warn!("startup requeued {resumed} durable pipeline job(s) for resume");
     }
+    // 只在真实服务里开（和下面的清理一样），单测里的 build_state 不带后台任务。
+    let _driverless_sweep_handle = start_driverless_sweeper(&state);
 
     // Retention/cleanup is operational maintenance, not startup correctness
     // (unlike `reconcile_stale_running_jobs`/`cleanup_legacy_workflows`

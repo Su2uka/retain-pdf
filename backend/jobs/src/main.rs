@@ -24,8 +24,9 @@ use tokio::sync::{RwLock, Semaphore};
 use retainpdf_core::config::{AppConfig, JOB_WORKER_THREAD_STACK_BYTES};
 use retainpdf_data::db::Db;
 use retainpdf_runner::job_runner::{
-    clear_cancel_request_with_registry, reconcile_stale_running_jobs, request_cancel_with_registry,
-    requeue_stuck_queued_jobs, spawn_job, terminate_job_process_tree, ProcessRuntimeDeps,
+    clear_cancel_request_with_registry, launch_job as launch_new_run, reconcile_stale_running_jobs,
+    request_cancel_with_registry, requeue_stuck_queued_jobs, spawn_driverless_job_sweeper,
+    spawn_job, terminate_job_process_tree, ProcessRuntimeDeps,
 };
 
 #[cfg(test)]
@@ -83,7 +84,7 @@ async fn launch_job(
     }
     // 与拆分前闭包同语义：受理即返回，任务异步跑。
     tracing::info!("launch job {job_id}");
-    spawn_job(state.runtime_deps(), job_id);
+    launch_new_run(state.runtime_deps(), job_id);
     ack()
 }
 
@@ -214,6 +215,9 @@ async fn run() -> Result<()> {
         tracing::warn!("jobsd startup requeuing stuck queued job {job_id}");
         spawn_job(state.runtime_deps(), job_id);
     }
+
+    // 运行期巡检：发射丢了、driver 没落终态的任务，不用等下次启动。
+    let _driverless_sweep_handle = spawn_driverless_job_sweeper(state.runtime_deps());
 
     tracing::info!("retain-jobsd listening on {bind_host}:{port}");
     tokio::select! {
