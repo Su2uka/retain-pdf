@@ -45,6 +45,11 @@ class _FakeSession:
         return _FakeResponse({"choices": [{"message": {"content": "ok"}}]})
 
 
+class _EmptyChoicesSession:
+    def post(self, *args, **kwargs):
+        return _FakeResponse({"choices": []})
+
+
 class _SchemaRejectingResponse:
     status_code = 400
     url = "https://example.com/v1/chat/completions"
@@ -318,6 +323,40 @@ class TranslationRunDiagnosticsTests(unittest.TestCase):
             self.assertNotIn("raw secret prompt", persisted)
             self.assertNotIn("sk-sensitive-api-key", persisted)
             self.assertNotIn("safe-label", persisted)
+
+    @patch("retainpdf_translation.llm.providers.deepseek.client._prewarm_dns", new=lambda *args, **kwargs: None)
+    def test_unexpected_response_shape_still_releases_slot_and_closes_journal_entry(self):
+        # 200 + choices: [] 会在解析正文时抛 IndexError，不在原先捕获的异常里：
+        # 请求槽不能泄漏，journal 的 dispatch 要有终态（拿到了响应 = invalid_response，不是歧义）。
+        deepseek_client = load_deepseek_client()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            journal_path = Path(temp_dir) / "translation-request-journal.v1.jsonl"
+            journal = TranslationRequestJournal(journal_path, attempt_id="attempt-a")
+            run = TranslationRunDiagnostics(
+                provider_family="deepseek_official",
+                model="deepseek-chat",
+                base_url="https://api.deepseek.com/v1",
+                configured_workers=1,
+                configured_batch_size=1,
+                configured_classify_batch_size=1,
+                request_journal=journal,
+            )
+            with translation_run_diagnostics_scope(run):
+                with patch.object(deepseek_client, "get_session", return_value=_EmptyChoicesSession()):
+                    with self.assertRaises((IndexError, ValueError)):
+                        deepseek_client.request_chat_content(
+                            [{"role": "user", "content": "hello"}],
+                            api_key="sk-test",
+                            model="deepseek-chat",
+                            base_url="https://api.deepseek.com/v1",
+                            request_label="safe-label",
+                            max_attempts=1,
+                        )
+            journal.close()
+            events = [json.loads(line) for line in journal_path.read_text().splitlines()]
+            self.assertEqual(run._adaptive_inflight, 0, "请求槽泄漏")
+            self.assertEqual([event["event"] for event in events], ["dispatch", "terminal"])
+            self.assertEqual(events[-1]["outcome"], "invalid_response")
 
     @patch("retainpdf_translation.llm.providers.deepseek.client._prewarm_dns", new=lambda *args, **kwargs: None)
     def test_request_chat_content_uses_bounded_transport_recovery_budget(self):
