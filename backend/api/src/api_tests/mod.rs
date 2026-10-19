@@ -44,6 +44,7 @@ mod library_data;
 mod live_translation;
 mod model_requests;
 mod route_access;
+mod ocr_dispatch_ownership;
 mod ocr_lifecycle;
 mod providers;
 mod public_document_operations;

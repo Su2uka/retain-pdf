@@ -176,6 +176,30 @@ pub struct OcrProviderErrorInfo {
     pub http_status: Option<u16>,
 }
 
+impl OcrProviderErrorInfo {
+    /// 服务商明确拒绝了这次请求（4xx、鉴权/参数/额度/文件不合规一类），没有建出任务。
+    /// 5xx、超时、断连这类「不知道服务商有没有收下」的返回不算。
+    pub fn is_definite_refusal(&self) -> bool {
+        use OcrErrorCategory::*;
+        self.http_status.is_some_and(|status| (400..500).contains(&status))
+            || matches!(
+                self.category,
+                Unauthorized
+                    | CredentialExpired
+                    | InvalidRequest
+                    | PermissionDenied
+                    | OperationNotAllowed
+                    | QueueFull
+                    | QuotaExceeded
+                    | HtmlQuotaExceeded
+                    | UnsupportedFileFormat
+                    | EmptyFile
+                    | FileTooLarge
+                    | TooManyPages
+            )
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct OcrTaskStatus {
     pub provider: OcrProviderKind,

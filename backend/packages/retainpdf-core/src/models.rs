@@ -30,7 +30,7 @@ mod sync;
 mod view;
 
 pub use common::{
-    build_job_id, now_iso, ApiResponse, JobStatusKind, UploadRecord, WorkflowKind,
+    build_job_id, now_iso, ocr_child_job_id, ApiResponse, JobStatusKind, UploadRecord, WorkflowKind,
     LOG_TAIL_LIMIT,
 };
 pub use document_operation::{

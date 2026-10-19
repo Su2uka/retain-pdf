@@ -13,8 +13,8 @@ use crate::ocr_provider::OcrTaskHandle;
 
 use super::artifacts::persist_provider_result;
 use super::dispatch_journal::{
-    begin_ocr_dispatch, receipt_ocr_dispatch, receipt_optional_string, receipt_string,
-    OcrDispatchDecision,
+    begin_ocr_dispatch, mark_submit_outcome_unknown, receipt_ocr_dispatch, receipt_optional_string,
+    receipt_string, settle_failed_submit, OcrDispatchDecision,
 };
 use super::paddle_errors::attach_paddle_runtime_error;
 use super::paddle_markdown::{materialize_paddle_markdown_artifacts, ImageProgress};
@@ -73,14 +73,26 @@ pub(super) async fn run_local_ocr_transport_paddle(
                     TRANSFER_PROGRESS_INTERVAL,
                     |elapsed| Some(with_elapsed(&detail, elapsed)),
                 )
-                .await?;
+                .await
+                .map_err(|err| settle_failed_submit(deps, &cursor, err))?;
                 let created = match submitted {
-                    Watched::Finished(result) => {
-                        result.map_err(|err| attach_paddle_runtime_error(job, err, "submit"))?
-                    }
+                    Watched::Finished(result) => result.map_err(|err| {
+                        settle_failed_submit(deps, &cursor, attach_paddle_runtime_error(job, err, "submit"))
+                    })?,
                     Watched::Canceled => {
                         // 上传 future 已被丢弃、连接已断。不写回执：Paddle 可能已经收下
-                        // 了文件，这次提交的结果本来就说不清。终态由 mod.rs 的取消检查点写。
+                        // 了文件，这次提交的结果本来就说不清，把 intent 标成 ambiguous。
+                        // 终态由 mod.rs 的取消检查点写。
+                        if let Err(error) = mark_submit_outcome_unknown(
+                            deps,
+                            &cursor,
+                            "OCR upload was canceled mid-flight; the provider may have accepted the file",
+                        ) {
+                            tracing::warn!(
+                                "mark canceled OCR upload of job {} ambiguous failed: {error:#}",
+                                job.job_id
+                            );
+                        }
                         job.append_log("paddle upload interrupted by cancel request");
                         return Ok(());
                     }
@@ -143,7 +155,9 @@ pub(super) async fn run_remote_ocr_transport_paddle(
                         &optional_payload,
                     )
                     .await
-                    .map_err(|err| attach_paddle_runtime_error(job, err, "submit"))?;
+                    .map_err(|err| {
+                        settle_failed_submit(deps, &cursor, attach_paddle_runtime_error(job, err, "submit"))
+                    })?;
                 receipt_ocr_dispatch(
                     deps,
                     &cursor,

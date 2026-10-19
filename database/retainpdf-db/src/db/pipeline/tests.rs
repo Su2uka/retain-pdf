@@ -754,9 +754,13 @@ fn atomic_ocr_resolution_survives_restart_and_resumes_bound_receipt() {
         .latest_pipeline_dispatch("job-1", "ocr-submit")
         .expect("source dispatch")
         .expect("source record");
+    // 单独的 OCR 任务自己调服务商，种子就在它自己名下（book 的恢复任务见下一个测试）。
     let mut recovery = JobSnapshot::new(
         "job-recovery".to_string(),
-        CreateJobInput::default(),
+        CreateJobInput {
+            workflow: crate::models::domain::WorkflowKind::Ocr,
+            ..CreateJobInput::default()
+        },
         vec!["python".to_string()],
     );
     recovery.status = crate::models::domain::JobStatusKind::Queued;
@@ -803,6 +807,144 @@ fn atomic_ocr_resolution_survives_restart_and_resumes_bound_receipt() {
     assert!(!serde_json::to_string(&events)
         .expect("event json")
         .contains("secret-value"));
+}
+
+/// book 的恢复任务把 OCR 放在 `<id>-ocr` 子任务里跑：回执和 ocr attempt 要种在子任务名下，
+/// 父任务不留 ocr attempt（不然翻译阶段会续用这个 ocr 阶段的 attempt）。源任务的派发记录
+/// 同样挂在子任务上，用父任务编号能查到。
+#[test]
+fn book_ocr_recovery_seeds_the_receipt_under_the_ocr_child() {
+    use crate::models::domain::JobStatusKind;
+    let fixture = Fixture::new("ocr-resolution-book-child");
+    for id in ["job-1", "job-1-ocr"] {
+        let mut job = JobSnapshot::new(id.to_string(), CreateJobInput::default(), vec![]);
+        job.status = JobStatusKind::Failed;
+        fixture.db.save_job(&job).expect("failed job");
+    }
+    let intent = dispatch_intent();
+    let cursor = fixture
+        .db
+        .acquire_pipeline_attempt("job-1-ocr", "worker-before-crash", "ocr", 0)
+        .expect("child attempt");
+    fixture.db.begin_pipeline_dispatch(&cursor, &intent).expect("child intent");
+    fixture
+        .db
+        .mark_pipeline_dispatch_ambiguous(
+            &fixture
+                .db
+                .acquire_pipeline_attempt("job-1-ocr", "worker-after-crash", "ocr", 0)
+                .expect("claim"),
+            "ocr-submit",
+            "lost response",
+        )
+        .expect("mark ambiguous");
+    fixture.db.finish_latest_pipeline_attempt("job-1-ocr", "failed").expect("close");
+
+    // 用父任务编号找，找到的是子任务名下的记录。
+    let source_dispatch = fixture
+        .db
+        .latest_ocr_dispatch_for_job("job-1")
+        .expect("lookup")
+        .expect("dispatch found through the parent id");
+    assert_eq!(source_dispatch.job_id, "job-1-ocr");
+    assert_eq!(source_dispatch.status, "ambiguous");
+
+    let recovery = JobSnapshot::new("job-recovery".to_string(), CreateJobInput::default(), vec![]);
+    assert!(fixture
+        .db
+        .create_ocr_recovery_job_state(
+            &source_dispatch,
+            &recovery,
+            "bind_existing_receipt",
+            Some(&json!({"kind": "mineru_task", "task_id": "task-existing"})),
+        )
+        .expect("recovery"));
+
+    assert_eq!(
+        fixture.db.running_pipeline_stage_key("job-recovery").expect("parent stage"),
+        None,
+        "父任务不该带着种下的 ocr attempt"
+    );
+    assert!(fixture.db.get_job("job-recovery-ocr").is_ok(), "子任务的占位行");
+    let claimed = fixture
+        .db
+        .acquire_pipeline_attempt("job-recovery-ocr", "worker-after-service-restart", "ocr", 0)
+        .expect("child claims the seeded attempt");
+    match fixture.db.begin_pipeline_dispatch(&claimed, &intent).expect("resume") {
+        PipelineDispatchBegin::Resume { receipt, .. } => assert_eq!(receipt["task_id"], "task-existing"),
+        other => panic!("expected receipt resume, got {other:?}"),
+    }
+    // 子任务不会被当成独立任务续跑（父任务的 driver 会内联执行它）。
+    assert!(fixture.db.list_resumable_pipeline_job_ids().expect("resumable").is_empty());
+    // 源的记录已经解决，用父任务编号再查不到 ambiguous。
+    assert_eq!(
+        fixture
+            .db
+            .latest_ocr_dispatch_for_job("job-1")
+            .expect("lookup")
+            .expect("record")
+            .status,
+        "resolved"
+    );
+}
+
+#[test]
+fn discarding_an_intent_that_never_left_the_process_frees_the_dispatch_key() {
+    let fixture = Fixture::new("dispatch-discard");
+    let cursor = fixture
+        .db
+        .acquire_pipeline_attempt("job-1", "worker-a", "ocr", 0)
+        .expect("attempt");
+    let sent = match fixture
+        .db
+        .begin_pipeline_dispatch(&cursor, &dispatch_intent())
+        .expect("begin")
+    {
+        PipelineDispatchBegin::Send { cursor } => cursor,
+        other => panic!("expected send, got {other:?}"),
+    };
+    assert!(fixture.db.discard_pipeline_dispatch_intent(&sent, "ocr-submit").expect("discard"));
+    assert!(fixture.db.latest_pipeline_dispatch("job-1", "ocr-submit").expect("query").is_none());
+    // 同一个 attempt 再来一遍是全新的 Send，不会被当成「恢复出来的未确认意图」。
+    let again = fixture
+        .db
+        .acquire_pipeline_attempt("job-1", "worker-a", "ocr", 0)
+        .expect("reclaim");
+    assert!(matches!(
+        fixture.db.begin_pipeline_dispatch(&again, &dispatch_intent()).expect("begin again"),
+        PipelineDispatchBegin::Send { .. }
+    ));
+}
+
+#[test]
+fn open_intents_are_marked_ambiguous_but_receipts_are_left_alone() {
+    let fixture = Fixture::new("dispatch-mark-open");
+    let cursor = fixture
+        .db
+        .acquire_pipeline_attempt("job-1", "worker-a", "ocr", 0)
+        .expect("attempt");
+    let sent = match fixture
+        .db
+        .begin_pipeline_dispatch(&cursor, &dispatch_intent())
+        .expect("begin")
+    {
+        PipelineDispatchBegin::Send { cursor } => cursor,
+        other => panic!("expected send, got {other:?}"),
+    };
+    assert_eq!(
+        fixture.db.mark_open_dispatch_intents_ambiguous("job-1", "died mid-flight").expect("mark"),
+        1
+    );
+    assert_eq!(
+        fixture.db.latest_pipeline_dispatch("job-1", "ocr-submit").unwrap().unwrap().status,
+        "ambiguous"
+    );
+    // 已经标过、或者已有回执的不再动。
+    assert_eq!(fixture.db.mark_open_dispatch_intents_ambiguous("job-1", "again").unwrap(), 0);
+    assert!(fixture.db.receipt_pipeline_dispatch(&sent, "ocr-submit", &json!({})).is_err());
+    // 没有正在跑的 attempt：什么都不做。
+    fixture.db.finish_latest_pipeline_attempt("job-1", "failed").expect("close");
+    assert_eq!(fixture.db.mark_open_dispatch_intents_ambiguous("job-1", "closed").unwrap(), 0);
 }
 
 #[test]

@@ -267,6 +267,25 @@ duplicate-risk policy.
 
 ## OCR Dispatch Ambiguity
 
+Where the dispatch record lives: the record of the provider submit is written under the job
+that actually calls the provider. A book/translate job runs its OCR in the child job
+`{job_id}-ocr`, so the record belongs to the child; a standalone OCR job owns it itself. Every
+`{job_id}` in this section (diagnostics, `retry-stage`/`rerun` gates, `resolve-ocr-ambiguity`) is the
+user-visible job id and is resolved to the owner (`{job_id}-ocr` first, then `{job_id}`), so a
+book job's failed OCR is reported and gated on the book job. A `bind_existing_receipt` recovery
+job is a book job as well; its seeded receipt is attached to its own `{recovery_job_id}-ocr`
+child, whose provider call therefore resumes polling instead of submitting again.
+
+When a record becomes `ambiguous` (the outcome of the provider request is unknown, so a retry
+could submit again and be billed twice): (1) the submit call fails after the intent was
+recorded with a transport error that does not prove the request stayed local (response timeout,
+connection reset, 5xx, unreadable response) or the upload is cancelled mid-flight; (2) the runtime
+restarts while the intent has no receipt. Requests that provably did not reach or were refused by
+the provider (connection could not be established, request could not be built, 4xx/auth/quota
+refusals) discard the intent instead, so a plain retry stays allowed. A job cancelled while its
+upload was in flight is also left ambiguous; use `retry-stage` with
+`ambiguous_request_policy=accept_duplicate_risk` to retry it.
+
 `GET /api/v1/jobs/{job_id}/reports/failure` returns `ocr_ambiguity` only while the
 job is failed and its latest `ocr-submit` dispatch is still ambiguous. The
 projection contains the authoritative `provider`, `operation`,

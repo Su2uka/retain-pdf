@@ -251,6 +251,17 @@ fn settle_orphaned_ocr_children(config: &AppConfig, db: &Db) -> Result<usize> {
             JobStatusKind::Canceled => "canceled",
             _ => "failed",
         };
+        if status != "succeeded" {
+            // 进程死在「已写下提交意图、还没拿到回执」之间：请求有没有送到服务商说不清。
+            // 子任务从此不会再有人续跑，把它标成 ambiguous，重试、重跑的闸门才认得出来
+            // （闸门只认 ambiguous；同一个 attempt 被再次认领时才会自己转，子任务等不到）。
+            if let Err(error) = db.mark_open_dispatch_intents_ambiguous(
+                child_id,
+                "runtime restarted after the OCR request intent was recorded and before a provider receipt was stored",
+            ) {
+                warn!("runtime startup failed to mark OCR dispatch of {child_id} ambiguous: {error:#}");
+            }
+        }
         db.finish_latest_pipeline_attempt(child_id, status)?;
     }
     if !children.is_empty() {

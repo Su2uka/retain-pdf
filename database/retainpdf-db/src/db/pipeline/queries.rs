@@ -376,6 +376,23 @@ impl Db {
             .transpose()
             .map(Option::flatten)
     }
+
+    /// 用户看到的任务 `job_id` 的 OCR 提交派发记录。
+    ///
+    /// 记录写在真正调服务商的那个任务名下：book/translate 任务的 OCR 在 `{job_id}-ocr` 子任务里
+    /// 内联执行（记录挂在子任务上），单独的 OCR 任务就是它自己。所有按用户任务编号找记录的地方
+    /// （歧义闸门、失败诊断、解除歧义）都走这里，先看子任务，没有再看任务自己。
+    pub fn latest_ocr_dispatch_for_job(
+        &self,
+        job_id: &str,
+    ) -> Result<Option<PipelineDispatchRecord>> {
+        for owner in [crate::models::domain::ocr_child_job_id(job_id), job_id.to_string()] {
+            if let Some(record) = self.latest_pipeline_dispatch(&owner, "ocr-submit")? {
+                return Ok(Some(record));
+            }
+        }
+        Ok(None)
+    }
 }
 
 pub(super) fn dispatch_record_by_identity(

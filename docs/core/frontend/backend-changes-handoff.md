@@ -85,6 +85,10 @@ message 形如 ``unknown field `x`, expected one of ... in the request body``（
   OCR 的歧义是另一个值 `ambiguous_ocr_dispatch`，处理办法是 resolve-ocr-ambiguity，不能走翻译的重复风险确认。损坏的日志是 `request_journal_corrupt`，**不要**再给「接受重复风险」的入口。
   这两处不改也能用：消息文字没变，旧写法仍然匹配；改了以后不再依赖英文措辞。
 - 凡是判断「任务在跑」的，用 `reason === "job_active"`，不要看 `message`。
+- OCR 歧义现在在默认的 book/翻译任务上也认得出来（以前 OCR 派发记录挂在 `<id>-ocr` 子任务上，按任务编号查不到）：
+  `GET /jobs/{id}/reports/failure` 的 `ocr_ambiguity` 会对这类失败任务给出值，`retry-stage`（ocr）和 `rerun` 会返回
+  `409 reason=ambiguous_ocr_dispatch`，`resolve-ocr-ambiguity` 对它们可用。提交出错（超时、断连）和上传中途取消、
+  进程在回执落库前重启，都会让派发记录变成 ambiguous。前端不用改；已经按 `ocr_ambiguity` 出处理入口的页面，会在这些任务上多出现该入口。
 - `retryJobStage` 之类别往请求体里夹 `retry-stage` 不认识的字段（书籍元数据等），否则 `400`。后端侧已核对过目前发的只有
   `stage`、`mode`、`create_new_job`、`overrides`、`ambiguous_request_policy`、`refine`。
 - 以前依赖「在跑 / 产物不在返回 400」的分支改看 `409`。

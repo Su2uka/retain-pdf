@@ -1,5 +1,6 @@
 pub use super::common::{
-    build_job_id, now_iso, seconds_since_iso, JobStatusKind, UploadRecord, WorkflowKind,
+    build_job_id, now_iso, ocr_child_job_id, seconds_since_iso, JobStatusKind, UploadRecord,
+    WorkflowKind,
 };
 pub use super::document_operation::{
     validate_operation_id, DocumentOperationDispatchReceipt, DocumentOperationLimits,

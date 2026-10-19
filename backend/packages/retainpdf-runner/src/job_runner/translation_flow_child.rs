@@ -73,7 +73,7 @@ pub(super) fn create_ocr_child_job(
     parent_job_paths: &JobPaths,
     source: &TranslationUploadSource,
 ) -> Result<JobRuntimeState> {
-    let ocr_job_id = format!("{}-ocr", parent_job.job_id);
+    let ocr_job_id = crate::models::domain::ocr_child_job_id(&parent_job.job_id);
     let mut ocr_request = parent_job.request_payload.clone();
     ocr_request.workflow = WorkflowKind::Ocr;
     ocr_request.job_id = ocr_job_id.clone();

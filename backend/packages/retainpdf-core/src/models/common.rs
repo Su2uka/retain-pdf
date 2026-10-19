@@ -78,6 +78,12 @@ pub fn seconds_since_iso(timestamp: &str) -> Option<i64> {
     Some((Utc::now() - parsed.with_timezone(&Utc)).num_seconds())
 }
 
+/// book/translate 任务把 OCR 放在子任务里内联执行，子任务编号固定是 `{父任务}-ocr`。
+/// 建子任务的 runner、找 OCR 派发记录的接口和恢复任务的种子都用这一个拼法。
+pub fn ocr_child_job_id(parent_job_id: &str) -> String {
+    format!("{parent_job_id}-ocr")
+}
+
 pub fn build_job_id() -> String {
     let ts = Utc::now().format("%Y%m%d%H%M%S").to_string();
     let rand = format!("{:06x}", fastrand::u32(..=0xFFFFFF));
