@@ -4,12 +4,11 @@ use axum::Json;
 use crate::auth::Principal;
 use crate::error::AppError;
 use crate::models::api::ApiResponse;
-use crate::models::domain::UploadRecord;
 use crate::routes::common::{
     build_upload_route_deps, ok_json, read_multipart_field_limited, read_multipart_text_limited,
-    safe_multipart_error, ApiMultipart, UploadRouteDeps,
+    safe_multipart_error, ApiMultipart,
 };
-use crate::services::ingest::{store_upload as store_upload_service, store_upload_view};
+use crate::services::ingest::store_upload_view;
 use crate::AppState;
 
 pub async fn upload_pdf(
@@ -50,13 +49,4 @@ pub async fn upload_pdf(
     Ok(ok_json(
         store_upload_view(&deps.uploads, filename, bytes, developer_mode, principal).await?,
     ))
-}
-
-pub async fn store_upload(
-    deps: &UploadRouteDeps<'_>,
-    filename: String,
-    bytes: Vec<u8>,
-    developer_mode: bool,
-) -> Result<UploadRecord, AppError> {
-    store_upload_service(&deps.uploads, filename, bytes, developer_mode, Principal::local()).await
 }

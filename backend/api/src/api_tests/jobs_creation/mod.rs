@@ -43,7 +43,6 @@ pub(super) fn submit_input(deps: &JobSubmitDeps<'_>, input: &CreateJobInput) -> 
 pub(super) fn submit_context<'a>(state: &'a AppState) -> JobSubmitDeps<'a> {
     JobSubmitDeps::new(
         snapshot_context(state),
-        state.uploads.as_ref(),
         JobLaunchDeps::new(
             state.db.as_ref(),
             &state.config.data_root,
@@ -420,78 +419,36 @@ fn create_translation_job_rejects_missing_artifact_job_for_render_workflow() {
     }
 }
 
-/// `/translate/bundle` 的门面，任务只落库不真跑。
-fn bundle_facade(state: &AppState) -> crate::services::jobs::JobsFacade<'_> {
-    crate::app::build_jobs_facade_with_launcher(state, JobRuntimeLauncher::new(Arc::new(|_| {})))
-}
-
-#[tokio::test]
-async fn create_translation_bundle_job_returns_queued_job_without_waiting() {
-    let state = test_state("bundle-job-async");
+#[test]
+fn create_book_job_imports_legacy_reviewer_secret_before_persistence() {
+    let state = test_state("book-import-legacy-reviewer-secret");
+    seed_upload(&state, "upload-book-legacy-reviewer-secret");
     let mut input = base_translation_input(WorkflowKind::Book);
-    input.ocr.poll_timeout = 1;
+    input.source.upload_id = "upload-book-legacy-reviewer-secret".to_string();
+    input.translation.preparation = "terms+style".to_string();
+    input.translation.reviewer_model = "reviewer-model".to_string();
+    input.translation.reviewer_api_key = "sk-reviewer-test".to_string();
 
-    let submission = bundle_facade(&state)
-        .create_translation_bundle_submission("http://retain.test", input, "input.pdf".to_string(), build_test_pdf_bytes(), false)
-        .await
-        .expect("bundle endpoint should create async job");
-    let job = state.db.get_job(&submission.job_id).expect("persisted job");
+    let job = submit_input(&submit_context(&state), &input)
+        .expect("create book job with legacy reviewer credential");
 
-    assert_eq!(job.workflow, WorkflowKind::Book);
-    assert_eq!(job.status, crate::models::JobStatusKind::Queued);
-    assert!(job.finished_at.is_none());
-    assert!(state
-        .db
-        .get_job(&job.job_id)
-        .expect("persisted job")
-        .finished_at
-        .is_none());
-    assert!(!state
-        .config
-        .downloads_dir
-        .join(format!("{}.zip", job.job_id))
-        .exists());
-}
+    // 审校 key 与翻译 key 同一套处理：导入 vault、只留引用、不明文落库。
+    let translation = &job.request_payload.translation;
+    assert_eq!(translation.preparation, "terms+style");
+    assert_eq!(translation.reviewer_model, "reviewer-model");
+    assert!(translation.reviewer_api_key.is_empty());
+    let reviewer = resolve_credential(
+        &state.config.data_root,
+        &translation.reviewer_credential_ref,
+        "translation_api_key",
+    )
+    .expect("resolve imported reviewer credential");
+    assert_eq!(reviewer.secret, "sk-reviewer-test");
+    assert_ne!(translation.reviewer_credential_ref, translation.credential_ref);
 
-#[tokio::test]
-async fn bundle_job_failure_preserves_published_upload() {
-    let state = test_state("bundle-failure-preserves-upload");
-    let bytes = build_test_pdf_bytes();
-    let hash = crate::db::documents::sha256_hex(&bytes);
-    let error = bundle_facade(&state)
-        .create_translation_bundle_submission(
-            "http://retain.test",
-            base_translation_input(WorkflowKind::Ocr),
-            "published.pdf".into(),
-            bytes,
-            false,
-        )
-        .await
-        .expect_err("bundle rejects OCR workflow after publication");
-    assert_eq!(
-        error.to_string(),
-        "workflow=ocr: upload the PDF with POST /api/v1/uploads, then POST /api/v1/jobs with workflow \"ocr\""
-    );
-    let entries = std::fs::read_dir(&state.config.uploads_dir)
-        .unwrap()
-        .collect::<Result<Vec<_>, _>>()
-        .unwrap();
-    assert_eq!(entries.len(), 1);
-    let upload_id = entries[0].file_name().into_string().unwrap();
-    let record = state
-        .db
-        .get_upload(&upload_id)
-        .expect("published upload survives");
-    assert_eq!(record.content_hash, hash);
-    assert!(std::path::Path::new(&record.stored_path).is_file());
-    assert!(state.db.get_document(&hash).is_ok());
-    assert!(state.db.list_jobs(10, 0, None, None).unwrap().is_empty());
-    assert_eq!(
-        std::fs::read_dir(&state.config.output_root)
-            .unwrap()
-            .count(),
-        0
-    );
+    let persisted = state.db.get_job(&job.job_id).expect("persisted book job");
+    let encoded = serde_json::to_string(&persisted).expect("encode persisted job");
+    assert!(!encoded.contains("sk-reviewer-test"));
 }
 
 #[test]

@@ -288,8 +288,8 @@ a positive integer`）；`0` 和正数都放行。
   数组，以及第 101 行附近 `appendFormField(form, "timeout_seconds", …)` 那句
   旁边补一句同形的
 
-multipart 提交路径（`/api/v1/translate/bundle` 等）后端已经接受同名的扁平
-字段，语义与 JSON 的 `runtime` 块一致。
+（原来 multipart 的 `/api/v1/translate/bundle` 也接受同名的扁平字段，该接口已于 2026-10-19 删除，
+只剩 JSON 的 `runtime` 块。）
 
 生成的 DTO 类型 `@retainpdf/contracts` 的 `RuntimeInput` 已经带上这个字段
 （`contracts/dist/job-status.d.ts`），是 **required**——如果哪里在手工构造

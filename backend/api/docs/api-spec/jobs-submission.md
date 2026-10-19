@@ -42,7 +42,7 @@ Upload limit policy:
 - `RUST_API_UPLOAD_MAX_PAGES`: a positive value is the page limit; `0` disables
   only the page-count limit
 - the same byte limit applies while streaming PDF fields for
-  `/api/v1/uploads` and `/api/v1/translate/bundle`
+  `/api/v1/uploads`
 - a field that exceeds the byte limit is rejected with HTTP `413` and stable
   code `PAYLOAD_TOO_LARGE` before the complete field is buffered or persisted
 
@@ -250,8 +250,8 @@ shared generic error codes.
 
 Endpoint boundary:
 
-- `/api/v1/jobs` is for `book`, `translate`, `render`, and OCR-only (`workflow=ocr`) jobs. An OCR-only job is created by uploading the PDF first (`POST /api/v1/uploads`) and then sending `POST /api/v1/jobs` with `workflow: "ocr"` and `source.upload_id` (or `source.source_url`). The former multipart `POST /api/v1/ocr/jobs` was removed on 2026-10-18; `/api/v1/translate/bundle` rejects `workflow=ocr` and points to `/uploads` + `/jobs`
-- `/api/v1/translate/bundle` is the synchronous multipart helper for the same full flow; flat multipart fields remain supported here, including `provider=paddle|mineru`, `ocr_credential_ref`, and the translation field `credential_ref`
+- `/api/v1/jobs` is for `book`, `translate`, `render`, and OCR-only (`workflow=ocr`) jobs. An OCR-only job is created by uploading the PDF first (`POST /api/v1/uploads`) and then sending `POST /api/v1/jobs` with `workflow: "ocr"` and `source.upload_id` (or `source.source_url`). The former multipart `POST /api/v1/ocr/jobs` was removed on 2026-10-18
+- The multipart helper `POST /api/v1/translate/bundle` (second port, flat fields) was removed on 2026-10-19; the second port (`42000`) now serves only `/health` and `/ready`. Upload with `POST /api/v1/uploads`, then `POST /api/v1/jobs`
 - `GET /api/v1/providers/ocr` returns discoverable OCR provider metadata, credentials, options, capabilities, and artifact layout
 
 The provider response's optional `credential` object is authoritative for
@@ -278,8 +278,6 @@ validated for that path.
 OCR provider options:
 
 - `ocr.options` is the canonical JSON object for provider-specific non-secret options.
-- For multipart helper requests, send the same object as JSON string field `ocr_options`.
-- Multipart helper requests accept `timeout_seconds` and `no_output_timeout_seconds` as flat fields, same semantics as the JSON `runtime` block.
 - Paddle `ocr.options.transport` accepts `official_http` (default) or `official_cli`.
 - `official_cli` uses the externally installed official `paddleocr api` client and is only accepted by OCR-only jobs (`workflow=ocr`). It is a Markdown/coarse document extraction path; its result does not provide the `bbox`/`prunedResult` contract required by translation and render, so `book` and `translate` requests must use `official_http`.
 - Selecting `official_cli` does not install PaddleOCR or add it to the server base image. A missing executable is reported as a provider worker failure.

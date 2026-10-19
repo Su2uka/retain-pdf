@@ -46,7 +46,7 @@ to install/build without starting services.
 
 The launcher uses the full API on `41000`, the internal jobs service on
 loopback `41002`, the internal AI service on loopback `41100`, and the
-single-route multipart bundle listener on `42000`. Raw Rust configuration
+second listener on `42000` (serves only `/health` and `/ready`). Raw Rust configuration
 still defaults to in-process jobs and disabled child supervision; the launcher
 explicitly selects `remote + supervised` for the complete development stack.
 
