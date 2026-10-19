@@ -269,7 +269,7 @@ Reader 宿主接入 job/artifact、Markdown、区域、页面元数据和实时�
 阶段恢复：
 
 - `POST /api/v1/jobs/{job_id}/actions/cancel`
-- `POST /api/v1/jobs/{job_id}/actions/rerun`
+- `POST /api/v1/jobs/{job_id}/actions/rerun`（`actions/resume` 的旧名，2026-10-19 起标成旧地址）
 - `GET /api/v1/jobs/{job_id}/actions`
 - `POST /api/v1/jobs/{job_id}/actions/retry-stage`
 - `GET /api/v1/jobs/{job_id}/actions/resume`
@@ -284,7 +284,7 @@ Reader 宿主接入 job/artifact、Markdown、区域、页面元数据和实时�
 - `workflow=book` + `source.artifact_job_id`：复用 OCR checkpoint 后继续翻译并渲染
 - `workflow=render` + `source.artifact_job_id`：复用翻译产物后只重跑渲染
 
-`actions/resume` 当前复用 `actions/rerun` 的恢复执行契约；`GET actions/resume` 用于前端先展示“会从哪里恢复、会复用哪些产物、会重跑哪些阶段”。
+`actions/rerun` 是 `actions/resume` 的旧名，两者是同一个处理函数；任务视图的 `actions.resume` 给出续跑链接，`actions.rerun` 暂时同值。`GET actions/resume` 用于前端先展示“会从哪里恢复、会复用哪些产物、会重跑哪些阶段”。
 
 主动阶段重试：
 

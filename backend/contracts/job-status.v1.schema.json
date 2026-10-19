@@ -1653,6 +1653,7 @@
         "open_job",
         "open_artifacts",
         "cancel",
+        "resume",
         "rerun",
         "download_pdf",
         "open_markdown",
@@ -1669,8 +1670,13 @@
         "cancel": {
           "$ref": "#/definitions/ActionLinkView"
         },
+        "resume": {
+          "$ref": "#/definitions/ActionLinkView",
+          "description": "从断点续跑：POST /api/v1/jobs/:job_id/actions/resume。"
+        },
         "rerun": {
-          "$ref": "#/definitions/ActionLinkView"
+          "$ref": "#/definitions/ActionLinkView",
+          "description": "旧名，和 resume 同值，地址是旧地址 actions/rerun。新代码读 resume。"
         },
         "download_pdf": {
           "$ref": "#/definitions/ActionLinkView"

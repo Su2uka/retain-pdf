@@ -11,10 +11,10 @@ crate::endpoints! {
     GET "/api/v1/jobs/:job_id/actions/resume" => actions::get_resume_plan, signed;
     /// 从断点续跑
     POST "/api/v1/jobs/:job_id/actions/resume" => actions::resume_job, signed;
+    /// 旧名，和续跑是同一个实现
+    POST "/api/v1/jobs/:job_id/actions/rerun" => actions::rerun_job, signed old "/api/v1/jobs/:job_id/actions/resume";
     /// 取消任务
     POST "/api/v1/jobs/:job_id/actions/cancel" => actions::cancel_job, signed;
-    /// 整个任务重跑
-    POST "/api/v1/jobs/:job_id/actions/rerun" => actions::rerun_job, signed;
     /// 重试某一个阶段（OCR、翻译、渲染、精修）
     POST "/api/v1/jobs/:job_id/actions/retry-stage" => actions::retry_stage, signed;
     /// OCR 拿不准时由用户选
