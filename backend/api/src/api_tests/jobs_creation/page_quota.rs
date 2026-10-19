@@ -162,12 +162,13 @@ fn rerendering_a_refunded_job_charges_it_again_but_a_paid_one_stays_free() {
 
     let rerender = |job_id: &str| {
         let mut job = state.db.get_job(job_id).expect("load job");
+        let read_as = crate::services::jobs::RunFence::of(&job);
         job.workflow = WorkflowKind::Render;
         job.request_payload.workflow = WorkflowKind::Render;
         job.request_payload.source.upload_id.clear();
         job.request_payload.source.artifact_job_id = job_id.to_string();
         job.status = JobStatusKind::Queued;
-        relaunch_in_place(&deps.launcher, job).expect("rerender")
+        relaunch_in_place(&deps.launcher, job, &read_as).expect("rerender")
     };
     rerender(&paid.job_id);
     assert_eq!(

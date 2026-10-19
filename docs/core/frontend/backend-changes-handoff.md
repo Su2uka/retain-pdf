@@ -260,7 +260,7 @@ const etag = res.headers.get("ETag");
 
 **版本检测**：比对各段的 `ETag`(size + mtime)。正文由 pipeline 一次性整篇写出,
 当前没有任何路径会就地改写它(非 render 的 rerun/retry 都建新 job;render 就地
-重跑只清 `rendered/`),所以偏移量在实践中是稳定的——但那是当下 job 生命周期的
+重跑只动 `rendered/` 里的译文 PDF),所以偏移量在实践中是稳定的——但那是当下 job 生命周期的
 性质,不是这个端点给的保证。`ETag` 中途变了就从 0 重来,否则拼出来的是两个版本
 的混合,而且是静默的。也可以直接用 `If-Range`。
 

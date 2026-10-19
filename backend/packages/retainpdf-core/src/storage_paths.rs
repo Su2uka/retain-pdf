@@ -5,6 +5,8 @@ mod job_paths;
 mod merged_job;
 #[path = "storage_paths/path_ops.rs"]
 mod path_ops;
+#[path = "storage_paths/previous_output.rs"]
+mod previous_output;
 #[path = "storage_paths/registry.rs"]
 mod registry;
 #[path = "storage_paths/resolvers.rs"]
@@ -32,6 +34,9 @@ pub use path_ops::{
     data_path_is_absolute, job_uses_legacy_output_layout, job_uses_legacy_path_storage,
     normalize_job_artifacts_for_storage, normalize_job_paths_for_storage,
     normalize_relative_data_path, resolve_data_path, to_relative_data_path,
+};
+pub use previous_output::{
+    plan_previous_output_pdf_move, restore_previous_output_pdf, PreviousOutputPdfMove,
 };
 pub use registry::collect_job_artifact_entries;
 pub use resolvers::{

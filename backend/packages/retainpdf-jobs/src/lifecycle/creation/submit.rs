@@ -13,10 +13,14 @@
 
 use serde_json::Value;
 
-use retainpdf_data::db::PipelineDispatchRecord;
+use retainpdf_data::db::{NewRunWrite, PipelineDispatchRecord};
 use retainpdf_api_base::error::AppError;
-use retainpdf_data::job_events::persist_job_as_new_run_with_resources;
-use retainpdf_core::models::domain::{JobSnapshot, WorkflowKind};
+use retainpdf_data::job_events::{
+    cas_persist_job_as_new_run_with_resources, persist_job_as_new_run_with_resources,
+};
+use retainpdf_core::models::domain::{JobSnapshot, JobStatusKind, WorkflowKind};
+use retainpdf_core::storage_paths::plan_previous_output_pdf_move;
+use crate::views::ActionBlockReason;
 use retainpdf_core::models::request::CreateJobInput;
 use crate::deps::JobSubmitDeps;
 use crate::lifecycle::launcher::{
@@ -143,7 +147,7 @@ pub fn submit_job(deps: &JobSubmitDeps<'_>, new: NewJob<'_>) -> Result<JobSnapsh
     let _credential_guard = acquire_job_credential_usage_lock(deps, &job)?;
 
     let job = match ocr_recovery {
-        None => persist_and_launch(&deps.launcher, job, derived_from)?,
+        None => persist_and_launch(&deps.launcher, job, derived_from, None)?,
         Some(recovery) => persist_ocr_recovery(&deps.launcher, job, recovery)?,
     };
     if let Some(document_id) = document_id {
@@ -157,22 +161,55 @@ pub fn submit_job(deps: &JobSubmitDeps<'_>, new: NewJob<'_>) -> Result<JobSnapsh
     Ok(job)
 }
 
+/// 原地重跑之前读到的那一行：状态和运行代次。[`relaunch_in_place`] 只在库里还是这样时才写。
+///
+/// 在把快照改成 queued 之前取（`RunFence::of(&读到的任务)`）。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RunFence {
+    status: JobStatusKind,
+    run_generation: u64,
+}
+
+impl RunFence {
+    pub fn of(job: &JobSnapshot) -> Self {
+        Self {
+            status: job.status.clone(),
+            run_generation: job.run_generation,
+        }
+    }
+}
+
 /// 原地重跑已有任务（续跑出的重渲染、原地重渲染、原地精修）：任务编号不变，重新落库并发射。
 /// 新任务一律走 [`submit_job`]，这里不接没落过库的任务。
-pub fn relaunch_in_place(deps: &JobLaunchDeps<'_>, job: JobSnapshot) -> Result<JobSnapshot, AppError> {
+///
+/// 落库是 CAS：只有库里还是 `read_as` 记下的终态和代次才写（两个请求读到同一个终态，只有先来的
+/// 那个开跑；后来的 409，不把已经开跑的那一次盖回 queued）。拒绝时（503、额度、409……）什么都没动：
+/// 上一份 PDF、`-ocr` 子任务都原样留着。落库成功之后、发射之前，把上一份译文 PDF 挪到渲染不会写的
+/// 名字（见 `storage_paths::plan_previous_output_pdf_move`）。调用方要做的清理放在这个函数返回 Ok 之后。
+pub fn relaunch_in_place(
+    deps: &JobLaunchDeps<'_>,
+    job: JobSnapshot,
+    read_as: &RunFence,
+) -> Result<JobSnapshot, AppError> {
     if deps.db.get_job(&job.job_id).is_err() {
         return Err(AppError::internal(format!(
             "relaunch_in_place only re-runs an existing job; {} is new — submit it with submit_job",
             job.job_id
         )));
     }
-    persist_and_launch(deps, job, None)
+    if matches!(read_as.status, JobStatusKind::Queued | JobStatusKind::Running) {
+        return Err(ActionBlockReason::JobActive.conflict(
+            "job is already queued or running; cancel it before rerunning it in place",
+        ));
+    }
+    persist_and_launch(deps, job, None, Some(read_as))
 }
 
 fn persist_and_launch(
     deps: &JobLaunchDeps<'_>,
     mut job: JobSnapshot,
     derived_from: Option<&str>,
+    in_place: Option<&RunFence>,
 ) -> Result<JobSnapshot, AppError> {
     if let Some(source) = deps.platform {
         apply_platform_models(&mut job, &source.resolve()?)?;
@@ -185,23 +222,67 @@ fn persist_and_launch(
     {
         return Err(AppError::ServiceUnavailable("Rust model worker rollout is not enabled; execution_connection will not fall back to Python transport".into()));
     }
+    let previous_pdf_move = in_place
+        .and_then(|_| plan_previous_output_pdf_move(&mut job, deps.data_root, deps.output_root));
     // 预扣放在落库之前：余额不够就不留下任务行。原地重跑也经过这里（只重新渲染不计费，
     // 规则见 accounts::page_quota）。
     let reserved = deps.page_quota && retainpdf_accounts::reserve_for_job(deps.db, &job)?;
     // 落库同时把运行代次加一：此后上一次运行遗留的 driver（取消后还在收尾的、成功后还在善后的）
     // 写不进这一次运行的行，也占不住这一次的发射。
-    match persist_job_as_new_run_with_resources(deps.db, deps.data_root, deps.output_root, &job) {
+    let persisted = match in_place {
+        None => persist_job_as_new_run_with_resources(deps.db, deps.data_root, deps.output_root, &job)
+            .map_err(AppError::from),
+        Some(fence) => match cas_persist_job_as_new_run_with_resources(
+            deps.db,
+            deps.data_root,
+            deps.output_root,
+            &job,
+            &fence.status,
+            fence.run_generation,
+        ) {
+            Ok(Ok(persisted)) => Ok(persisted),
+            Ok(Err(refused)) => Err(relaunch_refused(&job.job_id, refused)),
+            Err(error) => Err(error.into()),
+        },
+    };
+    match persisted {
         Ok(persisted) => job = persisted,
         Err(error) => {
             if reserved {
                 retainpdf_accounts::release_for_job(deps.db, &job.job_id);
             }
-            return Err(error.into());
+            return Err(error);
+        }
+    }
+    if let Some(planned) = previous_pdf_move {
+        // 挪不成（文件刚被删了之类）只是排队期间读不到上一份，不影响这一次运行。
+        if let Err(error) = planned.apply() {
+            tracing::warn!(
+                "job {}: could not move the previous output pdf aside: {error}",
+                job.job_id
+            );
         }
     }
     link_new_job_to_document(deps.db, &job, derived_from);
     deps.runtime.launch(job.job_id.clone());
     Ok(job)
+}
+
+/// 原地重跑的 CAS 没写进去。还在排队 / 在跑：别的请求先开跑了（`job_active`）；
+/// 又是终态但不是读到的那一次：读到的已经过期，刷新再试（`stale_resolution`）。
+fn relaunch_refused(job_id: &str, refused: NewRunWrite) -> AppError {
+    match refused {
+        NewRunWrite::Missing => AppError::not_found(format!("job not found: {job_id}")),
+        NewRunWrite::Changed {
+            current_status: Some(JobStatusKind::Queued | JobStatusKind::Running),
+            ..
+        } => ActionBlockReason::JobActive.conflict(
+            "job was started by another request; cancel it before rerunning it in place",
+        ),
+        _ => ActionBlockReason::StaleResolution.conflict(
+            "job changed after it was read (another run started or finished); reload it and retry",
+        ),
+    }
 }
 
 fn persist_ocr_recovery(
@@ -213,7 +294,7 @@ fn persist_ocr_recovery(
         .db
         .create_ocr_recovery_job_state(recovery.dispatch, &job, recovery.resolution, recovery.receipt)?
     {
-        return Err(crate::views::ActionBlockReason::StaleResolution.conflict(
+        return Err(ActionBlockReason::StaleResolution.conflict(
             "OCR ambiguity was already resolved by another request",
         ));
     }

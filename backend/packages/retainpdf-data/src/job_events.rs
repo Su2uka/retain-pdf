@@ -4,9 +4,9 @@ use anyhow::Result;
 use serde_json::Value;
 use tracing::warn;
 
-use crate::db::Db;
+use crate::db::{Db, NewRunWrite};
 use crate::models::api::JobEventRecord;
-use crate::models::domain::{JobRuntimeState, JobSnapshot};
+use crate::models::domain::{JobRuntimeState, JobSnapshot, JobStatusKind};
 mod derivation;
 mod jsonl;
 
@@ -82,6 +82,30 @@ pub fn persist_job_as_new_run_with_resources(
     current.run_generation = db.save_job_as_new_run(&current)?;
     emit_job_events_best_effort(db, data_root, output_root, previous.as_ref(), &current);
     Ok(current)
+}
+
+/// 同 [`persist_job_as_new_run_with_resources`]，但只在库里还是读到时的状态和代次时才写
+/// （见 `Db::cas_save_job_as_new_run`）。写进去了返回带新代次的快照，没写进去原样返回库的回答，
+/// 不派生事件。
+pub fn cas_persist_job_as_new_run_with_resources(
+    db: &Db,
+    data_root: &Path,
+    output_root: &Path,
+    job: &JobSnapshot,
+    expected_status: &JobStatusKind,
+    expected_generation: u64,
+) -> Result<std::result::Result<JobSnapshot, NewRunWrite>> {
+    let previous = db.get_job(&job.job_id).ok();
+    let mut current = job.clone();
+    current.sync_runtime_state();
+    match db.cas_save_job_as_new_run(&current, expected_status, expected_generation)? {
+        NewRunWrite::Started(generation) => {
+            current.run_generation = generation;
+            emit_job_events_best_effort(db, data_root, output_root, previous.as_ref(), &current);
+            Ok(Ok(current))
+        }
+        refused => Ok(Err(refused)),
+    }
 }
 
 pub fn persist_job_with_resources(

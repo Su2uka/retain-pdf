@@ -41,11 +41,25 @@ POST /api/v1/jobs/{job_id}/actions/retry-stage
   用 `start_page` 从那一页接着精修。
   这次的精修参数是一次性的，不会写进任务的 `translation.refine`；报告见 `GET /api/v1/jobs/{job_id}/reports/refine`。
 
+## 原地重跑：旧 PDF 怎么处理
+
+`render` 带 `create_new_job=false`、`refine`、以及 `resume`（旧名 `rerun`）选中的原地重渲染，任务编号不变，在原任务上再跑一次：
+
+- **落库是 CAS**：只有库里还是读到时的那个终态、那一次运行，才改成 `queued` 开跑。两个请求同时来，只有一个开跑；
+  后到的返回 `409`：前一个还在排队/运行是 `job_active`，前一个已经跑完是 `stale_resolution`。不会把已经开跑的那一次盖回 `queued`。
+- **被拒时什么都不动**（`409`、`503` 模型执行器没开、额度不够、落库失败）：上一份译文 PDF、`<id>-ocr` 子任务都原样留着，
+  任务还是原来的状态，`files/output/translated.pdf` 照常能下载。以前续跑在校验之前就删了 `rendered/` 和 `-ocr` 子任务，被拒后 PDF 就 404 了。
+- **开跑以后**：上一份 PDF 挪到同目录的 `<名>.previous.pdf`（渲染要写的名字空出来，不会截断旧文件），排队期间书的合并阅读接着用它；
+  `rendered/` 里其它文件不删，渲染覆盖写。续跑的原地重渲染在开跑以后才删上一轮遗留的 `-ocr` 子任务。
+- **没跑成**（`failed` / `canceled`）：`artifacts.output_pdf` 指回上一份 PDF，`translated.pdf`、页预览、Word 导出照旧用它。
+  跑成功了就是新的 PDF。只有排队和运行期间 `translated.pdf` 是 `404 … not ready`。
+
 ## 请求规则
 
 - 请求体里不认识的字段一律返回 `400`（例如把 `create_new_job` 拼成 `createNewJob`）。可用字段：`stage`、`mode`、`create_new_job`、`overrides`、`ambiguous_request_policy`、`refine`。
 - 请求本身写错了返回 `400`：`mode` 不是 `from_stage`、`refine` 对象用在非 `refine` 阶段、`create_new_job=false` 用在 `ocr` / `translation`、`create_new_job=true` 用在 `refine`、`overrides` 不合法。这些和任务当前状态无关。
-- 请求没问题但任务或产物现在不允许返回 `409`，`error.details.reason` 说明原因：`job_active`（任务在跑）、
+- 请求没问题但任务或产物现在不允许返回 `409`，`error.details.reason` 说明原因：`job_active`（任务在跑，或另一个原地重跑抢先开跑了）、
+  `stale_resolution`（原地重跑：读到之后任务又跑过一次，刷新再试）、
   `artifacts_missing`（要用的产物或来源不在）、`translations_not_owned`（精修的任务渲染的是别的任务的译文）、
   `ambiguous_request`（请求结果不确定，要带 `ambiguous_request_policy=accept_duplicate_risk` 或先 `resolve-ocr-ambiguity`）、
   `request_journal_corrupt`（翻译请求日志损坏）、`model_executor_unsupported`（绑定了 Rust 模型执行器）。

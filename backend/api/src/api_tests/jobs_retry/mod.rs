@@ -2,6 +2,7 @@ mod cancel;
 pub(crate) mod common;
 mod reasons;
 mod render_engine;
+mod rerender_keeps_pdf;
 mod rerun;
 mod resume;
 mod retry_refine;

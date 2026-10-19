@@ -1,10 +1,26 @@
 use anyhow::Result;
 use rusqlite::{params, OptionalExtension, TransactionBehavior};
 
-use crate::models::domain::{JobArtifactRecord, JobSnapshot};
-use crate::storage_paths::{collect_job_artifact_entries, normalize_job_paths_for_storage};
+use crate::models::domain::{JobArtifactRecord, JobSnapshot, JobStatusKind};
+use crate::storage_paths::{
+    collect_job_artifact_entries, normalize_job_paths_for_storage, restore_previous_output_pdf,
+};
 
 use super::Db;
+
+/// [`Db::cas_save_job_as_new_run`] 的结果。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum NewRunWrite {
+    /// 写进去了，新的运行代次。
+    Started(u64),
+    /// 行还在，但已经不是读到时的状态 / 代次（别的请求先开跑了，或者那一次都跑完了）。
+    Changed {
+        current_status: Option<JobStatusKind>,
+        current_generation: u64,
+    },
+    /// 行没了（任务被删了）。
+    Missing,
+}
 
 pub(super) struct PreparedJobWrite {
     stored_job: JobSnapshot,
@@ -17,6 +33,9 @@ pub(super) struct PreparedJobWrite {
 pub(super) fn prepare_job_write(db: &Db, job: &JobSnapshot) -> Result<PreparedJobWrite> {
     let mut stored_job = job.clone();
     stored_job.sync_runtime_state();
+    // 原地重跑没跑成：接回上一份译文 PDF（见 storage_paths::restore_previous_output_pdf）。
+    // 放在落库这一层，取消、失败、启动恢复……谁落的终态都一样。
+    restore_previous_output_pdf(&mut stored_job, &db.data_root);
     normalize_job_paths_for_storage(&db.data_root, &mut stored_job)?;
     let artifacts_json = stored_job
         .artifacts
@@ -142,6 +161,51 @@ impl Db {
         Ok(generation.max(0) as u64)
     }
 
+    /// 原地重跑开始新的一次运行（`relaunch_in_place`）：只有库里这一行**还是读到时的样子**——状态是
+    /// `expected_status`、代次是 `expected_generation`——才整行落库并把代次加一，判断和写在同一个
+    /// `BEGIN IMMEDIATE` 事务里。两个请求读到同一个终态、一前一后来写，后一个看到的已经是前一个
+    /// 落下的 queued（或前一个已经跑完，代次变了），写不进去。
+    ///
+    /// 不写时什么都不改；调用方据此报 409，并且不做「落库成功之后」才该做的事（挪文件、清子任务）。
+    pub fn cas_save_job_as_new_run(
+        &self,
+        job: &JobSnapshot,
+        expected_status: &JobStatusKind,
+        expected_generation: u64,
+    ) -> Result<NewRunWrite> {
+        let prepared = prepare_job_write(self, job)?;
+        let mut conn = self.connect()?;
+        let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let current: Option<(String, i64)> = tx
+            .query_row(
+                "SELECT status_json, run_generation FROM jobs WHERE job_id = ?1",
+                params![job.job_id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .optional()?;
+        let Some((status_json, generation)) = current else {
+            return Ok(NewRunWrite::Missing);
+        };
+        // 同 cas_save_job：存的是 JSON 字符串（`"queued"`），老数据可能没带引号。
+        let current_status = serde_json::from_str::<JobStatusKind>(&status_json)
+            .or_else(|_| serde_json::from_value(serde_json::Value::String(status_json.clone())))
+            .ok();
+        let current_generation = generation.max(0) as u64;
+        if current_status.as_ref() != Some(expected_status) || current_generation != expected_generation {
+            return Ok(NewRunWrite::Changed {
+                current_status,
+                current_generation,
+            });
+        }
+        persist_prepared_job(&tx, prepared)?;
+        tx.execute(
+            "UPDATE jobs SET run_generation = run_generation + 1 WHERE job_id = ?1",
+            params![job.job_id],
+        )?;
+        tx.commit()?;
+        Ok(NewRunWrite::Started(current_generation + 1))
+    }
+
     /// 只读任务当前的运行代次；没有这条任务返回 None。
     pub fn job_run_generation(&self, job_id: &str) -> Result<Option<u64>> {
         let conn = self.connect()?;
@@ -165,6 +229,7 @@ impl Db {
     pub fn cas_save_job(&self, job: &JobSnapshot, expected_statuses: &[&str]) -> Result<bool> {
         let mut stored_job = job.clone();
         stored_job.sync_runtime_state();
+        restore_previous_output_pdf(&mut stored_job, &self.data_root);
         normalize_job_paths_for_storage(&self.data_root, &mut stored_job)?;
         let artifacts_json = stored_job
             .artifacts

@@ -116,6 +116,7 @@ pub use files::downloads::fixture::{DownloadFixture, JOB_ID as DOWNLOAD_FIXTURE_
 #[cfg(any(test, feature = "test-fixtures"))]
 pub use lifecycle::creation::{
     build_ocr_job_snapshot, build_translation_job_snapshot, relaunch_in_place, submit_job, NewJob,
+    RunFence,
 };
 #[cfg(any(test, feature = "test-fixtures"))]
 pub use presentation::{build_document_job_list_view, build_job_list_view};
