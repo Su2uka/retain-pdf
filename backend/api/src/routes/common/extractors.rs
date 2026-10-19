@@ -13,6 +13,11 @@ use crate::error::AppError;
 #[derive(Debug)]
 pub struct ApiJson<T>(pub T);
 
+/// 同 [`ApiJson`]，区别只有一处：请求体里有不认识的字段（目标类型 `deny_unknown_fields`）
+/// 返回 400，而不是 422。接口约定：请求写错了 = 400。
+#[derive(Debug)]
+pub struct ApiStrictJson<T>(pub T);
+
 /// Query-string extractor whose failures use the public API error envelope.
 #[derive(Debug)]
 pub struct ApiQuery<T>(pub T);
@@ -39,6 +44,37 @@ where
             .map(|Json(value)| Self(value))
             .map_err(safe_json_rejection)
     }
+}
+
+#[axum::async_trait]
+impl<T, S> FromRequest<S> for ApiStrictJson<T>
+where
+    T: DeserializeOwned,
+    S: Send + Sync,
+{
+    type Rejection = AppError;
+
+    async fn from_request(req: Request, state: &S) -> Result<Self, Self::Rejection> {
+        Json::<T>::from_request(req, state)
+            .await
+            .map(|Json(value)| Self(value))
+            .map_err(|rejection| match unknown_field_message(&rejection) {
+                Some(message) => AppError::bad_request(message),
+                None => safe_json_rejection(rejection),
+            })
+    }
+}
+
+/// serde 的 `unknown field `x`, expected one of ...` 只带字段名，不带值，可以原样回给调用方。
+fn unknown_field_message(rejection: &JsonRejection) -> Option<String> {
+    let JsonRejection::JsonDataError(error) = rejection else {
+        return None;
+    };
+    let text = error.body_text();
+    let start = text.find("unknown field ")?;
+    let detail = &text[start..];
+    let detail = detail.split(" at line ").next().unwrap_or(detail);
+    Some(format!("{detail} in the request body"))
 }
 
 #[axum::async_trait]

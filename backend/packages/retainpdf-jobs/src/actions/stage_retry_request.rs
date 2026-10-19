@@ -1,5 +1,5 @@
 use retainpdf_api_base::error::AppError;
-use crate::views::RetryStageKind;
+use crate::views::{ActionBlockReason, RetryStageKind};
 use retainpdf_core::models::domain::{CreateJobInput, JobSnapshot, WorkflowKind};
 use retainpdf_core::models::request::JobSourceInput;
 
@@ -35,7 +35,7 @@ pub(super) fn build_retry_request(
             let artifacts = source_job
                 .artifacts
                 .as_ref()
-                .ok_or_else(|| AppError::bad_request("source job has no reusable artifacts"))?;
+                .ok_or_else(no_reusable_artifacts)?;
             require_artifact(
                 artifacts.normalized_document_json.as_ref(),
                 "normalized_document_json",
@@ -47,7 +47,7 @@ pub(super) fn build_retry_request(
             let artifacts = source_job
                 .artifacts
                 .as_ref()
-                .ok_or_else(|| AppError::bad_request("source job has no reusable artifacts"))?;
+                .ok_or_else(no_reusable_artifacts)?;
             require_artifact(artifacts.translations_dir.as_ref(), "translations_dir")?;
             require_artifact(artifacts.source_pdf.as_ref(), "source_pdf")?;
             request.source.artifact_job_id = source_job.job_id.clone();
@@ -62,7 +62,7 @@ fn require_request_source(request: &CreateJobInput) -> Result<(), AppError> {
     if !request.source.upload_id.trim().is_empty() || !request.source.source_url.trim().is_empty() {
         return Ok(());
     }
-    Err(AppError::bad_request(
+    Err(ActionBlockReason::ArtifactsMissing.conflict(
         "OCR retry requires the original upload_id or source_url",
     ))
 }
@@ -71,7 +71,11 @@ fn require_artifact(value: Option<&String>, name: &str) -> Result<(), AppError> 
     if value.as_ref().is_some_and(|item| !item.trim().is_empty()) {
         return Ok(());
     }
-    Err(AppError::bad_request(format!(
+    Err(ActionBlockReason::ArtifactsMissing.conflict(format!(
         "source job missing required artifact: {name}"
     )))
+}
+
+fn no_reusable_artifacts() -> AppError {
+    ActionBlockReason::ArtifactsMissing.conflict("source job has no reusable artifacts")
 }

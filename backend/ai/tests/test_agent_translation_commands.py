@@ -431,6 +431,31 @@ def test_retry_conflict_says_the_job_is_running():
     assert "正在运行" in json.loads(response["stderr"])["error"]
 
 
+def _conflict(reason: str) -> CliResult:
+    body = {
+        "code": 40900,
+        "message": "conflict",
+        "error": {"code": "CONFLICT", "http_status": 409, "details": {"reason": reason}},
+    }
+    return CliResult(False, 409, body, "conflict")
+
+
+def test_retry_conflict_hint_follows_the_backend_reason():
+    for reason, expected in [
+        ("job_active", "正在运行"),
+        ("artifacts_missing", "缺少需要的产物"),
+        ("ambiguous_request", "不确定"),
+        ("some_future_reason", "some_future_reason"),
+    ]:
+        fake = FakeCli({("translation", "retry-stage"): _conflict(reason)})
+        response = _run(fake, "retainpdf-agent translation rerender")
+        assert response["exit_code"] == 1
+        assert expected in json.loads(response["stderr"])["error"], reason
+        # 不是「在跑」的 409 不能说成在跑。
+        if reason != "job_active":
+            assert "正在运行" not in json.loads(response["stderr"])["error"], reason
+
+
 def _job_dir(tmp_path: Path, *, glossary_id: str = "") -> Path:
     job_dir = tmp_path / "jobs" / JOB
     translated = job_dir / "translated"

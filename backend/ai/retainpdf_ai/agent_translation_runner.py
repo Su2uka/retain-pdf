@@ -280,7 +280,7 @@ class TranslationCommandRunner:
         if not result.ok:
             if result.http_status == 409:
                 raise TranslationCommandError(
-                    f"{label}没有提交：任务正在运行，等它结束再试。", result
+                    f"{label}没有提交：{_conflict_hint(result)}", result
                 )
             raise TranslationCommandError(f"{label}没有提交", result)
         data = result.data if isinstance(result.data, dict) else {}
@@ -503,6 +503,34 @@ def _failure(detail: dict[str, Any]) -> dict[str, Any]:
         "stdout": "",
         "stderr": json.dumps(detail, ensure_ascii=False, indent=2) + "\n",
     }
+
+
+#: 后端 409 的 `error.details.reason`（任务当前状态不允许这个操作）-> 给 agent 看的下一步。
+_CONFLICT_HINTS = {
+    "job_active": "任务正在运行，等它结束再试。",
+    "artifacts_missing": "这个任务缺少需要的产物（译文或原始来源），先把前面的阶段跑完。",
+    "ambiguous_request": "上一次请求的结果不确定，需要用户确认后才能重试，不要自己重试。",
+    "request_journal_corrupt": "翻译请求日志损坏，重试不了，需要用户处理。",
+    "model_executor_unsupported": "这个任务绑定了模型执行器，不支持这种重试。",
+    "translations_not_owned": "这个任务用的是别的任务的译文，请到源任务上精修。",
+}
+
+
+def _error_reason(result: CliResult) -> str:
+    """后端错误里稳定的机器可读原因（`error.details.reason`）；没有就是空串。"""
+    response = result.response
+    error = response.get("error") if isinstance(response, dict) else None
+    details = error.get("details") if isinstance(error, dict) else None
+    reason = details.get("reason") if isinstance(details, dict) else None
+    return reason if isinstance(reason, str) else ""
+
+
+def _conflict_hint(result: CliResult) -> str:
+    reason = _error_reason(result)
+    if not reason:
+        # 老后端的 409 不带 reason：当时只有「任务在跑」会走到这里。
+        return _CONFLICT_HINTS["job_active"]
+    return _CONFLICT_HINTS.get(reason) or f"任务当前状态不允许（{reason}）。"
 
 
 def _backend_detail(result: CliResult) -> dict[str, Any]:

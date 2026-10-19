@@ -1,7 +1,7 @@
 use crate::progress::stage_view::build_job_stage_view;
 use retainpdf_api_base::error::AppError;
 use retainpdf_files::build_job_actions;
-use crate::views::{build_job_links_with_workflow, JobSubmissionView};
+use crate::views::{build_job_links_with_workflow, ActionBlockReason, JobSubmissionView};
 use retainpdf_core::models::domain::{JobSnapshot, JobStatusKind, WorkflowKind};
 pub(crate) fn build_submission_view(
     job: &JobSnapshot,
@@ -28,7 +28,7 @@ pub(crate) fn build_submission_view(
 
 pub(crate) fn ensure_cancelable(job: &JobSnapshot) -> Result<(), AppError> {
     if !matches!(job.status, JobStatusKind::Queued | JobStatusKind::Running) {
-        return Err(AppError::conflict(format!(
+        return Err(ActionBlockReason::JobNotActive.conflict(format!(
             "job is not cancelable in status {:?}",
             job.status
         )));

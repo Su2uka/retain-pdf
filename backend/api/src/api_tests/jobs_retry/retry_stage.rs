@@ -44,6 +44,10 @@ async fn rust_model_retry_cannot_bypass_receipt_recovery_with_risk_acceptance() 
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::CONFLICT);
+        assert_eq!(
+            read_json(response).await["error"]["details"]["reason"],
+            "model_executor_unsupported"
+        );
     }
 }
 
@@ -132,6 +136,10 @@ async fn ambiguous_ocr_requires_explicit_resolution_and_can_bind_existing_receip
         .await
         .expect("blocked response");
     assert_eq!(blocked.status(), StatusCode::CONFLICT);
+    assert_eq!(
+        read_json(blocked).await["error"]["details"]["reason"],
+        "ambiguous_request"
+    );
 
     let upload_url = "https://signed.example/upload?token=must-not-leak";
     let stale = build_app(state.clone())
@@ -157,7 +165,9 @@ async fn ambiguous_ocr_requires_explicit_resolution_and_can_bind_existing_receip
         .await
         .expect("stale receipt response");
     assert_eq!(stale.status(), StatusCode::CONFLICT);
-    assert!(!serde_json::to_string(&read_json(stale).await)
+    let stale = read_json(stale).await;
+    assert_eq!(stale["error"]["details"]["reason"], "stale_resolution");
+    assert!(!serde_json::to_string(&stale)
         .expect("stale response json")
         .contains("must-not-leak"));
 
@@ -450,6 +460,9 @@ async fn translation_retry_requires_explicit_duplicate_risk_acceptance() {
         .find(|item| item["stage"] == "translation")
         .expect("translation action");
     assert_eq!(translation_action["danger"], true);
+    // 请求结果不确定：仍可重试（带 accept_duplicate_risk），disabled_code 说明为什么要确认。
+    assert_eq!(translation_action["can_retry"], true);
+    assert_eq!(translation_action["disabled_code"], "ambiguous_request");
     assert_eq!(
         translation_action["action"]["body"]["ambiguous_request_policy"],
         "block"
@@ -469,6 +482,7 @@ async fn translation_retry_requires_explicit_duplicate_risk_acceptance() {
         .expect("blocked retry response");
     assert_eq!(blocked.status(), StatusCode::CONFLICT);
     let blocked_payload = read_json(blocked).await;
+    assert_eq!(blocked_payload["error"]["details"]["reason"], "ambiguous_request");
     assert!(blocked_payload["message"]
         .as_str()
         .unwrap_or_default()
@@ -486,6 +500,10 @@ async fn translation_retry_requires_explicit_duplicate_risk_acceptance() {
         .await
         .expect("generic rerun response");
     assert_eq!(generic_rerun.status(), StatusCode::CONFLICT);
+    assert_eq!(
+        read_json(generic_rerun).await["error"]["details"]["reason"],
+        "ambiguous_request"
+    );
 
     let accepted = build_app(state.clone())
         .oneshot(
@@ -552,6 +570,10 @@ async fn translation_retry_requires_explicit_duplicate_risk_acceptance() {
         .await
         .expect("corrupt retry response");
     assert_eq!(corrupt_retry.status(), StatusCode::CONFLICT);
+    assert_eq!(
+        read_json(corrupt_retry).await["error"]["details"]["reason"],
+        "request_journal_corrupt"
+    );
 }
 
 #[tokio::test]

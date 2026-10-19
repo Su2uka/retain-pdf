@@ -9,6 +9,54 @@
 
 ---
 
+## 0000. 任务操作被拒：状态不允许一律 409，带 `error.details.reason`
+
+分支 `fix/actions-409-reasons`（2026-10-19）。对应审计 B1、B8。规矩见 [错误约定](../../api/00-约定/02-认证与错误.md)。
+
+### 变了什么
+
+1. **状态码**：任务或产物的当前状态不允许 = `409`；请求本身写错了 = `400`。
+   以前 `retry-stage`（ocr / translation / render，含原地重渲染）和 `resume`/`rerun` 在「任务在跑」「产物不在」时返回 `400`，
+   只有精修和取消返回 `409`。现在这些全是 `409`。仍是 `400` 的：`mode` 不支持、`refine` 对象放在非 refine 阶段、
+   `create_new_job=false` 用在 ocr / translation、`create_new_job=true` 用在 refine、`overrides` 不合法、请求体里有不认识的字段。
+2. **稳定原因**：每个任务操作的 `409` 都有 `error.details.reason`（信封其他部分不变）：
+
+   | `reason` | 什么时候 | 接口 |
+   |---|---|---|
+   | `job_active` | 任务在排队/运行，先取消 | retry-stage（所有阶段）、resume/rerun、resolve-ocr-ambiguity |
+   | `job_not_active` | 取消一个不在跑的任务 | cancel |
+   | `artifacts_missing` | 要用的产物或原始来源不在 | retry-stage、resume/rerun |
+   | `translations_not_owned` | 精修的任务渲染的是别的任务的译文 | retry-stage refine |
+   | `ambiguous_request` | OCR 派发或翻译请求结果不确定，要确认 | retry-stage（ocr、translation）、resume/rerun |
+   | `request_journal_corrupt` | 翻译请求日志损坏，确认也修不好 | retry-stage translation、resume/rerun |
+   | `model_executor_unsupported` | 绑定了 Rust 模型执行器，这条旧路径不支持 | retry-stage、resume/rerun |
+   | `stale_resolution` | OCR 歧义的 `resolution_revision` 过期，或被别的请求处理了 | resolve-ocr-ambiguity |
+   | `no_ocr_dispatch` | 没有可处理的 OCR 歧义（已不是失败态，或没有派发记录） | resolve-ocr-ambiguity |
+   | `ocr_dispatch_unsupported` | 该服务商/操作不支持绑定收据 | resolve-ocr-ambiguity |
+
+   `reason` 只增不改，不认识的值按「状态不允许，看 `message`」处理。
+3. **GET 里同一套值**（只增字段）：`GET /jobs/:id/actions` 每个阶段多 `disabled_code`（`disabled_reason` 为空时是 `null`；
+   翻译阶段在请求结果不确定时 `can_retry` 仍为 true、`disabled_code` 是 `ambiguous_request`）；
+   `GET /jobs/:id/actions/resume` 多 `reason_code`（能续跑时 `null`）。
+4. **`retry-stage` 和 `resolve-ocr-ambiguity` 的请求体不认识的字段返回 `400`**（message 形如 ``unknown field `createNewJob`, expected one of ...``）。
+   后端自己在 `GET actions` 里给的 `action.body` 都在可用字段内（有测试锁）。可用字段：`stage`、`mode`、`create_new_job`、`overrides`、
+   `ambiguous_request_policy`、`refine`。
+5. 翻译请求日志损坏（`request_journal_corrupt`）时，`GET actions` 里 translation 的 `can_retry` 现在是 `false`（以前是 `true`，点了必 409）。
+
+### 前端要做什么
+
+- `frontend/web/src/features/job-detail/domain/dialog/resume-actions.ts` 的 `isAmbiguousTranslationRerunError` 和
+  `page/resume.ts` 里调用它的地方：现在靠正则匹配 `409` 和英文 `translation request outcome is ambiguous` 判断。
+  改成读错误体：`error.details.reason === "ambiguous_request"`（需要把 `ApiError` 里的响应体带出来；翻译和 OCR 的歧义同值，
+  要区分就看当前在处理哪个阶段）。损坏的日志是 `request_journal_corrupt`，**不要**再给「接受重复风险」的入口。
+  这两处不改也能用：消息文字没变，旧写法仍然匹配；改了以后不再依赖英文措辞。
+- 凡是判断「任务在跑」的，用 `reason === "job_active"`，不要看 `message`。
+- `retryJobStage` 之类别往请求体里夹 `retry-stage` 不认识的字段（书籍元数据等），否则 `400`。后端侧已核对过目前发的只有
+  `stage`、`mode`、`create_new_job`、`overrides`、`ambiguous_request_policy`、`refine`。
+- 以前依赖「在跑 / 产物不在返回 400」的分支改看 `409`。
+
+---
+
 ## 000. 续跑的正名是 `actions/resume`，任务视图加了 `actions.resume`
 
 分支 `refactor/actions-resume-canonical`（2026-10-19）。只增不改。

@@ -16,7 +16,7 @@ use crate::AppState;
 
 use crate::routes::common::{
     build_jobs_query_route_deps, build_jobs_route_deps, jobs_facade, ok_json, request_base_url,
-    ApiJson, ApiPath, JobsRouteDeps,
+    ApiPath, ApiStrictJson, JobsRouteDeps,
 };
 
 pub async fn get_stage_actions(
@@ -96,7 +96,7 @@ pub async fn retry_stage(
     State(state): State<AppState>,
     ApiPath(job_id): ApiPath<String>,
     headers: HeaderMap,
-    ApiJson(request): ApiJson<RetryStageRequest>,
+    ApiStrictJson(request): ApiStrictJson<RetryStageRequest>,
 ) -> Result<Json<ApiResponse<RetryStageSubmissionView>>, AppError> {
     retry_stage_response(build_jobs_route_deps(&state), &headers, &job_id, request)
 }
@@ -105,7 +105,7 @@ pub async fn resolve_ocr_ambiguity(
     State(state): State<AppState>,
     ApiPath(job_id): ApiPath<String>,
     headers: HeaderMap,
-    ApiJson(request): ApiJson<OcrAmbiguityResolutionRequest>,
+    ApiStrictJson(request): ApiStrictJson<OcrAmbiguityResolutionRequest>,
 ) -> Result<Json<ApiResponse<OcrAmbiguityResolutionView>>, AppError> {
     resolve_ocr_ambiguity_response(build_jobs_route_deps(&state), &headers, &job_id, request)
 }

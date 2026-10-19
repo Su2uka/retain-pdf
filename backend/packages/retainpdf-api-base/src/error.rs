@@ -76,6 +76,17 @@ pub enum AppError {
         message: String,
         details: Value,
     },
+    /// 带稳定机器可读原因的 404 / 409（任务状态不允许、产物没产出……）。
+    ///
+    /// 信封和同状态码的普通错误完全一样（顶层数字 `code`、`error.code`、`message`），
+    /// 只是 `error.details` 多一个 `reason`，客户端按它分支，不必解析 `message`。
+    /// 用 [`AppError::conflict_because`] / [`AppError::not_found_because`] 构造。
+    #[error("{message}")]
+    Reasoned {
+        status: StatusCode,
+        message: String,
+        reason: &'static str,
+    },
     /// 账号、登录、会话的错误（INVALID_CREDENTIALS、ACCOUNT_DISABLED、TOO_MANY_ATTEMPTS……）。
     #[error("{message}")]
     Account {
@@ -207,6 +218,24 @@ impl AppError {
 
     pub fn conflict(msg: impl Into<String>) -> Self {
         Self::Conflict(msg.into())
+    }
+
+    /// 409,`error.details.reason` 写稳定原因(当前状态不允许这个操作)。
+    pub fn conflict_because(reason: &'static str, msg: impl Into<String>) -> Self {
+        Self::Reasoned {
+            status: StatusCode::CONFLICT,
+            message: msg.into(),
+            reason,
+        }
+    }
+
+    /// 404,`error.details.reason` 写稳定原因(记录在,但要的东西还没产出,如 `not_ready`)。
+    pub fn not_found_because(reason: &'static str, msg: impl Into<String>) -> Self {
+        Self::Reasoned {
+            status: StatusCode::NOT_FOUND,
+            message: msg.into(),
+            reason,
+        }
     }
 
     pub fn event_cursor_expired(msg: impl Into<String>) -> Self {
@@ -432,6 +461,27 @@ impl IntoResponse for AppError {
             )
                 .into_response();
         }
+        if let AppError::Reasoned { status, message, reason } = &self {
+            // 只有 404 / 409 有构造方法,信封与对应的普通错误一致。
+            let (code, stable_code) = if *status == StatusCode::NOT_FOUND {
+                (40400, "NOT_FOUND")
+            } else {
+                (40900, "CONFLICT")
+            };
+            return (
+                *status,
+                Json(ErrorBody {
+                    code,
+                    message: message.clone(),
+                    error: StructuredError::with_details(
+                        stable_code,
+                        *status,
+                        json!({ "reason": reason }),
+                    ),
+                }),
+            )
+                .into_response();
+        }
         let (status, code, stable_code) = match &self {
             AppError::Unauthorized(_) => (StatusCode::UNAUTHORIZED, 40100, "UNAUTHORIZED"),
             AppError::Forbidden(_) => (StatusCode::FORBIDDEN, 40300, "FORBIDDEN"),
@@ -471,6 +521,7 @@ impl IntoResponse for AppError {
             AppError::DocumentMetadata { .. } => unreachable!("handled above"),
             AppError::TranslationRevision { .. } => unreachable!("handled above"),
             AppError::Account { .. } => unreachable!("handled above"),
+            AppError::Reasoned { .. } => unreachable!("handled above"),
         };
         let body = match &self {
             AppError::Internal(detail) => {
@@ -705,5 +756,46 @@ mod tests {
             assert_eq!(payload["error"]["http_status"], status.as_u16());
             assert_eq!(payload["error"]["details"], serde_json::json!({}));
         }
+    }
+
+    #[tokio::test]
+    async fn reasoned_errors_keep_plain_envelope_and_put_reason_in_details() {
+        for (error, plain, expected_status) in [
+            (
+                AppError::conflict_because("job_active", "job is queued or running"),
+                AppError::conflict("job is queued or running"),
+                StatusCode::CONFLICT,
+            ),
+            (
+                AppError::not_found_because("not_ready", "report not ready"),
+                AppError::not_found("report not ready"),
+                StatusCode::NOT_FOUND,
+            ),
+        ] {
+            let reason = match &error {
+                AppError::Reasoned { reason, .. } => *reason,
+                _ => unreachable!(),
+            };
+            let (status, mut payload) = response_json(error).await;
+            let (plain_status, plain_payload) = response_json(plain).await;
+            assert_eq!(status, expected_status);
+            assert_eq!(status, plain_status);
+            // 除 error.details 外,和普通错误逐字段一致。
+            assert_eq!(payload["error"]["details"], serde_json::json!({ "reason": reason }));
+            payload["error"]["details"] = serde_json::json!({});
+            assert_eq!(payload, plain_payload);
+        }
+    }
+
+    #[tokio::test]
+    async fn reasoned_conflict_exposes_numeric_code_stable_code_and_reason() {
+        let (status, payload) =
+            response_json(AppError::conflict_because("ambiguous_request", "needs confirmation")).await;
+        assert_eq!(status, StatusCode::CONFLICT);
+        assert_eq!(payload["code"], 40900);
+        assert_eq!(payload["message"], "needs confirmation");
+        assert_eq!(payload["error"]["code"], "CONFLICT");
+        assert_eq!(payload["error"]["http_status"], 409);
+        assert_eq!(payload["error"]["details"]["reason"], "ambiguous_request");
     }
 }

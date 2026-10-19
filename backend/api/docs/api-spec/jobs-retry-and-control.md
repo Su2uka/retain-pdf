@@ -26,6 +26,7 @@ Response:
         "can_retry": true,
         "reason": "",
         "disabled_reason": "",
+        "disabled_code": null,
         "action": {
           "method": "POST",
           "url": "http://127.0.0.1:41000/api/v1/jobs/20260519010101-abcd12/actions/retry-stage",
@@ -144,6 +145,42 @@ Response:
 }
 ```
 
+`disabled_code` (additive, 2026-10-19) is the machine-readable twin of
+`disabled_reason`: `null` when `disabled_reason` is empty, otherwise one of the
+reasons in the table below (the same values a refused `retry-stage` returns in
+`error.details.reason`). Translation with an ambiguous request journal keeps
+`can_retry=true` and reports `disabled_code=ambiguous_request` (retry needs
+`ambiguous_request_policy=accept_duplicate_risk`).
+
+### Refusals: 400 versus 409, and `error.details.reason`
+
+A request that is itself malformed is `400` regardless of the job's state:
+unsupported `mode`, `refine` options on a non-refine stage, `create_new_job=false`
+for `ocr`/`translation`, `create_new_job=true` for `refine`, invalid `overrides`,
+and **any unknown field in the request body** (`RetryStageRequest` and
+`resolve-ocr-ambiguity` use `deny_unknown_fields`; a misspelled
+`createNewJob` used to be ignored and silently created a new job).
+
+A valid request that the job's current state does not allow is `409`, and every
+such `409` carries a stable `error.details.reason` (envelope otherwise identical
+to a plain `CONFLICT`; see
+[`docs/api/00-约定/02-认证与错误.md`](../../../../docs/api/00-约定/02-认证与错误.md)).
+Before 2026-10-19 "job is queued or running" and "required artifacts are missing"
+returned `400` here (refine returned `409`); they are all `409` now.
+
+| `reason` | When | Endpoints |
+|---|---|---|
+| `job_active` | job is queued/running; cancel it first. Checked before everything else | retry-stage (every stage, in place or new job), resume/rerun, resolve-ocr-ambiguity |
+| `job_not_active` | cancel on a job that is not queued/running | cancel |
+| `artifacts_missing` | artifacts or the original source (`upload_id`/`source_url`) the stage or resume plan needs are gone | retry-stage, resume/rerun |
+| `translations_not_owned` | refine target renders another job's translations; refine the source job | retry-stage `stage=refine` |
+| `ambiguous_request` | OCR dispatch or translation request outcome is ambiguous | retry-stage (ocr, translation), resume/rerun |
+| `request_journal_corrupt` | translation request journal is corrupt; `accept_duplicate_risk` cannot repair it | retry-stage `stage=translation`, resume/rerun |
+| `model_executor_unsupported` | job is bound to a Rust model executor; legacy retry/resume/refine is disabled | retry-stage, resume/rerun |
+| `stale_resolution` | `resolution_revision` is stale, or another request already resolved the ambiguity | resolve-ocr-ambiguity |
+| `no_ocr_dispatch` | job is no longer failed, or has no ambiguous OCR dispatch | resolve-ocr-ambiguity |
+| `ocr_dispatch_unsupported` | the ambiguous dispatch is for a provider/operation whose receipt cannot be bound | resolve-ocr-ambiguity |
+
 Request fields:
 
 - `stage`: `ocr`, `translation`, `render`, or `refine`.
@@ -203,8 +240,11 @@ POST /api/v1/jobs/{job_id}/actions/rerun   (old name of actions/resume)
 ```
 
 `GET .../actions/resume` is read-only and returns `can_resume`, `from_stage`,
-`resume_workflow`, `reuses_artifacts`, `reruns_stages`, and a disabling
-`reason`. `POST .../actions/resume` executes the server-selected plan.
+`resume_workflow`, `reuses_artifacts`, `reruns_stages`, a disabling
+`reason` and its machine-readable twin `reason_code` (additive, `null` when
+`can_resume` is true; same values as the table above: `job_active`,
+`model_executor_unsupported`, `ambiguous_request`, `request_journal_corrupt`,
+`artifacts_missing`). `POST .../actions/resume` executes the server-selected plan.
 `actions/rerun` is the old name of the same handler (marked `old` in the
 endpoint registry since 2026-10-19); new code posts to `actions/resume` and reads
 the `actions.resume` link of job views (`actions.rerun` carries the same value
@@ -215,8 +255,11 @@ or explicitly accept an ambiguous translation-request risk.
 If committed translations are available, generic rerun performs an in-place
 render using the same job id. If only reusable OCR artifacts are available, it
 creates a new recovery job and can seed a compatible translation checkpoint.
-Queued/running jobs cannot be resumed. A durable ambiguous OCR dispatch or
-translation request blocks generic rerun with `409`; the caller must use the
+Queued/running jobs cannot be resumed (`409`, `reason=job_active`). When no
+checkpoint is usable the POST is also `409` (`reason=artifacts_missing`), not
+`400`. A durable ambiguous OCR dispatch or
+translation request blocks generic rerun with `409` (`reason=ambiguous_request`;
+`request_journal_corrupt` when the journal is corrupt); the caller must use the
 explicit recovery route described below or `actions/retry-stage` with the documented
 duplicate-risk policy.
 
@@ -254,7 +297,10 @@ must not include receipt fields and creates a new OCR retry with explicit
 duplicate-submit acceptance. The job must still be failed, the dispatch must
 still be ambiguous, and `resolution_revision` must equal the dispatch
 generation; otherwise the backend returns `409` so stale UI state cannot bind
-the wrong dispatch.
+the wrong dispatch. The `reason` says which precondition failed: `job_active`
+(queued/running), `no_ocr_dispatch` (not failed, or nothing ambiguous),
+`stale_resolution` (revision mismatch, or lost the race to another request).
+Unknown request fields are `400`.
 
 The response contains only `resolution`, `provider`, `operation`, and the new
 retry `submission`. It never echoes receipt values. In particular,
@@ -271,6 +317,9 @@ Current intent:
 
 - best-effort kill of the running Python worker process
 - mark job as `canceled`
+
+Cancelling a job that is not queued/running returns `409` with
+`error.details.reason = "job_not_active"`.
 
 Cancel always terminates the worker process. There is no stage that gets to
 finish first.

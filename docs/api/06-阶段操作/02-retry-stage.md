@@ -41,6 +41,16 @@ POST /api/v1/jobs/{job_id}/actions/retry-stage
   用 `start_page` 从那一页接着精修。
   这次的精修参数是一次性的，不会写进任务的 `translation.refine`；报告见 `GET /api/v1/jobs/{job_id}/reports/refine`。
 
+## 请求规则
+
+- 请求体里不认识的字段一律返回 `400`（例如把 `create_new_job` 拼成 `createNewJob`）。可用字段：`stage`、`mode`、`create_new_job`、`overrides`、`ambiguous_request_policy`、`refine`。
+- 请求本身写错了返回 `400`：`mode` 不是 `from_stage`、`refine` 对象用在非 `refine` 阶段、`create_new_job=false` 用在 `ocr` / `translation`、`create_new_job=true` 用在 `refine`、`overrides` 不合法。这些和任务当前状态无关。
+- 请求没问题但任务或产物现在不允许返回 `409`，`error.details.reason` 说明原因：`job_active`（任务在跑）、
+  `artifacts_missing`（要用的产物或来源不在）、`translations_not_owned`（精修的任务渲染的是别的任务的译文）、
+  `ambiguous_request`（请求结果不确定，要带 `ambiguous_request_policy=accept_duplicate_risk` 或先 `resolve-ocr-ambiguity`）、
+  `request_journal_corrupt`（翻译请求日志损坏）、`model_executor_unsupported`（绑定了 Rust 模型执行器）。
+  完整表格见 [错误约定](../00-约定/02-认证与错误.md#任务操作的-409-原因)。以前这些情况里「任务在跑」「产物不在」返回 400，现在统一 409。
+
 ## 响应示例
 
 ```json

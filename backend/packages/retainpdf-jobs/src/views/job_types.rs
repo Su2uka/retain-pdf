@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use retainpdf_api_base::error::AppError;
 use retainpdf_core::models::{
     JobFailureInfo, JobRuntimeInfo, JobStatusKind, OcrProviderDiagnostics, PublicResolvedJobSpec,
     WorkflowKind,
@@ -250,6 +251,8 @@ pub struct JobResumePlanView {
     pub reuses_artifacts: Vec<String>,
     pub reruns_stages: Vec<String>,
     pub reason: Option<String>,
+    /// `reason` 的机器可读版本，能续跑时为 null。取值见 [`ActionBlockReason`]。
+    pub reason_code: Option<ActionBlockReason>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
@@ -261,6 +264,58 @@ pub enum RetryStageKind {
     /// 精修已提交的译文（挑错 + 定点修改），然后原地重渲染一次。只支持
     /// `create_new_job=false`：不新建任务、不重翻；精修参数见 [`RefineRetryRequest`]。
     Refine,
+}
+
+/// 「任务/产物的当前状态不允许这个操作」的稳定机器可读原因。
+///
+/// 操作被拒时放进 409 的 `error.details.reason`；GET 里把同一个值放在
+/// `disabled_code`（阶段操作）/ `reason_code`（续跑计划），文字说明另有 `disabled_reason` / `reason`。
+/// 值只增不改，客户端按它分支，不要解析文字说明。
+#[derive(Debug, Serialize, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ActionBlockReason {
+    /// 任务排队中或在跑，先取消。
+    JobActive,
+    /// 取消一个不在排队/运行的任务。
+    JobNotActive,
+    /// 这个阶段 / 续跑要用的产物或原始来源不在了。
+    ArtifactsMissing,
+    /// 精修要写回任务自己的译文目录，但这个任务渲染的是别的任务的译文。
+    TranslationsNotOwned,
+    /// OCR 或翻译的请求结果不确定，要先处理歧义或接受重复请求风险。
+    AmbiguousRequest,
+    /// 翻译请求日志损坏，接受重复风险也修不好。
+    RequestJournalCorrupt,
+    /// Rust 模型执行器绑定的任务不能走这条旧路径。
+    ModelExecutorUnsupported,
+    /// OCR 歧义处理的 revision 过期，或已被别的请求处理。
+    StaleResolution,
+    /// 任务没有可处理的 OCR 歧义（已不是失败态，或没有记录在案的派发）。
+    NoOcrDispatch,
+    /// 歧义的 OCR 派发属于不支持绑定收据的服务商/操作。
+    OcrDispatchUnsupported,
+}
+
+impl ActionBlockReason {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::JobActive => "job_active",
+            Self::JobNotActive => "job_not_active",
+            Self::ArtifactsMissing => "artifacts_missing",
+            Self::TranslationsNotOwned => "translations_not_owned",
+            Self::AmbiguousRequest => "ambiguous_request",
+            Self::RequestJournalCorrupt => "request_journal_corrupt",
+            Self::ModelExecutorUnsupported => "model_executor_unsupported",
+            Self::StaleResolution => "stale_resolution",
+            Self::NoOcrDispatch => "no_ocr_dispatch",
+            Self::OcrDispatchUnsupported => "ocr_dispatch_unsupported",
+        }
+    }
+
+    /// 409，`error.details.reason` 写这个原因。
+    pub fn conflict(self, message: impl Into<String>) -> AppError {
+        AppError::conflict_because(self.as_str(), message)
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Default)]
@@ -315,6 +370,10 @@ pub struct StageRetryActionView {
     pub can_retry: bool,
     pub reason: String,
     pub disabled_reason: String,
+    /// `disabled_reason` 的机器可读版本；`disabled_reason` 为空时为 null。
+    /// 翻译阶段在请求结果不确定时 `can_retry` 仍为 true，这里是 `ambiguous_request`
+    /// （重试要带 `ambiguous_request_policy=accept_duplicate_risk`）。
+    pub disabled_code: Option<ActionBlockReason>,
     pub action: Option<StageRetryActionLinkView>,
     pub will_reuse: Vec<String>,
     pub will_rerun: Vec<String>,
@@ -365,7 +424,9 @@ pub struct StageActionsView {
     pub stages: Vec<StageRetryActionView>,
 }
 
+/// 不认识的字段一律 400（以前拼错 `create_new_job` 会悄悄按默认值处理）。
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct RetryStageRequest {
     pub stage: RetryStageKind,
     #[serde(default = "default_retry_stage_mode")]
