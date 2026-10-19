@@ -9,6 +9,14 @@
 
 ---
 
+
+## 00000. 请求体里不认识的字段一律 400
+
+分支 `fix/unknown-fields-400`（2026-10-19）。所有用 `ApiJson` 读、目标类型 `deny_unknown_fields` 的请求体（邀请码、agent 会话、
+译文修订 PATCH、retry-stage、resolve-ocr-ambiguity……），遇到不认识的字段从 `422 UNPROCESSABLE_ENTITY` 改成 `400 BAD_REQUEST`，
+message 形如 ``unknown field `x`, expected one of ... in the request body``（只带字段名，不带值）。字段类型不对、缺字段、
+枚举值不认识仍是 `422`。前端核对过没有地方按 `422` 判断，不用改。
+
 ## 0000. 任务操作被拒：状态不允许一律 409，带 `error.details.reason`
 
 分支 `fix/actions-409-reasons`（2026-10-19）。对应审计 B1、B8。规矩见 [错误约定](../../api/00-约定/02-认证与错误.md)。
