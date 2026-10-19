@@ -30,6 +30,8 @@ const MAX_REVISION_TEXT_CHARS: usize = 20_000;
 const MAX_REVISION_REASON_CHARS: usize = 2_000;
 /// 写回只读写本任务的几十个页文件,正常是亚秒级;超时说明进程卡住了。
 const REVISION_TIMEOUT: Duration = Duration::from_secs(120);
+/// 重翻一条要调一次模型,比写回慢得多;超时说明进程或上游卡住了,进程随请求一起被杀。
+pub(super) const REPLAY_TIMEOUT: Duration = Duration::from_secs(300);
 
 /// Python 子命令的成功结果(committed / unchanged)。
 pub(crate) struct RevisionOutcome {
