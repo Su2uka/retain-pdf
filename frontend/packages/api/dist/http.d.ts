@@ -10,7 +10,13 @@ export interface HttpError extends Error {
     url?: string;
     /** true 表示被 submitJson 的 timeoutMs 中止，而非对端返回了错误。 */
     timedOut?: boolean;
+    /** 后端错误里的 error.code（如 "CONFLICT"）。 */
+    errorCode?: string;
+    /** 后端错误里的 error.details.reason：409 用它说明为什么不允许（job_active、artifacts_missing…）。 */
+    reason?: string;
 }
+/** 读后端错误信封里的 error.code 和 error.details.reason，挂到错误对象上。 */
+export declare function attachErrorDetails(error: HttpError, errorPayload: any): HttpError;
 /** 多用户按页额度：建任务时余额不够，后端回 402 + 这个错误码，message 是给用户看的中文。 */
 export declare const PAGE_QUOTA_EXCEEDED = "PAGE_QUOTA_EXCEEDED";
 export interface PageQuotaError extends HttpError {
