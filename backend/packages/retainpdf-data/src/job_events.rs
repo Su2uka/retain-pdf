@@ -16,6 +16,74 @@ use derivation::{
 };
 use jsonl::append_event_jsonl;
 
+tokio::task_local! {
+    /// 当前 driver 所属的运行：`(任务编号, 运行代次)`。见 [`with_driver_run`]。
+    static DRIVER_RUN: (String, u64);
+}
+
+/// 让 `fut`（一个任务的 driver 及其内联的全部阶段）里对**这个任务**的 CAS 写，一律以 driver
+/// 自己那次运行的代次为准，而不是写入时手里那份快照带的代次。
+///
+/// 快照是随手 `get_job` 读来的：上一次运行遗留的 driver 在任务被原地重跑之后再读一次，读到的
+/// 就是新一次运行的代次，CAS 会放行它。把代次钉在 driver 上，旧 driver 无论重读多少次都是旧代次。
+/// 别的任务（OCR 子任务）的写不受影响。
+pub async fn with_driver_run<F: std::future::Future>(
+    job_id: String,
+    generation: u64,
+    fut: F,
+) -> F::Output {
+    DRIVER_RUN.scope((job_id, generation), fut).await
+}
+
+/// 当前 driver 钉住的代次（只在 `job_id` 就是 driver 所属任务时有值）。
+pub fn driver_run_generation(job_id: &str) -> Option<u64> {
+    DRIVER_RUN
+        .try_with(|(pinned_job, generation)| (pinned_job == job_id).then_some(*generation))
+        .ok()
+        .flatten()
+}
+
+/// 当前 driver 的钉住信息，给 `tokio::spawn` 出去的子任务带过去（task-local 不跨 spawn）。
+pub fn current_driver_run() -> Option<(String, u64)> {
+    DRIVER_RUN.try_with(|run| run.clone()).ok()
+}
+
+/// 在 `run`（来自 [`current_driver_run`]）下执行 `fut`；`run` 为空就原样执行。
+pub async fn with_optional_driver_run<F: std::future::Future>(
+    run: Option<(String, u64)>,
+    fut: F,
+) -> F::Output {
+    match run {
+        Some((job_id, generation)) => with_driver_run(job_id, generation, fut).await,
+        None => fut.await,
+    }
+}
+
+fn pinned_for_write(job: &JobSnapshot) -> JobSnapshot {
+    let mut current = job.clone();
+    current.sync_runtime_state();
+    if let Some(generation) = driver_run_generation(&current.job_id) {
+        current.run_generation = generation;
+    }
+    current
+}
+
+/// 开始一次新的运行：整行落库并把 `run_generation` 加一（见 `Db::save_job_as_new_run`），
+/// 返回的快照带着新代次。事件的派生同 [`persist_job_with_resources`]。
+pub fn persist_job_as_new_run_with_resources(
+    db: &Db,
+    data_root: &Path,
+    output_root: &Path,
+    job: &JobSnapshot,
+) -> Result<JobSnapshot> {
+    let previous = db.get_job(&job.job_id).ok();
+    let mut current = job.clone();
+    current.sync_runtime_state();
+    current.run_generation = db.save_job_as_new_run(&current)?;
+    emit_job_events_best_effort(db, data_root, output_root, previous.as_ref(), &current);
+    Ok(current)
+}
+
 pub fn persist_job_with_resources(
     db: &Db,
     data_root: &Path,
@@ -38,8 +106,7 @@ pub fn cas_persist_job_with_resources(
     expected_statuses: &[&str],
 ) -> Result<bool> {
     let previous = db.get_job(&job.job_id).ok();
-    let mut current = job.clone();
-    current.sync_runtime_state();
+    let current = pinned_for_write(job);
     let updated = db.cas_save_job(&current, expected_statuses)?;
     if updated {
         emit_job_events_best_effort(db, data_root, output_root, previous.as_ref(), &current);
@@ -61,8 +128,7 @@ pub fn cas_persist_job_row_without_events(
     job: &JobSnapshot,
     expected_statuses: &[&str],
 ) -> Result<bool> {
-    let mut current = job.clone();
-    current.sync_runtime_state();
+    let current = pinned_for_write(job);
     db.cas_save_job(&current, expected_statuses)
 }
 

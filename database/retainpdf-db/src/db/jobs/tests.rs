@@ -433,3 +433,37 @@ fn title_contains_matches_the_document_title_or_the_callback() {
     assert_eq!(ids(&select("mechanics 2e")), ["3-renamed", "2-by-callback"]);
     assert_eq!(ids(&select("biology")), ["2-by-callback"]);
 }
+
+/// 运行代次：`save_job_as_new_run` 每次加一，CAS 只认当前代次；普通整行写不动它。
+#[test]
+fn run_generation_fences_cas_writes_from_earlier_runs() {
+    let test = TestDb::new();
+    test.seed("gen", WorkflowKind::Book, JobStatusKind::Queued, OcrProviderKind::Paddle);
+    assert_eq!(test.db.job_run_generation("gen").unwrap(), Some(0));
+    assert_eq!(test.db.job_run_generation("missing").unwrap(), None);
+
+    // 旧运行读到的快照（代次 0）。
+    let old_run = test.db.get_job("gen").unwrap();
+    assert_eq!(old_run.run_generation, 0);
+
+    // 原地重跑：整行落库并开启新的一次运行。
+    let mut rerun = old_run.clone();
+    rerun.status = JobStatusKind::Queued;
+    assert_eq!(test.db.save_job_as_new_run(&rerun).unwrap(), 1);
+    assert_eq!(test.db.get_job("gen").unwrap().run_generation, 1);
+
+    // 旧运行的终态写：状态对（queued）、代次不对 → 落空，新一次运行的行原样。
+    let mut stale = old_run.clone();
+    stale.status = JobStatusKind::Canceled;
+    assert!(!test.db.cas_save_job(&stale, &["queued", "running"]).unwrap());
+    assert_eq!(test.db.get_job("gen").unwrap().status, JobStatusKind::Queued);
+
+    // 新一次运行读到的快照写得进去。
+    let mut current = test.db.get_job("gen").unwrap();
+    current.status = JobStatusKind::Running;
+    assert!(test.db.cas_save_job(&current, &["queued", "running"]).unwrap());
+
+    // 普通整行写（启动恢复等）不改代次。
+    test.db.save_job(&current).unwrap();
+    assert_eq!(test.db.job_run_generation("gen").unwrap(), Some(1));
+}

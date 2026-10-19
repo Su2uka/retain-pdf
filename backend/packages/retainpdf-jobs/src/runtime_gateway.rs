@@ -27,6 +27,13 @@ pub use retainpdf_runner::job_runner::{
 };
 use retainpdf_proc::terminate_job_process_tree;
 
+/// 远端发射失败后的重试间隔（共重试 3 次，加上第一次一共 4 次尝试）。
+const LAUNCH_RETRY_DELAYS: [std::time::Duration; 3] = [
+    std::time::Duration::from_millis(300),
+    std::time::Duration::from_millis(1_000),
+    std::time::Duration::from_millis(3_000),
+];
+
 /// 内部 HTTP 客户端：把接缝操作转发给 retain-jobsd。
 #[derive(Clone)]
 pub struct JobsClient {
@@ -94,19 +101,37 @@ impl JobRuntime {
         }
     }
 
-    /// 远端发射：fire-and-forget，与进程内闭包同语义（受理即返回）。
+    /// 远端发射：把任务交给 jobsd（受理即返回，任务在 jobsd 里异步跑）。
     /// 进程内模式不走这里——它需要应用装配层的运行时依赖，闭包在
     /// app/jobs.rs 就地构造（服务层不得触碰应用状态，见架构门禁）。
-    pub async fn launch_remote(&self, job_id: String) {
+    ///
+    /// 转发失败（jobsd 重启中、连接抖动）会重试几次；仍失败就把错误交回调用方，由它把任务落成
+    /// 失败——不能只打一行日志，否则行停在 queued，没人会去跑它。
+    pub async fn launch_remote(&self, job_id: String) -> Result<(), AppError> {
         let Self::Remote { client } = self else {
-            tracing::error!("launch_remote 被进程内运行时调用，任务未发射 job={job_id}");
-            return;
+            return Err(AppError::internal(format!(
+                "launch_remote 被进程内运行时调用，任务未发射 job={job_id}"
+            )));
         };
-        if let Err(error) = client
-            .post(&format!("/internal/v1/jobs/{job_id}/launch"))
-            .await
-        {
-            tracing::error!("launch 转发任务服务失败 job={job_id}: {error}");
+        let path = format!("/internal/v1/jobs/{job_id}/launch");
+        for (attempt, delay) in LAUNCH_RETRY_DELAYS.iter().enumerate() {
+            match client.post(&path).await {
+                Ok(()) => return Ok(()),
+                Err(error) => {
+                    tracing::error!(
+                        "launch 转发任务服务失败 job={job_id}（第 {} 次）: {error}",
+                        attempt + 1
+                    );
+                    tokio::time::sleep(*delay).await;
+                }
+            }
+        }
+        match client.post(&path).await {
+            Ok(()) => Ok(()),
+            Err(error) => {
+                tracing::error!("launch 转发任务服务最终失败 job={job_id}: {error}");
+                Err(error)
+            }
         }
     }
 

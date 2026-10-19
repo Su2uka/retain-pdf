@@ -314,6 +314,8 @@ impl Db {
         // New migrations can reference these columns on pre-library databases.
         // Ensure them before running the migration ladder, not after connect().
         ensure_jobs_column(conn, "document_id", "TEXT")?;
+        // 运行代次：每次建/重新发射一次运行加一，CAS 写按它认"是不是同一次运行"。
+        ensure_jobs_column(conn, "run_generation", "INTEGER NOT NULL DEFAULT 0")?;
         for column in ["stage_detail", "provider", "provider_stage", "event_type"] {
             ensure_events_column(conn, column, "TEXT")?;
         }

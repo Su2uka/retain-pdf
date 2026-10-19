@@ -5,7 +5,7 @@ use crate::models::domain::{
     JobFailureInfo, JobRuntimeInfo, JobSnapshot, JobStatusKind, WorkflowKind,
 };
 
-use super::rows::{row_to_job_snapshot, JOB_SELECT_SQL};
+use super::rows::{row_to_job_snapshot, JOB_SELECT_SQL, JOB_SELECT_SQL_WITH_GENERATION};
 use super::{Db, JobProcessRecord};
 
 /// Read-side selection. Pagination is applied to valid, matching snapshots, not
@@ -176,10 +176,15 @@ impl Db {
         let conn = self.connect()?;
         // 「没有这条记录」和「有记录但读不出来」要分开报：后者通常是进程版本比写入方旧（新任务带了
         // 它不认识的字段），报成 not found 会让人去查错地方。
+        // 同一条语句顺带取 run_generation（追加在 JOB_SELECT_SQL 末尾，列号 21）：CAS 写拿它认「哪一次运行」。
         match conn.query_row(
-            &format!("{JOB_SELECT_SQL} WHERE jobs.job_id = ?1"),
+            &format!("{JOB_SELECT_SQL_WITH_GENERATION} WHERE jobs.job_id = ?1"),
             params![job_id],
-            row_to_job_snapshot,
+            |row| {
+                let mut job = row_to_job_snapshot(row)?;
+                job.run_generation = row.get::<_, i64>(21)?.max(0) as u64;
+                Ok(job)
+            },
         ) {
             Ok(job) => Ok(job),
             // 保留原始错误：调用方按 QueryReturnedNoRows 判 404。
