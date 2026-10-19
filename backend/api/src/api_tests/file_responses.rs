@@ -175,6 +175,8 @@ fn requests() -> Vec<(&'static str, String, Option<(&'static str, &'static str)>
         ("新报错：没有这个文件", format!("{j}/files/output/translated.PDF"), None),
         ("新报错：layout.json 和 ocr-provider/result.json 重复，只留后者", format!("{j}/files/internal/layout.json"), None),
         ("新报错：页码从 1 开始", format!("{j}/files/pages/0.jpg"), None),
+        ("新报错：页码超过总页数", format!("{j}/files/pages/2.jpg"), None),
+        ("新报错：书的页码超过总页数", "/api/v1/documents/{doc}/files/pages/2.jpg".to_string(), None),
         ("新报错：书没有这个文件", "/api/v1/documents/{doc}/files/cover.png".to_string(), None),
         ("新报错：还在跑，不能打包", format!("{r}/files/output/all.zip"), None),
         // 出错的情况：前端按这些状态码和提示走分支。
