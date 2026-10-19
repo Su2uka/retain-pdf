@@ -12,7 +12,8 @@ use retainpdf_core::translation_request_journal::{
 };
 
 use super::lifecycle::maintain_document_for_terminal;
-use super::worker_process::{terminate_job_process_tree_blocking, worker_process_exists};
+use super::worker_identity::{classify_process_record, RecordedWorker};
+use super::worker_process::terminate_job_process_tree_blocking;
 
 /// Why a `Running`-status job found when its owning runtime starts is being reconciled.
 enum StaleReason {
@@ -23,6 +24,8 @@ enum StaleReason {
     /// The recorded pid is still alive, but the owning runtime restarted and
     /// can no longer consume its stdout or mark it finished.
     Orphaned(u32),
+    /// 这个 pid 现在有进程，但核对身份不是记录里的 worker（号被复用了）：不杀，只清 pid。
+    Reused(u32),
 }
 
 /// 重启前翻译阶段结果不明的请求：失败分类（登记在 job_failure_catalogue）。
@@ -75,9 +78,18 @@ pub(super) fn reconcile_running_jobs_matching(
         if !include(&job_record) {
             continue;
         }
-        let reason = match job_record.pid {
-            Some(pid) if worker_process_exists(pid) => StaleReason::Orphaned(pid),
-            Some(pid) => StaleReason::Dead(pid),
+        // 杀之前核对身份：库里的 pid 可能早就归了别的进程（长时间宕机、重启机器之后），
+        // 只凭 `kill(pid, 0)` 会把它整组杀掉。见 worker_identity.rs。
+        let reason = match classify_process_record(&job_record) {
+            Some((pid, RecordedWorker::Ours)) => StaleReason::Orphaned(pid),
+            Some((pid, RecordedWorker::Gone)) => StaleReason::Dead(pid),
+            Some((pid, RecordedWorker::NotOurs)) => {
+                warn!(
+                    "runtime startup: recorded worker pid={pid} of job {} now belongs to another process (pid reused); leaving it alone",
+                    job_record.job_id
+                );
+                StaleReason::Reused(pid)
+            }
             None => StaleReason::NoPid,
         };
 
@@ -108,6 +120,13 @@ pub(super) fn reconcile_running_jobs_matching(
             ),
             StaleReason::Dead(pid) => (
                 format!("任务运行时启动时发现遗留 running 任务，但 worker 进程 {pid} 已不存在"),
+                "worker_process_missing",
+                "worker_process_missing",
+            ),
+            StaleReason::Reused(pid) => (
+                format!(
+                    "任务运行时启动时发现遗留 running 任务，worker 已不存在：库里记的 pid {pid} 现在属于别的进程（pid 已被复用），没有终止它"
+                ),
                 "worker_process_missing",
                 "worker_process_missing",
             ),
@@ -718,5 +737,107 @@ mod tests {
             db.get_document(&document_id).unwrap().active_job_id.as_deref(),
             Some("only")
         );
+    }
+
+    /// 自成进程组的 sleep，和真实 worker 一样（`configure_child_process`），组杀只会打到它。
+    #[cfg(unix)]
+    fn spawn_group_leader_sleep() -> std::process::Child {
+        use std::os::unix::process::CommandExt;
+        std::process::Command::new("sleep")
+            .arg("60")
+            .process_group(0)
+            .spawn()
+            .expect("spawn sleep")
+    }
+
+    #[cfg(unix)]
+    fn seed_running_with_pid(db: &crate::db::Db, id: &str, pid: u32, updated_at: Option<&str>) {
+        let mut job = JobSnapshot::new(id.to_string(), CreateJobInput::default(), vec![]);
+        job.status = crate::models::domain::JobStatusKind::Running;
+        job.stage = Some("translating".to_string());
+        job.pid = Some(pid);
+        if let Some(updated_at) = updated_at {
+            job.updated_at = updated_at.to_string();
+        }
+        db.save_job(&job).expect("save job");
+    }
+
+    #[cfg(unix)]
+    fn still_running(child: &mut std::process::Child) -> bool {
+        // 给 SIGTERM 一点时间生效，免得「还没来得及死」被当成「没杀」。
+        std::thread::sleep(std::time::Duration::from_millis(200));
+        child.try_wait().expect("poll child").is_none()
+    }
+
+    /// 回归（状态审计 1-#9 / 6-#3）：库里记的 pid 已经被别的进程复用（身份对不上），启动对账不能
+    /// 把它整组杀掉，只清 pid、按 worker 已不在处理。
+    #[cfg(any(target_os = "linux", target_os = "macos"))]
+    #[test]
+    fn startup_recovery_does_not_kill_a_process_that_reused_the_recorded_pid() {
+        use crate::models::domain::JobStatusKind::*;
+        let deps = crate::job_runner::process_runner::tests::test_runtime_deps(1);
+        let db = deps.db.as_ref();
+        let mut stranger = spawn_group_leader_sleep();
+        let pid = stranger.id();
+        seed_running_with_pid(db, "reused", pid, None);
+        // 当初那个 worker 的身份：同一个 pid、另一个启动时间。
+        db.record_worker_identity("reused", Some(&format!("{pid}@darwin:1.000000")))
+            .unwrap();
+
+        super::reconcile_stale_running_jobs(&deps.config, db).expect("startup recovery");
+
+        assert!(still_running(&mut stranger), "pid 被复用的别的进程被启动对账杀掉了");
+        let job = db.get_job("reused").unwrap();
+        assert_eq!(job.status, Failed);
+        assert_eq!(job.pid, None);
+        assert!(
+            job.error.as_deref().is_some_and(|detail| detail.contains("复用")),
+            "{:?}",
+            job.error
+        );
+        let _ = stranger.kill();
+        let _ = stranger.wait();
+        let _ = fs::remove_dir_all(deps.config.project_root.clone());
+    }
+
+    /// 升级前写的老行没有身份信息：进程启动得比任务行最后一次写入还晚得多（重启机器、长时间
+    /// 宕机后 pid 被复用的典型情形），不能是那一行记的 worker，不杀。
+    #[cfg(any(target_os = "linux", target_os = "macos"))]
+    #[test]
+    fn startup_recovery_spares_a_legacy_pid_that_started_after_the_row_was_last_written() {
+        let deps = crate::job_runner::process_runner::tests::test_runtime_deps(1);
+        let db = deps.db.as_ref();
+        let mut stranger = spawn_group_leader_sleep();
+        seed_running_with_pid(db, "legacy", stranger.id(), Some("2020-01-01T00:00:00Z"));
+
+        super::reconcile_stale_running_jobs(&deps.config, db).expect("startup recovery");
+
+        assert!(still_running(&mut stranger), "老行的 pid 晚于任务行写入才起来，仍被杀了");
+        assert_eq!(db.get_job("legacy").unwrap().pid, None);
+        let _ = stranger.kill();
+        let _ = stranger.wait();
+        let _ = fs::remove_dir_all(deps.config.project_root.clone());
+    }
+
+    /// 身份对得上的孤儿 worker 照旧要杀：哪怕任务行很久没写过（worker 跑了很久）。
+    #[cfg(any(target_os = "linux", target_os = "macos"))]
+    #[test]
+    fn startup_recovery_still_kills_its_own_orphan_worker() {
+        let deps = crate::job_runner::process_runner::tests::test_runtime_deps(1);
+        let db = deps.db.as_ref();
+        let mut orphan = spawn_group_leader_sleep();
+        let pid = orphan.id();
+        seed_running_with_pid(db, "orphan", pid, Some("2020-01-01T00:00:00Z"));
+        db.record_worker_identity("orphan", retainpdf_proc::process_identity(pid).as_deref())
+            .unwrap();
+
+        super::reconcile_stale_running_jobs(&deps.config, db).expect("startup recovery");
+
+        let status = orphan.wait().expect("reap orphan");
+        assert!(!status.success(), "孤儿 worker 应被信号终止");
+        let job = db.get_job("orphan").unwrap();
+        assert_eq!(job.pid, None);
+        assert!(job.error.as_deref().is_some_and(|detail| detail.contains("孤儿")));
+        let _ = fs::remove_dir_all(deps.config.project_root.clone());
     }
 }

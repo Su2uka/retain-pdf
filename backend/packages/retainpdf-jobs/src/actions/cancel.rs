@@ -2,7 +2,7 @@ use retainpdf_data::db::Db;
 use retainpdf_api_base::error::AppError;
 use retainpdf_data::job_events::cas_persist_job_with_resources;
 use retainpdf_core::models::domain::{now_iso, JobSnapshot, JobStatusKind, WorkflowKind};
-use crate::runtime_gateway::terminate_runtime_process;
+use crate::runtime_gateway::terminate_job_worker;
 
 use retainpdf_api_base::job_loading::load_job_or_404;
 use crate::deps::ControlDeps;
@@ -48,8 +48,11 @@ pub(crate) async fn cancel_job(
     //
     // 代价则是实打实的：豁免期间进程继续跑，而 job 在 DB 里既没被杀也没落终态，
     // 用户点了取消却要等它自然结束。
+    //
+    // 杀之前核对库里记的 pid 还是这个任务的 worker（见 `terminate_job_worker`）。
     if let Some(pid) = job.pid {
-        terminate_runtime_process(deps.runtime.job_runtime(), pid, deps.job_runner).await?;
+        terminate_job_worker(deps.runtime.job_runtime(), deps.db, job_id, pid, deps.job_runner)
+            .await?;
     }
     // 按任务类型分支，不按走的是哪条路由。
     if matches!(job.workflow, WorkflowKind::Ocr) {

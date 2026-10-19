@@ -390,25 +390,68 @@ impl Db {
         let status_json = serde_json::to_string(status)?;
         let mut stmt = conn.prepare(
             r#"
-            SELECT job_id, pid, stage, updated_at
+            SELECT job_id, pid, stage, updated_at, worker_identity
             FROM jobs
             WHERE status_json = ?1
             ORDER BY updated_at DESC
             "#,
         )?;
-        let rows = stmt.query_map(params![status_json], |row| {
-            Ok(JobProcessRecord {
-                job_id: row.get(0)?,
-                pid: row.get::<_, Option<i64>>(1)?.map(|value| value as u32),
-                stage: row.get(2)?,
-                updated_at: row.get(3)?,
-            })
-        })?;
+        let rows = stmt.query_map(params![status_json], job_process_record_from_row)?;
         let mut jobs = Vec::new();
         for row in rows {
             jobs.push(row?);
         }
         Ok(jobs)
+    }
+
+    /// 状态为 `status`、库里记的 worker pid 是 `pid` 的任务（正常情况下至多一条）。
+    /// jobsd 的 terminate 接口据此判断这个 pid 是不是它登记过的 worker。
+    pub fn list_job_process_records_with_pid(
+        &self,
+        pid: u32,
+        status: &JobStatusKind,
+    ) -> Result<Vec<JobProcessRecord>> {
+        let conn = self.connect()?;
+        let status_json = serde_json::to_string(status)?;
+        let mut stmt = conn.prepare(
+            r#"
+            SELECT job_id, pid, stage, updated_at, worker_identity
+            FROM jobs
+            WHERE pid = ?1 AND status_json = ?2
+            "#,
+        )?;
+        let rows = stmt.query_map(params![pid as i64, status_json], job_process_record_from_row)?;
+        let mut jobs = Vec::new();
+        for row in rows {
+            jobs.push(row?);
+        }
+        Ok(jobs)
+    }
+
+    /// 一个任务的 pid 和进程身份；任务不存在时 None。
+    pub fn job_process_record(&self, job_id: &str) -> Result<Option<JobProcessRecord>> {
+        let conn = self.connect()?;
+        conn.query_row(
+            "SELECT job_id, pid, stage, updated_at, worker_identity FROM jobs WHERE job_id = ?1",
+            params![job_id],
+            job_process_record_from_row,
+        )
+        .optional()
+        .map_err(Into::into)
+    }
+
+    /// 记下刚 spawn 的 worker 的进程身份（`<pid>@<指纹>`，读不到时 None）。
+    ///
+    /// 要在把新 pid 写进任务行**之前**调：身份串自带 pid，中间崩了，库里的旧 pid 和新身份对不上，
+    /// 核对时按「没有身份信息」处理；反过来先写 pid 再写身份，中间崩了新 worker 就没有身份可核对。
+    /// 任务行的 upsert（`save_job` 等）不碰这一列，所以清 pid 时它会留着，但它和下一个 pid 对不上，不会被误认。
+    pub fn record_worker_identity(&self, job_id: &str, identity: Option<&str>) -> Result<()> {
+        let conn = self.connect()?;
+        conn.execute(
+            "UPDATE jobs SET worker_identity = ?2 WHERE job_id = ?1",
+            params![job_id, identity],
+        )?;
+        Ok(())
     }
 
     pub fn recover_stale_running_job(
@@ -491,4 +534,14 @@ impl Db {
         )?;
         Ok(count)
     }
+}
+
+fn job_process_record_from_row(row: &Row<'_>) -> rusqlite::Result<JobProcessRecord> {
+    Ok(JobProcessRecord {
+        job_id: row.get(0)?,
+        pid: row.get::<_, Option<i64>>(1)?.map(|value| value as u32),
+        stage: row.get(2)?,
+        updated_at: row.get(3)?,
+        worker_identity: row.get(4)?,
+    })
 }

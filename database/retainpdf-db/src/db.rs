@@ -110,6 +110,8 @@ pub struct Db {
 pub struct JobProcessRecord {
     pub job_id: String,
     pub pid: Option<u32>,
+    /// spawn 时记下的进程身份（`<pid>@<指纹>`）；老行、读不到身份的平台为 None。
+    pub worker_identity: Option<String>,
     pub stage: Option<String>,
     pub updated_at: String,
 }
@@ -316,6 +318,9 @@ impl Db {
         ensure_jobs_column(conn, "document_id", "TEXT")?;
         // 运行代次：每次建/重新发射一次运行加一，CAS 写按它认"是不是同一次运行"。
         ensure_jobs_column(conn, "run_generation", "INTEGER NOT NULL DEFAULT 0")?;
+        // worker 进程身份（`<pid>@<启动时间指纹>`）：杀进程前核对 pid 没被别的进程复用。
+        // 只由 `record_worker_identity` 写；任务行的 upsert 不碰它。
+        ensure_jobs_column(conn, "worker_identity", "TEXT")?;
         for column in ["stage_detail", "provider", "provider_stage", "event_type"] {
             ensure_events_column(conn, column, "TEXT")?;
         }

@@ -42,6 +42,13 @@ curl -H "X-API-Key: your-key" \
 
 历史任务可能使用 `logs/events.jsonl`。
 
+## 后端一启动就退出：「另一个任务运行时正在使用任务库」
+
+同一个任务库（默认 `DATA_ROOT/db/jobs.db`）同一时刻只能有一个任务运行时：进程内模式的 rust_api，或者 retain-jobsd。
+第二个进程拿不到 `jobs.db.runtime-owner.lock` 的锁就直接退出，不做启动对账——对账会把第一个进程正在跑的 worker 当成孤儿杀掉。
+常见原因是另一个 worktree 或另一个端口上的开发后端指向了同一个 `data/`。先停掉那个进程，或者给这个实例换一个
+`RUST_API_DATA_ROOT`。锁随进程退出自动释放，不需要手动删锁文件。
+
 ## 下载按钮不可用
 
 不要只看 `status`。应检查：

@@ -5,8 +5,9 @@ use anyhow::Result;
 use crate::config::AppConfig;
 use crate::db::Db;
 use crate::job_runner::{
-    adopt_unlinked_job_sources, fail_unlaunched_job, launch_job, reconcile_stale_running_jobs,
-    requeue_stuck_queued_jobs, spawn_driverless_job_sweeper, spawn_job, ProcessRuntimeDeps,
+    acquire_runtime_owner_lock, adopt_unlinked_job_sources, fail_unlaunched_job, launch_job,
+    reconcile_stale_running_jobs, requeue_stuck_queued_jobs, spawn_driverless_job_sweeper,
+    spawn_job, ProcessRuntimeDeps, RuntimeOwnerLock,
 };
 use crate::services::jobs::{
     build_jobs_facade, CommandJobsDeps, ControlDeps, JobLaunchDeps, JobRuntimeLauncher, JobsFacade,
@@ -14,6 +15,17 @@ use crate::services::jobs::{
 };
 
 use super::state::AppState;
+
+/// 进程内模式下，真实服务在 `build_state`（里面有启动对账）之前先拿任务库的运行时锁；拿不到说明
+/// 同一个任务库上已经有运行时（另一个进程内模式的 rust_api，或者 jobsd），直接报错退出、不对账。
+/// 远端模式不拿：壳不对账，锁归 jobsd。只在 `serve_with_shutdown` 里调——单测直接调 `build_state`，
+/// 同一个测试进程里并存好几个 `AppState` 也不受影响。
+pub(super) fn acquire_owned_runtime_lock(config: &AppConfig) -> Result<Option<RuntimeOwnerLock>> {
+    if config.jobs_service.is_remote() {
+        return Ok(None);
+    }
+    acquire_runtime_owner_lock(&config.jobs_db_path).map(Some)
+}
 
 pub(super) fn reconcile_owned_runtime(config: &AppConfig, db: &Db) -> Result<usize> {
     if config.jobs_service.is_remote() {

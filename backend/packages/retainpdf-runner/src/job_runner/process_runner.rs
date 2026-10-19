@@ -152,6 +152,46 @@ pub(super) mod tests {
         fs::remove_dir_all(&deps.config.project_root).unwrap();
     }
 
+    /// 回归（状态审计 1-#9）：spawn 之后要把 worker 的进程身份和 pid 一起记进库，
+    /// 之后启动对账、取消、jobsd 杀进程前才有东西核对「这个 pid 还是不是它」。
+    #[cfg(any(target_os = "linux", target_os = "macos"))]
+    #[tokio::test]
+    async fn startup_records_worker_identity_with_the_pid() {
+        let deps = test_runtime_deps(1);
+        let mut job = JobSnapshot::new(
+            "job-identity".to_string(),
+            CreateJobInput::default(),
+            vec!["sleep".to_string(), "30".to_string()],
+        )
+        .into_runtime();
+        job.request_payload.runtime.job_id = job.job_id.clone();
+        deps.db.save_job(&job.snapshot()).unwrap();
+
+        let (job, mut child, _) = spawn_started_process(
+            &deps.persist,
+            &deps.canceled_jobs,
+            &deps.worker_process_runtime(),
+            job,
+            &[],
+        )
+        .await
+        .expect("spawn worker");
+        let pid = child.id().expect("worker pid");
+        let record = deps
+            .db
+            .job_process_record(&job.job_id)
+            .unwrap()
+            .expect("job row");
+        assert_eq!(record.pid, Some(pid));
+        assert_eq!(
+            record.worker_identity,
+            retainpdf_proc::process_identity(pid),
+            "spawn 后没有记下 worker 的进程身份"
+        );
+        crate::job_runner::terminate_child_process_tree(&mut child, 1).await;
+        fs::remove_dir_all(&deps.config.project_root).unwrap();
+    }
+
     fn test_state(test_name: &str) -> TestState {
         let root = std::env::temp_dir().join(format!(
             "rust-api-process-runner-{test_name}-{}-{}",

@@ -6,7 +6,9 @@ use anyhow::Result;
 use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
 
-use super::jobs::{resume_requeued_pipeline_jobs, start_driverless_sweeper};
+use super::jobs::{
+    acquire_owned_runtime_lock, resume_requeued_pipeline_jobs, start_driverless_sweeper,
+};
 use crate::app::cleanup::{
     log_startup_settings_with_interval, run_cleanup_once, spawn_periodic_cleanup_with_interval,
     RetentionSettings,
@@ -34,6 +36,10 @@ async fn serve_with_shutdown(
     config: Arc<AppConfig>,
     shutdown: impl std::future::Future<Output = ()> + Send + 'static,
 ) -> Result<()> {
+    // 先拿运行时锁再 build_state：build_state 里的启动对账会杀掉库里 running 任务的 worker，
+    // 同一个 data/ 上的第二个实例必须在这之前就退出（换了端口的话 bind 也拦不住它）。
+    // 锁一直拿到服务退出。
+    let _runtime_owner = acquire_owned_runtime_lock(&config)?;
     let state = build_state(config.clone())?;
     let resumed = resume_requeued_pipeline_jobs(&state)?;
     if resumed > 0 {

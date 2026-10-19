@@ -24,13 +24,28 @@ use tokio::sync::{RwLock, Semaphore};
 use retainpdf_core::config::{AppConfig, JOB_WORKER_THREAD_STACK_BYTES};
 use retainpdf_data::db::Db;
 use retainpdf_runner::job_runner::{
-    clear_cancel_request_with_registry, launch_job as launch_new_run, reconcile_stale_running_jobs,
-    request_cancel_with_registry, requeue_stuck_queued_jobs, spawn_driverless_job_sweeper,
-    spawn_job, terminate_job_process_tree, ProcessRuntimeDeps,
+    acquire_runtime_owner_lock, clear_cancel_request_with_registry, launch_job as launch_new_run,
+    reconcile_stale_running_jobs, registered_running_worker, request_cancel_with_registry,
+    requeue_stuck_queued_jobs, spawn_driverless_job_sweeper, spawn_job,
+    terminate_job_process_tree, ProcessRuntimeDeps,
 };
 
 #[cfg(test)]
 mod contract_lock;
+
+#[cfg(test)]
+mod tests {
+    use super::{validate_terminate_pid, TerminateRejection};
+
+    /// 回归（状态审计 6-#3 第 5 步）：pid=0 会变成 `kill(0, …)`（jobsd 自己的进程组），pid=1 会变成
+    /// `kill(-1, …)`（当前用户的所有进程）。只在这里测 1：改坏了的版本在真实接口上跑这个用例会杀掉一切。
+    #[test]
+    fn terminate_rejects_pid_zero_and_one_before_any_lookup() {
+        assert_eq!(validate_terminate_pid(0), Err(TerminateRejection::InvalidPid));
+        assert_eq!(validate_terminate_pid(1), Err(TerminateRejection::InvalidPid));
+        assert_eq!(validate_terminate_pid(2), Ok(()));
+    }
+}
 
 #[derive(Clone)]
 struct JobsdState {
@@ -112,6 +127,48 @@ async fn clear_cancel_job(
     ack()
 }
 
+/// terminate 接口不受理的 pid。
+#[derive(Debug, PartialEq, Eq)]
+enum TerminateRejection {
+    /// 0 / 1 不可能是 worker：`kill(-0)` 是 jobsd 自己的进程组，`kill(-1)` 是当前用户能发信号的所有进程。
+    InvalidPid,
+    /// 库里没有 running 任务记着这个 pid，或者记着但身份对不上（worker 已退出、号被复用）。
+    NotARegisteredWorker,
+}
+
+impl TerminateRejection {
+    fn response(&self) -> (StatusCode, Json<serde_json::Value>) {
+        let (status, reason) = match self {
+            Self::InvalidPid => (StatusCode::BAD_REQUEST, "invalid_pid"),
+            Self::NotARegisteredWorker => (StatusCode::NOT_FOUND, "not_a_registered_worker"),
+        };
+        (status, Json(json!({ "accepted": false, "reason": reason })))
+    }
+}
+
+/// 不碰库、不碰进程的那一半：pid 本身合不合法。
+fn validate_terminate_pid(pid: u32) -> Result<(), TerminateRejection> {
+    if pid <= 1 {
+        return Err(TerminateRejection::InvalidPid);
+    }
+    Ok(())
+}
+
+/// 只杀自己登记过的 worker：某个 running 任务记着这个 pid，且 spawn 时记下的进程身份对得上
+/// （`registered_running_worker`，和启动对账同一套核对）。
+fn check_terminate_target(db: &Db, pid: u32) -> Result<(), TerminateRejection> {
+    validate_terminate_pid(pid)?;
+    match registered_running_worker(db, pid) {
+        Ok(Some(_job_id)) => Ok(()),
+        Ok(None) => Err(TerminateRejection::NotARegisteredWorker),
+        Err(error) => {
+            // 查不了库就不杀：宁可让这次取消晚一点生效，也不按一个核对不了的 pid 组杀。
+            tracing::warn!("terminate pid={pid}: worker registry lookup failed: {error:#}");
+            Err(TerminateRejection::NotARegisteredWorker)
+        }
+    }
+}
+
 async fn terminate_process(
     State(state): State<JobsdState>,
     headers: HeaderMap,
@@ -119,6 +176,10 @@ async fn terminate_process(
 ) -> (StatusCode, Json<serde_json::Value>) {
     if !authorized(&state, &headers) {
         return unauthorized();
+    }
+    if let Err(rejection) = check_terminate_target(&state.db, pid) {
+        tracing::warn!("terminate pid={pid} refused: {rejection:?}");
+        return rejection.response();
     }
     match terminate_job_process_tree(
         pid,
@@ -182,6 +243,10 @@ async fn run() -> Result<()> {
     let listener = tokio::net::TcpListener::bind((bind_host.as_str(), port))
         .await
         .with_context(|| format!("bind {bind_host}:{port}"))?;
+
+    // 端口只挡得住同一个端口上的二次启动；同一个任务库上的另一个运行时（进程内模式的 rust_api、
+    // 换了端口的 jobsd）靠运行时锁挡。拿不到就退出，不对账——对账会杀掉那个运行时正在管的 worker。
+    let _runtime_owner = acquire_runtime_owner_lock(&config.jobs_db_path)?;
 
     let db = Arc::new(Db::new(
         config.jobs_db_path.clone(),
