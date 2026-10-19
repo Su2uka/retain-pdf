@@ -58,6 +58,17 @@ function setCachedProtectedPdf(url: string, file: ProtectedPdfFile) {
   fileCache.set(key, file);
 }
 
+async function readErrorReason(response: Response): Promise<string> {
+  if (typeof response.json !== "function") return "";
+  try {
+    const payload = await response.json() as { error?: { details?: { reason?: unknown } } } | null;
+    const reason = payload?.error?.details?.reason;
+    return typeof reason === "string" ? reason.trim() : "";
+  } catch {
+    return "";
+  }
+}
+
 export async function loadProtectedPdfFile(
   url: string,
   fetchResource: typeof fetch = readerPdfPort().fetchProtected,
@@ -74,8 +85,11 @@ export async function loadProtectedPdfFile(
   }
   const response = await fetchResource(normalized, { signal: options.signal } as RequestInit);
   if (!response.ok) {
-    const err = new Error(`读取 PDF 失败 (${response.status})`) as Error & { status?: number };
+    const err = new Error(`读取 PDF 失败 (${response.status})`) as Error & { status?: number; reason?: string };
     err.status = response.status;
+    // 译文 PDF 还没产出时后端回 404 + error.details.reason=not_ready，和"任务没了"的 404 区分开。
+    const reason = await readErrorReason(response);
+    if (reason) err.reason = reason;
     throw err;
   }
   const buffer = await response.arrayBuffer();

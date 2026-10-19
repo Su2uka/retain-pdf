@@ -21,6 +21,14 @@ const React = await import("react");
 const { createRoot } = await import("react-dom/client");
 const { setReaderAdapters } = await import("../../../../frontend/packages/reader/src/adapters.ts");
 const { useReaderSession } = await import("../../../../frontend/packages/reader/src/hooks/use-reader-session.ts");
+const { isStaleDocumentJobFailure } = await import("../../../../frontend/packages/reader/src/hooks/reader-session/session-load-plan.ts");
+
+test("产物还没产出的 404（reason=not_ready）不算文档挂着的任务没了", () => {
+  const base = { status: 404, jobId: "", routeDocumentId: "doc-1", documentJobId: "job-1", sessionJobId: "job-1" };
+  assert.equal(isStaleDocumentJobFailure(base), true, "不带 reason 的 404：任务不存在");
+  assert.equal(isStaleDocumentJobFailure({ ...base, reason: "" }), true);
+  assert.equal(isStaleDocumentJobFailure({ ...base, reason: "not_ready" }), false, "任务还在，只是产物没好");
+});
 
 test("document active_job becomes the effective reader job and keeps the document source PDF", async () => {
   const calls = [];
