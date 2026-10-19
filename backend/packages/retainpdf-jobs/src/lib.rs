@@ -3,7 +3,7 @@
 //!
 //! | 目录 | 类 |
 //! |---|---|
-//! | `lifecycle/` | 任务：建任务、校验、发射、列表和详情 |
+//! | `lifecycle/` | 任务：建任务、校验、发射、列表和详情、删任务 |
 //! | `actions/` | 操作：取消、重跑、重试阶段、续跑计划、OCR 歧义 |
 //! | `progress/` | 进度：事件流、当前阶段、边翻边看 |
 //! | `files/` | 文件：列出、下载、是否就绪 |
@@ -50,6 +50,10 @@ pub use files::{
     stored_path, StoredFile,
     job_readiness, Disposition, FileDownload, FileGroup, JobDownloads, JobFile, JobFilesView,
 };
+// 删一个任务（`DELETE /jobs/:job_id`）；书库的书架删除、整本删除也用这里的校验和删目录。
+pub use lifecycle::deletion::{
+    ensure_deletable, ensure_no_dependents, find_job, remove_path_if_exists, JobDeletion,
+};
 pub use lifecycle::launcher::JobLaunchDeps;
 pub use lifecycle::managed_credential_gc::cleanup_deleted_job_credentials;
 pub use lifecycle::ocr_artifact_reuse::{reusable_ocr_coverage, validate_ocr_artifact_reuse};
@@ -73,10 +77,10 @@ pub use reports::usage::api::{
 pub use runtime_gateway::{JobDriverRegistry, JobRuntime, JobRuntimeLauncher};
 pub use summary_loaders::SummaryCache;
 pub use views::{
-    ActionBlockReason, AmbiguousRequestPolicy, BookSummaryView, DocumentJobListView,
+    ActionBlockReason, AmbiguousRequestPolicy, BookSummaryView, DeleteJobQuery, DocumentJobListView,
     EscalatedItemView, GlossaryUsageSummaryView, InvocationSummaryView, JobContractsView, JobDetailView, JobDiagnosticsView, JobEventFeedItem,
     JobEventListView, JobFailureBriefView,
-    JobFailureDiagnosticView, JobFilesQuery, JobLinksView, JobListInvocationSummaryView,
+    JobDeleteResultView, JobFailureDiagnosticView, JobFilesQuery, JobLinksView, JobListInvocationSummaryView,
     JobListItemView, JobListView, JobProgressView, JobReportView, JobResumePlanView,
     JobStageContractArtifactView, JobStageContractView, JobStageRuntimeView, JobStageSnapshotView,
     JobStageStateView, JobStagesView, JobSubmissionView, JobTimestampsView,

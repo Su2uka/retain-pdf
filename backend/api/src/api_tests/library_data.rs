@@ -2495,8 +2495,9 @@ async fn cards_and_job_lists_show_the_document_title_not_the_upload_file_name() 
     let listed = jobs["data"]["items"].as_array().unwrap().iter().find(|item| item["job_id"] == "job-titled").expect("job item");
     assert_eq!(listed["display_name"], "自动识别出的论文标题", "任务列表还是文件名");
 
-    let detail = get_json(&app, "/api/v1/library/books/job-titled").await;
-    assert_eq!(detail["data"]["title"], "自动识别出的论文标题", "书籍投影详情还是文件名");
+    // 书架详情（`/library/books/:job_id`）2026-10-19 删了；任务详情的书摘要同样跟文档标题走。
+    let detail = get_json(&app, "/api/v1/jobs/job-titled").await;
+    assert_eq!(detail["data"]["book_summary"]["title"], "自动识别出的论文标题", "任务详情的书摘要还是文件名");
 }
 
 #[tokio::test]

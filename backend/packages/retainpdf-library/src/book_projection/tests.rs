@@ -215,11 +215,9 @@ fn library_metadata_keeps_upload_artifact_and_summary_fallback_order() {
     };
     let mut summaries = SummaryCache::default();
     let title = display_title(Some(&upload), &job, &Default::default());
-    let summary = build_book_summary(Some(&upload), &mut summaries, &job, &test.root, &title);
-    assert_eq!(summary.title, "Uploaded.pdf");
-    assert_eq!(summary.source_file_name.as_deref(), Some("Uploaded.pdf"));
-    assert_eq!(summary.page_count, Some(0));
-    assert_eq!(summary.file_size_bytes, Some(4));
+    assert_eq!(title, "Uploaded.pdf");
+    assert_eq!(source_file_name(Some(&upload), &job).as_deref(), Some("Uploaded.pdf"));
+    assert_eq!(summaries.book_page_count(Some(&upload), &job, &test.root), Some(0));
     assert_eq!(summaries.read_attempts(), 0);
 
     assert_eq!(

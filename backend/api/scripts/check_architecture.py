@@ -263,7 +263,7 @@ ROUTE_SERVICE_IMPORT_ALLOWLIST = {
     ),
     Path("src/routes/common/jobs.rs"): (
         "crate::app::{build_jobs_facade_from_state, AppState}",
-        "crate::services::jobs::{JobDownloads, JobQueries, JobsFacade}",
+        "crate::services::jobs::{JobDeletion, JobDownloads, JobQueries, JobsFacade}",
     ),
     Path("src/routes/common/library.rs"): (
         "crate::services::library::LibraryDeps",
@@ -469,7 +469,8 @@ def check_jobs_route_deps_dedup(errors: list[str]) -> None:
         Path("src/routes/download_response"),
     )
     mixed_modules = {
-        Path("src/routes/jobs/lifecycle"): {"create_job", "create_ocr_job"},
+        # delete_job：强删前要经完整门面取消 runner（cancel_before_delete）。
+        Path("src/routes/jobs/lifecycle"): {"create_job", "create_ocr_job", "delete_job"},
         Path("src/routes/jobs/actions"): {
             "get_stage_actions",
             "stage_actions_response",

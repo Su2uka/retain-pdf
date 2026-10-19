@@ -33,7 +33,7 @@ pub use api::{
     delete_document_view, delete_library_book_view, document_delete_job_ids_view, document_files,
     document_reading,
     document_translation_coverage, fork_conversation_view, get_conversation_view, get_document,
-    get_library_book_view, list_collections_view, list_conversations_view,
+    list_collections_view, list_conversations_view,
     list_document_metadata_suggestions_view, list_documents, list_library_books_view,
     ocr_document_view, patch_collection_view, patch_conversation_view,
     patch_document, remove_collection_document_view, search_blocks_view,
@@ -48,20 +48,20 @@ pub use views::{
     CreateDocumentMetadataSuggestionInput, DocumentDeleteResultView, DocumentListView,
     DocumentMetadataEvidenceView, DocumentMetadataSuggestionApplyView,
     DocumentMetadataSuggestionListView, DocumentMetadataSuggestionView, DocumentTitleCandidateView,
-    ForkConversationInput, ForkMessageInput, LibraryBookDetailView, LibraryBookListItemView,
+    ForkConversationInput, ForkMessageInput, LibraryBookListItemView,
     LibraryBookListView, LibraryDeleteQuery, LibraryDeleteResultView, ListConversationsQuery,
     ListDocumentMetadataSuggestionsQuery, ListDocumentsQuery, PatchCollectionInput,
     PatchConversationInput, PatchDocumentInput, SearchQuery, SearchResultView,
 };
 // 只给测试用的。
 #[cfg(test)]
-pub(crate) use book_projection::{build_library_book_detail_view, build_library_book_list_view};
+pub(crate) use book_projection::build_library_book_list_view;
 
 use std::path::Path;
 
 use retainpdf_data::db::Db;
 
-use books::{book_delete_job_ids, delete_library_book, get_library_book, list_library_books};
+use books::{book_delete_job_ids, delete_library_book, list_library_books};
 use collections::{
     add_collection_documents, create_collection, delete_collection, list_collections,
     patch_collection, remove_collection_document,

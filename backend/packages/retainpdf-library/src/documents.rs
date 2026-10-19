@@ -12,9 +12,8 @@ use crate::views::{
 use retainpdf_core::models::domain::UploadRecord;
 use retainpdf_jobs::cleanup_deleted_job_credentials;
 
-use super::books::{
-    ensure_deletable, ensure_no_dependents, find_job, remove_job_files, remove_path_if_exists,
-};
+use super::books::job_deletion;
+use retainpdf_jobs::{ensure_deletable, ensure_no_dependents, find_job, remove_path_if_exists};
 use retainpdf_data::db::Db;
 use super::LibraryDeps;
 
@@ -185,7 +184,7 @@ pub fn delete_document(
 
     let mut removed_paths = Vec::new();
     for job in &jobs {
-        removed_paths.extend(remove_job_files(deps, &job.job_id)?);
+        removed_paths.extend(job_deletion(deps).remove_job_files(&job.job_id)?);
     }
     cleanup_deleted_job_credentials(deps.db, deps.data_root, &jobs);
 

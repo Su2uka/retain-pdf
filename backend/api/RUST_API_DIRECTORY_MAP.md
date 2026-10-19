@@ -156,7 +156,7 @@ jobs 的依赖装配由 `app/jobs.rs` 完成；依赖定义在任务包的 `deps
 
 - 作用：
   jobs 的业务逻辑，按 9 类分目录，和 `routes/jobs/<类>.rs` 同名：
-  `lifecycle`（建任务、校验、发射、列表和详情）、`actions`（取消、重跑、重试阶段、续跑计划）、
+  `lifecycle`（建任务、校验、发射、列表和详情、删任务 `deletion.rs`）、`actions`（取消、重跑、重试阶段、续跑计划）、
   `progress`（事件流、当前阶段、边翻边看）、`files`（列出、下载、是否就绪）、
   `reports`（失败原因、翻译诊断、排版、精修）、`reader`（区块、元信息、Markdown）、
   `translations`（逐条看、人工改、重翻）、`data`（通用取数）、`ai`（画板）。
@@ -177,8 +177,8 @@ jobs 的依赖装配由 `app/jobs.rs` 完成；依赖定义在任务包的 `deps
   改文档、馆藏翻译入口、收藏、全文检索、资产、会话、合集业务时进这里；
   **不要** 把逻辑写回 `routes/library_*`。
 - 子模块：
-  - `books.rs` — library books 列表/详情/删除（投影委托 `book_projection/`）
-  - `book_projection.rs` + `book_projection/` — 书架列表 / 书籍详情投影；书名、页数规则调 `services::files`（文件包 `retainpdf-files`）和 `SummaryCache`，不另抄
+  - `books.rs` — 书架（冻结）列表和删除旧地址（列表投影委托 `book_projection/`，删除调任务包的 `JobDeletion`；详情 2026-10-19 删了）
+  - `book_projection.rs` + `book_projection/` — 书架列表投影；书名、页数规则调 `services::files`（文件包 `retainpdf-files`）和 `SummaryCache`，不另抄
   - `collection_workspace.rs` — 文件夹级 agent 工作区（把一个合集的书物化成目录，给 AI 服务读）
   - `documents.rs` / `media.rs` — 文档 CRUD 与 source.pdf/cover/thumbnail
   - `translate.rs` — 绑定文档 upload 后调 `JobsFacade::create_submission`

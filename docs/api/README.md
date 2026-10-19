@@ -21,6 +21,7 @@
 - [查询任务详情](01-任务/02-查询任务详情.md)
 - [任务列表](01-任务/03-任务列表.md)
 - [任务接口分类](01-任务/04-任务接口分类.md)：`/jobs/{job_id}` 下 9 类接口的新地址，以及已删除的旧地址对照
+- [删除任务](01-任务/05-删除任务.md)：`DELETE /jobs/{job_id}`，删一个任务和它的 OCR 子任务，书留着
 - [事件总览](02-进度事件/01-事件总览.md)
 - [display_stage 与 lane](02-进度事件/02-display-stage与lane.md)
 - [OCR Provider 列表](03-OCR/01-provider列表.md)
@@ -48,7 +49,7 @@
 
 按 9 类分前缀，完整的新旧对照见 [任务接口分类](01-任务/04-任务接口分类.md)：
 
-- `POST /api/v1/jobs`、`GET /api/v1/jobs`、`GET /api/v1/jobs/{job_id}`
+- `POST /api/v1/jobs`、`GET /api/v1/jobs`、`GET /api/v1/jobs/{job_id}`、`DELETE /api/v1/jobs/{job_id}`
 - 操作 `/api/v1/jobs/{job_id}/actions/…`（取消、重跑、续跑、重试阶段）
 - 进度 `/api/v1/jobs/{job_id}/progress/…`（事件、实时推送、边翻边看）
 - 文件 `/api/v1/jobs/{job_id}/files/…`

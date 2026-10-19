@@ -5,7 +5,6 @@
 use retainpdf_core::models::api::{
     BlockSearchHit, CollectionRecord, ConversationRecord, DocumentRecord, MessageRecord,
 };
-use retainpdf_files::ArtifactDisplayItemView;
 use retainpdf_jobs::JobProgressView;
 use retainpdf_core::models::domain::JobStatusKind;
 use serde::{Deserialize, Serialize};
@@ -297,7 +296,7 @@ pub struct CollectionMutationResult {
     pub removed: Option<bool>,
 }
 
-// 书架（/api/v1/library/books）。
+// 书架（/api/v1/library/books）：冻结，不再加字段；前端改调 `GET /jobs?job_ids=` 以后删。
 
 #[derive(Debug, Serialize)]
 pub struct LibraryBookListItemView {
@@ -326,38 +325,14 @@ pub struct LibraryBookListView {
     pub items: Vec<LibraryBookListItemView>,
 }
 
-#[derive(Debug, Serialize)]
-pub struct LibraryBookDetailView {
-    pub id: String,
-    pub job_id: String,
-    pub title: String,
-    pub authors: Option<String>,
-    pub source_file_name: Option<String>,
-    pub page_count: Option<i64>,
-    pub source_language: Option<String>,
-    pub target_language: Option<String>,
-    pub file_size_bytes: Option<u64>,
-    pub status: JobStatusKind,
-    pub stage: Option<String>,
-    pub progress: JobProgressView,
-    pub cover_url: Option<String>,
-    pub thumbnail_url: Option<String>,
-    pub artifacts: Vec<ArtifactDisplayItemView>,
-}
-
 #[derive(Debug, Deserialize)]
 pub struct LibraryDeleteQuery {
     #[serde(default)]
     pub force: bool,
 }
 
-#[derive(Debug, Serialize)]
-pub struct LibraryDeleteResultView {
-    pub deleted: bool,
-    pub job_id: String,
-    pub removed_paths: Vec<String>,
-    pub removed_child_jobs: Vec<String>,
-}
+/// 书架删除的返回，和 `DELETE /api/v1/jobs/:job_id` 同一个类型（删除 2026-10-19 挪进任务包）。
+pub type LibraryDeleteResultView = retainpdf_jobs::JobDeleteResultView;
 
 #[derive(Debug, Serialize)]
 pub struct DocumentDeleteResultView {

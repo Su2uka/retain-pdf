@@ -21,7 +21,7 @@ use crate::views::{
     ConversationMutationResult, CreateCollectionInput, CreateConversationInput,
     CreateDocumentMetadataSuggestionInput, DocumentDeleteResultView,
     DocumentMetadataSuggestionApplyView, DocumentMetadataSuggestionListView,
-    DocumentMetadataSuggestionView, LibraryBookDetailView, LibraryBookListView,
+    DocumentMetadataSuggestionView, LibraryBookListView,
     LibraryDeleteResultView, ListConversationsQuery, ListDocumentMetadataSuggestionsQuery,
     PatchCollectionInput, PatchConversationInput, SearchQuery, SearchResultView,
 };
@@ -33,7 +33,7 @@ use super::{
     create_collection, create_conversation,
     create_metadata_suggestion, delete_collection, delete_conversation,
     book_delete_job_ids, delete_document, delete_library_book, document_delete_job_ids,
-    document_files_view, get_conversation, get_library_book, list_collections,
+    document_files_view, get_conversation, list_collections,
     list_conversations, list_library_books, list_metadata_suggestions,
     ocr_document, patch_collection, patch_conversation, remove_collection_document,
     search_blocks, translate_document, LibraryDeps,
@@ -50,15 +50,6 @@ pub fn list_library_books_view(
     list_library_books(db, data_root, query, base_url)
 }
 
-pub fn get_library_book_view(
-    db: &retainpdf_data::db::Db,
-    data_root: &std::path::Path,
-    job_id: &str,
-    base_url: &str,
-) -> Result<LibraryBookDetailView, AppError> {
-    get_library_book(db, data_root, job_id, base_url)
-}
-
 pub fn delete_library_book_view(
     deps: &LibraryDeps<'_>,
     job_id: &str,
@@ -72,7 +63,7 @@ pub fn book_delete_job_ids_view(
     deps: &LibraryDeps<'_>,
     job_id: &str,
 ) -> Result<Vec<String>, AppError> {
-    book_delete_job_ids(deps.db, job_id)
+    book_delete_job_ids(deps, job_id)
 }
 
 // --- documents ---

@@ -20,10 +20,10 @@ pub mod api {
     };
     pub use retainpdf_ingest::{UploadView, upload_to_response};
     pub use retainpdf_jobs::{
-        AmbiguousRequestPolicy, BookSummaryView, DocumentJobListView,
+        AmbiguousRequestPolicy, BookSummaryView, DeleteJobQuery, DocumentJobListView,
         EscalatedItemView, GlossaryUsageSummaryView, InvocationSummaryView, JobContractsView, JobDetailView, JobDiagnosticsView, JobEventFeedItem,
         JobEventListView, JobFailureBriefView,
-        JobFailureDiagnosticView, JobFilesQuery, JobLinksView, JobListInvocationSummaryView,
+        JobDeleteResultView, JobFailureDiagnosticView, JobFilesQuery, JobLinksView, JobListInvocationSummaryView,
         JobListItemView, JobListView, JobProgressView, JobReportView, JobResumePlanView,
         JobStageContractArtifactView, JobStageContractView, JobStageRuntimeView, JobStageSnapshotView,
         JobStageStateView, JobStagesView, JobSubmissionView, JobTimestampsView,
@@ -53,7 +53,7 @@ pub mod api {
         CreateDocumentMetadataSuggestionInput, DocumentDeleteResultView, DocumentListView,
         DocumentMetadataEvidenceView, DocumentMetadataSuggestionApplyView,
         DocumentMetadataSuggestionListView, DocumentMetadataSuggestionView, DocumentTitleCandidateView,
-        ForkConversationInput, ForkMessageInput, LibraryBookDetailView, LibraryBookListItemView,
+        ForkConversationInput, ForkMessageInput, LibraryBookListItemView,
         LibraryBookListView, LibraryDeleteQuery, LibraryDeleteResultView, ListConversationsQuery,
         ListDocumentMetadataSuggestionsQuery, ListDocumentsQuery, PatchCollectionInput,
         PatchConversationInput, PatchDocumentInput, SearchQuery, SearchResultView,

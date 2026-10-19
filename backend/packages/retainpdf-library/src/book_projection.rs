@@ -4,13 +4,13 @@ use retainpdf_core::config::limits::MAX_JOB_LIMIT;
 use retainpdf_data::db::{Db, JobListSelection};
 use retainpdf_api_base::error::AppError;
 use retainpdf_core::models::api::to_absolute_url;
-use retainpdf_files::{build_artifact_links, document_file_path};
+use retainpdf_files::document_file_path;
 use retainpdf_jobs::ListJobsQuery;
-use crate::views::{LibraryBookDetailView, LibraryBookListItemView, LibraryBookListView};
+use crate::views::{LibraryBookListItemView, LibraryBookListView};
 use retainpdf_core::models::domain::{JobSnapshot, UploadRecord};
 
 use retainpdf_files::{
-    build_artifacts_display, display_title, document_titles_for, job_upload_id, source_file_name,
+    display_title, document_titles_for, job_upload_id, source_file_name,
     DocumentTitles,
 };
 use retainpdf_jobs::{
@@ -18,10 +18,8 @@ use retainpdf_jobs::{
 };
 
 mod live;
-mod metadata;
 
-use live::{build_live_projection, project_live_stage};
-use metadata::build_book_summary;
+use live::project_live_stage;
 use retainpdf_jobs::{stored_path, StoredFile};
 
 pub(crate) fn build_library_book_list_view(
@@ -58,52 +56,6 @@ pub(crate) fn build_library_book_list_view(
         })
         .collect();
     Ok(LibraryBookListView { items })
-}
-
-pub(crate) fn build_library_book_detail_view(
-    db: &Db,
-    data_root: &Path,
-    job: &JobSnapshot,
-    base_url: &str,
-) -> LibraryBookDetailView {
-    let ids: Vec<_> = job_upload_id(job).into_iter().collect();
-    let uploads = db.get_uploads(&ids).unwrap_or_default();
-    let upload = job_upload_id(job).and_then(|id| uploads.get(id));
-    let document_id = book_document_id(db, job, upload);
-    let mut summaries = SummaryCache::default();
-    let titles = document_titles_for(db, upload);
-    let display_name = display_title(upload, job, &titles);
-    let summary = build_book_summary(upload, &mut summaries, job, data_root, &display_name)
-        .with_cover_url(library_image_url(job, document_id.as_deref(), data_root, base_url, "cover"))
-        .with_thumbnail_url(library_image_url(job, document_id.as_deref(), data_root, base_url, "thumbnail"))
-        .with_document_id(document_id.as_deref());
-    let live = build_live_projection(db, job, data_root);
-    let (pdf_ready, markdown_ready, bundle_ready) = job_readiness(job, data_root);
-    let artifacts = build_artifact_links(
-        job,
-        base_url,
-        data_root,
-        pdf_ready,
-        markdown_ready,
-        bundle_ready,
-    );
-    LibraryBookDetailView {
-        id: job.job_id.clone(),
-        job_id: job.job_id.clone(),
-        title: summary.title,
-        authors: summary.authors,
-        source_file_name: summary.source_file_name,
-        page_count: summary.page_count,
-        source_language: summary.source_language,
-        target_language: summary.target_language,
-        file_size_bytes: summary.file_size_bytes,
-        status: job.status.clone(),
-        stage: live.stage,
-        progress: live.progress,
-        cover_url: summary.cover_url,
-        thumbnail_url: summary.thumbnail_url,
-        artifacts: build_artifacts_display(&artifacts),
-    }
 }
 
 fn build_library_book_list_item(

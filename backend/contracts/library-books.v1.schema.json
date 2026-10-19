@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "retainpdf/contracts/library-books/v1",
   "title": "图书馆书架契约（Library Books）",
-  "description": "Rust ↔ TS 重复的图书馆视图单一真值。生产者：backend/packages/retainpdf-library/src/views.rs（LibraryBookListView / LibraryBookListItemView / LibraryBookDetailView）与 backend/packages/retainpdf-jobs/src/views/job_types.rs（JobListView / JobListItemView / JobFailureBriefView）；消费者：@retainpdf/contracts/library-books 生成 DTO、packages/domain 的 job 归一化模型、apps/web 的 library API 与 apps/web-react 的 library 类型层。所有响应为 {code, message, data} 信封，本契约描述 data 部分。改契约先改本文件，再重新生成 DTO 并让 Rust 与 TS 契约测试变绿。",
+  "description": "Rust ↔ TS 重复的图书馆视图单一真值。生产者：backend/packages/retainpdf-library/src/views.rs（LibraryBookListView / LibraryBookListItemView）与 backend/packages/retainpdf-jobs/src/views/job_types.rs（JobListView / JobListItemView / JobFailureBriefView）、views/common.rs（JobDeleteResultView，书架删除的 LibraryDeleteResultView 是它的别名）；消费者：@retainpdf/contracts/library-books 生成 DTO、packages/domain 的 job 归一化模型、apps/web 的 library API 与 apps/web-react 的 library 类型层。所有响应为 {code, message, data} 信封，本契约描述 data 部分。改契约先改本文件，再重新生成 DTO 并让 Rust 与 TS 契约测试变绿。",
   "base_path": "/api/v1/library",
   "endpoints": [
     {
@@ -11,14 +11,16 @@
       "query": "ListLibraryBooksQuery",
       "output": "LibraryBookListView",
       "rust_view": "LibraryBookListView",
-      "ts_consumer": "@retainpdf/contracts/library-books :: LibraryBookListView"
+      "ts_consumer": "@retainpdf/contracts/library-books :: LibraryBookListView",
+      "note": "冻结（2026-10-19）：不再加字段。前端改调 GET /api/v1/jobs?job_ids=&limit=&include_live_stage=true 以后删。"
     },
     {
       "method": "GET",
       "path": "/api/v1/library/books/:job_id",
       "output": "LibraryBookDetailView",
-      "rust_view": "LibraryBookDetailView",
-      "ts_consumer": "@retainpdf/contracts/library-books :: LibraryBookDetailView"
+      "ts_consumer": "@retainpdf/contracts/library-books :: LibraryBookDetailView",
+      "removed": "2026-10-19",
+      "note": "接口已删（没有调用方），Rust 不再产出这个类型、请求得 405。条目只为让生成的 TS 类型 LibraryBookDetailView 暂时还在：前端 frontend/packages/api/src/types.ts 和 frontend/web/tests/contracts/library-books-contract.test.mjs 还引用它。前端去掉引用后，删这个条目和 LibraryBookDetailView 定义。"
     },
     {
       "method": "GET",
@@ -30,9 +32,18 @@
     },
     {
       "method": "DELETE",
+      "path": "/api/v1/jobs/:job_id",
+      "query": "LibraryDeleteQuery",
+      "output": "LibraryDeleteResultView",
+      "rust_view": "JobDeleteResultView",
+      "note": "删一个任务和它的 -ocr 子任务，书留着；OCR 任务也能删。查询参数在 Rust 里是 DeleteJobQuery，和 LibraryDeleteQuery 同形。"
+    },
+    {
+      "method": "DELETE",
       "path": "/api/v1/library/books/:job_id",
       "query": "LibraryDeleteQuery",
-      "output": "LibraryDeleteResultView"
+      "output": "LibraryDeleteResultView",
+      "note": "旧地址，新地址 DELETE /api/v1/jobs/:job_id；行为不变（OCR 任务 404）。"
     },
     {
       "method": "POST",
@@ -253,6 +264,7 @@
       }
     },
     "LibraryBookDetailView": {
+      "description": "已废弃：GET /api/v1/library/books/:job_id 2026-10-19 删了，Rust 侧不再产出。前端去掉引用后删除本定义（见 endpoints 里那条 removed 的说明）。",
       "type": "object",
       "required": [
         "id",

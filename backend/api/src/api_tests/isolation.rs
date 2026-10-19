@@ -170,12 +170,17 @@ async fn jobs_are_listed_and_opened_only_by_their_owner() {
     for uri in [
         "/api/v1/jobs/job-alice",
         "/api/v1/jobs/job-alice/data",
-        "/api/v1/library/books/job-alice",
         "/api/v1/library/books?job_ids=job-alice",
         "/api/v1/documents?job_id=job-alice",
     ] {
         assert_eq!(fx.get(&fx.bob, uri).await.status(), StatusCode::NOT_FOUND, "{uri}");
     }
+    // 删别人的任务（新地址和书架的旧地址）一样 404，什么都不删。
+    for uri in ["/api/v1/jobs/job-alice", "/api/v1/library/books/job-alice"] {
+        let response = send(&fx.state, Method::DELETE, uri, Some(&fx.bob), None).await;
+        assert_eq!(response.status(), StatusCode::NOT_FOUND, "{uri}");
+    }
+    assert!(fx.state.db.get_job("job-alice").is_ok());
     // 不存在的和别人的一个样：都是 404，不泄露「这个编号存在」。
     let missing = fx.get(&fx.bob, "/api/v1/jobs/no-such-job").await;
     assert_eq!(missing.status(), StatusCode::NOT_FOUND);

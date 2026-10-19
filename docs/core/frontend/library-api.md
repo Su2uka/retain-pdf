@@ -1,6 +1,9 @@
 # 前端对接说明：图书馆数据层 API
 
 > 当前实现说明，更新于 2026-09-02。现有 `/api/v1/library/books` 兼容接口保留；
+> 2026-10-19 起书架冻结（不再加字段）：`GET /library/books/:job_id` 已删，删单个任务改用
+> `DELETE /api/v1/jobs/:job_id`，列表等前端改调 `GET /api/v1/jobs?job_ids=` 以后删（见
+> [书架冻结与删任务新地址](../../ops/planning/api-reorg/20261019-书架冻结与删任务新地址.md)、[给前端的交接](backend-changes-handoff.md)）；
 > 所有业务接口使用 `X-API-Key` 认证，JSON 响应统一采用
 > `{code, message, data}` 包装。
 
@@ -169,12 +172,12 @@ DELETE /api/v1/collections/:id/documents/:document_id
 - 加入不存在的 `document_id` 返回 404(书的记录在、库里读不出来是 500,不说成不存在);重复加入同一文档幂等(不报错、不重复计数);
 - 查看某个文件夹里有哪些文档:`GET /api/v1/documents?collection_id=xxx`(见第 1 节),
   拿到的每条记录里的 `active_job_id` 就是该文档当前可打开的处理记录;
-- 如果前端仍在用旧世界的 `/api/v1/library/books` 渲染卡片(而不是 `/api/v1/documents`
-  投影),把上一步拿到的 `active_job_id` 集合拼进新加的 `job_ids` 参数
-  (逗号分隔,见下方对 `/api/v1/library/books` 的说明),就能拿到与首页图书馆
-  卡片同构的数据,不用另外做一套"文件夹详情卡片"渲染。
+- 要叠加任务活态(状态、进度、阶段)时,把上一步拿到的 `active_job_id` 集合拼进
+  `GET /api/v1/jobs?job_ids=a,b&limit=n&include_live_stage=true`(`n` ≤ 500,超了分批;
+  不排除 OCR 任务),标题读 `display_name`,阶段和进度读 `stage_snapshot`。
+  旧的做法是同样拼进 `/api/v1/library/books?job_ids=`(下一节,已冻结)。
 
-### `/api/v1/library/books` 新增可选参数:`job_ids`
+### `/api/v1/library/books` 的可选参数 `job_ids`(书架已冻结,改用 `GET /api/v1/jobs?job_ids=`)
 
 ```
 GET /api/v1/library/books?job_ids=job-a,job-b,job-c
@@ -186,7 +189,7 @@ GET /api/v1/library/books?job_ids=job-a,job-b,job-c
 
 ## 两个必须处理的边界
 
-1. **删除保护**:删除书籍(`DELETE /api/v1/library/books/:job_id`)或文档
+1. **删除保护**:删除单个任务(`DELETE /api/v1/jobs/:job_id`,旧地址 `DELETE /api/v1/library/books/:job_id`)或文档
    (`DELETE /api/v1/documents/:document_id`)时,如果名下还有排队或运行中的任务,后端返回
    **409**(`error.code` 为 `CONFLICT`,2026-10-19 起带 `error.details.reason = "job_active"`,
    和任务操作同一个值;前端可以按它判断,不用再靠"409 且不是 job_has_dependents"去推)。带 `?force=true` 才会连运行中的任务一起删;前端不自动
