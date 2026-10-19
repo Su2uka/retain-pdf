@@ -4,8 +4,8 @@
 //! 书的文件、AI 写的东西……）一律调 `JobDownloads::open`。
 //! 加一种文件 = 在 `JobFile` 里加一个名字、在 `locate` 里加一个分支，不要再单开下载函数。
 //!
-//! AI 助手写的文件（阅读路径、概念图、画板）不在这里：`<job>/ai/` 是 AI 可写的目录，
-//! 只允许读固定的几个文件名，见 `documents.rs` 和 `ai_board.rs`。
+//! AI 助手写的文件（画板）不在这里：`<job>/ai/` 是 AI 可写的目录，
+//! 文件名的防护都在 `ai_board.rs`。
 
 use std::path::PathBuf;
 

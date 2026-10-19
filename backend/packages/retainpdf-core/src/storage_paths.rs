@@ -35,8 +35,7 @@ pub use path_ops::{
 };
 pub use registry::collect_job_artifact_entries;
 pub use resolvers::{
-    resolve_ai_board_dir, resolve_ai_canvas, resolve_ai_dir,
-    resolve_ai_reading_path,
+    resolve_ai_board_dir, resolve_ai_dir,
     resolve_events_jsonl, resolve_fit_report, resolve_job_root, resolve_markdown_bundle_zip,
     resolve_markdown_images_dir, resolve_markdown_path, resolve_normalization_report,
     resolve_normalized_document, resolve_ocr_markdown_images_dir, resolve_output_pdf,

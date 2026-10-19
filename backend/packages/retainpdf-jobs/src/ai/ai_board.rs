@@ -2,9 +2,9 @@
 //!
 //! # 为什么是目录而不是 schema
 //!
-//! 前三个 agent 产物（reading-path / canvas / notes）各有一套 JSON schema。每加
+//! 早先的 agent 产物（reading-path / canvas / notes）各有一套 JSON schema。每加
 //! 一种可视化要动三处：schema、前端渲染器、AGENTS.md 一节。加到第三次时
-//! AGENTS.md 里一半篇幅都是在教 agent 拼格式。
+//! AGENTS.md 里一半篇幅都是在教 agent 拼格式。它们已经并进画板、端点也删了。
 //!
 //! 画板换个思路：**agent 手里已经有 shell 了**。`python3` 画个图、`pdftoppm`
 //! 截个页、`jq` 导个表 —— 产物丢进 `board/` 就能被看见，不需要我们为每种东西
@@ -12,8 +12,8 @@
 //!
 //! # 这是第一个接受「调用方给文件名」的 agent 产物端点
 //!
-//! 前面几个 resolver 都刻意不收文件名（见 resolvers.rs 里 `resolve_ai_artifact`
-//! 的说明）。画板必须收，所以防护要自己做足，而且**比 markdown 图片那条更严**：
+//! `ai/` 下其它东西都不对外读（`resolve_ai_dir` 也不收文件名）。画板必须收，
+//! 所以防护要自己做足，而且**比 markdown 图片那条更严**：
 //!
 //! - `md/images/` 是**流水线**写的，`safe_markdown_image_path` 只剥 `..` 就够
 //! - `board/` 是 **agent** 写的，它能 `ln -s /etc/passwd board/leak.png`
@@ -161,6 +161,10 @@ fn modified_ms(metadata: &std::fs::Metadata) -> u64 {
 
 /// 列出画板里能显示的东西。目录不存在 = 还没往里放过，返回空列表而不是 404 ——
 /// 画板是叠加层，「没有」是正常状态。
+///
+/// 这个 GET 可能写盘一次：重译出的新任务第一次被读时，先把同一本书上次的工作区
+/// 接力过来（见 `ai_carryover.rs`），之后每次读只多一次 stat（标记文件）。同步磁盘
+/// 活，调用方要放到阻塞线程里（`downloads.rs`）。
 pub(super) fn ai_board_listing(
     deps: &DownloadJobsDeps<'_>,
     job_id: &str,

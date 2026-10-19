@@ -1,40 +1,33 @@
 use retainpdf_api_base::error::AppError;
 use crate::ai::ai_board::{ai_board_file_download, ai_board_listing, AiBoardListing};
-use crate::ai::documents::{document_download, DocumentDownloadKind};
 use crate::files::downloads::{FileDownload, JobDownloads};
 
 impl<'a> JobDownloads<'a> {
-    /// AI 助手写在 `<job>/ai/` 里的阅读路径、概念图。
-    pub async fn ai_document(
-        &self,
-        job_id: &str,
-        kind: DocumentDownloadKind,
-    ) -> Result<FileDownload, AppError> {
+    /// 画板里有什么。读目录、接力都是同步磁盘活（接力最多拷 500 个文件 / 64 MB），
+    /// 前端还每几秒轮询一次，所以放到阻塞线程里做，不占 tokio 工作线程。
+    pub async fn ai_board_listing(&self, job_id: &str) -> Result<AiBoardListing, AppError> {
         let deps = self.deps.owned();
         let job_id = job_id.to_owned();
-        self.deps
-            .download_generation
-            .run(format!("{job_id}:ai:{}", kind.label()), move || {
-                let deps = deps.borrowed();
-                let job = retainpdf_api_base::job_loading::load_supported_job(
-                    deps.db,
-                    deps.data_root,
-                    &job_id,
-                )?;
-                document_download(&deps, &job, kind)
-            })
+        tokio::task::spawn_blocking(move || ai_board_listing(&deps.borrowed(), &job_id))
             .await
+            .map_err(|_| AppError::internal("ai board listing task failed"))?
     }
 
-    pub fn ai_board_listing(&self, job_id: &str) -> Result<AiBoardListing, AppError> {
-        ai_board_listing(&self.deps, job_id)
-    }
-
-    pub fn ai_board_file_download(
+    /// 取画板里的一个文件。和译文 PDF 等下载一样走 `download_generation`：
+    /// 阻塞线程里做，同一个文件的并发请求合并成一次。
+    pub async fn ai_board_file_download(
         &self,
         job_id: &str,
         name: &str,
     ) -> Result<FileDownload, AppError> {
-        ai_board_file_download(&self.deps, job_id, name)
+        let deps = self.deps.owned();
+        let job_id = job_id.to_owned();
+        let name = name.to_owned();
+        self.deps
+            .download_generation
+            .run(format!("{job_id}:ai:board:{name}"), move || {
+                ai_board_file_download(&deps.borrowed(), &job_id, &name)
+            })
+            .await
     }
 }

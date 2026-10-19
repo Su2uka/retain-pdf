@@ -37,7 +37,6 @@ mod translations;
 mod views;
 
 // 门面：领域外只能用这里导出的东西，子模块都是私有的（见 BOUNDARIES.md「Domain Facades」）。
-pub use ai::DocumentDownloadKind;
 pub use data::api::{
     job_data_catalog_view, job_data_view, JobDataApiDeps, JobDataCatalogView, JobDataView,
 };

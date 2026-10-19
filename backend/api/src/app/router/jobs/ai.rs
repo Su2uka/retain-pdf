@@ -1,14 +1,10 @@
-//! AI：AI 助手写在这本书里的东西。还没生成是正常状态：阅读路径、概念图返回 404，画板返回空列表。
+//! AI：AI 助手写在这本书里的东西（画板）。还没放过东西是正常状态：列表返回空。
 
 use crate::app::AppState;
 use crate::routes::jobs::ai;
 
 crate::endpoints! {
     state: AppState;
-    /// AI 助手生成的阅读路径
-    GET "/api/v1/jobs/:job_id/ai/reading-path" => ai::download_ai_reading_path, signed;
-    /// AI 助手生成的概念图
-    GET "/api/v1/jobs/:job_id/ai/canvas" => ai::download_ai_canvas, signed;
     /// 画板里的文件列表
     GET "/api/v1/jobs/:job_id/ai/board" => ai::list_ai_board, signed;
     /// 画板里的一个文件
