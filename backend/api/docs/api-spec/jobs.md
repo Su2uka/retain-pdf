@@ -38,7 +38,6 @@ The `/jobs/{job_id}/…` addresses below are the new ones (nine categories). The
 
 ```text
 POST /api/v1/uploads
-POST /api/v1/translate/bundle
 POST /api/v1/jobs
 GET  /api/v1/jobs
 GET  /api/v1/jobs/{job_id}

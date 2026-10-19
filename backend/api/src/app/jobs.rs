@@ -92,7 +92,7 @@ pub(crate) fn build_jobs_facade_with_launcher(
     ))
     .with_page_quota(state.config.accounts.mode.is_multi());
     let snapshot = SnapshotBuildDeps::new(state.db.as_ref(), state.config.job_snapshot_runtime());
-    let submit = JobSubmitDeps::new(snapshot, state.uploads.as_ref(), launcher);
+    let submit = JobSubmitDeps::new(snapshot, launcher);
     let control = ControlDeps::new(
         state.db.as_ref(),
         &state.config.job_runner,

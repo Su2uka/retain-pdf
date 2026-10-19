@@ -68,7 +68,7 @@ async fn upload_domain_errors_preserve_http_envelopes() {
 }
 
 #[tokio::test]
-async fn all_upload_consumers_use_the_injected_processing_budget() {
+async fn upload_route_uses_the_injected_processing_budget() {
     let mut state = test_state("upload-shared-budget");
     let mut processing = crate::config::UploadProcessingConfig::default();
     processing.buffer_mib = 1;
@@ -85,48 +85,34 @@ async fn all_upload_consumers_use_the_injected_processing_budget() {
     let uploads_dir = state.config.uploads_dir.clone();
     let output_root = state.config.output_root.clone();
     let db = state.db.clone();
-    let main = build_app(state.clone());
-    let simple = crate::app::build_simple_app(state);
-    for (app, uri) in [
-        (main.clone(), "/api/v1/uploads"),
-        (simple, "/api/v1/translate/bundle"),
-    ] {
-        let mut body = Vec::new();
-        for (name, value) in [
-            ("workflow", "book"),
-            ("api_key", "synthetic-key"),
-            ("model", "synthetic-model"),
-            ("base_url", "https://example.invalid/v1"),
-            ("mineru_token", "synthetic-token"),
-        ] {
-            body.extend_from_slice(format!("--{UPLOAD_BOUNDARY}\r\nContent-Disposition: form-data; name=\"{name}\"\r\n\r\n{value}\r\n").as_bytes());
-        }
-        body.extend_from_slice(format!("--{UPLOAD_BOUNDARY}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"input.pdf\"\r\nContent-Type: application/pdf\r\n\r\n").as_bytes());
-        let mut pdf = crate::test_support::pdf::build_test_pdf_bytes();
-        pdf.resize(1024 * 1024 + 1, b' ');
-        body.extend_from_slice(&pdf);
-        body.extend_from_slice(format!("\r\n--{UPLOAD_BOUNDARY}--\r\n").as_bytes());
-        let request = Request::builder()
-            .method("POST")
-            .uri(uri)
-            .header("X-API-Key", "test-key")
-            .header(
-                header::CONTENT_TYPE,
-                format!("multipart/form-data; boundary={UPLOAD_BOUNDARY}"),
-            )
-            .body(Body::from(body))
-            .unwrap();
-        let response = app.oneshot(request).await.unwrap();
-        assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE, "{uri}");
-        assert_eq!(
-            read_json(response).await["message"],
-            "PDF exceeds processing buffer budget",
-            "{uri}"
-        );
-        assert_eq!(std::fs::read_dir(&uploads_dir).unwrap().count(), 0);
-        assert_eq!(std::fs::read_dir(&output_root).unwrap().count(), 0);
-        assert!(db.list_jobs(10, 0, None, None).unwrap().is_empty());
-    }
+    let app = build_app(state);
+    let uri = "/api/v1/uploads";
+    let mut body = Vec::new();
+    body.extend_from_slice(format!("--{UPLOAD_BOUNDARY}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"input.pdf\"\r\nContent-Type: application/pdf\r\n\r\n").as_bytes());
+    let mut pdf = crate::test_support::pdf::build_test_pdf_bytes();
+    pdf.resize(1024 * 1024 + 1, b' ');
+    body.extend_from_slice(&pdf);
+    body.extend_from_slice(format!("\r\n--{UPLOAD_BOUNDARY}--\r\n").as_bytes());
+    let request = Request::builder()
+        .method("POST")
+        .uri(uri)
+        .header("X-API-Key", "test-key")
+        .header(
+            header::CONTENT_TYPE,
+            format!("multipart/form-data; boundary={UPLOAD_BOUNDARY}"),
+        )
+        .body(Body::from(body))
+        .unwrap();
+    let response = app.oneshot(request).await.unwrap();
+    assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE, "{uri}");
+    assert_eq!(
+        read_json(response).await["message"],
+        "PDF exceeds processing buffer budget",
+        "{uri}"
+    );
+    assert_eq!(std::fs::read_dir(&uploads_dir).unwrap().count(), 0);
+    assert_eq!(std::fs::read_dir(&output_root).unwrap().count(), 0);
+    assert!(db.list_jobs(10, 0, None, None).unwrap().is_empty());
 }
 use axum::body::Body;
 use axum::http::{header, Request, StatusCode};

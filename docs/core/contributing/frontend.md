@@ -35,7 +35,7 @@ npm run dev --workspace=frontend-react
 
 - Web 前端：`40001`
 - Rust API：`41000`
-- multipart 异步提交 API：`42000`
+- 第二个端口（只有 `/health`、`/ready`）：`42000`
 
 前端 API base 规则见 [本地启动与配置](../api/local-dev.md)。
 

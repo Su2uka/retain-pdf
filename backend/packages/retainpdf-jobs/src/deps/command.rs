@@ -2,7 +2,6 @@ use retainpdf_core::config::{JobRunnerConfig, JobSnapshotRuntimeConfig};
 use retainpdf_data::db::Db;
 use crate::lifecycle::launcher::JobLaunchDeps;
 use crate::runtime_gateway::{JobRuntime, RuntimeControl};
-use retainpdf_ingest::UploadService;
 use std::path::Path;
 
 #[derive(Clone)]
@@ -20,21 +19,12 @@ impl<'a> SnapshotBuildDeps<'a> {
 #[derive(Clone)]
 pub struct JobSubmitDeps<'a> {
     pub(crate) snapshot: SnapshotBuildDeps<'a>,
-    pub(crate) uploads: &'a UploadService,
     pub launcher: JobLaunchDeps<'a>,
 }
 
 impl<'a> JobSubmitDeps<'a> {
-    pub fn new(
-        snapshot: SnapshotBuildDeps<'a>,
-        uploads: &'a UploadService,
-        launcher: JobLaunchDeps<'a>,
-    ) -> Self {
-        Self {
-            snapshot,
-            uploads,
-            launcher,
-        }
+    pub fn new(snapshot: SnapshotBuildDeps<'a>, launcher: JobLaunchDeps<'a>) -> Self {
+        Self { snapshot, launcher }
     }
 }
 

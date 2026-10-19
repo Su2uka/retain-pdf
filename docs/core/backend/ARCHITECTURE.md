@@ -12,7 +12,7 @@ RetainPDF 面向本地桌面与自托管 Docker，不按云端微服务拆库。
 frontend/web 或 frontend/desktop
   └─ rust_api
        ├─ :41000  完整 HTTP API、下载、SSE、健康与就绪检查
-       ├─ :42000  仅 POST /api/v1/translate/bundle
+       ├─ :42000  仅 /health、/ready
        ├─ retain-jobsd :41002（remote 模式、仅回环、可选监督）
        │    └─ Python pipeline workers
        └─ retainpdf-ai :41100（仅回环、可选监督）

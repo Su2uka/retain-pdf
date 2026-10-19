@@ -25,7 +25,6 @@ mod library;
 mod model_requests;
 mod providers;
 mod public;
-mod simple;
 mod terminal;
 
 /// 登记表里的全部接口（`app/endpoints.rs`）：访问控制按它查谁能用，接口目录和接口清单快照也从这里汇总。
@@ -51,7 +50,6 @@ pub(crate) fn registered_endpoints() -> Vec<crate::app::endpoints::Endpoint> {
         model_requests::launcher::ENDPOINTS,
         model_requests::worker::ENDPOINTS,
         terminal::ENDPOINTS,
-        simple::ENDPOINTS,
     ]);
     tables.into_iter().flatten().copied().collect()
 }
@@ -98,10 +96,10 @@ fn cors_layer(accounts: &AccountsConfig) -> CorsLayer {
         .allow_headers(AllowHeaders::mirror_request())
 }
 
+/// 另一个端口（simple_port）上的应用：只有 `/health`、`/ready`，给健康检查用。
 pub fn build_simple_app(state: AppState) -> Router {
     public::routes()
         .method_not_allowed_fallback(method_not_allowed)
-        .merge(authenticated_simple_routes(&state))
         .fallback(unknown_route)
         .layer(cors_layer(&state.config.accounts))
         .layer(TraceLayer::new_for_http())
@@ -125,20 +123,6 @@ fn authenticated_api_routes(state: &AppState) -> Router<AppState> {
         .merge(providers::routes())
         .merge(fonts::routes())
         .merge(model_requests::launcher::routes())
-        .method_not_allowed_fallback(method_not_allowed)
-        // 先挂的在里层、后跑：先认证（require_api_key），再看能不能访问（enforce_access）。
-        .route_layer(middleware::from_fn_with_state(
-            state.clone(),
-            auth::enforce_access,
-        ))
-        .route_layer(middleware::from_fn_with_state(
-            state.clone(),
-            auth::require_api_key,
-        ))
-}
-
-fn authenticated_simple_routes(state: &AppState) -> Router<AppState> {
-    simple::routes()
         .method_not_allowed_fallback(method_not_allowed)
         // 先挂的在里层、后跑：先认证（require_api_key），再看能不能访问（enforce_access）。
         .route_layer(middleware::from_fn_with_state(

@@ -1,6 +1,6 @@
 //! 建新任务的唯一入口 [`submit_job`]，和原地重跑已有任务的 [`relaunch_in_place`]。
 //!
-//! 所有"建一个新任务并开跑"的地方都走 `submit_job`：`POST /jobs`、`/translate/bundle`、
+//! 所有"建一个新任务并开跑"的地方都走 `submit_job`：`POST /jobs`、
 //! 书库的翻译和 OCR、重试、续跑、OCR 歧义恢复。下面每一步只在这里写一次：
 //!
 //! 1. 翻译类的新提交补开发栈的默认值（OCR 歧义恢复沿用源任务的设置，不补）；
@@ -9,7 +9,6 @@
 //! 4. 明文 key 导入凭据库换成引用，加使用锁，锁到落库之后；
 //! 5. 落库（多用户模式按页预扣）、归到书下、发射。
 //!
-//! 带文件的入口（`/translate/bundle`）先把文件存成上传，再把上传记录交给 [`NewJob::with_upload`]。
 //! 任务运行时内部派生的 `{id}-ocr` 子任务不经这里，所以不会重复计费。
 
 use serde_json::Value;
@@ -17,13 +16,12 @@ use serde_json::Value;
 use retainpdf_data::db::PipelineDispatchRecord;
 use retainpdf_api_base::error::AppError;
 use retainpdf_data::job_events::persist_job_with_resources;
-use retainpdf_core::models::domain::{JobSnapshot, UploadRecord, WorkflowKind};
+use retainpdf_core::models::domain::{JobSnapshot, WorkflowKind};
 use retainpdf_core::models::request::CreateJobInput;
 use crate::deps::JobSubmitDeps;
 use crate::lifecycle::launcher::{
     apply_platform_models, apply_platform_models_to_input, link_new_job_to_document, JobLaunchDeps,
 };
-use crate::lifecycle::validation::validate_mineru_upload_limits;
 
 use super::dev_defaults::with_dev_translation_defaults;
 use super::job_builders::{build_ocr_job_snapshot, build_translation_job_snapshot};
@@ -32,7 +30,6 @@ use super::ocr_credentials::{acquire_job_credential_usage_lock, secure_job_crede
 /// 要建的新任务。
 pub struct NewJob<'a> {
     input: CreateJobInput,
-    upload: Option<UploadRecord>,
     derived_from: Option<&'a str>,
     document_id: Option<&'a str>,
     ocr_recovery: Option<OcrRecovery<'a>>,
@@ -50,17 +47,10 @@ impl<'a> NewJob<'a> {
     pub fn new(input: CreateJobInput) -> Self {
         Self {
             input,
-            upload: None,
             derived_from: None,
             document_id: None,
             ocr_recovery: None,
         }
-    }
-
-    /// 随请求一起传的文件，已经存成上传。
-    pub(crate) fn with_upload(mut self, upload: UploadRecord) -> Self {
-        self.upload = Some(upload);
-        self
     }
 
     /// 从哪个任务派生出来的（OCR 重试只带 upload_id、不带 artifact_job_id）：
@@ -92,7 +82,7 @@ impl<'a> NewJob<'a> {
     }
 }
 
-/// 对外入口（`POST /jobs`、书库的翻译和 OCR、`/translate/bundle`）收到的请求，
+/// 对外入口（`POST /jobs`、书库的翻译和 OCR）收到的请求，
 /// 不许带 `runtime.job_id`：任务编号由服务器分配。落库是 upsert，客户端自己指定编号
 /// 会覆盖已有任务，带 `..` 还会在输出目录外建目录。
 /// 重试、续跑这些内部提交自己清空这个字段，不经这里。
@@ -117,7 +107,6 @@ fn is_valid_job_id(job_id: &str) -> bool {
 pub fn submit_job(deps: &JobSubmitDeps<'_>, new: NewJob<'_>) -> Result<JobSnapshot, AppError> {
     let NewJob {
         mut input,
-        upload,
         derived_from,
         document_id,
         ocr_recovery,
@@ -144,16 +133,10 @@ pub fn submit_job(deps: &JobSubmitDeps<'_>, new: NewJob<'_>) -> Result<JobSnapsh
     if let Some(source) = deps.launcher.platform {
         apply_platform_models_to_input(&mut input, &source.resolve()?)?;
     }
-    if let Some(upload) = &upload {
-        input.source.upload_id = upload.upload_id.clone();
-    }
 
     let job = if ocr_only {
-        build_ocr_job_snapshot(&deps.snapshot, &input, upload.as_ref())?
+        build_ocr_job_snapshot(&deps.snapshot, &input, None)?
     } else {
-        if let Some(upload) = &upload {
-            validate_mineru_upload_limits(&input, upload, deps.snapshot.config.provider_limits)?;
-        }
         build_translation_job_snapshot(&deps.snapshot, &input)?
     };
     let job = secure_job_credentials(deps, job)?;

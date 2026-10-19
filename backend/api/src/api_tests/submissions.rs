@@ -388,37 +388,6 @@ async fn single_user_cases(recorder: &mut Recorder) {
         })
         .await;
 
-    recorder
-        .case(&fixture, "POST /translate/bundle  book，带文件", None, || async {
-            let mut request = book_with_keys("");
-            request["source"] = json!({});
-            view(
-                jobs.create_translation_bundle_submission(
-                    BASE_URL,
-                    input(request),
-                    "bundle.pdf".to_string(),
-                    minimal_pdf_bytes(595, 842),
-                    false,
-                )
-                .await,
-            )
-        })
-        .await;
-    recorder
-        .case(&fixture, "POST /translate/bundle  workflow=ocr", None, || async {
-            view(
-                jobs.create_translation_bundle_submission(
-                    BASE_URL,
-                    input(json!({ "workflow": "ocr", "ocr": { "provider": "mineru", "mineru_token": "t" } })),
-                    "bundle.pdf".to_string(),
-                    minimal_pdf_bytes(595, 842),
-                    false,
-                )
-                .await,
-            )
-        })
-        .await;
-
     // 重试、续跑：从已有任务派生。
     let ocr_upload = fixture.seed_upload("up-ocr-src", "local", 1);
     failed_ocr_source(&fixture, "src-ocr-failed", &ocr_upload);
@@ -606,22 +575,6 @@ async fn multi_user_cases(recorder: &mut Recorder) {
     recorder
         .case(&fixture, "多用户  POST /jobs  book，页数不够", Some("u_alice"), || async {
             view(jobs.create_submission(BASE_URL, &input(book_with_keys("up-alice"))))
-        })
-        .await;
-    recorder
-        .case(&fixture, "多用户  POST /translate/bundle  自带 key", Some("u_alice"), || async {
-            let mut request = book_with_keys("");
-            request["source"] = json!({});
-            view(
-                jobs.create_translation_bundle_submission(
-                    BASE_URL,
-                    input(request),
-                    "bundle.pdf".to_string(),
-                    minimal_pdf_bytes(595, 842),
-                    false,
-                )
-                .await,
-            )
         })
         .await;
 }

@@ -15,7 +15,6 @@ retainpdf-core = { path = "../retainpdf-core" }
 retainpdf-data = { path = "../retainpdf-data" }
 retainpdf-files = { path = "../retainpdf-files" }
 retainpdf-glossaries = { path = "../retainpdf-glossaries" }
-retainpdf-ingest = { path = "../retainpdf-ingest" }
 retainpdf-proc = { path = "../retainpdf-proc" }
 retainpdf-providers = { path = "../retainpdf-providers" }
 retainpdf-runner = { path = "../retainpdf-runner" }
@@ -38,5 +37,4 @@ url = "2"
 walkdir = "2"
 
 [dev-dependencies]
-retainpdf-ingest = { path = "../retainpdf-ingest", features = ["test-fixtures"] }
 rusqlite = { version = "0.31", features = ["bundled"] }
