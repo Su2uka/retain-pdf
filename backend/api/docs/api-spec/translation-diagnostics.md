@@ -21,6 +21,17 @@ All endpoints on this page are job-local and read from:
 - `DATA_ROOT/jobs/<job_id>/translated/translation-manifest.json` and the page files it points to (item list, raw item, replay, revisions)
 - `DATA_ROOT/jobs/<job_id>/artifacts/translation_debug_index.json` only as a fallback for the item list when the manifest is missing (it is written once when translation finishes and is not updated by revisions)
 
+Not ready yet (2026-10-19, rule in [错误约定](../../../../docs/api/00-约定/02-认证与错误.md#还没产出404)):
+
+- Job does not exist: plain `404`, `error.details` is `{}`.
+- Job exists but the report or the translation manifest is not there yet: `404` with
+  `error.details.reason = "not_ready"` and the message `translation report not ready`,
+  `translation-qa report not ready`, `layout-fit report not ready`, `refine report not ready` or
+  `translation manifest not ready` (single item, revisions, `PATCH`, replay).
+- The item list is a list: without a manifest (and without the fallback index) it is `200` with
+  `items: []`, `total: 0` (it used to be `404 translation manifest not found`).
+- Manifest present but the item does not exist: plain `404` (`translation item not found: …`).
+
 ## Translation Diagnostics Summary
 
 `GET /api/v1/jobs/{job_id}/reports/translation`
@@ -57,7 +68,7 @@ Response:
 
 返回 `artifacts/translation_qa.v1.json` 的原样内容（经过和 diagnostics 相同的脱敏）。翻译阶段结束时内联生成一次
 （`generator.mode=inline`，此时还没排版，`checks.layout_fit` 为 skipped），渲染结束后带上排版 fit 报告重算并覆盖
-（`generator.mode=post_render`）。报告不存在时返回 404。
+（`generator.mode=post_render`）。报告还没生成时返回 404 + `reason: "not_ready"`（`translation-qa report not ready`）。
 
 ```json
 {
@@ -89,7 +100,7 @@ Response:
 返回 `artifacts/refine_report.v1.json` 的原样内容（经过和 diagnostics 相同的脱敏）。精修（挑错 + 定点修改）在渲染阶段、
 真正渲染之前运行：新任务由 `translation.refine` 决定（默认 `off`，不生成报告）；已完成的任务用
 `POST /api/v1/jobs/{job_id}/actions/retry-stage` 的 `{"stage": "refine", "create_new_job": false}` 原地触发。报告结构见
-`contracts/refine-report.v1.schema.json`（schema `refine_report_v1`）。报告不存在时返回 404。
+`contracts/refine-report.v1.schema.json`（schema `refine_report_v1`）。报告还没生成时返回 404 + `reason: "not_ready"`（`refine report not ready`）。
 
 ```json
 {
@@ -114,7 +125,7 @@ Response:
 `GET /api/v1/jobs/{job_id}/reports/layout-fit`
 
 返回 `artifacts/fit_report.v1.json` 的原样内容：每块的最终字号、缩小比例、是否进入应急档、是否溢出，以及页级、全书汇总。
-`report.status` 为 `ok` / `failed` / `unavailable`（逐页降级等不走整本 Typst 的渲染路径）。报告不存在时返回 404。
+`report.status` 为 `ok` / `failed` / `unavailable`（逐页降级等不走整本 Typst 的渲染路径）。报告还没生成时返回 404 + `reason: "not_ready"`（`layout-fit report not ready`）。
 
 ```json
 {
@@ -139,7 +150,7 @@ Response:
 
 `GET /api/v1/jobs/{job_id}/translations`
 
-The list is computed on every call from the manifest and its page files (the same files `GET .../translations/{item_id}` reads), so after a `PATCH` revision `translated_preview`, `final_status` and the `q` search reflect the revised text. `translation_debug_index.json` is only used when the manifest cannot be found.
+The list is computed on every call from the manifest and its page files (the same files `GET .../translations/{item_id}` reads), so after a `PATCH` revision `translated_preview`, `final_status` and the `q` search reflect the revised text. `translation_debug_index.json` is only used when the manifest cannot be found. With neither, the list is `200` and empty.
 
 Query parameters (any other parameter is `400`):
 
@@ -191,7 +202,7 @@ Response:
 
 `GET /api/v1/jobs/{job_id}/translations/{item_id}`
 
-Response: the item is wrapped; the saved translated item is under `data.item`. Sensitive fields and inline secrets are redacted. Unknown items return 404.
+Response: the item is wrapped; the saved translated item is under `data.item`. Sensitive fields and inline secrets are redacted. Unknown items return a plain 404; no manifest yet returns 404 + `reason: "not_ready"`.
 
 ```json
 {
@@ -236,7 +247,7 @@ Behavior:
 Errors:
 
 - `400`: `item_id` is not a valid item id (letters, digits, `-`, `_`, `:`, `.`; at most 128 characters)
-- `404`: the job, its translation manifest, or the item does not exist
+- `404`: the job or the item does not exist (plain); no translation manifest yet: `404` + `reason: "not_ready"`
 - `409 TRANSLATION_REVISION_CONFLICT` (`read_only_job`): merged reading results (`merged-…` job ids) have no translations of their own; replay the source job
 - `500`: the replay script failed or timed out
 
@@ -311,9 +322,10 @@ Errors (`error.details.reason`):
 - `409 TRANSLATION_REVISION_CONFLICT`: `job_running`, `checkpoint_locked`, `generation_mismatch` (with `current_generation`), `translation_not_committed`, `publication_inconsistent`, `group_members_missing`, `translations_owned_by_another_job`, `read_only_job`.
 - `400 BAD_REQUEST`: the body has a field PATCH does not accept (message names the field).
 - `422 UNPROCESSABLE_ENTITY`: request body does not match the schema (missing or bad `source`).
+- `404 NOT_FOUND`: the job or the item does not exist (plain); no translation manifest yet: `reason: "not_ready"` (`translation manifest not ready`).
 
 ## Translation Item Revision History
 
 `GET /api/v1/jobs/{job_id}/translations/{item_id}/revisions`
 
-Returns `{ job_id, item_id, revisions: [...], total }`, oldest first. Each entry is one `translation_revision_v1` record from `translated/revisions.v1.jsonl`. Unknown items return 404.
+Returns `{ job_id, item_id, revisions: [...], total }`, oldest first. Each entry is one `translation_revision_v1` record from `translated/revisions.v1.jsonl`. Unknown items return a plain 404; no manifest yet returns 404 + `reason: "not_ready"`.

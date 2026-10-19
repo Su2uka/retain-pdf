@@ -10,7 +10,7 @@
       "path": "/api/v1/jobs/:job_id/reports/refine",
       "output": "RefineReportView",
       "errors": {
-        "404": "NOT_FOUND: job does not exist or the job has no refine report yet"
+        "404": "NOT_FOUND: job does not exist (error.details is {}); the job has no refine report yet: error.details.reason = not_ready, message \"refine report not ready\""
       },
       "rust_view": "JobReportView",
       "ts_consumer": "terminal agent CLI (retainpdf-agent translation issues)"

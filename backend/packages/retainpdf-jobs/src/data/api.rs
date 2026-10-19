@@ -25,12 +25,15 @@ impl JobDataApiDeps {
     }
 }
 
-fn roots_for(deps: &JobDataApiDeps, job_id: &str) -> Result<JobDataRoots, AppError> {
+/// `None` = 任务还没有输出目录（排队中、还没开始跑）。
+fn roots_for(deps: &JobDataApiDeps, job_id: &str) -> Result<Option<JobDataRoots>, AppError> {
     // 和其余读任务的接口一样走 `load_supported_job`：认合并阅读的虚拟 id，旧目录格式的任务报 409。
     // 虚拟任务的目录是合并目录，里面没有的数据集照常 `available: false`。
     let job = load_supported_job(&deps.db, &deps.data_root, job_id)?;
-    let job_root = resolve_job_root(&job, &deps.data_root)
-        .ok_or_else(|| AppError::not_found(format!("job has no output directory: {job_id}")))?;
+    // 还没有输出目录和「文件还不在」一样：200 + `available: false`，不是 404。
+    let Some(job_root) = resolve_job_root(&job, &deps.data_root) else {
+        return Ok(None);
+    };
     // 新任务式重渲染的译文在源任务目录里；报告、日志在本任务目录里。
     let translated = job
         .artifacts
@@ -38,11 +41,11 @@ fn roots_for(deps: &JobDataApiDeps, job_id: &str) -> Result<JobDataRoots, AppErr
         .and_then(|artifacts| artifacts.translations_dir.as_deref())
         .and_then(|raw| resolve_data_path(&deps.data_root, raw).ok())
         .unwrap_or_else(|| job_root.join("translated"));
-    Ok(JobDataRoots { artifacts: job_root.join("artifacts"), translated, logs: job_root.join("logs") })
+    Ok(Some(JobDataRoots { artifacts: job_root.join("artifacts"), translated, logs: job_root.join("logs") }))
 }
 
 pub fn job_data_catalog_view(deps: &JobDataApiDeps, job_id: &str) -> Result<JobDataCatalogView, AppError> {
-    Ok(catalog(job_id, &roots_for(deps, job_id)?))
+    Ok(catalog(job_id, roots_for(deps, job_id)?.as_ref()))
 }
 
 pub fn job_data_view(
@@ -51,5 +54,5 @@ pub fn job_data_view(
     dataset: &str,
     params: &HashMap<String, String>,
 ) -> Result<JobDataView, AppError> {
-    query(job_id, dataset, &roots_for(deps, job_id)?, params)
+    query(job_id, dataset, roots_for(deps, job_id)?.as_ref(), params)
 }

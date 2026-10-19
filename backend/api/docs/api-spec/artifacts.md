@@ -44,6 +44,20 @@ from the removed manifest. `source.url` is
 when the job has no document id, `source.url` is `""` and `ready` is `false`, and the
 job's `cover_url` / `thumbnail_url` are `null`.
 
+### Not ready yet (2026-10-19)
+
+- Job does not exist: plain `404`, `error.details` is `{}` (`job not found: …`).
+- Unknown file name: plain `404` (`no such file: …`).
+- Job exists but the file has not been produced yet: `404` with
+  `error.details.reason = "not_ready"` and the message `<name> not ready`, where `<name>`
+  is the missing file (`translated.pdf`, `source.pdf`, `ocr.md`, `ocr.zip`, `ocr/images`,
+  `all.zip`, `translated.docx`, or the `internal/` file name). `all.zip` for a job that
+  has not succeeded used to be `409 job is not finished successfully`; it is now this `404`.
+- Clients tell "job is gone" from "not ready yet" by `error.details.reason` only. The
+  rule is in [错误约定](../../../../docs/api/00-约定/02-认证与错误.md#还没产出404).
+- A book whose source PDF is missing on disk stays a plain `404` without `not_ready`:
+  the source is uploaded with the book and never appears later.
+
 ## Reader Artifact Links
 
 The `artifacts` field of `GET /api/v1/jobs/{job_id}` carries these links. The standalone `GET /api/v1/jobs/{job_id}/artifacts` that used to return the same object was removed on 2026-10-18; use `GET /api/v1/jobs/{job_id}/files` for the file list.
@@ -133,7 +147,8 @@ Behavior:
 - generates and caches `jobs/{job_id}/artifacts/{job_id}-side-by-side.pdf`
 - each output page places the original page on the left and the translated page on the right
 - output page count is `max(source_page_count, translated_page_count)`; a missing side is left blank
-- returns `404` if either source PDF or translated PDF is not ready
+- returns `404` + `reason: "not_ready"` (`source.pdf not ready` / `translated.pdf not ready`)
+  if either source PDF or translated PDF is not ready
 
 ## Cover and Thumbnail
 
@@ -200,6 +215,9 @@ Structured response for readers, document preview, and AI Q&A surfaces. It retur
 the published Markdown, a Markdown variant whose local `images/...` links are
 rewritten to absolute API URLs, and a direct image manifest.
 
+While the job has no published Markdown yet it returns `404` + `error.details.reason = "not_ready"`
+(`markdown not ready`); a job that does not exist is a plain `404` without `reason`.
+
 ```json
 {
   "code": 0,
@@ -234,6 +252,8 @@ rewritten to absolute API URLs, and a direct image manifest.
 Response:
 
 - raw image file stream
+- `404` + `reason: "not_ready"` (`ocr/images not ready`) while the job has no Markdown
+  image directory yet; a missing image inside an existing directory is a plain `404`
 
 ## Download Bundle
 
@@ -248,3 +268,5 @@ Bundle contents:
 Response:
 
 - raw `application/zip`
+- only for succeeded jobs; otherwise `404` + `reason: "not_ready"` (`all.zip not ready`).
+  Before 2026-10-19 this was `409 job is not finished successfully`.

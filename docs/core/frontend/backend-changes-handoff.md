@@ -10,6 +10,42 @@
 ---
 
 
+## 0000000. 还没产出：404 带 `error.details.reason = "not_ready"`，任务不存在是不带 reason 的 404
+
+分支 `fix/not-ready-404`（2026-10-19）。对应审计 C3、D2，规矩见 [错误约定](../../api/00-约定/02-认证与错误.md#还没产出404)，
+逐个接口的改前改后见 [实现记录](../../ops/planning/api-reorg/20261019-还没产出返回404实现记录.md)。
+
+### 变了什么
+
+1. 原始文件和报告（`/jobs/{id}/files/output|pages|internal/…`、`reader/markdown`、`reports/translation|translation-qa|layout-fit|refine`、
+   `translations/{item}` 及修订历史 / 改写 / 重翻）：任务在、东西还没产出时 `404` + `error.details.reason = "not_ready"`，
+   `message` 统一成 `<名字> not ready`（如 `translated.pdf not ready`，不再带任务编号）。原来就是 404，只是多了 `reason`、换了措辞。
+2. 任务不存在：照旧 `404`，`error.details` 是 `{}`，`message` 是 `job not found: …`。
+3. 状态码变了的只有三处：
+   - `files/output/all.zip` 任务没成功时 `409 job is not finished successfully` → `404` not_ready `all.zip not ready`；
+   - `GET /jobs/{id}/translations` 还没有翻译清单时 `404` → `200` 空列表；
+   - `reports/quality`、`reports/quality/items`、`data`、`data/{dataset}` 在任务还没有输出目录（排队中）时 `404 job has no output directory` → `200`
+     （各段 `null`、空清单、`available: false`）。
+4. 阅读器会碰到的地址（`/jobs/{id}`、`files`、`reader/regions`、`reader/metadata`、`reader/markdown`、`files/output/ocr.md`、`ocr/images/…`、
+   `translated.pdf`、`/documents/{id}/files/source.pdf`、`/documents/{id}/reading`、`progress/layout`、`progress/pages/{page}`、`ai/board`）
+   状态码**都没变**；其中 `reader/markdown`、`ocr.md`、`ocr/images/…`、`translated.pdf` 没产出时多了 `reason: "not_ready"`。
+   边翻边看的 `error.code`（`LIVE_TRANSLATION_LAYOUT_NOT_READY` 409、`LIVE_TRANSLATION_PAGE_NOT_COMMITTED` 404）没动。
+
+### 前端要做什么
+
+- `frontend/packages/reader/src/hooks/reader-session/session-load-plan.ts` 的 `isStaleDocumentJobFailure`：
+  旧写法 `input.status === 404 && !input.jobId && …`，正在跑的书拿到译文 PDF 的 404 也会被当成"任务丢了"退回原文；
+  新写法加一条 `&& input.reason !== "not_ready"`，`session-assets.ts`（约 458 行）调用时把错误体里的 `error.details.reason` 传进去
+  （抛出的错误要带上响应体里的 `reason`）。不改也不会比现在差：这些地址原来就是 404。
+- `frontend/packages/api/src/translation-debug.ts`（可选）：`fetchTranslationDiagnostics`、`fetchTranslationItem` 现在 404 一律说
+  「未找到…请确认已完成翻译」；可以按 `reason === "not_ready"` 说「还没生成」，没有 `reason` 说「任务不存在」。
+  `fetchTranslationItems` 的 `404 → 空列表` 分支以后只在任务不存在时走到，不改也对。
+- `all.zip`：前端没有按 409 判断，不用改。质量卡、取数在排队任务上从报错变成空状态，不用改。
+- 判断"还没好"只看 `error.details.reason`，不要匹配英文 `message`（措辞已经变了：`pdf not ready: <id>` → `translated.pdf not ready`、
+  `markdown not found: <id>` → `markdown not ready`、`refine report not found: <id>` → `refine report not ready`……）。
+
+---
+
 ## 000000. 删除要顾到别的任务：强删先取消，被引用的任务不能直接删，删任务清全文索引
 
 分支 `fix/force-delete-stops-runner`（2026-10-19）。对应状态一致性审计 1-#5、2-#1/#2/#4。

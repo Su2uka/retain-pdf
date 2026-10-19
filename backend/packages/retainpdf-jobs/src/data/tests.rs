@@ -67,7 +67,7 @@ fn the_registry_in_the_contract_is_valid() {
 #[test]
 fn rows_carry_shared_identity_fields_from_wherever_each_file_keeps_them() {
     let roots = full_fixture("identity");
-    let qa = query("job", "qa_violations", &roots, &params(&[])).unwrap();
+    let qa = query("job", "qa_violations", Some(&roots), &params(&[])).unwrap();
     let rows = qa.rows.unwrap();
     assert_eq!(rows[0]["item_id"], "p009-b012");
     assert_eq!(rows[0]["reader_item_id"], "p009-b0012");
@@ -76,7 +76,7 @@ fn rows_carry_shared_identity_fields_from_wherever_each_file_keeps_them() {
     assert_eq!(rows[1]["reader_item_id"], "p010-b0004");
     assert!(rows[0].get("location").is_none(), "只返回登记的字段");
 
-    let items = query("job", "translation_items", &roots, &params(&[("fields", "final_status")])).unwrap();
+    let items = query("job", "translation_items", Some(&roots), &params(&[("fields", "final_status")])).unwrap();
     let rows = items.rows.unwrap();
     assert_eq!(rows.len(), 3, "每页一个文件，合起来");
     assert_eq!(rows[2]["page"], 2, "page_idx 0 起，加 1");
@@ -88,26 +88,26 @@ fn rows_carry_shared_identity_fields_from_wherever_each_file_keeps_them() {
 #[test]
 fn filters_are_equality_with_comma_or_and_typed() {
     let roots = full_fixture("filters");
-    let failed = query("job", "translation_items", &roots, &params(&[("final_status", "failed,kept_origin")])).unwrap();
+    let failed = query("job", "translation_items", Some(&roots), &params(&[("final_status", "failed,kept_origin")])).unwrap();
     assert_eq!(failed.total, 2);
-    let page_nine = query("job", "layout_blocks", &roots, &params(&[("page", "9"), ("overflow", "true")])).unwrap();
+    let page_nine = query("job", "layout_blocks", Some(&roots), &params(&[("page", "9"), ("overflow", "true")])).unwrap();
     assert_eq!(page_nine.total, 1);
     // 块编号三位、四位两种写法都认。
-    let by_reader_id = query("job", "revisions", &roots, &params(&[("item_id", "p001-b0001")])).unwrap();
+    let by_reader_id = query("job", "revisions", Some(&roots), &params(&[("item_id", "p001-b0001")])).unwrap();
     assert_eq!(by_reader_id.total, 2);
 }
 
 #[test]
 fn group_by_counts_and_sort_and_paging() {
     let roots = full_fixture("group");
-    let groups = query("job", "revisions", &roots, &params(&[("group_by", "item_id")])).unwrap();
+    let groups = query("job", "revisions", Some(&roots), &params(&[("group_by", "item_id")])).unwrap();
     assert_eq!(groups.total, 3, "坏行跳过");
     let groups = groups.groups.unwrap();
     assert_eq!((groups[0].value.clone(), groups[0].count), (json!("p001-b001"), 2));
 
-    let latest = query("job", "revisions", &roots, &params(&[("sort", "-ts"), ("limit", "1")])).unwrap();
+    let latest = query("job", "revisions", Some(&roots), &params(&[("sort", "-ts"), ("limit", "1")])).unwrap();
     assert_eq!(latest.rows.unwrap()[0]["revision_id"], "r2");
-    let second = query("job", "revisions", &roots, &params(&[("sort", "ts"), ("offset", "1"), ("limit", "1")])).unwrap();
+    let second = query("job", "revisions", Some(&roots), &params(&[("sort", "ts"), ("offset", "1"), ("limit", "1")])).unwrap();
     assert_eq!(second.rows.unwrap()[0]["revision_id"], "r3");
 }
 
@@ -115,26 +115,26 @@ fn group_by_counts_and_sort_and_paging() {
 fn has_more_follows_rows_and_group_total_follows_groups() {
     let roots = full_fixture("has-more");
     // 行：total 是筛选后的行数。
-    let first = query("job", "revisions", &roots, &params(&[("limit", "2")])).unwrap();
+    let first = query("job", "revisions", Some(&roots), &params(&[("limit", "2")])).unwrap();
     assert_eq!((first.total, first.limit, first.has_more, first.group_total), (3, 2, true, None));
-    let last = query("job", "revisions", &roots, &params(&[("limit", "2"), ("offset", "2")])).unwrap();
+    let last = query("job", "revisions", Some(&roots), &params(&[("limit", "2"), ("offset", "2")])).unwrap();
     assert_eq!((last.rows.unwrap().len(), last.has_more), (1, false));
     // 分组：total 仍是行数（3），翻页的是分组（2 个）。
-    let groups = query("job", "revisions", &roots, &params(&[("group_by", "item_id"), ("limit", "1")])).unwrap();
+    let groups = query("job", "revisions", Some(&roots), &params(&[("group_by", "item_id"), ("limit", "1")])).unwrap();
     assert_eq!((groups.total, groups.group_total, groups.has_more), (3, Some(2), true));
-    let groups = query("job", "revisions", &roots, &params(&[("group_by", "item_id"), ("limit", "1"), ("offset", "1")])).unwrap();
+    let groups = query("job", "revisions", Some(&roots), &params(&[("group_by", "item_id"), ("limit", "1"), ("offset", "1")])).unwrap();
     assert_eq!((groups.group_total, groups.has_more), (Some(2), false));
     // object 数据集和读不到文件：没有下一页。
-    let object = query("job", "domain_context", &roots, &params(&[])).unwrap();
+    let object = query("job", "domain_context", Some(&roots), &params(&[])).unwrap();
     assert!(!object.has_more && object.group_total.is_none());
-    let missing = query("job", "escalated", &fixture("has-more-missing"), &params(&[("group_by", "item_id")])).unwrap();
+    let missing = query("job", "escalated", Some(&fixture("has-more-missing")), &params(&[("group_by", "item_id")])).unwrap();
     assert_eq!((missing.available, missing.has_more, missing.group_total), (false, false, Some(0)));
 }
 
 #[test]
 fn object_datasets_return_only_registered_fields() {
     let roots = full_fixture("object");
-    let view = query("job", "domain_context", &roots, &params(&[])).unwrap();
+    let view = query("job", "domain_context", Some(&roots), &params(&[])).unwrap();
     let object = view.object.unwrap();
     assert_eq!(object["domain"], "编程语言理论");
     assert!(object.get("preview_text").is_none());
@@ -144,12 +144,12 @@ fn object_datasets_return_only_registered_fields() {
 #[test]
 fn missing_files_are_unavailable_not_errors() {
     let roots = fixture("missing");
-    let view = query("job", "escalated", &roots, &params(&[])).unwrap();
+    let view = query("job", "escalated", Some(&roots), &params(&[])).unwrap();
     assert!(!view.available);
     assert_eq!(view.rows.unwrap().len(), 0);
-    let listing = catalog("job", &roots);
+    let listing = catalog("job", Some(&roots));
     assert!(listing.datasets.iter().all(|dataset| !dataset.available));
-    let full = catalog("job", &full_fixture("catalog"));
+    let full = catalog("job", Some(&full_fixture("catalog")));
     let available: Vec<_> = full.datasets.iter().filter(|d| d.available).map(|d| d.name.as_str()).collect();
     assert!(available.contains(&"translation_items") && available.contains(&"revisions"), "{available:?}");
 }
@@ -167,22 +167,22 @@ fn bad_requests_name_the_problem() {
         (vec![("limit", "5000")], "limit must be"),
         (vec![("group_by", "scale")], "cannot be used for group_by"),
     ] {
-        let error = query("job", "layout_blocks", &roots, &params(&pairs)).unwrap_err();
+        let error = query("job", "layout_blocks", Some(&roots), &params(&pairs)).unwrap_err();
         assert!(error.to_string().contains(needle), "{pairs:?}: {error}");
     }
-    assert!(matches!(query("job", "secrets", &roots, &params(&[])), Err(AppError::NotFound(_))));
+    assert!(matches!(query("job", "secrets", Some(&roots), &params(&[])), Err(AppError::NotFound(_))));
 }
 
 #[test]
 fn a_changed_file_is_reparsed() {
     let roots = full_fixture("cache");
-    assert_eq!(query("job", "revisions", &roots, &params(&[])).unwrap().total, 3);
+    assert_eq!(query("job", "revisions", Some(&roots), &params(&[])).unwrap().total, 3);
     std::thread::sleep(std::time::Duration::from_millis(20));
     let path = roots.translated.join("revisions.v1.jsonl");
     let mut body = fs::read_to_string(&path).unwrap();
     body.push_str(&format!("{}\n", json!({"revision_id": "r4", "item_id": "p002-b001", "page_idx": 1, "source": "agent"})));
     fs::write(&path, body).unwrap();
-    assert_eq!(query("job", "revisions", &roots, &params(&[])).unwrap().total, 4);
+    assert_eq!(query("job", "revisions", Some(&roots), &params(&[])).unwrap().total, 4);
 }
 
 

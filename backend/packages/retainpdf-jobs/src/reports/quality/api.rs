@@ -37,12 +37,15 @@ pub struct QualityItemsParams {
     pub limit: Option<usize>,
 }
 
-fn sources_for(deps: &QualityApiDeps, job_id: &str) -> Result<QualitySources, AppError> {
+/// `None` = 任务还没有输出目录（排队中、还没开始跑）。
+fn sources_for(deps: &QualityApiDeps, job_id: &str) -> Result<Option<QualitySources>, AppError> {
     // 和其余读任务的接口一样走 `load_supported_job`：认合并阅读的虚拟 id，旧目录格式的任务报 409。
     // 虚拟任务的目录是合并目录，没有的报告照常给 null / 空清单。
     let job = load_supported_job(&deps.db, &deps.data_root, job_id)?;
-    let job_root = resolve_job_root(&job, &deps.data_root)
-        .ok_or_else(|| AppError::not_found(format!("job has no output directory: {job_id}")))?;
+    // 摘要类接口：还没有输出目录也是 200，各段 null、清单为空（不是 404）。
+    let Some(job_root) = resolve_job_root(&job, &deps.data_root) else {
+        return Ok(None);
+    };
     // 新任务式重渲染的译文在源任务目录里；报告在本任务目录里。
     let translated_dir = job
         .artifacts
@@ -50,12 +53,12 @@ fn sources_for(deps: &QualityApiDeps, job_id: &str) -> Result<QualitySources, Ap
         .and_then(|artifacts| artifacts.translations_dir.as_deref())
         .and_then(|raw| resolve_data_path(&deps.data_root, raw).ok())
         .unwrap_or_else(|| job_root.join("translated"));
-    Ok(QualitySources { artifacts_dir: job_root.join("artifacts"), translated_dir })
+    Ok(Some(QualitySources { artifacts_dir: job_root.join("artifacts"), translated_dir }))
 }
 
 pub fn quality_summary_view(deps: &QualityApiDeps, job_id: &str) -> Result<QualitySummaryView, AppError> {
     let sources = sources_for(deps, job_id)?;
-    Ok(quality_summary(job_id, &sources))
+    Ok(quality_summary(job_id, sources.as_ref()))
 }
 
 pub fn quality_items_view(
@@ -81,5 +84,5 @@ pub fn quality_items_view(
         offset: params.offset.unwrap_or(0),
         limit,
     };
-    Ok(quality_items(&sources, &query))
+    Ok(quality_items(sources.as_ref(), &query))
 }

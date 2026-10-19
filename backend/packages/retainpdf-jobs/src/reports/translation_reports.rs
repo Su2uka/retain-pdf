@@ -15,9 +15,9 @@ pub(crate) fn load_translation_diagnostics_view(
     data_root: &Path,
     job: &JobSnapshot,
 ) -> Result<TranslationDiagnosticsView, AppError> {
-    let path = resolve_translation_diagnostics(job, data_root).ok_or_else(|| {
-        AppError::not_found(format!("translation diagnostics not found: {}", job.job_id))
-    })?;
+    // 任务在、报告还没生成：404 + `reason: not_ready`（任务不存在是调用方 `load_supported_job` 的普通 404）。
+    let path = resolve_translation_diagnostics(job, data_root)
+        .ok_or_else(|| AppError::not_ready("translation report"))?;
     let secrets = sensitive_values(&job.request_payload);
     let summary = redact_json_value(&read_json_value(&path)?, &secrets);
     Ok(TranslationDiagnosticsView {
@@ -30,9 +30,8 @@ pub(crate) fn load_translation_qa_view(
     data_root: &Path,
     job: &JobSnapshot,
 ) -> Result<JobReportView, AppError> {
-    let path = resolve_translation_qa(job, data_root).ok_or_else(|| {
-        AppError::not_found(format!("translation qa report not found: {}", job.job_id))
-    })?;
+    let path =
+        resolve_translation_qa(job, data_root).ok_or_else(|| AppError::not_ready("translation-qa report"))?;
     load_report_view(&path, job)
 }
 
@@ -40,9 +39,7 @@ pub(crate) fn load_fit_report_view(
     data_root: &Path,
     job: &JobSnapshot,
 ) -> Result<JobReportView, AppError> {
-    let path = resolve_fit_report(job, data_root).ok_or_else(|| {
-        AppError::not_found(format!("fit report not found: {}", job.job_id))
-    })?;
+    let path = resolve_fit_report(job, data_root).ok_or_else(|| AppError::not_ready("layout-fit report"))?;
     load_report_view(&path, job)
 }
 
@@ -50,9 +47,7 @@ pub(crate) fn load_refine_report_view(
     data_root: &Path,
     job: &JobSnapshot,
 ) -> Result<JobReportView, AppError> {
-    let path = resolve_refine_report(job, data_root).ok_or_else(|| {
-        AppError::not_found(format!("refine report not found: {}", job.job_id))
-    })?;
+    let path = resolve_refine_report(job, data_root).ok_or_else(|| AppError::not_ready("refine report"))?;
     load_report_view(&path, job)
 }
 

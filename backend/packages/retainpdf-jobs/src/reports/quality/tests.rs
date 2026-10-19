@@ -77,7 +77,7 @@ fn full_fixture(name: &str) -> QualitySources {
 #[test]
 fn summary_reads_every_report_section() {
     let sources = full_fixture("summary");
-    let view = quality_summary("job-1", &sources);
+    let view = quality_summary("job-1", Some(&sources));
 
     let preparation = view.preparation.expect("preparation");
     assert_eq!(preparation.mode, "editorial");
@@ -107,15 +107,15 @@ fn summary_reads_every_report_section() {
 #[test]
 fn missing_reports_are_null_not_errors() {
     let sources = fixture("empty");
-    let view = quality_summary("job-2", &sources);
+    let view = quality_summary("job-2", Some(&sources));
     assert!(view.preparation.is_none() && view.qa.is_none() && view.layout.is_none() && view.refine.is_none());
     assert_eq!(view.untranslated, UntranslatedSummary::default());
-    let items = quality_items(&sources, &QualityItemsQuery { kind: "qa".into(), limit: 10, ..Default::default() });
+    let items = quality_items(Some(&sources), &QualityItemsQuery { kind: "qa".into(), limit: 10, ..Default::default() });
     assert_eq!(items.total, 0);
 }
 
 fn items(sources: &QualitySources, kind: &str) -> QualityItemsView {
-    quality_items(sources, &QualityItemsQuery { kind: kind.into(), limit: 200, ..Default::default() })
+    quality_items(Some(sources), &QualityItemsQuery { kind: kind.into(), limit: 200, ..Default::default() })
 }
 
 #[test]
@@ -147,9 +147,9 @@ fn item_lists_carry_page_reason_and_detail() {
 #[test]
 fn item_lists_filter_by_page_and_severity_and_paginate() {
     let sources = full_fixture("filters");
-    let page_two = quality_items(&sources, &QualityItemsQuery { kind: "qa".into(), page: Some(2), limit: 1, offset: 1, ..Default::default() });
+    let page_two = quality_items(Some(&sources), &QualityItemsQuery { kind: "qa".into(), page: Some(2), limit: 1, offset: 1, ..Default::default() });
     assert_eq!((page_two.total, page_two.items.len()), (2, 1));
     assert_eq!(page_two.items[0].translation_item_id, "p002-b004");
-    let major = quality_items(&sources, &QualityItemsQuery { kind: "qa".into(), severity: Some("major".into()), limit: 50, ..Default::default() });
+    let major = quality_items(Some(&sources), &QualityItemsQuery { kind: "qa".into(), severity: Some("major".into()), limit: 50, ..Default::default() });
     assert_eq!(major.total, 1);
 }

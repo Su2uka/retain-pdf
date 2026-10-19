@@ -430,16 +430,18 @@ GET /api/v1/documents/<doc>/files/cover.png
 
 ## 新报错：还在跑，不能打包
 GET /api/v1/jobs/files-contract-running/files/output/all.zip
-  status: 409
+  status: 404
   content-type: application/json
   | {
-  |   "code": 40900,
+  |   "code": 40400,
   |   "error": {
-  |     "code": "CONFLICT",
-  |     "details": {},
-  |     "http_status": 409
+  |     "code": "NOT_FOUND",
+  |     "details": {
+  |       "reason": "not_ready"
+  |     },
+  |     "http_status": 404
   |   },
-  |   "message": "job is not finished successfully"
+  |   "message": "all.zip not ready"
   | }
 
 ## 新报错：任务不存在
@@ -464,10 +466,60 @@ GET /api/v1/jobs/files-contract-running/files/output/translated.pdf
   |   "code": 40400,
   |   "error": {
   |     "code": "NOT_FOUND",
-  |     "details": {},
+  |     "details": {
+  |       "reason": "not_ready"
+  |     },
   |     "http_status": 404
   |   },
-  |   "message": "pdf not ready: files-contract-running"
+  |   "message": "translated.pdf not ready"
+  | }
+
+## 新报错：还在跑，原文 Markdown 没就绪
+GET /api/v1/jobs/files-contract-running/files/output/ocr.md
+  status: 404
+  content-type: application/json
+  | {
+  |   "code": 40400,
+  |   "error": {
+  |     "code": "NOT_FOUND",
+  |     "details": {
+  |       "reason": "not_ready"
+  |     },
+  |     "http_status": 404
+  |   },
+  |   "message": "ocr.md not ready"
+  | }
+
+## 新报错：还在跑，译文页预览没就绪
+GET /api/v1/jobs/files-contract-running/files/pages/1.jpg
+  status: 404
+  content-type: application/json
+  | {
+  |   "code": 40400,
+  |   "error": {
+  |     "code": "NOT_FOUND",
+  |     "details": {
+  |       "reason": "not_ready"
+  |     },
+  |     "http_status": 404
+  |   },
+  |   "message": "translated.pdf not ready"
+  | }
+
+## 新报错：还在跑，中间产物没就绪
+GET /api/v1/jobs/files-contract-running/files/internal/normalized-document.json
+  status: 404
+  content-type: application/json
+  | {
+  |   "code": 40400,
+  |   "error": {
+  |     "code": "NOT_FOUND",
+  |     "details": {
+  |       "reason": "not_ready"
+  |     },
+  |     "http_status": 404
+  |   },
+  |   "message": "normalized-document.json not ready"
   | }
 
 ## 新报错：Markdown 图片路径越界

@@ -12,6 +12,9 @@ GET /api/v1/jobs/{job_id}/reports/translation
 
 读取 `artifacts/translation_diagnostics.json`，返回翻译运行统计、provider 统计、重试统计等信息。
 
+任务不存在是普通 `404`；任务在、报告还没生成是 `404` + `error.details.reason = "not_ready"`，提示 `translation report not ready`
+（见 [错误约定](../00-约定/02-认证与错误.md#还没产出404)）。
+
 ## Item 列表
 
 ```http
@@ -30,6 +33,9 @@ GET /api/v1/jobs/{job_id}/translations
 
 回包带 `items`、`total`、`limit`、`offset`、`has_more`，规矩见 [分页](../00-约定/03-分页.md)。
 
+还没翻译完（没有 translation manifest，也没有老的索引文件）时返回 `200` 和空列表（`items: []`、`total: 0`）；
+2026-10-19 以前这里是 `404 translation manifest not found`。任务不存在仍是 `404`。
+
 每次按 translation manifest 指向的页文件现算，所以手改、精修（`PATCH`）之后 `translated_preview`、`final_status` 和 `q` 搜索都是最新的；只有找不到 manifest 的老产物才退回读 `translation_debug_index.json`（它只在翻译结束时写一次，不随修订更新）。
 
 ## 单 item
@@ -39,6 +45,11 @@ GET /api/v1/jobs/{job_id}/translations/{item_id}
 ```
 
 从 translation manifest 指向的 page payload 里查原始 item。
+
+- 任务不存在：普通 `404`。
+- 还没翻译完（没有 manifest）：`404` + `reason: "not_ready"`，提示 `translation manifest not ready`。修改历史
+  （`…/revisions`）、改写（`PATCH`）、重翻（`replay`）同样。
+- manifest 在、条目不存在：普通 `404`（`translation item not found: …`），不带 `reason`。
 
 ## Replay
 

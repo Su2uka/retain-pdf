@@ -25,7 +25,7 @@ use crate::models::domain::{
 use crate::services::files::LayoutDocxOptions;
 
 pub(super) const JOB: &str = "files-contract-job";
-const RUNNING_JOB: &str = "files-contract-running";
+pub(super) const RUNNING_JOB: &str = "files-contract-running";
 
 /// 只记这些响应头；ETag、Last-Modified、Content-Length 随文件时间和线性化变化，不记。
 const RECORDED_HEADERS: [&str; 6] = [
@@ -182,6 +182,10 @@ fn requests() -> Vec<(&'static str, String, Option<(&'static str, &'static str)>
         // 出错的情况：前端按这些状态码和提示走分支。
         ("新报错：任务不存在", "/api/v1/jobs/no-such-job/files/output/translated.pdf".to_string(), None),
         ("新报错：还在跑，译文 PDF 没就绪", format!("{r}/files/output/translated.pdf"), None),
+        // 「还没产出」一律 404 + reason=not_ready，文案 `<名字> not ready`（不存在的任务见上面，没有 reason）。
+        ("新报错：还在跑，原文 Markdown 没就绪", format!("{r}/files/output/ocr.md"), None),
+        ("新报错：还在跑，译文页预览没就绪", format!("{r}/files/pages/1.jpg"), None),
+        ("新报错：还在跑，中间产物没就绪", format!("{r}/files/internal/normalized-document.json"), None),
         ("新报错：Markdown 图片路径越界", format!("{j}/files/output/ocr/images/..%2F..%2Fsecret"), None),
     ];
     list

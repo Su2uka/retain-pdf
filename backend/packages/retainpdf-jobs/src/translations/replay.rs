@@ -21,7 +21,7 @@ pub(crate) async fn replay_translation_item(
     validate_item_id(item_id)?;
     load_translation_debug_item_view(deps.data_root, job, item_id)?;
     let job_root = resolve_job_root(job, deps.data_root)
-        .ok_or_else(|| AppError::not_found(format!("job root not found: {}", job.job_id)))?;
+        .ok_or_else(|| AppError::not_ready("translation manifest"))?;
     let script_path = deps
         .scripts_dir
         .join("devtools")
