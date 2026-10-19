@@ -47,7 +47,7 @@ GET  /api/v1/jobs/{job_id}/reports/failure
 GET  /api/v1/jobs/{job_id}/actions
 GET  /api/v1/jobs/{job_id}/actions/resume
 POST /api/v1/jobs/{job_id}/actions/resume
-POST /api/v1/jobs/{job_id}/actions/rerun
+POST /api/v1/jobs/{job_id}/actions/rerun        (old name of actions/resume)
 POST /api/v1/jobs/{job_id}/actions/retry-stage
 POST /api/v1/jobs/{job_id}/actions/resolve-ocr-ambiguity
 POST /api/v1/jobs/{job_id}/actions/cancel
