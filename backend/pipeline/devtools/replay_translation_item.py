@@ -366,7 +366,7 @@ def parse_args() -> argparse.Namespace:
         description=(
             "Replay a single translated item from a manifest-backed strict-contract job. "
             "Dry-run by default; --commit writes the result back through the same "
-            "validated revision path as PATCH translation/items/:item_id."
+            "validated revision path as PATCH /api/v1/jobs/:job_id/translations/:item_id."
         )
     )
     parser.add_argument(

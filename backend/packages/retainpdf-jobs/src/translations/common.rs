@@ -19,7 +19,7 @@ pub(super) fn preview_text(value: String) -> String {
     if compact.chars().count() <= 220 {
         return compact;
     }
-    compact.chars().take(219).collect::<String>() + "…"
+    compact.chars().take(219).collect::<String>().trim_end().to_string() + "…"
 }
 
 pub(super) trait StringExt {

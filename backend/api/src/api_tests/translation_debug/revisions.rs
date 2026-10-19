@@ -490,3 +490,66 @@ async fn rerender_reuses_in_place_render_retry_and_render_reads_the_revision() {
     // 渲染按 checkpoint page_hash 读页文件,读到的是修订后的译文。
     assert_eq!(render_loader_text(&translated, ITEM_ID), REVISED_TEXT);
 }
+
+async fn get_list(state: &crate::AppState, job_id: &str, query: &str) -> Value {
+    let response = build_app(state.clone())
+        .oneshot(
+            Request::builder()
+                .uri(format!("/api/v1/jobs/{job_id}/translations{query}"))
+                .header("X-API-Key", "test-key")
+                .body(Body::empty())
+                .expect("list request"),
+        )
+        .await
+        .expect("list response");
+    assert_eq!(response.status(), StatusCode::OK);
+    read_json(response).await
+}
+
+/// 列表不能停在翻译结束时写的索引上:PATCH 之后 `translated_preview` 和 `?q=` 都要是新译文。
+#[tokio::test]
+async fn translation_list_reflects_a_revision_even_when_a_stale_index_file_exists() {
+    let state = state_with_pipeline("translation-revision-list");
+    let job_id = "job-revision-list";
+    seed_committed_job(&state, job_id, JobStatusKind::Succeeded);
+    // 翻译阶段结束时写的索引:修订不会更新它。
+    let artifacts = state.config.output_root.join(job_id).join("artifacts");
+    fs::create_dir_all(&artifacts).expect("artifacts dir");
+    fs::write(
+        artifacts.join("translation_debug_index.json"),
+        serde_json::to_vec(&json!({
+            "schema": "translation_debug_index_v1",
+            "schema_version": 1,
+            "items": [
+                {"item_id": ITEM_ID, "page_idx": 0, "block_idx": 1, "final_status": "translated",
+                 "translated_preview": ORIGINAL_TEXT},
+                {"item_id": "p001-b002", "page_idx": 0, "block_idx": 2, "final_status": "translated",
+                 "translated_preview": "它的能级是等间距的。"}
+            ]
+        }))
+        .expect("index json"),
+    )
+    .expect("write index");
+
+    let before = get_list(&state, job_id, "").await;
+    assert_eq!(before["data"]["items"][0]["translated_preview"], ORIGINAL_TEXT);
+
+    let (status, payload) = patch_item(
+        &state,
+        job_id,
+        ITEM_ID,
+        json!({"translated_text": REVISED_TEXT, "source": "user", "reason": "措辞"}),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{payload}");
+
+    let after = get_list(&state, job_id, "").await;
+    assert_eq!(after["data"]["total"], 2);
+    assert_eq!(after["data"]["items"][0]["item_id"], ITEM_ID);
+    assert_eq!(after["data"]["items"][0]["translated_preview"], REVISED_TEXT);
+    assert_eq!(after["data"]["items"][1]["translated_preview"], "它的能级是等间距的。");
+    let found = get_list(&state, job_id, "?q=%E6%8F%8F%E8%BF%B0").await; // “描述”,只在新译文里
+    assert_eq!(found["data"]["total"], 1);
+    let stale = get_list(&state, job_id, "?q=%E6%98%AF%E5%88%86%E5%AD%90").await; // “是分子”,只在旧译文里
+    assert_eq!(stale["data"]["total"], 0);
+}
