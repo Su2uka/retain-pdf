@@ -93,6 +93,10 @@ export declare function cancelJob(jobId: string, apiPrefix?: string): Promise<an
 export declare function cancelOcrJob(jobId: string, apiPrefix?: string): Promise<any>;
 export declare function resolveOcrAmbiguity(jobId: string, apiPrefix: string | undefined, request: OcrAmbiguityResolutionRequest): Promise<OcrAmbiguityResolutionView>;
 export declare function fetchJobStageActions(jobId: string, apiPrefix?: string): Promise<JobStageActionsView | null>;
+/**
+ * `payload` 里既有请求体字段，也可能带书的信息（document_id、title、cover_url…），后者只用来补返回值。
+ * 请求体只发 RETRY_STAGE_BODY_FIELDS 里的字段。
+ */
 export declare function retryJobStage(jobId: string, apiPrefix: string | undefined, stage: string, payload?: Record<string, unknown>): Promise<any>;
 /** body 同 resumeJob：可带 overrides.translation 换 key，不带时行为不变。 */
 export declare function rerunJob(actionUrl: string, body?: Record<string, unknown>): Promise<any>;

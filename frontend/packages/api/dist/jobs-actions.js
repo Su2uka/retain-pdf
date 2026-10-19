@@ -43,11 +43,22 @@ export async function fetchJobStageActions(jobId, apiPrefix) {
     }
     return unwrapEnvelope(await resp.json());
 }
+/** retry-stage 请求体认的字段（后端 RetryStageRequest）。后端会对不认识的字段报 400。 */
+const RETRY_STAGE_BODY_FIELDS = ["mode", "create_new_job", "overrides", "ambiguous_request_policy", "refine"];
+/**
+ * `payload` 里既有请求体字段，也可能带书的信息（document_id、title、cover_url…），后者只用来补返回值。
+ * 请求体只发 RETRY_STAGE_BODY_FIELDS 里的字段。
+ */
 export async function retryJobStage(jobId, apiPrefix, stage, payload = {}) {
     const normalizedStage = `${stage || ""}`.trim();
     if (!normalizedStage)
         throw new Error("阶段重试失败: 缺少 stage");
-    const result = await submitJson(`${buildJobDetailEndpoint(jobId, apiPrefix)}/actions/retry-stage`, { stage: normalizedStage, ...payload });
+    const body = { stage: normalizedStage };
+    for (const field of RETRY_STAGE_BODY_FIELDS) {
+        if (payload?.[field] !== undefined)
+            body[field] = payload[field];
+    }
+    const result = await submitJson(`${buildJobDetailEndpoint(jobId, apiPrefix)}/actions/retry-stage`, body);
     const bookMeta = payload && typeof payload === "object" ? payload : {};
     const nextJobId = `${result?.job_id || result?.id || jobId}`.trim();
     return {
