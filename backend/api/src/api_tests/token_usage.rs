@@ -6,6 +6,7 @@ use tower::util::ServiceExt;
 
 use crate::api_tests::jobs_common::{read_json, seed_legacy_layout_job, seed_virtual_job, test_state};
 use crate::app::build_app;
+use crate::models::domain::{now_iso, UploadRecord};
 use crate::models::{CreateJobInput, JobSnapshot};
 
 async fn get(state: &crate::AppState, uri: &str) -> axum::response::Response {
@@ -52,8 +53,22 @@ async fn usage_routes_summarize_the_job_ledgers() {
     assert_eq!((all["scope"].as_str(), all["jobs_counted"].as_u64()), (Some("all"), Some(1)));
     assert_eq!(all["totals"]["total_tokens"], 151010);
 
+    // 有书没任务：200 空汇总。书不存在是 404（见 library_lookup_errors）。
+    let upload = UploadRecord {
+        upload_id: "up-without-jobs".to_string(),
+        filename: "book.pdf".to_string(),
+        stored_path: "uploads/up-without-jobs/book.pdf".to_string(),
+        bytes: 1,
+        page_count: 1,
+        uploaded_at: now_iso(),
+        developer_mode: false,
+        content_hash: "doc-without-jobs".to_string(),
+    };
+    state.db.save_upload(&upload).expect("save upload");
+    state.db.upsert_document_from_upload(&upload).expect("seed document");
     let document = read_json(get(&state, "/api/v1/documents/doc-without-jobs/usage").await).await["data"].clone();
     assert_eq!((document["scope"].as_str(), document["totals"]["requests"].as_u64()), (Some("document"), Some(0)));
+    assert_eq!(get(&state, "/api/v1/documents/doc-missing/usage").await.status(), StatusCode::NOT_FOUND);
 
     assert_eq!(get(&state, "/api/v1/jobs/job-missing/reports/usage").await.status(), StatusCode::NOT_FOUND);
 }

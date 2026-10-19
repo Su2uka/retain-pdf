@@ -349,6 +349,16 @@ impl Db {
     ) -> Result<DocumentRecord> {
         let mut conn = self.connect()?;
         let tx = conn.transaction()?;
+        // 先确认书在：不在时 title_state 的外键会先报错，调用方就分不出「没有这本书」（404）。
+        // 「没有」带 QueryReturnedNoRows，和 `get_document` 一样。
+        let exists = tx
+            .query_row("SELECT 1 FROM documents WHERE document_id = ?1", params![document_id], |_| Ok(()))
+            .optional()?
+            .is_some();
+        if !exists {
+            return Err(rusqlite::Error::QueryReturnedNoRows)
+                .with_context(|| format!("document not found: {document_id}"));
+        }
         let now = now_iso();
         if let Some(title) = title {
             tx.execute(
@@ -375,6 +385,7 @@ impl Db {
             )?;
         }
         let record = query_document(&tx, document_id)?
+            .ok_or(rusqlite::Error::QueryReturnedNoRows)
             .with_context(|| format!("document not found: {document_id}"))?;
         tx.commit()?;
         Ok(record)

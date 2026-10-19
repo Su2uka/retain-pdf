@@ -174,7 +174,7 @@ POST   /api/v1/collections/:id/documents              body: { document_ids: [...
 DELETE /api/v1/collections/:id/documents/:document_id
 ```
 
-- 加入不存在的 `document_id` 返回 404;重复加入同一文档幂等(不报错、不重复计数);
+- 加入不存在的 `document_id` 返回 404(书的记录在、库里读不出来是 500,不说成不存在);重复加入同一文档幂等(不报错、不重复计数);
 - 查看某个文件夹里有哪些文档:`GET /api/v1/documents?collection_id=xxx`(见第 1 节),
   拿到的每条记录里的 `active_job_id` 就是该文档当前可打开的处理记录;
 - 如果前端仍在用旧世界的 `/api/v1/library/books` 渲染卡片(而不是 `/api/v1/documents`
@@ -196,7 +196,8 @@ GET /api/v1/library/books?job_ids=job-a,job-b,job-c
 
 1. **删除保护**:删除书籍(`DELETE /api/v1/library/books/:job_id`)或文档
    (`DELETE /api/v1/documents/:document_id`)时,如果名下还有排队或运行中的任务,后端返回
-   **409**(`error.code` 为 `CONFLICT`)。带 `?force=true` 才会连运行中的任务一起删;前端不自动
+   **409**(`error.code` 为 `CONFLICT`,2026-10-19 起带 `error.details.reason = "job_active"`,
+   和任务操作同一个值;前端可以按它判断,不用再靠"409 且不是 job_has_dependents"去推)。带 `?force=true` 才会连运行中的任务一起删;前端不自动
    force,提示用户先取消任务再删除。删单个书籍时,如果别的任务还在用它的产物(比如换字体重排出的
    render 任务),也返回 409,`error.details.reason` 为 `job_has_dependents`,message 里列出依赖它的任务;
    前端按 reason 单独提示"先删掉那些任务",不说成"任务在跑"。整本删除不受这条影响。以前被收藏锚点挡住时的 `DELETE_BLOCKED_BY_FAVORITES` 和

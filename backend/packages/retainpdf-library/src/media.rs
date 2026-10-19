@@ -88,7 +88,7 @@ impl DocumentFile {
 pub(super) fn document_source(db: &Db, data_root: &Path, document_id: &str) -> Result<(DocumentRecord, PathBuf), AppError> {
     let document = db
         .get_document(document_id)
-        .map_err(|_| AppError::not_found(format!("document not found: {document_id}")))?;
+        .map_err(|error| AppError::from_lookup(error, format!("document not found: {document_id}")))?;
     if let Some(upload) = db.find_upload_for_document(document_id)? {
         let path = PathBuf::from(&upload.stored_path);
         if path.is_file() {
@@ -221,14 +221,16 @@ pub fn document_files_view(
     document_id: &str,
     base_url: &str,
 ) -> Result<DocumentFilesView, AppError> {
+    // 只有「书在、原文不在磁盘上」才是 `ready: false`；书不在 404，库读不出来 500。
     let (document, source) = match document_source(deps.db, deps.data_root, document_id) {
         Ok((document, path)) => (document, Some(path)),
-        Err(_) => (
+        Err(AppError::NotFound(_)) => (
             deps.db
                 .get_document(document_id)
-                .map_err(|_| AppError::not_found(format!("document not found: {document_id}")))?,
+                .map_err(|error| AppError::from_lookup(error, format!("document not found: {document_id}")))?,
             None,
         ),
+        Err(error) => return Err(error),
     };
     let ready = source.as_deref().is_some_and(Path::is_file);
     let files_path = format!("/api/v1/documents/{document_id}/files");

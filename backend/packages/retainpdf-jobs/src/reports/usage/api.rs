@@ -42,8 +42,12 @@ pub fn job_usage_view(deps: &UsageApiDeps, job_id: &str) -> Result<UsageSummaryV
     Ok(summarize_jobs("job", &deps.output_root, [job_id], Vec::new()))
 }
 
-/// 这本书的全部任务，加上问这本书时助手花的。
+/// 这本书的全部任务，加上问这本书时助手花的。书不存在时 404（和 `job_usage_view` 一致，以前给 200 和
+/// 全零汇总）；有书没任务照旧 200 空汇总。
 pub fn document_usage_view(deps: &UsageApiDeps, document_id: &str) -> Result<UsageSummaryView, AppError> {
+    deps.db
+        .get_document(document_id)
+        .map_err(|error| AppError::from_lookup(error, format!("document not found: {document_id}")))?;
     let jobs = deps
         .db
         .list_jobs_for_document(document_id, u32::MAX, 0)

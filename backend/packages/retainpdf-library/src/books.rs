@@ -45,11 +45,10 @@ pub fn delete_library_book(
 
     // 删 job 前先记住它所属文档,删后 reconcile 其 active_job_id,
     // 否则文档行会悬空指向已删 job,前端 join 不到而渲染成僵尸卡。
+    // 读不出来是 500，不能当成「这个任务不属于任何书」悄悄跳过对账。
     let affected_document = deps
         .db
-        .get_document_by_job_id(job_id)
-        .ok()
-        .flatten()
+        .get_document_by_job_id(job_id)?
         .map(|doc| doc.document_id);
 
     // 先一次性提交行删除,再动磁盘。逐个 `remove_job_files` + `delete_job`
@@ -97,7 +96,7 @@ pub fn delete_library_book(
 /// 删一本书会动到的任务:book 任务本身 + 它的 `-ocr` 子任务。找不到书 → 404。
 fn book_delete_jobs(db: &Db, job_id: &str) -> Result<Vec<JobSnapshot>, AppError> {
     let mut jobs = vec![load_library_job(db, job_id)?];
-    if let Ok(child) = db.get_job(&format!("{job_id}-ocr")) {
+    if let Some(child) = find_job(db, &format!("{job_id}-ocr"))? {
         jobs.push(child);
     }
     Ok(jobs)
@@ -122,9 +121,20 @@ fn load_library_job(db: &Db, job_id: &str) -> Result<JobSnapshot, AppError> {
     Ok(job)
 }
 
+/// 按编号找一个可能不存在的任务：没有这条记录是 `None`；有记录但读不出来是 500，
+/// 不能当成「没有」跳过（删除时跳过一个在跑的任务，就绕过了 `ensure_deletable`）。
+pub(super) fn find_job(db: &Db, job_id: &str) -> Result<Option<JobSnapshot>, AppError> {
+    match db.get_job(job_id) {
+        Ok(job) => Ok(Some(job)),
+        Err(error) if AppError::is_record_missing(&error) => Ok(None),
+        Err(error) => Err(error.into()),
+    }
+}
+
+/// 名下还有排队 / 在跑的任务：409 + `job_active`（和任务操作同一个原因），带 `force=true` 先取消再删。
 pub(super) fn ensure_deletable(job: &JobSnapshot, force: bool) -> Result<(), AppError> {
     if !force && matches!(job.status, JobStatusKind::Queued | JobStatusKind::Running) {
-        return Err(AppError::conflict(format!(
+        return Err(AppError::conflict_because("job_active", format!(
             "book is {:?}; pass force=true to delete it",
             job.status
         )));

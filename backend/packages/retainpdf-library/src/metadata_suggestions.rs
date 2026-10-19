@@ -155,7 +155,7 @@ pub fn list_metadata_suggestions(
     let document = deps
         .db
         .get_document(document_id)
-        .map_err(|_| AppError::not_found(format!("document not found: {document_id}")))?;
+        .map_err(|error| AppError::from_lookup(error, format!("document not found: {document_id}")))?;
     let suggestions = deps
         .db
         .list_document_metadata_suggestions(document_id, query.limit.clamp(1, MAX_SUGGESTIONS))?
@@ -228,12 +228,17 @@ fn resolve_normalized_source(
         .map(str::trim)
         .filter(|job_id| !job_id.is_empty())
     {
-        let job = deps.db.get_job(job_id).map_err(|_| {
-            AppError::document_metadata(
-                StatusCode::NOT_FOUND,
-                "OCR_JOB_NOT_FOUND",
-                "指定的 OCR 任务不存在",
-            )
+        // 没有这个任务才是 404；行读不出来是 500。
+        let job = deps.db.get_job(job_id).map_err(|error| {
+            if AppError::is_record_missing(&error) {
+                AppError::document_metadata(
+                    StatusCode::NOT_FOUND,
+                    "OCR_JOB_NOT_FOUND",
+                    "指定的 OCR 任务不存在",
+                )
+            } else {
+                AppError::from(error)
+            }
         })?;
         let owner = deps.db.get_document_by_job_id(job_id)?.ok_or_else(|| {
             AppError::document_metadata(

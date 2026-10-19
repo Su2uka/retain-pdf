@@ -21,7 +21,7 @@ use crate::models::api::{
 use crate::models::request::CreateJobInput;
 use crate::routes::common::{
     build_jobs_route_deps, build_library_route_deps, jobs_facade, ok_json, request_base_url,
-    run_job_query_once, ApiJson, ApiPath, ApiQuery,
+    run_job_query_once, run_library_blocking, ApiJson, ApiPath, ApiQuery,
 };
 use crate::routes::download_response::file_download_response;
 use crate::services::library::{
@@ -44,7 +44,13 @@ pub async fn list_documents_route(
 ) -> Result<Json<ApiResponse<DocumentListView>>, AppError> {
     let deps = build_library_route_deps(&state);
     let base_url = request_base_url(&headers, deps.default_port, &deps.bind_host);
-    Ok(ok_json(list_documents(&deps.library, &query, &base_url, principal.owner_filter())?))
+    let owner = principal.owner_filter().map(str::to_string);
+    Ok(ok_json(
+        run_library_blocking(&state, move |library| {
+            list_documents(library, &query, &base_url, owner.as_deref())
+        })
+        .await?,
+    ))
 }
 
 pub async fn get_document_route(
@@ -54,11 +60,9 @@ pub async fn get_document_route(
 ) -> Result<Json<ApiResponse<DocumentRecord>>, AppError> {
     let deps = build_library_route_deps(&state);
     let base_url = request_base_url(&headers, deps.default_port, &deps.bind_host);
-    Ok(ok_json(get_document(
-        &deps.library,
-        &document_id,
-        &base_url,
-    )?))
+    Ok(ok_json(
+        run_library_blocking(&state, move |library| get_document(library, &document_id, &base_url)).await?,
+    ))
 }
 
 /// GET /api/v1/documents/:id/reading —— 阅读器该打开哪个任务。
@@ -106,7 +110,9 @@ pub async fn list_document_files_route(
 ) -> Result<Response, AppError> {
     let deps = build_library_route_deps(&state);
     let base_url = request_base_url(&headers, deps.default_port, &deps.bind_host);
-    Ok(ok_json(document_files(&deps.library, &document_id, &base_url)?).into_response())
+    let view =
+        run_library_blocking(&state, move |library| document_files(library, &document_id, &base_url)).await?;
+    Ok(ok_json(view).into_response())
 }
 
 /// GET /api/v1/documents/:id/files/:name —— 默认在浏览器里打开，`?download=1` 直接下载。
@@ -139,12 +145,12 @@ pub async fn patch_document_route(
 ) -> Result<Json<ApiResponse<DocumentRecord>>, AppError> {
     let deps = build_library_route_deps(&state);
     let base_url = request_base_url(&headers, deps.default_port, &deps.bind_host);
-    Ok(ok_json(patch_document(
-        &deps.library,
-        &document_id,
-        &payload,
-        &base_url,
-    )?))
+    Ok(ok_json(
+        run_library_blocking(&state, move |library| {
+            patch_document(library, &document_id, &payload, &base_url)
+        })
+        .await?,
+    ))
 }
 
 pub async fn create_document_metadata_suggestion_route(
@@ -194,19 +200,21 @@ pub async fn delete_document_route(
     ApiPath(document_id): ApiPath<String>,
     ApiQuery(query): ApiQuery<LibraryDeleteQuery>,
 ) -> Result<Json<ApiResponse<DocumentDeleteResultView>>, AppError> {
-    let deps = build_library_route_deps(&state);
     if query.force {
         // 强删文档：名下运行中的任务先走取消的同一条路径（登记取消 + 终止 worker），再删。
-        let job_ids = document_delete_job_ids_view(&deps.library, &document_id)?;
+        let id = document_id.clone();
+        let job_ids =
+            run_library_blocking(&state, move |library| document_delete_job_ids_view(library, &id)).await?;
         jobs_facade(build_jobs_route_deps(&state))
             .cancel_before_delete(&job_ids)
             .await;
     }
-    Ok(ok_json(delete_document_view(
-        &deps.library,
-        &document_id,
-        query.force,
-    )?))
+    // 删库行、删任务目录都是同步活（几百 MB 的书要好几秒），放进阻塞线程。
+    let force = query.force;
+    Ok(ok_json(
+        run_library_blocking(&state, move |library| delete_document_view(library, &document_id, force))
+            .await?,
+    ))
 }
 
 // --- translate ---
@@ -273,6 +281,11 @@ pub async fn search_blocks_route(
     principal: Principal,
     ApiQuery(query): ApiQuery<SearchQuery>,
 ) -> Result<Json<ApiResponse<SearchResultView>>, AppError> {
-    let deps = build_library_route_deps(&state);
-    Ok(ok_json(search_blocks_view(&deps.library, &query, principal.owner_filter())?))
+    let owner = principal.owner_filter().map(str::to_string);
+    Ok(ok_json(
+        run_library_blocking(&state, move |library| {
+            search_blocks_view(library, &query, owner.as_deref())
+        })
+        .await?,
+    ))
 }

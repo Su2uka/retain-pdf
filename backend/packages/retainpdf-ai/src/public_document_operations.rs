@@ -203,7 +203,7 @@ pub fn list_document_agent_versions(
         return Err(AppError::bad_request("document_id is required"));
     }
     db.get_document(document_id)
-        .map_err(|_| AppError::not_found(format!("document not found: {document_id}")))?;
+        .map_err(|error| AppError::from_lookup(error, format!("document not found: {document_id}")))?;
     let limit = query.limit.unwrap_or(50).clamp(1, 100);
     let total = db
         .count_document_versions(document_id)
