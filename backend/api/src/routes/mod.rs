@@ -18,7 +18,6 @@ pub mod backups;
 pub mod sync;
 pub mod health;
 pub mod job_helpers;
-pub mod job_requests;
 pub mod jobs;
 pub mod library;
 pub mod library_data;

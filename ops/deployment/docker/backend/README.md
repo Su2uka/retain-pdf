@@ -19,7 +19,7 @@ docker run --rm \
 ```
 
 Port `41000` serves the full API and health/readiness endpoints. Port `42000`
-serves only `POST /api/v1/translate/bundle`. The AI service (`41100`) is
+serves only `/health` and `/ready`. The AI service (`41100`) is
 supervised on loopback inside the container and is not published. Jobs execute
 in-process unless remote jobs mode is explicitly enabled; a remote jobsd uses
 loopback `41002` and should not be exposed publicly.

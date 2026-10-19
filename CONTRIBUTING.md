@@ -57,7 +57,7 @@ python3 -m http.server 40001 --bind 0.0.0.0 --directory frontend/web
 默认端口：
 
 - Rust API：`41000`
-- `/api/v1/translate/bundle` multipart 提交入口：`42000`
+- 第二个端口（只有 `/health`、`/ready`）：`42000`
 - Web 前端：`40001`
 
 本地 launcher 还使用两个仅供后端内部通信的回环端口：

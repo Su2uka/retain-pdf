@@ -1,12 +1,11 @@
 //! 任务本身：有哪些任务、建一个、看一个（`/jobs`、`/jobs/:id`）。
 //!
-//! 带文件一步建翻译任务的 `/translate/bundle` 也在这里；建任务内部都走 services::jobs 的 `submit_job`。
+//! 建任务内部都走 services::jobs 的 `submit_job`。
 
 use crate::auth::Principal;
 use crate::error::AppError;
 use crate::models::api::{ApiResponse, JobDetailView, JobListView, JobSubmissionView, ListJobsQuery};
 use crate::models::request::CreateJobInput;
-use crate::routes::job_requests::parse_translate_bundle_request;
 use crate::AppState;
 use axum::extract::State;
 use axum::http::HeaderMap;
@@ -15,7 +14,7 @@ use serde_json::Value;
 
 use crate::routes::common::{
     build_jobs_query_route_deps, build_jobs_route_deps, jobs_facade, ok_json, request_base_url,
-    run_job_query_once, ApiJson, ApiMultipart, ApiPath, ApiQuery,
+    run_job_query_once, ApiJson, ApiPath, ApiQuery,
 };
 
 pub async fn create_job(
@@ -30,26 +29,6 @@ pub async fn create_job(
     Ok(ok_json(
         jobs_facade(deps).create_submission(&base_url, &request)?,
     ))
-}
-
-pub async fn translate_bundle(
-    State(state): State<AppState>,
-    headers: HeaderMap,
-    ApiMultipart(mut multipart): ApiMultipart,
-) -> Result<Json<ApiResponse<JobSubmissionView>>, AppError> {
-    let deps = build_jobs_route_deps(&state);
-    let parsed = parse_translate_bundle_request(&mut multipart, deps.upload_max_bytes).await?;
-    let base_url = request_base_url(&headers, deps.default_port, &deps.bind_host);
-    let view = jobs_facade(deps)
-        .create_translation_bundle_submission(
-            &base_url,
-            parsed.request,
-            parsed.filename,
-            parsed.file_bytes,
-            parsed.developer_mode,
-        )
-        .await?;
-    Ok(ok_json(view))
 }
 
 pub async fn list_jobs(

@@ -15,7 +15,7 @@ python3 ops/development/dev_stack.py --runtime python
 默认监听：
 
 - 完整 API：`http://127.0.0.1:41000`
-- multipart 异步提交 API：`http://127.0.0.1:42000`
+- 第二个端口（只有 `/health`、`/ready`）：`http://127.0.0.1:42000`
 
 ## 前端
 
@@ -57,7 +57,7 @@ Docker 中 `ops/deployment/docker/delivery/docker/auth.local.json` 的 `api_keys
 - `RUST_API_PROJECT_ROOT`：项目根目录。
 - `RUST_API_BIND_HOST`：监听 IP 地址，默认 `127.0.0.1`。
 - `RUST_API_PORT`：完整 API 端口，默认 `41000`。
-- `RUST_API_SIMPLE_PORT`：multipart 异步提交端口，默认 `42000`。
+- `RUST_API_SIMPLE_PORT`：第二个端口（只有 `/health`、`/ready`），默认 `42000`。
 - `RUST_API_DATA_ROOT`：运行时数据根目录。
 - `RUST_API_DATA_DIR`：旧别名，仅在 `RUST_API_DATA_ROOT` 未设置时使用。
 - `RUST_API_SCRIPTS_DIR`：pipeline 包根目录，保留给运行路径和辅助工具配置。

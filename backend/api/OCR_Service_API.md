@@ -271,7 +271,6 @@ curl -X POST "http://127.0.0.1:41000/api/v1/jobs" \
 - 当传入 `ocr.mineru_token` 时，它不能是 URL
 - `source.source_url` 如果提供，必须以 `http://` 或 `https://` 开头
 - `runtime.timeout_seconds` 必须大于 `0`
-- `/translate/bundle` 带 `workflow=ocr` 会被拒绝，报错会让你改用 `/uploads` + `/jobs`
 
 ## 5. OCR 任务列表
 

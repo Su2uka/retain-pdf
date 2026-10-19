@@ -8,7 +8,7 @@
 ## 1. 基础约定
 
 - 完整 API 默认端口：`41000`
-- multipart 异步提交 API 默认端口：`42000`
+- 第二个端口默认 `42000`：只有 `GET /health`、`GET /ready`
 - 健康检查：`GET /health`
 - 就绪检查：`GET /ready`
 - 业务前缀：`/api/v1`
@@ -905,11 +905,10 @@ operation 列表响应包含 `operations`、`total`、`limit`、`offset` 和 `ha
 
 ## 13. Simple App 入口
 
-`POST /api/v1/translate/bundle`
+simple app 通常监听 `42000`，现在只有 `GET /health` 和 `GET /ready`，其它地址一律 404。
 
-该接口属于 simple app，通常监听 `42000`。它接受 multipart 扁平字段，适合脚本直接上传 PDF 并创建后台翻译任务。
-
-该接口返回 `ApiResponse<JobSubmissionView>`，不会等待 Python OCR / 翻译 / 渲染完成，也不会同步返回 ZIP。
+`POST /api/v1/translate/bundle`（multipart 扁平字段一步上传并建翻译任务）已于 2026-10-19 删除，
+全仓没有调用方。要从脚本提交，先 `POST /api/v1/uploads` 拿到 `upload_id`，再 `POST /api/v1/jobs`（见第 4、5 节）。
 
 ## 13.4 多用户：网站账号能访问什么
 
@@ -922,7 +921,7 @@ operation 列表响应包含 `operations`、`total`、`limit`、`offset` 和 `ha
   不在这里面的接口对网站账号**一律关闭**（回 404，看起来就是没有这个接口），新加的接口也默认关闭。
 - **只给管理员**（普通账号 403）：`credentials`、`sync`、`backups`、`admin`、其余 `providers`、
   `POST /api/v1/fonts/upload`。
-- **这一期对网站账号关闭**（管理员也一样）：`ai`、`assets`、`internal`、`translate/bundle`、
+- **这一期对网站账号关闭**（管理员也一样）：`ai`、`assets`、`internal`、
   `.../agent-versions`、`.../agent-workspace`。
 - **数据只看自己的**：路径、查询串、JSON 请求体里出现的任务 / 书 / 术语表 / 文件夹 / 上传编号必须是自己的，
   别人的一律当不存在（404）；列表和搜索只返回自己的。管理员的网站会话也一样（见 13.6）。

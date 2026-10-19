@@ -159,8 +159,6 @@ ROUTE_RUNNER_IMPORT_ALLOWLIST = {
 
 ROUTE_RAW_EXTRACTOR_ALLOWLIST = {
     Path("src/routes/common/extractors.rs"),
-    # Job multipart parsers consume the already-authorized inner Multipart.
-    Path("src/routes/job_requests/multipart.rs"),
 }
 
 ROUTE_STATE_RESOURCE_ALLOWLIST = {
@@ -471,7 +469,7 @@ def check_jobs_route_deps_dedup(errors: list[str]) -> None:
         Path("src/routes/download_response"),
     )
     mixed_modules = {
-        Path("src/routes/jobs/lifecycle"): {"create_job", "create_ocr_job", "translate_bundle"},
+        Path("src/routes/jobs/lifecycle"): {"create_job", "create_ocr_job"},
         Path("src/routes/jobs/actions"): {
             "get_stage_actions",
             "stage_actions_response",
@@ -1461,7 +1459,6 @@ ALLOWED_DOMAIN_DEPENDENCIES = {
     ("jobs", "accounts"),
     ("jobs", "files"),
     ("jobs", "glossaries"),
-    ("jobs", "ingest"),
     ("jobs", "providers"),
     ("library", "files"),
     ("library", "jobs"),

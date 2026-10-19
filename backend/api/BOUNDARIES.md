@@ -131,15 +131,14 @@ Callers outside `services/jobs/**` should not call presentation internals.
 
 Every new job goes through one entry point,
 `submit_job(deps, NewJob)` (`src/services/jobs/lifecycle/creation/submit.rs`): `POST /jobs`,
-`/translate/bundle`, library translate/OCR, stage retry, rerun and
+library translate/OCR, stage retry, rerun and
 OCR-ambiguity recovery. The steps are written once, in this order: dev-stack
 translation defaults, platform models (multi-user, before validation and before
 any key reaches the credential vault), validation and snapshot by workflow,
 credential import and usage lock, then persist (with the page-quota
 reservation), link to the document, and launch.
 
-`NewJob` carries what differs between callers: a file stored with the request
-(`with_upload`), the job a retry derives ownership from (`derived_from`), the
+`NewJob` carries what differs between callers: the job a retry derives ownership from (`derived_from`), the
 document a library submission must land on (`for_document`), or the OCR
 dispatch an ambiguity recovery resolves (`resolving_ocr_ambiguity`, persisted in
 one transaction with that resolution and never charged).
@@ -228,7 +227,7 @@ uses `retainpdf-proc` to stop operation workers; `retainpdf-jobs` also uses
 `retainpdf-proc` and the job runtime `retainpdf-runner` behind `runtime_gateway`) and on
 the crates of extracted domains below it (`retainpdf-accounts` uses
 `retainpdf-providers`, `retainpdf-ingest` uses `retainpdf-accounts`, `retainpdf-jobs` uses
-accounts, files, glossaries, ingest and providers, `retainpdf-library` uses files and jobs). Such a use is written with the crate name
+accounts, files, glossaries and providers, `retainpdf-library` uses files and jobs). Such a use is written with the crate name
 (`retainpdf_providers::…`); `check_domain_dependency_direction` counts it as a
 domain edge just like `crate::services::providers::…`.
 
@@ -237,11 +236,12 @@ Domains depend downward only. The allowed edges are listed in
 new edge and an edge nothing uses any more):
 
 ```
-library ─▶ jobs ─▶ ingest ─▶ accounts ─▶ providers
-   │        ├────────────────▶ accounts
-   │        ├────────────────────────────▶ providers
+library ─▶ jobs ─▶ accounts ─▶ providers
+   │        ├────────────────▶ providers
    │        ├─▶ glossaries
    └────────┴─▶ files
+
+ingest ─▶ accounts
 ```
 
 `accounts → providers` exists because platform settings (in `accounts`) test

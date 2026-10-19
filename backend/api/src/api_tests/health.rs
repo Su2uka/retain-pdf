@@ -33,6 +33,31 @@ async fn liveness_and_readiness_are_public_on_both_routers() {
     }
 }
 
+#[tokio::test]
+async fn simple_router_serves_only_health_and_ready() {
+    // 旧的一步提交接口 `/translate/bundle` 已经删掉：另一个端口上不再有它。
+    let app = build_simple_app(test_state("health-simple-only"));
+    for (method, uri) in [
+        ("POST", "/api/v1/translate/bundle"),
+        ("GET", "/api/v1/jobs"),
+        ("POST", "/api/v1/uploads"),
+    ] {
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method(method)
+                    .uri(uri)
+                    .header("X-API-Key", "test-key")
+                    .body(Body::empty())
+                    .expect("simple request"),
+            )
+            .await
+            .expect("simple response");
+        assert_eq!(response.status(), StatusCode::NOT_FOUND, "{method} {uri}");
+    }
+}
+
 #[test]
 fn readiness_requires_only_components_selected_by_config() {
     let state = test_state("readiness-config-boundary");
