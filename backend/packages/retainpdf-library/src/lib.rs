@@ -29,9 +29,10 @@ mod views;
 // 门面：领域外只能用这里导出的东西，子模块都是私有的（见 BOUNDARIES.md「Domain Facades」）。
 pub use api::{
     add_collection_documents_view, append_message_view, apply_document_metadata_suggestion_view,
-    collection_agent_workspace, create_collection_view, create_conversation_view,
+    book_delete_job_ids_view, collection_agent_workspace, create_collection_view, create_conversation_view,
     create_document_metadata_suggestion_view, delete_collection_view, delete_conversation_view,
-    delete_document_view, delete_library_book_view, document_files, document_reading,
+    delete_document_view, delete_library_book_view, document_delete_job_ids_view, document_files,
+    document_reading,
     document_translation_coverage, fork_conversation_view, get_conversation_view, get_document,
     get_library_book_view, list_collections_view, list_conversations_view,
     list_document_metadata_suggestions_view, list_documents, list_library_books_view,
@@ -63,7 +64,7 @@ use retainpdf_core::config::AssetConfig;
 use retainpdf_data::db::Db;
 
 use assets::{load_asset, store_asset, AssetDownload};
-use books::{delete_library_book, get_library_book, list_library_books};
+use books::{book_delete_job_ids, delete_library_book, get_library_book, list_library_books};
 use collections::{
     add_collection_documents, create_collection, delete_collection, list_collections,
     patch_collection, remove_collection_document,
@@ -72,7 +73,7 @@ use conversations::{
     append_message, create_conversation, delete_conversation, fork_conversation, get_conversation,
     list_conversations, patch_conversation,
 };
-use documents::delete_document;
+use documents::{delete_document, document_delete_job_ids};
 use media::document_files_view;
 use metadata_suggestions::{
     apply_metadata_suggestion, create_metadata_suggestion, list_metadata_suggestions,

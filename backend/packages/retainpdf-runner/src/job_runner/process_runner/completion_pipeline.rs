@@ -1,10 +1,10 @@
 use anyhow::Result;
 
 use crate::config::WorkerProcessRuntimeConfig;
-use crate::job_runner::cancel_registry::is_cancel_requested_any;
+use crate::job_runner::cancel_registry::{is_cancel_requested_any, job_row_is_gone};
 use crate::job_runner::process_contract::validate_successful_worker_outputs;
 use crate::job_runner::ProcessRuntimeDeps;
-use crate::models::domain::JobRuntimeState;
+use crate::models::domain::{JobRuntimeState, JobStatusKind};
 
 use super::completion::{
     apply_process_completion, classify_process_completion, should_treat_shutdown_noise_as_success,
@@ -22,6 +22,15 @@ pub(super) async fn finalize_completed_process(
     stage_kind: ProcessStageKind,
 ) -> Result<JobRuntimeState> {
     let mut latest_job = completed.latest_job;
+    // 行被删了（强制删除运行中的任务）：不再有人要这个结果。直接按「已取消」返回，
+    // 不读产物、不跑 AI 诊断（它会往已删的任务目录里写日志，还要花钱），
+    // 调用方的收尾 CAS 会因为行不存在而落空，整条链就此收口。
+    if job_row_is_gone(deps.db.as_ref(), &latest_job.job_id) {
+        latest_job.status = JobStatusKind::Canceled;
+        latest_job.stage = Some("canceled".to_string());
+        latest_job.stage_detail = Some("任务已被删除".to_string());
+        return Ok(latest_job);
+    }
     attach_process_result(
         &mut latest_job,
         &completed.status,

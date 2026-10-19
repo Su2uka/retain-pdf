@@ -106,6 +106,8 @@ mod tests {
             br#"{"pages":[]}"#,
         )
         .unwrap();
+        // 真实流程里任务行在建任务时就落了库；CAS 只更新已有的行。
+        deps.db.save_job(&job.snapshot()).unwrap();
         let (prepared, inputs) = prepare_render_job_from_artifacts(&deps, job).unwrap();
         assert_eq!(inputs.source_pdf_path, root.join("source/source.pdf"));
         assert_eq!(inputs.translations_dir, root.join("source/translated"));

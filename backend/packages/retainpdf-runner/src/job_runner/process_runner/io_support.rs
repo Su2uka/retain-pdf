@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 use std::fs::File;
 use std::io::Read;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -16,7 +17,7 @@ use crate::models::domain::{job_user_stage, now_iso, JobRuntimeState};
 
 use crate::job_runner::JobPersistDeps;
 
-use super::super::cancel_registry::is_cancel_requested_any;
+use super::super::cancel_registry::{is_cancel_requested_any, job_row_is_gone};
 use super::super::runtime_state::apply_job_stdout_line;
 use super::super::stdout_parser::{
     parse_artifact_published_line, parse_pipeline_checkpoint_line,
@@ -45,6 +46,7 @@ pub(super) async fn read_stdout(
     runtime_secrets: Vec<String>,
     extra_cancel_job_ids: Vec<String>,
     last_output_at: Arc<Mutex<Instant>>,
+    row_gone: Arc<AtomicBool>,
 ) -> Result<(String, JobRuntimeState)> {
     let mut out = String::new();
     let mut secrets = sensitive_values(&job.request_payload);
@@ -106,6 +108,11 @@ pub(super) async fn read_stdout(
             &["queued", "running"],
         )?;
         if !updated {
+            // 行被删了（强制删除）和「别人已落终态」不同：后者 worker 由取消路径负责杀，
+            // 前者没有人会来杀它，通知等待方把进程树终止掉。
+            if job_row_is_gone(persist.db.as_ref(), &job.job_id) {
+                row_gone.store(true, Ordering::SeqCst);
+            }
             break;
         }
     }

@@ -151,7 +151,10 @@ Reader 宿主接入 job/artifact、Markdown、区域、页面元数据和实时�
 - 删除 `DATA_ROOT/downloads/{job_id}.zip`
 - 如果存在 `{job_id}-ocr` 子任务，一并删除
 - 默认不删除 `uploads` 源文件
-- `queued` / `running` 默认拒绝删除，除非传 `force=true`
+- `queued` / `running` 默认拒绝删除，除非传 `force=true`；`force=true` 时先对运行中的任务走和 `actions/cancel` 同一条路径（登记取消 + 终止 worker 进程）再删，
+  runner 的落库写在行不存在时不会再把任务写回来
+- 别的任务还在用被删任务的产物（`request_payload.source.artifact_job_id` 指向它，例如重新排版的 render 任务）时，不带 `force` 返回 `409` + `error.details.reason = "job_has_dependents"`
+- 同时清掉被删任务在全文索引（`blocks_fts`）里的行，并按这本书剩下的成功任务重建
 
 ### 文档身份与文档级任务历史
 

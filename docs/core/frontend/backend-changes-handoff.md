@@ -10,6 +10,31 @@
 ---
 
 
+## 000000. 删除要顾到别的任务：强删先取消，被引用的任务不能直接删，删任务清全文索引
+
+分支 `fix/force-delete-stops-runner`（2026-10-19）。对应状态一致性审计 1-#5、2-#1/#2/#4。
+
+### 变了什么
+
+1. `DELETE /library/books/{job_id}?force=true` 和 `DELETE /documents/{document_id}?force=true`：删之前，对其中排队 / 运行中的任务
+   先走和 `POST /jobs/{job_id}/actions/cancel` 同一条路径（登记取消 + 终止 worker 进程），再删行删目录。以前强删既不取消也不杀进程，
+   worker 继续花 OCR / 模型的钱，runner 的下一次落库还把已删的任务写回来（没有 `document_id` 的幽灵任务）。
+   现在 runner 的落库写（CAS）在行不存在时不再 INSERT，runner 见到行没了会终止 worker 并收手。响应形状不变。
+2. **新的 409 原因 `job_has_dependents`**：`DELETE /library/books/{job_id}` 删某个任务时，如果删除范围（该任务 + 它的 `-ocr` 子任务）之外
+   还有别的任务在用它的产物（`request_payload.source.artifact_job_id` 指向它，典型是「换字体重新排版」产生的 render 任务，
+   译文目录就是源任务的 `translated/`），返回 `409` + `error.details.reason = "job_has_dependents"`，message 里列出依赖者的编号，什么都不删。
+   以前照删，之后整本书的 `/documents/{id}/reading` 因为找不到译文目录返回 500。带 `?force=true` 仍然放行（调用方明确要删）；
+   `DELETE /documents/{id}` 整本删除时依赖者本来就在删除范围内，不受影响。原地重新渲染的任务引用自己，不算依赖。
+3. 删除任务时同时清掉它在全文索引里的行（`blocks_fts`），再按这本书剩下的成功任务重建索引；搜索不再命中已删的任务。
+
+### 前端要做什么
+
+**不用改代码**（前端没有传 `force`；删书走的是 `DELETE /documents/{id}`，不会撞到 `job_has_dependents`）。
+如果以后用 `DELETE /library/books/{job_id}` 删单个任务：遇到 `reason === "job_has_dependents"` 提示「先删除依赖它的任务（message 里有编号）」，
+不要自动加 `force`。
+
+---
+
 ## 00000. 请求体里不认识的字段一律 400
 
 分支 `fix/unknown-fields-400`（2026-10-19）。所有用 `ApiJson` 读、目标类型 `deny_unknown_fields` 的请求体（邀请码、agent 会话、

@@ -12,7 +12,8 @@ use crate::views::{
 use retainpdf_core::models::domain::UploadRecord;
 use retainpdf_jobs::cleanup_deleted_job_credentials;
 
-use super::books::{ensure_deletable, remove_job_files, remove_path_if_exists};
+use super::books::{ensure_deletable, ensure_no_dependents, remove_job_files, remove_path_if_exists};
+use retainpdf_data::db::Db;
 use super::LibraryDeps;
 
 pub(crate) fn document_media_urls(base_url: &str, document_id: &str) -> (String, String, String) {
@@ -115,6 +116,20 @@ pub fn get_document(
     Ok(with_document_media_urls(document, base_url))
 }
 
+/// 强制删除前要先取消的任务编号(名下全部任务 + 各自的 `-ocr` 子任务)，见 `book_delete_job_ids`。
+pub fn document_delete_job_ids(db: &Db, document_id: &str) -> Result<Vec<String>, AppError> {
+    db.get_document(document_id)
+        .map_err(|_| AppError::not_found(format!("document not found: {document_id}")))?;
+    let mut job_ids = db.job_ids_for_document(document_id)?;
+    for job_id in job_ids.clone() {
+        let child = format!("{job_id}-ocr");
+        if !job_ids.contains(&child) && db.get_job(&child).is_ok() {
+            job_ids.push(child);
+        }
+    }
+    Ok(job_ids)
+}
+
 /// 彻底删除一篇文档:文档行 + 名下所有 job(含 -ocr 子 job)+ upload(s) +
 /// 磁盘文件。沿用馆藏删除的收藏保护——被收藏引用则 409(force 不绕过,
 /// 与 delete_library_book 一致;force 仅绕过"运行中 job 不可删")。
@@ -126,19 +141,8 @@ pub fn delete_document(
     document_id: &str,
     force: bool,
 ) -> Result<DocumentDeleteResultView, AppError> {
-    let _document = deps
-        .db
-        .get_document(document_id)
-        .map_err(|_| AppError::not_found(format!("document not found: {document_id}")))?;
-
-    // 收集名下所有 job:jobs.document_id 关联的 + 每个的 -ocr 子 job
-    let mut job_ids = deps.db.job_ids_for_document(document_id)?;
-    for job_id in job_ids.clone() {
-        let child = format!("{job_id}-ocr");
-        if !job_ids.contains(&child) && deps.db.get_job(&child).is_ok() {
-            job_ids.push(child);
-        }
-    }
+    // 收集名下所有 job:jobs.document_id 关联的 + 每个的 -ocr 子 job(找不到文档 → 404)
+    let job_ids = document_delete_job_ids(deps.db, document_id)?;
 
     // 逐个校验可删(运行中的 job 需 force)
     let mut jobs = Vec::new();
@@ -148,6 +152,8 @@ pub fn delete_document(
             jobs.push(job);
         }
     }
+
+    ensure_no_dependents(deps.db, &jobs, force)?;
 
     let uploads = deps.db.uploads_for_document(document_id)?;
 
