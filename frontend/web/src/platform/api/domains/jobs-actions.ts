@@ -63,7 +63,7 @@ const ACTION_CONFLICT_MESSAGES: Record<string, string> = {
   request_journal_corrupt: "翻译请求记录损坏，没法自动恢复，请重新翻译。",
   stale_resolution: "恢复信息已过期，请刷新后再试。",
   no_ocr_dispatch: "这个任务已经不需要处理 OCR 歧义，请刷新。",
-  ambiguous_ocr_dispatch: "OCR 识别请求的结果拿不准，请打开任务详情的「失败」页处理（绑定已有识别任务，或确认重新识别）。",
+  ambiguous_ocr_dispatch: "OCR 识别请求的结果拿不准，请打开任务详情的「问题」页处理（绑定已有识别任务，或确认重新识别）。",
   ambiguous_translation_request: "部分翻译请求可能已经计费，请打开任务详情确认重复费用风险后再从翻译阶段重试。",
 };
 
