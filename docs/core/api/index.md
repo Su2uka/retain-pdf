@@ -185,8 +185,10 @@ Reader 宿主接入 job/artifact、Markdown、区域、页面元数据和实时�
 
 元数据建议接口从 PDF Info 和规范化 OCR 的
 `structure_role=document_title` 生成可审查、可恢复的标题候选。请求可使用
-`apply_if_default=true` 自动命名，但只会修改仍为上传文件名且未被用户锁定的文档；
-手工 `PATCH title` 后不会被自动结果覆盖。完整字段和冲突码见
+`apply_if_default=true` 自动命名，但只会修改书名来源还是文件名（`title_source=filename`）且未被用户锁定的文档
+（不再拿书名和当前文件名比：同一本书换个文件名再传，书名照旧能自动命名）；
+手工 `PATCH title` 后不会被自动结果覆盖。请求体不认识的字段返回 400；错误都带
+`error.details.reason`，apply 返回的 `document` 和 `GET`/`PATCH` 一样带三个链接。完整字段和冲突码见
 [Document metadata suggestions](../../../backend/api/docs/api-spec/document-metadata.md)。
 
 ## 4. 上传接口
