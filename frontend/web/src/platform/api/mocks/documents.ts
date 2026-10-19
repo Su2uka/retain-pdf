@@ -24,20 +24,18 @@ export async function fetchDocumentList(
     limit = 50,
     offset = 0,
     readingStatus = "",
-    tag = "",
     collectionId = "",
     q = "",
   }: {
     limit?: number;
     offset?: number;
     readingStatus?: string;
-    tag?: string;
     collectionId?: string;
     q?: string;
   } = {},
 ): Promise<MockDocumentListResult> {
   void apiPrefix;
-  return getMockDocumentList({ limit, offset, readingStatus, tag, collectionId, q });
+  return getMockDocumentList({ limit, offset, readingStatus, collectionId, q });
 }
 
 // 按任意 job_id(含历史 run)直查其所属文档,后端负责解析——前端不再扫列表反查。
@@ -66,7 +64,7 @@ export async function fetchDocument(
   return getMockDocument(normalized);
 }
 
-// body 支持 { title?, reading_status?, tags? };tags 是整体替换语义(传 [] 即清空)
+// body 支持 { title?, reading_status? }(标签 2026-09-26 已删)
 export async function patchDocument(
   apiPrefix: string,
   documentId: string,

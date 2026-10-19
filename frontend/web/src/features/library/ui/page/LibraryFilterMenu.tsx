@@ -1,5 +1,5 @@
 // 书架筛选(照搬 PDF_MD_lib 的 LibraryFilterModal,做成轻量 popover 而非 Radix
-// 弹窗——满载测试下少一个重型 modal 更稳):按状态 + 标签筛选,客户端过滤已加载项。
+// 弹窗——满载测试下少一个重型 modal 更稳):按状态筛选,客户端过滤已加载项。
 
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
@@ -16,9 +16,6 @@ type LibraryStatusDependencies = {
 type LibraryFilterMenuProps = {
   statusFilter: string;
   setStatusFilter: (value: string) => void;
-  tagFilter: string;
-  setTagFilter: (value: string) => void;
-  tags?: string[];
   statusCounts?: Record<string, number>;
 };
 
@@ -60,13 +57,11 @@ export function countLibraryStatusFilters(items: LibraryCardItem[] = [], depende
 
 export function LibraryFilterMenu({
   statusFilter, setStatusFilter,
-  tagFilter, setTagFilter,
-  tags = [],
   statusCounts = {},
 }: LibraryFilterMenuProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  const activeCount = (statusFilter !== "all" ? 1 : 0) + (tagFilter ? 1 : 0);
+  const activeCount = statusFilter !== "all" ? 1 : 0;
 
   useEffect(() => {
     if (!open) return undefined;
@@ -137,22 +132,10 @@ export function LibraryFilterMenu({
             ))}
           </div>
 
-          {tags.length ? (
-            <>
-              <p className="mb-2 mt-4 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">标签</p>
-              <div className="flex flex-wrap gap-2">
-                <Pill active={!tagFilter} onClick={() => setTagFilter("")}>全部</Pill>
-                {tags.map((t) => (
-                  <Pill key={t} active={tagFilter === t} onClick={() => setTagFilter(tagFilter === t ? "" : t)}>{t}</Pill>
-                ))}
-              </div>
-            </>
-          ) : null}
-
           {activeCount > 0 ? (
             <button
               type="button"
-              onClick={() => { setStatusFilter("all"); setTagFilter(""); }}
+              onClick={() => setStatusFilter("all")}
               className="mt-4 text-xs text-muted-foreground hover:text-foreground hover:underline"
             >清空筛选</button>
           ) : null}
@@ -166,12 +149,8 @@ export function LibraryFilterMenu({
 export function matchesLibraryFilter(
   item: LibraryCardItem,
   statusFilter: string,
-  tagFilter: string,
   { isLibraryOnly, isActive }: LibraryStatusDependencies,
 ) {
-  if (tagFilter && !(Array.isArray(item.tags) ? item.tags : []).includes(tagFilter)) {
-    return false;
-  }
   if (statusFilter === "all") {
     return true;
   }

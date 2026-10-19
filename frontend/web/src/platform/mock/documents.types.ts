@@ -28,7 +28,6 @@ export interface MockDocumentListQuery {
   limit?: number;
   offset?: number;
   readingStatus?: string;
-  tag?: string;
   collectionId?: string;
   /** 镜像后端 q：标题或原始文件名包含（大小写不敏感，字面匹配）。 */
   q?: string;

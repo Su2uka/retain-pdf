@@ -16,12 +16,10 @@ export interface LibrarySearchAnchor {
 /** 书卡可改的字段。原先直接复用 mock 层的 MockDocumentPatch——那是 mock 夹具
  *  的形状，不该出现在功能的公开端口上。改为结构类型，与 canonical
  *  patchDocument 的 Record<string, unknown> 兼容。 */
-export interface LibraryDocumentPatch {
+export type LibraryDocumentPatch = {
   title?: string;
   reading_status?: string;
-  tags?: string[];
-  [key: string]: unknown;
-}
+};
 
 /** 全文检索命中：锚点字段外，还带原文与译文两段 snippet（[ ] 包裹命中词）。 */
 export interface LibrarySearchHit extends LibrarySearchAnchor {
@@ -37,7 +35,6 @@ export interface LibrarySearchDocumentRow {
   source_filename?: string;
   page_count?: number;
   reading_status?: string;
-  tags?: string[];
 }
 
 export type LibrarySearchQuerySubscriber = (value: string) => void;

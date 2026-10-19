@@ -112,11 +112,11 @@ test("状态筛选将仅收藏、仅 OCR、已翻译和处理中分别计数", (
     active: 1,
     failed: 1,
   });
-  assert.equal(matchesLibraryFilter(ocrDone, "ocr", "", filterDependencies), true);
-  assert.equal(matchesLibraryFilter(ocrDone, "done", "", filterDependencies), false);
-  assert.equal(matchesLibraryFilter(translatedDone, "done", "", filterDependencies), true);
-  assert.equal(matchesLibraryFilter(ocrRunning, "active", "", filterDependencies), true);
-  assert.equal(matchesLibraryFilter(libraryOnly, "untranslated", "", filterDependencies), true);
+  assert.equal(matchesLibraryFilter(ocrDone, "ocr", filterDependencies), true);
+  assert.equal(matchesLibraryFilter(ocrDone, "done", filterDependencies), false);
+  assert.equal(matchesLibraryFilter(translatedDone, "done", filterDependencies), true);
+  assert.equal(matchesLibraryFilter(ocrRunning, "active", filterDependencies), true);
+  assert.equal(matchesLibraryFilter(libraryOnly, "untranslated", filterDependencies), true);
 });
 
 test("网格与列表输出 OCR 完成和查看 OCR，memo 签名包含 workflow/job_type", () => {

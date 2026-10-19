@@ -54,7 +54,6 @@ test("库检索面板:渲染命中高亮与文档行,状态切换调用 PATCH", 
         page_count: 8,
         active_job_id: "job-a",
         reading_status: "unread",
-        tags: ["测试"],
       }],
     }),
     patchDocument: async (documentId, payload) => {

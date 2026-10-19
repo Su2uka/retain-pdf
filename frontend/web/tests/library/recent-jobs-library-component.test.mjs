@@ -211,8 +211,8 @@ test("RecentJobsLibrary：筛选和 items 刷新会清理不可操作的批量�
   const dom = makeDom("?mock=parallel");
   const { services, root, host } = await bootHomeApp(dom, { readyId: "library-view" });
 
-  const first = makeItem(1, { document_id: "doc-1", tags: ["alpha"] });
-  const second = makeItem(2, { document_id: "doc-2", tags: ["beta"] });
+  const first = makeItem(1, { document_id: "doc-1", status: "failed" });
+  const second = makeItem(2, { document_id: "doc-2", status: "succeeded" });
   services.library.recentJobsStore.actions.setItems([first, second]);
   await waitFor(() => byId(dom, "recent-jobs-list").querySelectorAll(".recent-job-item").length === 2, "两张可选卡片就位");
 
@@ -226,18 +226,16 @@ test("RecentJobsLibrary：筛选和 items 刷新会清理不可操作的批量�
 
   click(dom, byId(dom, "library-filter-trigger"));
   await waitFor(() => byId(dom, "library-filter-surface"), "打开筛选面板");
-  const betaFilter = [...byId(dom, "library-filter-surface").querySelectorAll("button")]
-    .find((button) => button.textContent.trim() === "beta");
-  assert.ok(betaFilter, "标签筛选必须包含 beta");
-  click(dom, betaFilter);
+  const filterPill = (label) => [...byId(dom, "library-filter-surface").querySelectorAll("button")]
+    .find((button) => button.textContent.trim().startsWith(label));
+  assert.ok(filterPill("已翻译"), "状态筛选必须包含「已翻译」");
+  click(dom, filterPill("已翻译"));
   await waitFor(() => batchToolbar()?.textContent.includes("已选 0 / 1"), "筛选后清理隐藏选择");
   assert.equal(deleteButton().disabled, true, "不可见选择不能继续启用批量删除");
 
-  const activeBetaFilter = [...byId(dom, "library-filter-surface").querySelectorAll("button")]
-    .find((button) => button.textContent.trim() === "beta");
-  assert.ok(activeBetaFilter, "筛选后仍可取消 beta 标签");
-  click(dom, activeBetaFilter);
-  await waitFor(() => batchToolbar()?.textContent.includes("已选 0 / 2"), "恢复全部标签后幽灵选择不应回来");
+  assert.ok(filterPill("全部"), "筛选后仍可回到「全部」");
+  click(dom, filterPill("全部"));
+  await waitFor(() => batchToolbar()?.textContent.includes("已选 0 / 2"), "恢复全部后幽灵选择不应回来");
   click(dom, byId(dom, "recent-jobs-list").querySelector('[data-document-id="doc-2"]'));
   await waitFor(() => batchToolbar()?.textContent.includes("已选 1 / 2"), "选中第二篇文档");
 

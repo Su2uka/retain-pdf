@@ -26,14 +26,12 @@ function documentRequestError(fallback, status, payload) {
         error.canFallbackToOcr = canFallback;
     return error;
 }
-export async function fetchDocumentList(apiPrefix, { limit = 50, offset = 0, readingStatus = "", tag = "", collectionId = "", q = "" } = {}) {
+export async function fetchDocumentList(apiPrefix, { limit = 50, offset = 0, readingStatus = "", collectionId = "", q = "" } = {}) {
     const params = new URLSearchParams();
     params.set("limit", `${limit}`);
     params.set("offset", `${offset}`);
     if (`${readingStatus || ""}`.trim())
         params.set("reading_status", `${readingStatus}`.trim());
-    if (`${tag || ""}`.trim())
-        params.set("tag", `${tag}`.trim());
     if (`${collectionId || ""}`.trim())
         params.set("collection_id", `${collectionId}`.trim());
     if (`${q || ""}`.trim())

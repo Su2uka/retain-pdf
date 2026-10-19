@@ -27,7 +27,6 @@ export type LibraryDocumentRecord = {
   title?: string | null;
   source_filename?: string | null;
   reading_status?: string | null;
-  tags?: string[] | null;
   source_pdf_url?: string | null;
   bytes?: number | null;
   added_at?: string | null;
@@ -83,7 +82,7 @@ function pickCardTitle(bookTitle: unknown, document: LibraryDocumentRecord | nul
 // 等待后续轮询/恢复。
 //
 // job/document 身份规则:
-// - 文档身份(document_id/reading_status/tags/source_pdf_url/bytes/added_at/
+// - 文档身份(document_id/reading_status/source_pdf_url/bytes/added_at/
 //   last_opened_at)恒由 document 侧提供,三分支共享(sharedDocumentIdentity);
 // - job 身份(job_id/active_job_id/library_only):有投影取投影 job_id(回落
 //   activeJobId);投影未命中保留真实 activeJobId(library_only=false,等轮询);
@@ -99,7 +98,6 @@ export function shapeDocumentCardItem(
   const sharedDocumentIdentity = {
     document_id: documentId,
     reading_status: document.reading_status || "",
-    tags: Array.isArray(document.tags) ? document.tags : [],
     source_pdf_url: document.source_pdf_url || "",
     bytes: document.bytes,
     added_at: document.added_at || "",

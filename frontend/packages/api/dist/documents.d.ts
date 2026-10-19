@@ -46,7 +46,6 @@ export type DocumentListQuery = {
     limit?: number;
     offset?: number;
     readingStatus?: string;
-    tag?: string;
     collectionId?: string;
     /** 服务端标题/原始文件名包含匹配（后端 LIKE，已转义 %/_）。空串不发送。 */
     q?: string;
@@ -109,7 +108,7 @@ export interface DocumentRequestError extends Error {
     reason?: string;
     canFallbackToOcr?: boolean;
 }
-export declare function fetchDocumentList(apiPrefix: string, { limit, offset, readingStatus, tag, collectionId, q }?: DocumentListQuery): Promise<DocumentListView>;
+export declare function fetchDocumentList(apiPrefix: string, { limit, offset, readingStatus, collectionId, q }?: DocumentListQuery): Promise<DocumentListView>;
 export declare function fetchDocumentByJobId(apiPrefix: string, jobId: string): Promise<DocumentRecord | null>;
 export declare function fetchDocument(apiPrefix: string, documentId: string): Promise<DocumentRecord>;
 export declare function patchDocument(apiPrefix: string, documentId: string, payload?: Record<string, unknown>): Promise<DocumentRecord>;

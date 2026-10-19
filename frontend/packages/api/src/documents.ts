@@ -56,7 +56,6 @@ export type DocumentListQuery = {
   limit?: number;
   offset?: number;
   readingStatus?: string;
-  tag?: string;
   collectionId?: string;
   /** 服务端标题/原始文件名包含匹配（后端 LIKE，已转义 %/_）。空串不发送。 */
   q?: string;
@@ -153,13 +152,12 @@ function documentRequestError(
 
 export async function fetchDocumentList(
   apiPrefix: string,
-  { limit = 50, offset = 0, readingStatus = "", tag = "", collectionId = "", q = "" }: DocumentListQuery = {},
+  { limit = 50, offset = 0, readingStatus = "", collectionId = "", q = "" }: DocumentListQuery = {},
 ): Promise<DocumentListView> {
   const params = new URLSearchParams();
   params.set("limit", `${limit}`);
   params.set("offset", `${offset}`);
   if (`${readingStatus || ""}`.trim()) params.set("reading_status", `${readingStatus}`.trim());
-  if (`${tag || ""}`.trim()) params.set("tag", `${tag}`.trim());
   if (`${collectionId || ""}`.trim()) params.set("collection_id", `${collectionId}`.trim());
   if (`${q || ""}`.trim()) params.set("q", `${q}`.trim());
   const resp = await apiFetch(`${buildApiEndpoint(apiPrefix, "documents")}?${params.toString()}`, { headers: buildApiHeaders() });
