@@ -42,9 +42,6 @@ export function renderJobDetailOverview({
   const durations = resolveLiveDurations(job);
   const actions = resolveJobActions(job);
   const statusViewModel = buildJobDetailStatusViewModel(job, state?.eventsPayload);
-  if (state) {
-    state.rerunActionUrl = actions.rerun;
-  }
 
   renderArtifactsManifest(manifestPayload);
   renderInitialMarkdownContract({
@@ -58,7 +55,7 @@ export function renderJobDetailOverview({
   applyDiagnostics(diagnosticsPayload, job, setText);
   renderFailureDebugContext(job);
 
-  const rerunEnabled = Boolean(resumePlan?.can_resume || (actions.rerunEnabled && actions.rerun));
+  const rerunEnabled = Boolean(resumePlan?.can_resume || actions.resumeEnabled);
   if (document.getElementById("detail-rerun-btn")) {
     (document.getElementById("detail-rerun-btn") as HTMLButtonElement).disabled = !rerunEnabled;
   }

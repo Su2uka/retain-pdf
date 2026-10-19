@@ -251,7 +251,7 @@ export function buildStatusDetailSnapshot(
 ) {
   const presentation = resolveDisplayedStagePresentation(job, eventsPayload) as StagePresentationLike;
   const actions = resolveJobActions(job);
-  const rerunEnabled = Boolean(actions.rerunEnabled && actions.rerun);
+  const rerunEnabled = Boolean(actions.resumeEnabled);
 
   return {
     headline: buildHeadline(job, presentation.detail),

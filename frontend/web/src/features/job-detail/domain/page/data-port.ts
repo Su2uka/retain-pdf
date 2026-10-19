@@ -6,7 +6,6 @@ import {
 import {
   fetchJobDiagnostics,
   fetchResumePlan,
-  rerunJob,
   resumeJob,
 } from "@/platform/api/index.js";
 import {
@@ -23,7 +22,6 @@ export function createJobDetailDataPort({
   loadResumePlan = fetchResumePlan,
   loadMarkdown = fetchJobMarkdown,
   loadEvents = fetchJobEvents,
-  rerun = rerunJob,
   resume = resumeJob,
   fetchProtectedResource = fetchProtected,
 } = {}) {
@@ -54,7 +52,6 @@ export function createJobDetailDataPort({
     fetchProtected: fetchProtectedResource,
     loadMarkdownPayload,
     loadOverview,
-    rerunJob: rerun,
     resumeJob: resume,
   });
 }

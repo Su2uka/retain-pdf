@@ -14,7 +14,6 @@ export interface JobDetailPageState {
   markdownImageUrls: string[];
   eventsPayload: EventsPayload | null;
   eventsLoadingPromise: Promise<EventsPayload> | null;
-  rerunActionUrl: string;
   resumePlan: ResumePlanLike | null;
 }
 
@@ -26,7 +25,6 @@ export function createJobDetailPageState(): JobDetailPageState {
     markdownImageUrls: [],
     eventsPayload: null,
     eventsLoadingPromise: null,
-    rerunActionUrl: "",
     resumePlan: null,
   };
 }

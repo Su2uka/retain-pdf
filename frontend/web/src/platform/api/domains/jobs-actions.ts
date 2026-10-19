@@ -7,12 +7,10 @@ import {
   fetchResumePlan as _canonFetchResumePlan,
   resolveOcrAmbiguity as _canonResolveOcrAmbiguity,
   resumeJob as _canonResumeJob,
-  rerunJob as _canonRerunJob,
   retryJobStage as _canonRetryJobStage,
 } from "@retainpdf/api/jobs-actions";
 import { mockable } from "./_mockable.js";
-import { API_PREFIX } from "../../config/api-constants.js";
-import { createTranslationSecretInjector, jobIdFromActionUrl } from "../translation-secret.js";
+import { createTranslationSecretInjector } from "../translation-secret.js";
 
 export type {
   JobRetryStage,
@@ -36,10 +34,6 @@ async function resumeJobWithCurrentKey(jobId: string, apiPrefix?: string, body: 
   return _canonResumeJob(jobId, apiPrefix, await injectTranslationSecret(jobId, apiPrefix, body));
 }
 
-async function rerunJobWithCurrentKey(actionUrl: string, body: Record<string, unknown> = {}) {
-  return _canonRerunJob(actionUrl, await injectTranslationSecret(jobIdFromActionUrl(actionUrl), API_PREFIX, body));
-}
-
 async function retryJobStageWithCurrentKey(
   jobId: string,
   apiPrefix: string | undefined,
@@ -53,5 +47,4 @@ export const resumeJob = mockable(resumeJobWithCurrentKey, MockJobsActions.resum
 export const cancelJob = mockable(_canonCancelJob, MockJobsActions.cancelJob);
 export const cancelOcrJob = mockable(_canonCancelOcrJob, MockJobsActions.cancelOcrJob);
 export const resolveOcrAmbiguity = mockable(_canonResolveOcrAmbiguity, MockJobsActions.resolveOcrAmbiguity);
-export const rerunJob = mockable(rerunJobWithCurrentKey, MockJobsActions.rerunJob);
 export const retryJobStage = mockable(retryJobStageWithCurrentKey, MockJobsActions.retryJobStage);

@@ -94,10 +94,6 @@ test("job detail data port owns overview markdown and action API calls", async (
       calls.push(["events", jobId, apiPrefix, query]);
       return { items: [] };
     },
-    rerun: async (url) => {
-      calls.push(["rerun", url]);
-      return { job_id: "job-rerun" };
-    },
     resume: async (jobId, apiPrefix) => {
       calls.push(["resume", jobId, apiPrefix]);
       return { job_id: "job-resume" };
@@ -114,7 +110,6 @@ test("job detail data port owns overview markdown and action API calls", async (
   assert.deepEqual(await port.loadMarkdownPayload("job-detail"), { content: "# ok" });
   assert.deepEqual(await port.fetchJobEvents("job-detail", port.apiPrefix, { limit: 10, cursor: "test-cursor" }), { items: [] });
   assert.deepEqual(await port.resumeJob("job-detail", port.apiPrefix), { job_id: "job-resume" });
-  assert.deepEqual(await port.rerunJob("/rerun"), { job_id: "job-rerun" });
   assert.deepEqual(await port.fetchProtected("http://asset.test/file.pdf"), {
     url: "http://asset.test/file.pdf",
   });
@@ -126,11 +121,11 @@ test("job detail data port owns overview markdown and action API calls", async (
     ["markdown", "job-detail", "/detail-api"],
     ["events", "job-detail", "/detail-api", { limit: 10, cursor: "test-cursor" }],
     ["resume", "job-detail", "/detail-api"],
-    ["rerun", "/rerun"],
   ]);
+  assert.equal(port.rerunJob, undefined, "续跑只走 resumeJob（POST /jobs/:id/actions/resume）");
 });
 
-test("job detail resume port chooses resume by job id before rerun url", async () => {
+test("job detail resume port 只按任务号续跑，没有任务号直接报错", async () => {
   const calls = [];
   const port = createJobDetailResumePort({
     apiPrefix: "/detail-api",
@@ -138,22 +133,11 @@ test("job detail resume port chooses resume by job id before rerun url", async (
       calls.push(["resume", jobId, apiPrefix]);
       return { job_id: "job-resumed" };
     },
-    rerunJob: async (url) => {
-      calls.push(["rerun", url]);
-      return { job_id: "job-rerun" };
-    },
   });
 
-  assert.deepEqual(await port.submit({ actionUrl: "/rerun-old", jobId: "job-current" }), {
-    job_id: "job-resumed",
-  });
-  assert.deepEqual(await port.submit({ actionUrl: "/rerun-old", jobId: "" }), {
-    job_id: "job-rerun",
-  });
-  assert.deepEqual(calls, [
-    ["resume", "job-current", "/detail-api"],
-    ["rerun", "/rerun-old"],
-  ]);
+  assert.deepEqual(await port.submit({ jobId: "job-current" }), { job_id: "job-resumed" });
+  await assert.rejects(port.submit({ jobId: "" }), /缺少 job_id/);
+  assert.deepEqual(calls, [["resume", "job-current", "/detail-api"]]);
 });
 
 test("job detail summary renderer owns runtime and failure text fields", () => {
@@ -397,7 +381,6 @@ test("job detail overview renderer owns state updates and rerun status", () => {
   assert.equal(state.job.job_id, "job-overview");
   assert.deepEqual(state.manifestPayload, { items: [] });
   assert.equal(state.resumePlan.can_resume, true);
-  assert.match(state.rerunActionUrl, /\/rerun\/job-overview$/);
   assert.equal(rerunButton.disabled, false);
   assert.equal(fields["detail-rerun-status"], "可从 translation 恢复");
   assert.equal(fields.eventsStatus, "尚未加载");
@@ -413,7 +396,6 @@ test("job detail page state owns initial shape and markdown image cleanup", () =
     "markdownImageUrls",
     "eventsPayload",
     "eventsLoadingPromise",
-    "rerunActionUrl",
     "resumePlan",
   ]);
   assert.equal(state.job, null);
