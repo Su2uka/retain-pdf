@@ -5,6 +5,7 @@ use std::time::{Duration, Instant};
 use retainpdf_api_base::error::AppError;
 use retainpdf_core::models::domain::JobSnapshot;
 
+use super::freshness::{remember_inputs, InputStamps, Stamp};
 use super::{cached_output_is_fresh, job_artifacts_dir, DerivedArtifactDeps};
 
 const BUILD_TIMEOUT: Duration = Duration::from_secs(120);
@@ -75,7 +76,8 @@ fn build_side_by_side_pdf(
     translated_pdf: &Path,
     output_pdf: &Path,
 ) -> Result<(), AppError> {
-    build_with_command(output_pdf, "side-by-side", BUILD_TIMEOUT, |tmp_pdf| {
+    let inputs = [source_pdf, translated_pdf];
+    build_with_command(output_pdf, "side-by-side", BUILD_TIMEOUT, &inputs, |tmp_pdf| {
         let mut command = side_by_side_command(deps);
         command
             .arg("--source-pdf")
@@ -88,17 +90,43 @@ fn build_side_by_side_pdf(
     })
 }
 
-/// `label` 只用来给临时文件命名和给报错定位——两条派生链路（side-by-side PDF 和
-/// layout DOCX）共用这段进程监管，失败信息里必须能看出是哪一条挂了。
+/// `label` 只用来给临时文件命名和给报错定位——几条派生链路（对照 PDF、Word、线性化、
+/// 页预览、封面）共用这段进程监管，失败信息里必须能看出是哪一条挂了。
+///
+/// `inputs` 是产物依赖的文件。它们的戳在起子进程**之前**取、生成完记在产物旁边，
+/// [`cached_output_is_fresh`] 拿它判断缓存还能不能用（见 `freshness.rs`）。传空表示不记。
 pub(super) fn build_with_command(
     output_path: &Path,
     label: &str,
     timeout: Duration,
+    inputs: &[&Path],
     command_for_output: impl FnOnce(&Path) -> Command,
 ) -> Result<(), AppError> {
+    build_with_command_and_exit_check(output_path, label, timeout, inputs, command_for_output, |_| None)
+}
+
+/// 同 [`build_with_command`]，子进程失败退出时先交给 `exit_error` 看一眼退出状态：返回
+/// `Some` 就用它代替笼统的 "failed to build X"（页预览用它把「页码越界」变成 404）。
+pub(super) fn build_with_command_and_exit_check(
+    output_path: &Path,
+    label: &str,
+    timeout: Duration,
+    inputs: &[&Path],
+    command_for_output: impl FnOnce(&Path) -> Command,
+    exit_error: impl FnOnce(std::process::ExitStatus) -> Option<AppError>,
+) -> Result<(), AppError> {
+    if let Some(parent) = output_path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    let input_stamps = InputStamps::capture(inputs);
     let temporary = TemporaryOutput::create(output_path, label)?;
     let command = command_for_output(&temporary.0);
     let (status, diagnostics) = run_supervised(output_path, label, timeout, command)?;
+    if !status.success() {
+        if let Some(error) = exit_error(status) {
+            return Err(error);
+        }
+    }
     if !status.success() || !temporary.0.is_file() || std::fs::metadata(&temporary.0)?.len() == 0 {
         return Err(diagnostics.error(format!("failed to build {label}")));
     }
@@ -108,7 +136,12 @@ pub(super) fn build_with_command(
         .open(&temporary.0)?;
     file.sync_all()?;
     drop(file);
+    // 换名不改 inode 和修改时间，所以产物的戳在临时文件上取。
+    let output_stamp = Stamp::of(&temporary.0);
     std::fs::rename(&temporary.0, output_path)?;
+    if let (Some(output_stamp), false) = (output_stamp, input_stamps.is_empty()) {
+        remember_inputs(output_path, output_stamp, input_stamps);
+    }
     Ok(())
 }
 
@@ -137,6 +170,10 @@ pub fn run_supervised(
     let diagnostics_sink = std::fs::OpenOptions::new()
         .write(true)
         .open(&diagnostics.0)?;
+    // 子进程自成一个进程组，超时按组杀：Word 导出、合并译文这些 pipeline 子命令还会再起
+    // 子进程（node、typst…），只杀直接子进程的话孙进程会活下来，继续占着 CPU 往产物目录里写。
+    #[cfg(unix)]
+    std::os::unix::process::CommandExt::process_group(&mut command, 0);
     // Do not inherit provider output or hold unread pipes that can deadlock.
     let mut child = command
         .stdin(Stdio::null())
@@ -154,7 +191,7 @@ pub fn run_supervised(
             result => {
                 // Reap only after a successful kill (or an already exited child),
                 // never block waiting on a process we failed to terminate.
-                if child.kill().is_ok() {
+                if kill_process_tree(&mut child) {
                     let _ = child.wait();
                 } else {
                     let _ = child.try_wait();
@@ -169,6 +206,20 @@ pub fn run_supervised(
         }
     };
     Ok((status, Diagnostics(diagnostics)))
+}
+
+/// 按进程组发 SIGKILL（子进程在 spawn 时自成一组，组号就是它的 pid）；发不出去（比如
+/// 非 unix）再退回只杀直接子进程。返回是否杀成功，杀成功了调用方才能放心 `wait()`。
+fn kill_process_tree(child: &mut std::process::Child) -> bool {
+    #[cfg(unix)]
+    {
+        if let Ok(pid) = libc::pid_t::try_from(child.id()) {
+            if unsafe { libc::kill(-pid, libc::SIGKILL) } == 0 {
+                return true;
+            }
+        }
+    }
+    child.kill().is_ok()
 }
 
 /// 子进程 stderr 的临时文件；drop 时删除。

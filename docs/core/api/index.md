@@ -650,13 +650,16 @@ Cache-Control: private, max-age=31536000, immutable   # 原文页（document）
 ETag: "..."
 ```
 
-- 译文页：缓存图比 `translated.pdf` 旧（重渲染、原地重跑以后）就重新渲染，同一个地址的内容会变，所以不用强缓存，
+- 译文页：`translated.pdf` 和生成缓存图时记下的不一样了（重渲染、原地重跑以后）就重新渲染，同一个地址的内容会变，所以不用强缓存，
   浏览器每次带 `ETag` / `Last-Modified` 校验，没变回 304。
 - 原文页：书的编号是原文指纹，同一个地址内容不变，可以长缓存；和封面一样是登录后的内容，用 `private`。
 - `page` 超过总页数（任务的 `files` 清单 `pages.page_count`、书的 `pages.page_count`）：返回 404
   `no such file: pages/{page}.jpg`，和 `pages/0.jpg` 一样，不会起渲染进程。
 
-预览图按 job 缓存在 `DATA_ROOT/jobs/{job_id}/artifacts/` 下。前端可先请求第一页预览图实现秒开，再后台加载 PDF.js。
+- 渲染一页最多 60 秒，超时整个渲染进程组被杀，返回 `500` `page-preview builder timed out`（封面、缩略图是
+  `book-image builder timed out`），生成名额随之释放。
+
+预览图按 job 缓存在 `DATA_ROOT/jobs/{job_id}/artifacts/` 下，旁边的 `.<文件名>.inputs.json` 记着生成时输入的大小、修改时间和 inode。前端可先请求第一页预览图实现秒开，再后台加载 PDF.js。
 
 ## 7.5 通用取数（读任务里已有的数据，优先用它）
 
