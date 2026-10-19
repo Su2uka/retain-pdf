@@ -167,6 +167,40 @@ fn old_merged_directories_and_crash_leftovers_are_pruned_by_age() {
     assert!(unknown.is_dir(), "不认识的目录不该碰");
 }
 
+/// 以前按目录的修改时间（= 生成时间）算年龄：两天前生成、今天还在读的合并目录，一有新的合并
+/// 生成就被删，正在读的阅读器后面的请求全部 404。现在按最后一次被读（`.last-used` 标记）算。
+#[test]
+fn a_merged_directory_read_recently_is_kept_however_long_ago_it_was_built() {
+    let dir = Dir::new();
+    let merged = dir.0.join("merged");
+    let keep = merged.join("aaaaaaaaaaaaaaaa");
+    let in_use = merged.join("bbbbbbbbbbbbbbbb");
+    let unused = merged.join("cccccccccccccccc");
+    for path in [&keep, &in_use, &unused] {
+        std::fs::create_dir_all(path).unwrap();
+    }
+    let built = std::fs::metadata(&in_use).unwrap().modified().unwrap();
+    // 生成 20 小时后还有人在读它。
+    let marker = in_use.join(".last-used");
+    std::fs::write(&marker, b"").unwrap();
+    std::fs::File::options()
+        .write(true)
+        .open(&marker)
+        .unwrap()
+        .set_modified(built + Duration::from_secs(20 * 60 * 60))
+        .unwrap();
+    // 写标记会改目录的修改时间，把目录时间拨回生成时。
+    for path in [&in_use, &unused] {
+        std::fs::File::open(path).unwrap().set_modified(built).unwrap();
+    }
+    prune_stale(&merged, &keep, built + Duration::from_secs(25 * 60 * 60));
+    assert!(in_use.is_dir(), "生成超过一天、但 5 小时前还有人读的合并目录被删了");
+    assert!(!unused.exists(), "超过一天没人读的该删");
+    prune_stale(&merged, &keep, built + Duration::from_secs(45 * 60 * 60));
+    assert!(!in_use.exists(), "最后一次读也过了一天，该删");
+    assert!(keep.is_dir(), "当前阅读入口指向的那个不删");
+}
+
 fn python(script: &str, args: &[&Path]) -> String {
     let output = Command::new(project_venv_bin("python"))
         .arg("-c")
@@ -337,4 +371,59 @@ fn ranked(job_id: &str, pages: &[u32]) -> crate::merge::plan::RankedPages {
 
 fn job_page(id: &str, local: usize) -> PageSource {
     job(id, local)
+}
+
+/// 假的流水线命令：每次调用往 `calls` 里记一行子命令名，睡一会儿（让并发的请求真的撞上），
+/// 再按子命令写出最少的产物。
+#[cfg(unix)]
+fn counting_pipeline(dir: &Path) -> PathBuf {
+    use std::os::unix::fs::PermissionsExt;
+    let path = dir.join("fake-pipeline.sh");
+    std::fs::write(
+        &path,
+        format!(
+            "#!/bin/sh\necho \"$1\" >> \"{calls}\"\nsleep 0.5\ncase \"$1\" in\n  merge-translated-artifacts) mkdir -p \"$5/translated\" ;;\n  merge-translated-pdf) printf pdf > \"$7\" ;;\nesac\n",
+            calls = dir.join("calls").display(),
+        ),
+    )
+    .unwrap();
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
+    path
+}
+
+/// 同一本书同时打开两次（前端一次、AI 服务一次）：以前各自在临时目录里生成一遍，后发布的那个
+/// 丢掉自己的结果。现在同一份合并只生成一次，后到的等它生成完直接用。
+#[cfg(unix)]
+#[test]
+fn concurrent_requests_for_the_same_merge_build_it_once() {
+    let dir = Dir::new();
+    let data_root = dir.0.join("data");
+    let source = dir.file("source.pdf", b"src");
+    let a = dir.file("a.pdf", b"a");
+    let translated = dir.0.join("translated");
+    std::fs::create_dir(&translated).unwrap();
+    let mut coverage = cov("a", &a, &[1]);
+    coverage.1.translations_dir = Some(translated);
+    let coverages = std::sync::Arc::new(jobs([coverage]));
+    let plan = std::sync::Arc::new([job("a", 0), PageSource::Original]);
+    let pipeline = counting_pipeline(&dir.0);
+    let barrier = std::sync::Arc::new(std::sync::Barrier::new(3));
+    let workers: Vec<_> = (0..3)
+        .map(|_| {
+            let (data_root, source, pipeline) = (data_root.clone(), source.clone(), pipeline.clone());
+            let (coverages, plan, barrier) = (coverages.clone(), plan.clone(), barrier.clone());
+            std::thread::spawn(move || {
+                barrier.wait();
+                ensure_merged_translation(pipeline_deps(&pipeline), &data_root, "doc1", &source, &*plan, &coverages)
+            })
+        })
+        .collect();
+    let roots: Vec<_> = workers.into_iter().map(|worker| worker.join().unwrap().unwrap().root).collect();
+    assert!(roots.iter().all(|root| *root == roots[0]), "{roots:?}");
+    let calls = std::fs::read_to_string(dir.0.join("calls")).unwrap();
+    assert_eq!(
+        calls.lines().filter(|line| *line == "merge-translated-artifacts").count(),
+        1,
+        "同一份合并被生成了不止一次：\n{calls}"
+    );
 }

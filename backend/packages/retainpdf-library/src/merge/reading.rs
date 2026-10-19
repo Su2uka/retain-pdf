@@ -26,6 +26,7 @@ use retainpdf_files::DerivedArtifactDeps;
 use retainpdf_core::storage_paths::{resolve_data_path, to_relative_data_path};
 
 use super::build::{ensure_merged_translation, JobInputs};
+use super::page_count::book_page_count;
 use super::plan::{merge_plan, PageSource};
 use super::sources::{job_merge_source, MergeSource};
 
@@ -87,22 +88,25 @@ pub(crate) enum ReadingTarget {
     Merged { job_id: String, merged: MergedTranslation },
 }
 
+/// `recorded_page_count` 是数据库里记的页数（`documents.page_count`，0 表示没记），原文 PDF
+/// 读不出页数时才用；和翻译覆盖走同一个 [`book_page_count`]，两边说的页数一致。
 pub(crate) fn resolve_reading_target(
     db: &Db,
     data_root: &Path,
     deps: DerivedArtifactDeps<'_>,
     document_id: &str,
     source_pdf: &Path,
+    recorded_page_count: u32,
 ) -> Result<ReadingTarget, AppError> {
     let jobs = db.list_jobs_for_document(document_id, 500, 0)?;
     let sources = document_merge_sources(&jobs, data_root);
     if sources.is_empty() {
         return Ok(ReadingTarget::None);
     }
-    let page_count = lopdf::Document::load(source_pdf)
-        .map_err(|error| AppError::internal(format!("read source pdf {}: {error}", source_pdf.display())))?
-        .get_pages()
-        .len() as u32;
+    let page_count = book_page_count(Some(source_pdf), recorded_page_count);
+    if page_count == 0 {
+        return Err(AppError::internal(format!("read source pdf {}: no page count", source_pdf.display())));
+    }
     let ranked: Vec<_> = sources.iter().map(|source| source.ranked.clone()).collect();
     let plan = merge_plan(page_count, &ranked);
     if let Some(job_id) = single_whole_document_job(&plan) {

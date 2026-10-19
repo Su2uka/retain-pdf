@@ -324,7 +324,7 @@ GET /api/v1/documents/<doc>/files/source.pdf?download=1
 GET /api/v1/documents/<doc>/files/cover.jpg
   status: 200
   content-type: image/jpeg
-  cache-control: private, max-age=86400
+  cache-control: private, max-age=0, must-revalidate
   accept-ranges: bytes
   | 19 字节，sha256 d5e238020f7eb5e8
 
@@ -332,7 +332,7 @@ GET /api/v1/documents/<doc>/files/cover.jpg
 GET /api/v1/documents/<doc>/files/thumbnail.jpg
   status: 200
   content-type: image/jpeg
-  cache-control: private, max-age=86400
+  cache-control: private, max-age=0, must-revalidate
   accept-ranges: bytes
   | 23 字节，sha256 3209301db0cb66de
 
@@ -340,7 +340,7 @@ GET /api/v1/documents/<doc>/files/thumbnail.jpg
 GET /api/v1/documents/<doc>/files/pages/1.jpg
   status: 200
   content-type: image/jpeg
-  cache-control: private, max-age=31536000, immutable
+  cache-control: private, max-age=0, must-revalidate
   accept-ranges: bytes
   | 25 字节，sha256 96581d3dc2db72ba
 

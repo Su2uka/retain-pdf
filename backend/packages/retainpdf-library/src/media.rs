@@ -20,11 +20,12 @@ use retainpdf_jobs::{Disposition, FileDownload};
 
 use super::LibraryDeps;
 
-/// 封面、缩略图按源 PDF 首页生成，一本书不变，浏览器缓存一天。
-const IMAGE_CACHE: &str = "private, max-age=86400";
-/// 书的编号就是源 PDF 的指纹，预览图的文件名里又带全部参数：同一个地址内容不变。
-/// 和封面一样是登录后的内容，用 `private`，不进共享缓存。
-const PAGE_CACHE: &str = "private, max-age=31536000, immutable";
+/// 封面、缩略图、原文页预览。书的原文会变：单机下 Agent 文档操作提交以后，原文换成新版本，
+/// 书的编号（第一次上传时的指纹）不变，同一个地址的图跟着变（后端按原文戳重新渲染，见
+/// `retainpdf_files` 的 `freshness.rs`）。所以不让浏览器直接用缓存：每次带 `ETag` /
+/// `Last-Modified`（`stream_file` 给的）来问，没变回 304，和任务的译文页预览一样。
+/// 登录后的内容，用 `private`，不进共享缓存。
+const BOOK_IMAGE_CACHE: &str = "private, max-age=0, must-revalidate";
 
 /// 书能取的每一种文件。
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -71,6 +72,14 @@ impl DocumentFile {
             Self::Page { page, width_px, dpi } => {
                 format!("document:{document_id}:page:{page}:{width_px}:{dpi}")
             }
+        }
+    }
+
+    /// 响应的 `Cache-Control`。原文 PDF 不设（前端读原文时自己带 `?version=`）。
+    fn cache_control(&self) -> Option<&'static str> {
+        match self {
+            Self::SourcePdf => None,
+            Self::Cover | Self::Thumbnail | Self::Page { .. } => Some(BOOK_IMAGE_CACHE),
         }
     }
 
@@ -139,7 +148,7 @@ fn locate(db: &Db, data_root: &Path, python_bin: &str, document_id: &str, file: 
                 kind,
             )?;
             let mut download = FileDownload::new(path, "image/jpeg", None);
-            download.cache_control = Some(IMAGE_CACHE);
+            download.cache_control = file.cache_control();
             Ok(download)
         }
         DocumentFile::Page { page, width_px, dpi } => {
@@ -160,7 +169,7 @@ fn locate(db: &Db, data_root: &Path, python_bin: &str, document_id: &str, file: 
                 *dpi,
             )?;
             let mut download = FileDownload::new(path, "image/jpeg", None);
-            download.cache_control = Some(PAGE_CACHE);
+            download.cache_control = file.cache_control();
             Ok(download)
         }
     }
@@ -258,6 +267,17 @@ pub fn document_files_view(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// 书的原文会变（Agent 文档操作提交新版本），同一个地址的封面、缩略图、原文页内容会跟着变：
+    /// 不能让浏览器直接用缓存（以前原文页 `immutable` 一年、封面一天），要每次带 ETag 来问。
+    #[test]
+    fn book_images_are_revalidated_because_the_source_can_change() {
+        let query = JobFilesQuery::default();
+        for file in [DocumentFile::Cover, DocumentFile::Thumbnail, DocumentFile::page("3.jpg", &query).unwrap()] {
+            assert_eq!(file.cache_control(), Some("private, max-age=0, must-revalidate"), "{file:?}");
+        }
+        assert_eq!(DocumentFile::SourcePdf.cache_control(), None);
+    }
 
     #[test]
     fn names_resolve_and_unknown_names_are_404() {

@@ -62,6 +62,20 @@ database-only check (one indexed lookup per row); it does not open output PDFs,
 so the reading endpoint remains the authority on what actually opens. Older
 clients can ignore the field.
 
+When several range translations have to be merged, the reading endpoint
+returns a virtual job id `merged-<document_id>-<fingerprint>` backed by
+`data/documents/<document_id>/merged/<fingerprint>/`. Every read of that id
+refreshes a `.last-used` marker inside the directory; an older merged directory
+is pruned only after it has gone unread for 24 hours and a newer merge for the
+same book is built (the one the reading endpoint currently points at is never
+pruned). Reads of a pruned id return `404` with
+`error.details.reason = "merged_reading_expired"` (message unchanged:
+`job not found: <id>`); clients call the reading endpoint again for a fresh id.
+Concurrent reading requests for the same merge build it once; at most two
+merges build at a time per process. The book's page count is the source PDF's
+actual page count (cached by file stamp), falling back to `documents.page_count`
+only when the PDF cannot be read; `/translation-coverage` uses the same count.
+
 Book display metadata:
 
 - list items expose `display_name`, `page_count`, `source_file_name`, `cover_url`,

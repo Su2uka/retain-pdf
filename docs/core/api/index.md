@@ -644,14 +644,14 @@ Content-Type: application/pdf
 ```http
 200 OK
 Content-Type: image/jpeg
-Cache-Control: private, max-age=0, must-revalidate   # 译文页（job）
-Cache-Control: private, max-age=31536000, immutable   # 原文页（document）
+Cache-Control: private, max-age=0, must-revalidate   # 译文页（job）和原文页（document）都是这个
 ETag: "..."
 ```
 
 - 译文页：`translated.pdf` 和生成缓存图时记下的不一样了（重渲染、原地重跑以后）就重新渲染，同一个地址的内容会变，所以不用强缓存，
   浏览器每次带 `ETag` / `Last-Modified` 校验，没变回 304。
-- 原文页：书的编号是原文指纹，同一个地址内容不变，可以长缓存；和封面一样是登录后的内容，用 `private`。
+- 原文页：书的原文会变（Agent 文档操作提交新版本，书的编号不变），原文和生成缓存图时记下的不一样了就重新渲染，
+  所以和译文页一样不用强缓存（2026-10-19 以前是 `immutable` 一年）；书的封面、缩略图同样按原文判断新鲜、同样的缓存头。
 - `page` 超过总页数（任务的 `files` 清单 `pages.page_count`、书的 `pages.page_count`）：返回 404
   `no such file: pages/{page}.jpg`，和 `pages/0.jpg` 一样，不会起渲染进程。
 

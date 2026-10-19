@@ -11,6 +11,7 @@ use retainpdf_core::models::api::DocumentRecord;
 use super::collection_workspace::{ensure_collection_workspace, CollectionWorkspace, ReadingBook};
 use retainpdf_files::DerivedArtifactDeps;
 use crate::merge::coverage::{translation_coverage, TranslationCoverageView};
+use crate::merge::page_count::book_page_count;
 use crate::merge::reading::{resolve_reading_target, DocumentReadingView, ReadingTarget};
 
 use super::media::document_source;
@@ -44,16 +45,26 @@ pub async fn document_reading(
     let owned = OwnedReadingDeps::from(deps);
     let document_id = document_id.to_string();
     tokio::task::spawn_blocking(move || {
-        let (_document, source_pdf) = document_source(&owned.db, &owned.data_root, &document_id)?;
+        let (document, source_pdf) = document_source(&owned.db, &owned.data_root, &document_id)?;
         let artifact_deps = DerivedArtifactDeps::with_pipeline_command(&owned.python_bin, &owned.pipeline_command);
-        resolve_reading_target(&owned.db, &owned.data_root, artifact_deps, &document_id, &source_pdf)
-            .map(|target| target.view(&owned.data_root))
+        resolve_reading_target(
+            &owned.db,
+            &owned.data_root,
+            artifact_deps,
+            &document_id,
+            &source_pdf,
+            document.page_count,
+        )
+        .map(|target| target.view(&owned.data_root))
     })
     .await
     .map_err(|_| AppError::internal("document reading task failed"))?
 }
 
 /// GET /documents/:id/translation-coverage：只算合并计划，不生成合并目录。
+///
+/// 页数和阅读入口同一个来源（`merge::page_count::book_page_count`）：原文 PDF 的实际页数，
+/// 读不出来退回 `documents.page_count`。原文不在磁盘上也照常回覆盖（阅读入口那时是 404）。
 pub async fn document_translation_coverage(
     deps: &LibraryDeps<'_>,
     document_id: &str,
@@ -61,11 +72,13 @@ pub async fn document_translation_coverage(
     let owned = OwnedReadingDeps::from(deps);
     let document_id = document_id.to_string();
     tokio::task::spawn_blocking(move || {
-        let page_count = owned
+        let recorded = owned
             .db
             .get_document(&document_id)
             .map_err(|error| AppError::from_lookup(error, format!("document not found: {document_id}")))?
             .page_count;
+        let source_pdf = document_source(&owned.db, &owned.data_root, &document_id).ok().map(|(_, path)| path);
+        let page_count = book_page_count(source_pdf.as_deref(), recorded);
         translation_coverage(&owned.db, &owned.data_root, &document_id, page_count)
     })
         .await
@@ -106,6 +119,7 @@ pub(crate) fn workspace_reading_book(
         deps,
         &document.document_id,
         Path::new(&upload.stored_path),
+        document.page_count,
     )
     .ok()?;
     match target {
