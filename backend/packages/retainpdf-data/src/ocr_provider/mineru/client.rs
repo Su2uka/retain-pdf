@@ -312,9 +312,24 @@ impl MineruClient {
             .with_context(|| format!("failed to open bundle {}", zip_path.display()))?;
         let mut archive =
             ZipArchive::new(file).with_context(|| format!("invalid zip {}", zip_path.display()))?;
+        // 先把每个条目的名字都查一遍，再开始写：包来自服务商的下载地址，里面有绝对路径或
+        // `..` 的条目会写到 dest_dir 外面（zip-slip），整个包直接拒收，不写任何文件。
+        for idx in 0..archive.len() {
+            let entry = archive.by_index(idx)?;
+            if entry.enclosed_name().is_none() {
+                bail!(
+                    "MinerU bundle rejected: entry {:?} escapes the extraction directory",
+                    entry.name()
+                );
+            }
+        }
         for idx in 0..archive.len() {
             let mut entry = archive.by_index(idx)?;
-            let out_path = dest_dir.join(entry.name());
+            let relative = entry
+                .enclosed_name()
+                .map(Path::to_path_buf)
+                .ok_or_else(|| anyhow!("MinerU bundle entry escapes the extraction directory"))?;
+            let out_path = dest_dir.join(relative);
             if entry.is_dir() {
                 fs::create_dir_all(&out_path)?;
                 continue;
@@ -523,7 +538,65 @@ mod http_tests;
 
 #[cfg(test)]
 mod tests {
-    use super::{build_apply_upload_payload, build_extract_task_payload, MineruUploadOptions};
+    use super::{
+        build_apply_upload_payload, build_extract_task_payload, MineruClient, MineruUploadOptions,
+    };
+    use std::io::Write;
+
+    fn write_zip(path: &std::path::Path, entries: &[(&str, &[u8])]) {
+        let mut writer = zip::ZipWriter::new(std::fs::File::create(path).unwrap());
+        let options = zip::write::FileOptions::default();
+        for (name, body) in entries {
+            writer.start_file(*name, options).unwrap();
+            writer.write_all(body).unwrap();
+        }
+        writer.finish().unwrap();
+    }
+
+    fn scratch_dir(name: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("retainpdf-unpack-{name}-{}", fastrand::u64(..)));
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn unpack_zip_extracts_nested_entries_inside_the_destination() {
+        let root = scratch_dir("ok");
+        let zip_path = root.join("bundle.zip");
+        write_zip(&zip_path, &[("full.md", b"# md"), ("images/a.png", b"png")]);
+        let dest = root.join("raw");
+        MineruClient::new("", "token").unpack_zip(&zip_path, &dest).unwrap();
+        assert_eq!(std::fs::read(dest.join("full.md")).unwrap(), b"# md");
+        assert_eq!(std::fs::read(dest.join("images/a.png")).unwrap(), b"png");
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn unpack_zip_rejects_parent_dir_and_absolute_entries_without_writing_anything() {
+        let outside = scratch_dir("slip-abs-target");
+        let abs_name = outside.join("absolute.txt");
+        let abs_name = abs_name.to_string_lossy().to_string();
+        for (label, evil) in [
+            ("parent", "../escaped.txt".to_string()),
+            ("nested-parent", "ok/../../escaped.txt".to_string()),
+            ("absolute", abs_name.clone()),
+        ] {
+            let root = scratch_dir(&format!("slip-{label}"));
+            let zip_path = root.join("bundle.zip");
+            // 好条目排在前面：整个包都要被拒收，连它也不该落盘。
+            write_zip(&zip_path, &[("fine.txt", b"fine"), (evil.as_str(), b"pwned")]);
+            let dest = root.join("raw");
+            let error = MineruClient::new("", "token")
+                .unpack_zip(&zip_path, &dest)
+                .expect_err(label);
+            assert!(error.to_string().contains("escapes"), "{label}: {error:#}");
+            assert!(!root.join("escaped.txt").exists(), "{label}: wrote outside dest");
+            assert!(!dest.join("fine.txt").exists(), "{label}: partial extraction");
+            let _ = std::fs::remove_dir_all(root);
+        }
+        assert!(!outside.join("absolute.txt").exists(), "absolute entry was written");
+        let _ = std::fs::remove_dir_all(outside);
+    }
 
     #[test]
     fn build_apply_upload_payload_includes_page_ranges_when_present() {

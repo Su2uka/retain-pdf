@@ -9,7 +9,7 @@ use anyhow::Result;
 use rusqlite::{params, TransactionBehavior};
 use serde_json::{json, Value};
 
-use crate::models::domain::{now_iso, JobSnapshot};
+use crate::models::domain::{now_iso, ocr_child_job_id, JobSnapshot, WorkflowKind};
 
 use super::job_writes::{persist_prepared_job, prepare_job_write};
 use super::pipeline::{append_state_event, validate_identity, PipelineDispatchRecord};
@@ -17,6 +17,12 @@ use super::Db;
 
 impl Db {
     /// Resolves the source dispatch and seeds the recovery job in one transaction.
+    ///
+    /// The seeded OCR attempt and receipt belong to whichever job will actually call the
+    /// provider: the recovery job itself for a standalone OCR workflow, otherwise its
+    /// `{id}-ocr` child (book/translate run OCR inline in that child). The child row does not
+    /// exist yet at this point, so a queued placeholder is written with it; the runner
+    /// overwrites the row when it creates the child and keeps the attempt rows.
     pub fn create_ocr_recovery_job_state(
         &self,
         source_dispatch: &PipelineDispatchRecord,
@@ -42,7 +48,7 @@ impl Db {
               AND generation = ?9
               AND EXISTS (
                   SELECT 1 FROM jobs
-                  WHERE jobs.job_id = ?3
+                  WHERE (jobs.job_id = ?3 OR jobs.job_id || '-ocr' = ?3)
                     AND jobs.status_json IN ('"failed"', 'failed')
               )
             "#,
@@ -63,6 +69,21 @@ impl Db {
         }
 
         persist_prepared_job(&tx, prepared)?;
+        let owner_id = if recovery_job.request_payload.workflow == WorkflowKind::Ocr {
+            recovery_job.job_id.clone()
+        } else {
+            let owner_id = ocr_child_job_id(&recovery_job.job_id);
+            let mut child_request = recovery_job.request_payload.clone();
+            child_request.workflow = WorkflowKind::Ocr;
+            child_request.job_id = owner_id.clone();
+            let placeholder = JobSnapshot::new(
+                owner_id.clone(),
+                child_request,
+                vec!["ocr-child-pending-provider".to_string()],
+            );
+            persist_prepared_job(&tx, prepare_job_write(self, &placeholder)?)?;
+            owner_id
+        };
         let worker_id = format!("ocr-recovery-seed:{}", std::process::id());
         tx.execute(
             r#"
@@ -71,7 +92,7 @@ impl Db {
                 created_at, updated_at
             ) VALUES (?1, 1, 1, 'running', ?2, 'ocr', ?3, ?3)
             "#,
-            params![recovery_job.job_id, worker_id, timestamp],
+            params![owner_id, worker_id, timestamp],
         )?;
         tx.execute(
             r#"
@@ -80,7 +101,7 @@ impl Db {
                 created_at, updated_at, observation_payload_json
             ) VALUES (?1, 1, 'ocr', 0, 1, 'running', ?2, ?2, '{}')
             "#,
-            params![recovery_job.job_id, timestamp],
+            params![owner_id, timestamp],
         )?;
         let receipt_fields = bound_receipt
             .and_then(Value::as_object)
@@ -104,7 +125,7 @@ impl Db {
                 ) VALUES (?1, 1, 'ocr', ?2, 1, ?3, ?4, ?5, 'receipted', ?6, ?7, ?7, ?7)
                 "#,
                 params![
-                    recovery_job.job_id,
+                    owner_id,
                     source_dispatch.dispatch_key,
                     source_dispatch.provider,
                     source_dispatch.operation,

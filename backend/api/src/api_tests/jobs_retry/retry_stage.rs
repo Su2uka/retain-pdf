@@ -202,9 +202,10 @@ async fn ambiguous_ocr_requires_explicit_resolution_and_can_bind_existing_receip
     let recovery_job_id = payload["data"]["submission"]["job_id"]
         .as_str()
         .expect("recovery job id");
+    // 恢复任务是 book，OCR 在 `<恢复任务>-ocr` 子任务里跑：回执种在子任务名下。
     let receipt = state
         .db
-        .latest_pipeline_dispatch(recovery_job_id, "ocr-submit")
+        .latest_pipeline_dispatch(&format!("{recovery_job_id}-ocr"), "ocr-submit")
         .expect("recovery dispatch")
         .expect("seeded dispatch");
     assert_eq!(receipt.status, "receipted");
@@ -334,10 +335,16 @@ async fn ambiguous_ocr_duplicate_risk_is_explicit_audited_and_single_use() {
     let recovery_job_id = payload["data"]["submission"]["job_id"]
         .as_str()
         .expect("recovery job id");
+    // 种下的 ocr attempt 在真正跑 OCR 的 `<恢复任务>-ocr` 子任务名下（driver 可能已经在跑它，
+    // 所以只看有没有，不看是不是还在 running）；父任务名下不留。
     assert!(state
         .db
-        .has_running_pipeline_attempt(recovery_job_id)
+        .has_pipeline_attempt(&format!("{recovery_job_id}-ocr"))
         .expect("recovery attempt"));
+    assert!(!state
+        .db
+        .has_pipeline_attempt(recovery_job_id)
+        .expect("parent attempt"));
     assert_eq!(
         state
             .db

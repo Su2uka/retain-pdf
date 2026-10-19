@@ -212,9 +212,14 @@ fn service_restart_preserves_bound_ocr_receipt_recovery() {
         .latest_pipeline_dispatch("job-ocr-source", "ocr-submit")
         .expect("source dispatch")
         .expect("source record");
+    // 单独的 OCR 任务自己调服务商，种子在它自己名下（book 的恢复任务见 retainpdf-db 的
+    // book_ocr_recovery_seeds_the_receipt_under_the_ocr_child）。
     let recovery = JobSnapshot::new(
         "job-ocr-recovery".to_string(),
-        CreateJobInput::default(),
+        CreateJobInput {
+            workflow: crate::models::domain::WorkflowKind::Ocr,
+            ..CreateJobInput::default()
+        },
         vec!["native-ocr".to_string()],
     );
     db.create_ocr_recovery_job_state(
