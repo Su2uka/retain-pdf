@@ -12,7 +12,7 @@ import type { LibraryJobItem, RecentJobsStatePort } from "./state.js";
 
 export type CreateRecentJobActionsOptions = {
   apiPrefix?: string;
-  deleteLibraryBook?: (apiPrefix: string, jobId: string) => Promise<unknown>;
+  deleteJobById?: (apiPrefix: string, jobId: string) => Promise<unknown>;
   startPolling?: (jobId: string) => void;
   openReader?: (jobId: string, anchor: unknown, documentId: string, options: { pinJob?: boolean }) => void;
   currentJobId?: () => string;
@@ -28,7 +28,7 @@ export type CreateRecentJobActionsOptions = {
 
 export function createRecentJobActions({
   apiPrefix,
-  deleteLibraryBook,
+  deleteJobById,
   startPolling,
   openReader,
   currentJobId = () => "",
@@ -68,11 +68,11 @@ export function createRecentJobActions({
 
   async function deleteJob(jobId: string) {
     const normalizedJobId = `${jobId || ""}`.trim();
-    if (!normalizedJobId || !deleteLibraryBook) {
+    if (!normalizedJobId || !deleteJobById) {
       return;
     }
     try {
-      await deleteLibraryBook(apiPrefix || "", normalizedJobId);
+      await deleteJobById(apiPrefix || "", normalizedJobId);
     } catch (error) {
       renderRecentJobsError(friendlyDeleteError(error), { reset: false });
       return;

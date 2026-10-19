@@ -10,7 +10,6 @@ export * from "./domains/http.js";
 export * from "./domains/agent-runtime-settings.js";
 export * from "./domains/credentials.js";
 export * from "./domains/jobs.js";
-export * from "./domains/library-books.js";
 export * from "./domains/jobs-events.js";
 export * from "./domains/jobs-artifacts.js";
 export * from "./domains/jobs-actions.js";

@@ -382,8 +382,7 @@ test("recent jobs runtime wires loader actions and scheduler callbacks", async (
   const runtime = createRecentJobsRuntime({
     fetchJobList: async () => ({ items: [] }),
     fetchJobPayload: async () => ({}),
-    fetchLibraryBookList: async () => ({ items: [] }),
-    deleteLibraryBook: async () => ({}),
+    deleteJobById: async () => ({}),
     apiPrefix: "/api/v1",
     currentJobId: () => "",
     jobRuntimePort: {
@@ -444,8 +443,7 @@ test("recent jobs runtime routes list rendering through the view port", async ()
   const runtime = createRecentJobsRuntime({
     fetchJobList: async () => ({ items: [] }),
     fetchJobPayload: async () => ({}),
-    fetchLibraryBookList: async () => ({ items: [] }),
-    deleteLibraryBook: async () => ({}),
+    deleteJobById: async () => ({}),
     apiPrefix: "/api/v1",
     currentJobId: () => "",
     jobRuntimePort: {
@@ -500,7 +498,7 @@ test("recent job actions use navigation port instead of direct polling", () => {
 
   const actions = createRecentJobActions({
     apiPrefix: "/api/v1",
-    deleteLibraryBook: async () => {},
+    deleteJobById: async () => {},
     startPolling: () => {
       throw new Error("recent-jobs actions should use navigationPort.openJob");
     },
@@ -538,7 +536,7 @@ test("recent job actions use navigation port instead of direct reader callback",
   const errors = [];
   const actions = createRecentJobActions({
     apiPrefix: "/api/v1",
-    deleteLibraryBook: async () => {},
+    deleteJobById: async () => {},
     startPolling: () => {},
     openReader: () => {
       throw new Error("recent-jobs actions should use readerPort.openReader");

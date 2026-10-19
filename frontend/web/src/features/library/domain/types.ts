@@ -39,7 +39,7 @@ export type {
 
 /**
  * 书架网格/列表/详情共用的卡片投影。
- * - 已翻译：真实 job_id + library/books 活态
+ * - 已翻译：真实 job_id + 任务活态（/jobs?job_ids=）
  * - 馆藏：library_only + 合成 job_id `doc:<document_id>`
  *
  * 扩展字段经 index signature 放行；已知字段尽量列全，避免 any。

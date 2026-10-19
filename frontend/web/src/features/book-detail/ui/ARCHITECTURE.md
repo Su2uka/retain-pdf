@@ -113,9 +113,9 @@ BookDetailArtifactsTab
 
 ### 后端缺口
 
-1. `LibraryBookDetailView.artifacts` 仍是单个 library job 的展示数组，不是
-   `document_id` 下所有 OCR/翻译任务的聚合视图；前端必须先读取 document jobs，
-   再逐 job 读取 manifest。
+1. 没有 `document_id` 下所有 OCR/翻译任务的聚合产物视图（书架详情
+   `LibraryBookDetailView.artifacts` 只是单个任务的数组，接口 2026-10-19 已删）；
+   前端必须先读取 document jobs，再逐 job 读取 manifest。
 2. manifest 有 `updated_at`、`size_bytes`，但当前 `JobArtifactItemView` 和
    `JobListItemView` 都没有 attempt 字段；前端仅保留前向兼容显示能力。
 3. Agent operation 只能按 `conversation_id` 枚举，缺少 document-scoped list；

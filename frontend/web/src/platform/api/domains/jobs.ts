@@ -4,6 +4,7 @@ import { getMockJobList, getMockJobPayload } from "@/platform/mock/index.js";
 import {
   fetchJobList as _fetchJobList,
   fetchJobPayload as _fetchJobPayload,
+  fetchJobsByIds as _fetchJobsByIds,
 } from "@retainpdf/api/jobs";
 import type { JobDetailView, JobListView } from "@retainpdf/contracts/job-status";
 
@@ -45,4 +46,10 @@ export const fetchJobList = async (apiPrefix: string, opts: FetchJobListOptions 
     return getMockJobList({ limit, offset, q }) as unknown as JobListView;
   }
   return _fetchJobList(apiPrefix, opts);
+};
+
+// 返回值暂保留 any：mock 列表项是 JobLike | LibraryCardItem 混合形状，后端的 JobListItemView 与前端卡片类型也没有对齐层。
+export const fetchJobsByIds = async (apiPrefix: string, jobIds: string[] = []): Promise<any> => {
+  if (isMockMode()) return getMockJobList({ jobIds });
+  return _fetchJobsByIds(apiPrefix, jobIds);
 };

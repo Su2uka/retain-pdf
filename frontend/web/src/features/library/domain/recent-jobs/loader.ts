@@ -82,7 +82,6 @@ export function recentJobsLoadErrorText(error: unknown): string {
 
 export interface CreateRecentJobsLoaderOptions {
   fetchJobList?: RecentJobsPageFetcher;
-  fetchLibraryBookList?: RecentJobsPageFetcher;
   apiPrefix: string;
   getQuery?: () => string;
   recentJobActions?: RecentJobActionsPort;
@@ -113,7 +112,6 @@ export interface RecentJobsLoader {
 
 export function createRecentJobsLoader({
   fetchJobList,
-  fetchLibraryBookList,
   apiPrefix,
   getQuery,
   recentJobActions,
@@ -125,7 +123,6 @@ export function createRecentJobsLoader({
   viewPort,
   libraryBooksResource = createLibraryBooksResource({
     fetchJobList,
-    fetchLibraryBookList,
     apiPrefix,
   }) as LibraryBooksResourcePort,
 }: CreateRecentJobsLoaderOptions): RecentJobsLoader {

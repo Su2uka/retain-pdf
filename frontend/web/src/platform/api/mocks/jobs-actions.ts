@@ -64,6 +64,12 @@ export async function cancelJob(jobId: string, apiPrefix: string) {
   return { job_id: jobId, status: "canceled" };
 }
 
+// 真实返回是完整的 LibraryDeleteResultView，mock 只回最少的字段。
+export async function deleteJob(apiPrefix: string, jobId: string) {
+  void apiPrefix;
+  return { deleted: true, job_id: jobId, removed_paths: [], removed_child_jobs: [] };
+}
+
 export async function cancelOcrJob(jobId: string, apiPrefix: string) {
   void apiPrefix;
   return { job_id: jobId, status: "canceled", workflow: "ocr" };
