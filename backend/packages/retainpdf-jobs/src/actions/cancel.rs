@@ -6,6 +6,7 @@ use crate::runtime_gateway::terminate_runtime_process;
 
 use retainpdf_api_base::job_loading::load_job_or_404;
 use crate::deps::ControlDeps;
+use crate::views::ActionBlockReason;
 
 pub(crate) async fn cancel_job(
     deps: &ControlDeps<'_>,
@@ -13,7 +14,7 @@ pub(crate) async fn cancel_job(
 ) -> Result<JobSnapshot, AppError> {
     let mut job = load_job_or_404(deps.db, job_id)?;
     if !matches!(job.status, JobStatusKind::Queued | JobStatusKind::Running) {
-        return Err(AppError::conflict(format!(
+        return Err(ActionBlockReason::JobNotActive.conflict(format!(
             "job is not cancelable in status {:?}",
             job.status
         )));

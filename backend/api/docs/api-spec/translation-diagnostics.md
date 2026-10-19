@@ -307,7 +307,8 @@ Errors (`error.details.reason`):
 
 - `422 TRANSLATION_REVISION_REJECTED`: `validation_failed` (with `details.validation.issues`), `item_not_translatable` (policy keeps the block as original).
 - `409 TRANSLATION_REVISION_CONFLICT`: `job_running`, `checkpoint_locked`, `generation_mismatch` (with `current_generation`), `translation_not_committed`, `publication_inconsistent`, `group_members_missing`, `translations_owned_by_another_job`, `read_only_job`.
-- `422 UNPROCESSABLE_ENTITY`: request body does not match the schema (unknown field, bad `source`).
+- `400 BAD_REQUEST`: the body has a field PATCH does not accept (message names the field).
+- `422 UNPROCESSABLE_ENTITY`: request body does not match the schema (missing or bad `source`).
 
 ## Translation Item Revision History
 

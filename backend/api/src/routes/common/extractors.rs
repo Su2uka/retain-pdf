@@ -10,6 +10,9 @@ use serde::de::DeserializeOwned;
 use crate::error::AppError;
 
 /// JSON extractor whose failures use the public API error envelope.
+///
+/// 请求体里有不认识的字段（目标类型 `deny_unknown_fields`）返回 400，消息带字段名；
+/// 字段类型不对等其余不合 schema 的情况仍是 422。接口约定见 `docs/api/00-约定/02-认证与错误.md`。
 #[derive(Debug)]
 pub struct ApiJson<T>(pub T);
 
@@ -39,6 +42,18 @@ where
             .map(|Json(value)| Self(value))
             .map_err(safe_json_rejection)
     }
+}
+
+/// serde 的 `unknown field `x`, expected one of ...` 只带字段名，不带值，可以原样回给调用方。
+fn unknown_field_message(rejection: &JsonRejection) -> Option<String> {
+    let JsonRejection::JsonDataError(error) = rejection else {
+        return None;
+    };
+    let text = error.body_text();
+    let start = text.find("unknown field ")?;
+    let detail = &text[start..];
+    let detail = detail.split(" at line ").next().unwrap_or(detail);
+    Some(format!("{detail} in the request body"))
 }
 
 #[axum::async_trait]
@@ -89,6 +104,9 @@ where
 }
 
 fn safe_json_rejection(rejection: JsonRejection) -> AppError {
+    if let Some(message) = unknown_field_message(&rejection) {
+        return AppError::bad_request(message);
+    }
     match rejection {
         JsonRejection::JsonDataError(_) => {
             AppError::unprocessable_entity("JSON request body does not match the expected schema")
@@ -310,6 +328,30 @@ mod tests {
         let (status, payload) = error_payload(data).await;
         assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
         assert_error(&payload, 42200, "UNPROCESSABLE_ENTITY");
+
+        #[derive(Deserialize)]
+        #[serde(deny_unknown_fields)]
+        #[allow(dead_code)]
+        struct Strict {
+            value: u64,
+        }
+        async fn extract_strict(ApiJson(_payload): ApiJson<Strict>) {}
+        let unknown = Router::new()
+            .route("/strict", post(extract_strict))
+            .oneshot(
+                Request::builder()
+                    .method(Method::POST)
+                    .uri("/strict")
+                    .header(header::CONTENT_TYPE, "application/json")
+                    .body(Body::from(r#"{"value":1,"extra":true}"#))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        let (status, payload) = error_payload(unknown).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "不认识的字段是请求写错了");
+        assert_error(&payload, 40000, "BAD_REQUEST");
+        assert!(payload["message"].as_str().unwrap().starts_with("unknown field `extra`"));
 
         let missing_content_type = router
             .oneshot(

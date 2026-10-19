@@ -1,5 +1,5 @@
 use retainpdf_api_base::error::AppError;
-use crate::views::JobSubmissionView;
+use crate::views::{ActionBlockReason, JobSubmissionView};
 use retainpdf_core::models::domain::{now_iso, JobSnapshot, JobStatusKind, WorkflowKind};
 use retainpdf_core::models::request::{CreateJobInput, JobSourceInput};
 use crate::actions::stage_plan::resume_plan;
@@ -23,6 +23,10 @@ impl<'a> JobsFacade<'a> {
     ) -> Result<JobSubmissionView, AppError> {
         let source_job = load_job_or_404(self.command.db, source_job_id)?;
         let plan = resume_plan(&source_job, self.command.control.data_root);
+        // 在跑最先判：不管下面哪条路，都是「先取消」。
+        if plan.reason_code == Some(ActionBlockReason::JobActive) {
+            return Err(plan.blocked_error());
+        }
         if plan.resume_workflow == Some(WorkflowKind::Render) {
             let job_id = source_job.job_id.clone();
             let ocr_child_id = format!("{}-ocr", job_id);
@@ -72,17 +76,23 @@ impl<'a> JobsFacade<'a> {
             .execution_connection
             .is_some()
         {
-            return Err(AppError::conflict("Rust model translation rerun requires receipt-preserving recovery; legacy rerun is disabled"));
+            return Err(ActionBlockReason::ModelExecutorUnsupported.conflict("Rust model translation rerun requires receipt-preserving recovery; legacy rerun is disabled"));
         }
         if ambiguous_ocr_dispatch(self.command.db, source_job_id)?.is_some() {
-            return Err(AppError::conflict(
+            return Err(ActionBlockReason::AmbiguousOcrDispatch.conflict(
                 "OCR request outcome is ambiguous; generic rerun is paused. Use the OCR ambiguity resolution endpoint to bind an existing provider task or explicitly accept duplicate request risk",
             ));
         }
-        if load_translation_request_recovery(&source_job, self.command.control.data_root)
-            .is_some_and(|state| state.requires_confirmation)
+        if let Some(state) =
+            load_translation_request_recovery(&source_job, self.command.control.data_root)
+                .filter(|state| state.requires_confirmation)
         {
-            return Err(AppError::conflict(
+            if state.status == "corrupt" {
+                return Err(ActionBlockReason::RequestJournalCorrupt.conflict(
+                    "translation request journal is corrupt; generic rerun is paused because duplicate-risk acceptance cannot repair control-state corruption",
+                ));
+            }
+            return Err(ActionBlockReason::AmbiguousTranslationRequest.conflict(
                 "translation request outcome is ambiguous; generic rerun is paused. Use retry-stage with stage=translation and ambiguous_request_policy=accept_duplicate_risk",
             ));
         }
@@ -97,7 +107,7 @@ impl<'a> JobsFacade<'a> {
 
 pub(super) fn prepare_in_place_render_job(mut job: JobSnapshot) -> Result<JobSnapshot, AppError> {
     if matches!(job.status, JobStatusKind::Queued | JobStatusKind::Running) {
-        return Err(AppError::conflict(
+        return Err(ActionBlockReason::JobActive.conflict(
             "job is already queued or running; cancel it before rerender",
         ));
     }
@@ -219,12 +229,10 @@ fn build_rerun_request(
     data_root: &std::path::Path,
 ) -> Result<CreateJobInput, AppError> {
     let plan = resume_plan(source_job, data_root);
-    let workflow = plan.resume_workflow.ok_or_else(|| {
-        AppError::bad_request(
-            plan.reason
-                .unwrap_or_else(|| "source job has no reusable checkpoint for rerun".to_string()),
-        )
-    })?;
+    let workflow = plan
+        .resume_workflow
+        .clone()
+        .ok_or_else(|| plan.blocked_error())?;
     let mut request = CreateJobInput {
         workflow,
         source: JobSourceInput {

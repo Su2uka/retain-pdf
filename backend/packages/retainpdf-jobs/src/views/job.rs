@@ -9,7 +9,7 @@ pub use builders::{
 #[cfg(test)]
 pub use builders::{job_to_detail, job_to_list_item};
 pub use types::{
-    AmbiguousRequestPolicy, BookSummaryView,
+    ActionBlockReason, AmbiguousRequestPolicy, BookSummaryView,
     DocumentJobListView, GlossaryUsageSummaryView, InvocationSummaryView,
     JobContractsView, JobDetailView,
     JobDiagnosticsView, JobFailureBriefView, JobFailureDiagnosticView, JobListInvocationSummaryView,

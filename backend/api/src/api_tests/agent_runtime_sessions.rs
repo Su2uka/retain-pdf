@@ -120,5 +120,6 @@ async fn runtime_cursor_rejects_unknown_fields_and_missing_conversations() {
         })),
     )
     .await;
-    assert_eq!(invalid.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    // 不认识的字段是请求写错了：400。
+    assert_eq!(invalid.status(), StatusCode::BAD_REQUEST);
 }

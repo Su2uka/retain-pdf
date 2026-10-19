@@ -88,6 +88,7 @@ fn build_stage_action(
         can_retry: plan.can_retry,
         reason: plan.disabled_reason.clone(),
         disabled_reason: plan.disabled_reason,
+        disabled_code: plan.disabled_code,
         action,
         will_reuse: plan.will_reuse,
         will_rerun: plan.will_rerun,
@@ -135,3 +136,51 @@ fn absolute_url(base_url: &str, path: &str) -> String {
     format!("{}{}", base_url.trim_end_matches('/'), path)
 }
 use std::path::Path;
+
+#[cfg(test)]
+mod tests {
+    use retainpdf_core::models::domain::{JobSnapshot, WorkflowKind};
+    use retainpdf_core::models::request::CreateJobInput;
+
+    use super::*;
+    use crate::views::RetryStageRequest;
+
+    /// GET actions 给出的 `action.body` 必须能原样 POST 回 retry-stage：
+    /// `RetryStageRequest` 拒绝不认识的字段，这里钉住后端自己给的 body 不会被自己拒绝。
+    #[test]
+    fn returned_action_bodies_are_accepted_by_the_strict_request_type() {
+        let job = JobSnapshot::new("job-body-roundtrip".to_string(), CreateJobInput::default(), Vec::new());
+        for stage in [
+            RetryStageKind::Ocr,
+            RetryStageKind::Translation,
+            RetryStageKind::Render,
+            RetryStageKind::Refine,
+        ] {
+            let plan = JobStagePlan {
+                stage: stage.clone(),
+                label: String::new(),
+                can_retry: true,
+                disabled_reason: String::new(),
+                disabled_code: None,
+                will_reuse: Vec::new(),
+                will_rerun: Vec::new(),
+                retry_workflow: WorkflowKind::Render,
+                danger: false,
+            };
+            let view = build_stage_action("http://api.test", &job, plan);
+            let body = view.action.expect("enabled stage has an action").body;
+            let request: RetryStageRequest = serde_json::from_value(body.clone())
+                .unwrap_or_else(|error| panic!("{stage:?} body {body} rejected: {error}"));
+            assert_eq!(request.stage, stage);
+        }
+    }
+
+    #[test]
+    fn retry_stage_request_rejects_unknown_fields() {
+        let error = serde_json::from_value::<RetryStageRequest>(
+            serde_json::json!({"stage": "render", "createNewJob": false}),
+        )
+        .expect_err("unknown field must be rejected");
+        assert!(error.to_string().contains("unknown field `createNewJob`"), "{error}");
+    }
+}

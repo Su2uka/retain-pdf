@@ -3,7 +3,7 @@ use serde_json::{json, Map, Value};
 use retainpdf_data::db::{Db, PipelineDispatchRecord};
 use retainpdf_api_base::error::AppError;
 use crate::views::{
-    AmbiguousRequestPolicy, OcrAmbiguityResolutionKind, OcrAmbiguityResolutionRequest,
+    ActionBlockReason, AmbiguousRequestPolicy, OcrAmbiguityResolutionKind, OcrAmbiguityResolutionRequest,
     OcrAmbiguityResolutionView, RetryStageKind, RetryStageRequest,
 };
 use crate::actions::stage_plan::stage_plan;
@@ -24,18 +24,28 @@ impl<'a> JobsFacade<'a> {
         request: OcrAmbiguityResolutionRequest,
     ) -> Result<OcrAmbiguityResolutionView, AppError> {
         let source_job = load_job_or_404(self.command.db, source_job_id)?;
-        if !matches!(
-            source_job.status,
-            retainpdf_core::models::domain::JobStatusKind::Failed
-        ) {
-            return Err(AppError::conflict(
-                "job is no longer failed and its OCR ambiguity cannot be resolved",
-            ));
+        use retainpdf_core::models::domain::JobStatusKind;
+        match source_job.status {
+            JobStatusKind::Failed => {}
+            // 正在跑：多半是上一次处理已经把它重新拉起来了，先取消或等它结束。
+            JobStatusKind::Queued | JobStatusKind::Running => {
+                return Err(ActionBlockReason::JobActive.conflict(
+                    "job is queued or running; its OCR ambiguity cannot be resolved now",
+                ));
+            }
+            _ => {
+                return Err(ActionBlockReason::NoOcrDispatch.conflict(
+                    "job is no longer failed and its OCR ambiguity cannot be resolved",
+                ));
+            }
         }
         let source_dispatch = ambiguous_ocr_dispatch(self.command.db, source_job_id)?
-            .ok_or_else(|| AppError::conflict("job has no durable OCR dispatch to resolve"))?;
+            .ok_or_else(|| {
+                ActionBlockReason::NoOcrDispatch
+                    .conflict("job has no durable OCR dispatch to resolve")
+            })?;
         if request.resolution_revision != source_dispatch.generation {
-            return Err(AppError::conflict(
+            return Err(ActionBlockReason::StaleResolution.conflict(
                 "OCR ambiguity resolution revision is stale; reload diagnostics",
             ));
         }
@@ -64,7 +74,7 @@ impl<'a> JobsFacade<'a> {
                     self.command.control.data_root,
                 );
                 if !plan.can_retry {
-                    return Err(AppError::bad_request(plan.disabled_reason));
+                    return Err(plan.blocked_error());
                 }
                 let receipt = build_bound_receipt(&source_dispatch, &request)?;
                 let request_input = build_retry_request(&source_job, &RetryStageKind::Ocr)?;
@@ -147,7 +157,7 @@ fn build_bound_receipt(
             );
         }
         _ => {
-            return Err(AppError::conflict(format!(
+            return Err(ActionBlockReason::OcrDispatchUnsupported.conflict(format!(
                 "unsupported OCR dispatch identity: provider={} operation={}",
                 dispatch.provider, dispatch.operation
             )))

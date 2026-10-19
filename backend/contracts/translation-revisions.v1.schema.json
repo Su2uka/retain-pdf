@@ -11,10 +11,10 @@
       "input": "ReviseTranslationItemRequest",
       "output": "TranslationRevisionView",
       "errors": {
-        "400": "BAD_REQUEST: oversized text/reason, malformed item id",
+        "400": "BAD_REQUEST: oversized text/reason, malformed item id, unknown field in the request body",
         "404": "NOT_FOUND: job, translation manifest or item does not exist",
         "409": "TRANSLATION_REVISION_CONFLICT: see TranslationRevisionErrorDetails.reason",
-        "422": "TRANSLATION_REVISION_REJECTED: see TranslationRevisionErrorDetails.validation; UNPROCESSABLE_ENTITY: request body does not match ReviseTranslationItemRequest (unknown field, missing or unknown source)"
+        "422": "TRANSLATION_REVISION_REJECTED: see TranslationRevisionErrorDetails.validation; UNPROCESSABLE_ENTITY: request body does not match ReviseTranslationItemRequest (missing or unknown source)"
       },
       "rust_view": "TranslationRevisionView",
       "ts_consumer": "@retainpdf/contracts/translation-revisions :: TranslationRevisionView"
