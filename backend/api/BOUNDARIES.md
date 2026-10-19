@@ -40,8 +40,8 @@ module to reuse a private download helper.
 
 Create routes are the intentional input-side exception: they parse JSON or
 multipart request bodies before delegating to `JobsFacade`, then still return a
-typed `ApiResponse`. Library asset upload is the same pattern: multipart stays
-in the route; persistence goes through `services::library::store_asset_view`.
+typed `ApiResponse`. Font upload is the same pattern: multipart stays in the
+route; persistence goes through the platform facade.
 
 AI routes follow the same boundary:
 

@@ -1,4 +1,4 @@
-//! AI 助手：问答、对话、附件、Agent 的计算和文档操作。多用户下整组关闭：助手能读全部数据，
+//! AI 助手：问答、对话、Agent 的计算和文档操作。多用户下整组关闭：助手能读全部数据，
 //! 等按用户隔离做完再开。
 
 use crate::app::AppState;
@@ -12,10 +12,6 @@ crate::endpoints! {
     GET "/api/v1/ai/runtime-config" => ai_proxy::get_runtime_config_proxy, closed;
     /// 保存 AI 服务的运行配置
     PUT "/api/v1/ai/runtime-config" => ai_proxy::update_runtime_config_proxy, closed;
-    /// 上传附件（不限请求体大小）
-    POST "/api/v1/assets" => library_extras::upload_asset_route, closed [unlimited_body];
-    /// 取一个附件
-    GET "/api/v1/assets/:asset_id" => library_extras::download_asset_route, closed;
     /// 新建对话
     POST "/api/v1/ai/conversations" => library_extras::create_conversation_route, closed;
     /// 对话列表

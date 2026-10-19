@@ -19,7 +19,6 @@ pub fn build_library_route_deps(state: &AppState) -> LibraryRouteDeps<'_> {
             scripts_dir: &state.config.scripts_dir,
             python_bin: &state.config.python_bin,
             pipeline_command: &state.config.pipeline_command,
-            asset_config: &state.config.asset,
         },
         default_port: state.config.port,
         bind_host: state.config.bind_host.clone(),

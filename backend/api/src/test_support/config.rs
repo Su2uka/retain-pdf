@@ -81,7 +81,6 @@ impl TestDirs {
             job_runner: crate::config::JobRunnerConfig::default(),
             ai_service: crate::config::AiServiceConfig::default(),
             jobs_service: crate::config::JobsServiceConfig::default(),
-            asset: crate::config::AssetConfig::default(),
             cleanup: crate::config::CleanupConfig::default(),
             db: crate::config::DbConfig::default(),
             ai_proxy: crate::config::AiProxyConfig::default(),

@@ -23,8 +23,6 @@ mod agent_calculations;
 mod artifacts;
 #[path = "db/backup.rs"]
 pub mod backup;
-#[path = "db/assets.rs"]
-mod assets;
 #[path = "db/collections.rs"]
 mod collections;
 #[path = "db/conversations.rs"]

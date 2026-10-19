@@ -1,6 +1,6 @@
 pub use super::common::ApiResponse;
 pub use super::library::{
-    AssetRecord, BlockSearchHit, CollectionRecord,
+    BlockSearchHit, CollectionRecord,
     ConversationRecord,
     DocumentRecord, FtsBlockRow, MessageRecord, };
 pub use super::public_contract::{public_request_payload, PublicResolvedJobSpec};

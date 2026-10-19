@@ -171,8 +171,7 @@ async fn documents_list_get_and_patch_roundtrip() {
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({
-                        "reading_status": "reading",
-                        "tags": ["化学", "光谱"]
+                        "reading_status": "reading"
                     })
                     .to_string(),
                 ))
@@ -766,16 +765,16 @@ async fn ai_proxy_returns_bad_gateway_when_upstream_is_down() {
 
 
 
+/// 资产接口 2026-10-19 删了（收藏截图用的，收藏删掉以后没有调用方）：两个地址都是 404。
 #[tokio::test]
-async fn asset_upload_enforces_configured_stream_limit_without_trusting_content_length() {
-    let mut state = test_state("library-assets-stream-limit");
-    Arc::make_mut(&mut state.config).asset.max_bytes = 4;
-    let app = build_app(state);
-    let boundary = "ASSET-LIMIT-BOUNDARY";
+async fn asset_routes_are_gone() {
+    let app = build_app(test_state("library-assets-gone"));
+    let boundary = "ASSET-GONE-BOUNDARY";
     let body = format!(
         "--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"clip.png\"\r\nContent-Type: image/png\r\n\r\n12345\r\n--{boundary}--\r\n"
     );
-    let response = app
+    let upload = app
+        .clone()
         .oneshot(
             Request::builder()
                 .method("POST")
@@ -785,18 +784,25 @@ async fn asset_upload_enforces_configured_stream_limit_without_trusting_content_
                     "content-type",
                     format!("multipart/form-data; boundary={boundary}"),
                 )
-                .header("content-length", "1")
                 .body(Body::from(body))
                 .expect("request"),
         )
         .await
         .expect("upload response");
+    assert_eq!(upload.status(), StatusCode::NOT_FOUND);
 
-    assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
-    let payload = json_response(response).await;
-    assert_eq!(payload["code"], 41300);
-    assert_eq!(payload["error"]["code"], "PAYLOAD_TOO_LARGE");
-    assert_eq!(payload["message"], "request body is too large");
+    let asset_id = "a".repeat(64);
+    let download = app
+        .oneshot(
+            Request::builder()
+                .uri(format!("/api/v1/assets/{asset_id}"))
+                .header("X-API-Key", "test-key")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("download response");
+    assert_eq!(download.status(), StatusCode::NOT_FOUND);
 }
 
 #[tokio::test]

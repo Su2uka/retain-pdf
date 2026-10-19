@@ -135,7 +135,7 @@ fn build_document_filter_query(
     // hasMore 钉成 false——超过 200 篇的库里，搜索会静默漏掉后面的匹配项。
     //
     // 用 LIKE 而非 FTS：这两列都短（标题 + 文件名），库规模是「个人文献库」量级，
-    // 且 LIKE 能和现有的 reading_status / tag / collection 过滤在同一条 WHERE
+    // 且 LIKE 能和现有的 reading_status / collection 过滤在同一条 WHERE
     // 里自然组合。真需要正文全文检索时走已有的 /api/v1/search（块级）。
     if let Some(query) = query {
         let trimmed = query.trim();

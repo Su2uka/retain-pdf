@@ -6,7 +6,6 @@ use anyhow::Result;
 mod accounts;
 mod ai_proxy;
 mod ai_service;
-mod asset;
 mod auth;
 mod cleanup;
 mod db;
@@ -25,7 +24,6 @@ mod upload;
 pub use accounts::{AccountsConfig, DeploymentMode, PlatformModels, LOCAL_USERNAME, LOCAL_USER_ID};
 pub use ai_proxy::AiProxyConfig;
 pub use ai_service::AiServiceConfig;
-pub use asset::AssetConfig;
 use auth::AuthRuntimeConfig;
 pub use cleanup::CleanupConfig;
 pub use db::DbConfig;
@@ -130,7 +128,6 @@ pub struct AppConfig {
     pub job_runner: JobRunnerConfig,
     pub ai_service: AiServiceConfig,
     pub jobs_service: JobsServiceConfig,
-    pub asset: AssetConfig,
     pub cleanup: CleanupConfig,
     pub db: DbConfig,
     pub ai_proxy: AiProxyConfig,
@@ -180,7 +177,6 @@ struct AppConfigParts {
     provider_limits: ProviderLimitsConfig,
     provider_runtime: ProviderRuntimeConfig,
     job_runner: JobRunnerConfig,
-    asset: AssetConfig,
 }
 
 impl AppConfig {
@@ -234,7 +230,6 @@ impl AppConfig {
             provider_limits: ProviderLimitsConfig::from_env(),
             provider_runtime: ProviderRuntimeConfig::from_env(),
             job_runner: JobRunnerConfig::from_env(),
-            asset: AssetConfig::from_env(),
         })
     }
 
@@ -258,7 +253,6 @@ impl AppConfig {
             provider_limits: ProviderLimitsConfig::from_env(),
             provider_runtime: ProviderRuntimeConfig::from_env(),
             job_runner: JobRunnerConfig::from_env(),
-            asset: AssetConfig::from_env(),
         })
     }
 
@@ -271,7 +265,6 @@ impl AppConfig {
             provider_limits,
             provider_runtime,
             job_runner,
-            asset,
         } = parts;
 
         auth.validate_bind_host(&server.bind_host)?;
@@ -305,7 +298,6 @@ impl AppConfig {
             job_runner,
             ai_service,
             jobs_service,
-            asset,
             cleanup: CleanupConfig::from_env(),
             db: DbConfig::from_env(),
             ai_proxy: AiProxyConfig::from_env(),

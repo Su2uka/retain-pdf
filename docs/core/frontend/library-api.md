@@ -16,20 +16,19 @@
 ### 1. 文档列表 / 详情 / 编辑
 
 ```
-GET  /api/v1/documents?limit=50&offset=0&reading_status=reading&tag=化学&collection_id=xxx
+GET  /api/v1/documents?limit=50&offset=0&reading_status=reading&collection_id=xxx
 GET  /api/v1/documents?job_id=xxx          ← 任意 job_id(含历史 run)直查所属文档,勿再扫列表反查 active_job_id
      → data.documents[]: { document_id, title, source_filename, page_count, bytes,
-                           active_job_id, reading_status, tags[], added_at,
+                           active_job_id, reading_status, added_at,
                            last_opened_at, updated_at, authors_json, year, doi }
 
 GET  /api/v1/documents/:document_id
 
 PATCH /api/v1/documents/:document_id
-     body: { title?, reading_status?, tags? }
+     body: { title?, reading_status? }
 ```
 
 - `reading_status` 只接受 `unread | reading | done`,其他值返回 400;
-- `tags` 是**整体替换**语义(传 `[]` 即清空);
 - `active_job_id` 是该文档当前生效的处理 run——**打开阅读器就用它**;
 - 列表按 `added_at` 倒序,`limit` 上限 500。
 
@@ -125,18 +124,11 @@ POST /api/v1/ai/ask
 接入与恢复说明见 [AI 问答与文档操作 API](../api/reader-ai-chat.md)。
 
 
-### 5. 资产(收藏截图等图片附件)
+### 5. 资产
 
-```
-POST /api/v1/assets                    ← multipart,字段名 file(png/jpeg/webp,≤20MB)
-     → data: { asset_id, mime, bytes, created_at }
-GET  /api/v1/assets/:asset_id          ← 文件本体;内容寻址,响应带 immutable 缓存头,可放心 <img src>
-```
-
-- `asset_id` = 文件 sha256:同一张图重复上传自动归并,拿到相同 id;
-- **图片收藏流程**:canvas 导出 PNG → POST assets 拿 asset_id → POST favorites 时带
-  `asset_id`(建议 `kind: "figure"`)和 `rect_json`(剪裁矩形几何原样存,换设备可还原);
-- favorites 记录现在返回 `asset_id` / `rect_json` 字段,空串 = 纯文字收藏。
+> 已删除：`POST /api/v1/assets`、`GET /api/v1/assets/:asset_id` 2026-10-19 删除（返回 404）。
+> 它们原本给收藏截图用，收藏 2026-09 删掉以后没有调用方。标签同样已删（2026-09-26），
+> 书的列表不认 `tag`，PATCH 不认 `tags`。
 
 ### 6. AI 问答会话（消息树 + durable operation）
 
@@ -211,7 +203,7 @@ GET /api/v1/library/books?job_ids=job-a,job-b,job-c
 1. **第一步只做增量**:阅读器里加"选中 → 收藏"和收藏侧栏(纯新增,不动现有页面)。
    收藏跳转:用锚点里的 `job_id + page_idx + block_id` 复用现有阅读器定位。
 2. **第二步**再把图书馆主页从 `/api/v1/library/books` 投影切到 `/api/v1/documents`,
-   拿到标签 / 阅读状态 / 合集能力。
+   拿到阅读状态 / 合集能力。
 
 ## 附:字段速查
 
