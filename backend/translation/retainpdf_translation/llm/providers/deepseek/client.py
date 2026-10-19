@@ -389,6 +389,7 @@ def request_chat_content(
         started = time.perf_counter()
         diagnostics_request_id: int | None = None
         slot_acquired = False
+        response_received = False
         try:
             if diagnostics is not None:
                 diagnostics.acquire_request_slot()
@@ -435,6 +436,7 @@ def request_chat_content(
                 timeout=timeout,
                 stream=use_stream,
             )
+            response_received = True
             _raise_for_status_with_context(
                 response,
                 model=model,
@@ -591,6 +593,29 @@ def request_chat_content(
                     flush=True,
                 )
             time.sleep(delay_secs)
+        except BaseException as exc:
+            # 上面的 except 只认已知的几类错误。其余（例如 200 + `choices: []` 抛的 IndexError、
+            # `choices` 为 null 的 TypeError，或 KeyboardInterrupt）走到这里时请求槽还占着、
+            # journal 里的 dispatch 还没有终态：槽泄漏会让并发永久少一个，假的未配对 dispatch
+            # 会让之后的重试被要求确认重复风险。补上收尾再原样抛出。
+            elapsed_ms = int(round((time.perf_counter() - started) * 1000))
+            if diagnostics is not None and slot_acquired:
+                diagnostics.release_request_slot(
+                    success=False,
+                    elapsed_ms=elapsed_ms,
+                    error_class=type(exc).__name__,
+                )
+                slot_acquired = False
+            if diagnostics is not None and diagnostics_request_id is not None:
+                # 已拿到响应但解析不了 = invalid_response；没拿到响应（被中断等）结果不明 = ambiguous。
+                diagnostics.record_request_end(
+                    diagnostics_request_id,
+                    success=False,
+                    elapsed_ms=elapsed_ms,
+                    error_class=type(exc).__name__,
+                    journal_outcome="invalid_response" if response_received else "ambiguous",
+                )
+            raise
         attempt += 1
 
     if last_error is not None:
