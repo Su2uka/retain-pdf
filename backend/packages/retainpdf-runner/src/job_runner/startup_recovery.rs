@@ -14,6 +14,10 @@ use retainpdf_core::translation_request_journal::{
 use super::lifecycle::maintain_document_for_terminal;
 use super::worker_process::{terminate_job_process_tree_blocking, worker_process_exists};
 
+#[cfg(test)]
+#[path = "startup_recovery_auto_resume_tests.rs"]
+mod auto_resume_tests;
+
 /// Why a `Running`-status job found when its owning runtime starts is being reconciled.
 enum StaleReason {
     /// No pid was ever recorded for this job.
@@ -27,6 +31,14 @@ enum StaleReason {
 
 /// 重启前翻译阶段结果不明的请求：失败分类（登记在 job_failure_catalogue）。
 const AMBIGUOUS_TRANSLATION_CATEGORY: &str = "translation_request_ambiguous";
+
+/// 同一个 attempt 连续没有新进度的自动续跑最多几次；再发现它中断，就按失败收尾
+/// （崩溃循环熔断：一份能把运行时整个弄崩的输入，每次重启都会被续跑、再弄崩）。
+/// 两次中断之间提交过新单元或完成过阶段就从头数，正常的反复重启不会把长任务判死。
+pub const MAX_AUTO_RESUMES_WITHOUT_PROGRESS: u32 = 3;
+
+/// 超过自动续跑上限：失败分类（登记在 job_failure_catalogue）。
+pub const AUTO_RESUME_LIMIT_CATEGORY: &str = "auto_resume_limit_exceeded";
 
 /// 任务重启前停在翻译阶段、且 journal 显示有结果不明的请求（或 journal 读不了）时，
 /// 返回 journal 的读取结论；其余情况（别的阶段、没有 journal、journal 干净）返回 `None`。
@@ -127,6 +139,15 @@ pub(super) fn reconcile_running_jobs_matching(
             None
         };
         let resumable = has_attempt && ambiguous_translation.is_none();
+        // 自动续跑计数（启动恢复和运行期巡检都走这里）：超过上限就不再续跑。
+        let resume_tally = if resumable {
+            db.next_auto_resume_tally(&job_record.job_id)?
+        } else {
+            None
+        };
+        let resume_limit_hit =
+            resume_tally.is_some_and(|tally| tally.count > MAX_AUTO_RESUMES_WITHOUT_PROGRESS);
+        let resumable = resumable && !resume_limit_hit;
         match db.get_job(&job_record.job_id) {
             Ok(mut job) => {
                 job.updated_at = timestamp.clone();
@@ -201,6 +222,8 @@ pub(super) fn reconcile_running_jobs_matching(
                         resume_from: recovery.resume_from.map(|s| s.as_str().to_string()),
                         recovery_hint: Some(recovery.hint.to_string()),
                     }));
+                } else if resume_limit_hit {
+                    fail_for_auto_resume_limit(&mut job, &detail, &timestamp);
                 } else {
                     job.append_log(&format!("ERROR: {detail}"));
                     job.status = JobStatusKind::Failed;
@@ -258,9 +281,13 @@ pub(super) fn reconcile_running_jobs_matching(
                 }
                 if committed_render_output {
                     db.finish_latest_pipeline_attempt(&job_record.job_id, "succeeded")?;
-                } else if ambiguous_translation.is_some() {
+                } else if ambiguous_translation.is_some() || resume_limit_hit {
                     // 任务已落 Failed：attempt 必须收尾，否则它还会出现在自动续跑名单里。
                     db.finish_latest_pipeline_attempt(&job_record.job_id, "failed")?;
+                } else if job.status == JobStatusKind::Queued {
+                    if let Some(tally) = resume_tally.as_ref() {
+                        db.record_auto_resume(&job_record.job_id, tally)?;
+                    }
                 }
                 // 终态不是 run_job 写的,书卡和全文索引要在这里补(重新排队的不是终态,不动)。
                 if matches!(job.status, JobStatusKind::Succeeded | JobStatusKind::Failed) {
@@ -303,6 +330,52 @@ pub(super) fn reconcile_running_jobs_matching(
         settle_orphaned_ocr_children(config, db)?;
     }
     Ok(reconciled)
+}
+
+/// 自动续跑次数超过上限：按失败收尾，写清原因（前端照 failure 的 summary / suggestion 显示）。
+fn fail_for_auto_resume_limit(
+    job: &mut crate::models::domain::JobSnapshot,
+    detail: &str,
+    timestamp: &str,
+) {
+    let summary = "自动续跑次数超过上限，疑似导致运行时崩溃".to_string();
+    let root_cause = format!(
+        "{detail}；这个任务已连续自动续跑 {MAX_AUTO_RESUMES_WITHOUT_PROGRESS} 次，每次都没有新进度就又中断了，\
+         疑似这份输入让任务运行时崩溃，不再自动续跑"
+    );
+    job.append_log(&format!("WARN: {detail}"));
+    job.append_log(&format!("ERROR: {root_cause}"));
+    job.status = JobStatusKind::Failed;
+    job.stage = Some("failed".to_string());
+    job.stage_detail = Some(summary.clone());
+    job.error = Some(root_cause.clone());
+    job.finished_at = Some(timestamp.to_string());
+    let recovery = retainpdf_core::job_failure_catalogue::recovery_for(AUTO_RESUME_LIMIT_CATEGORY);
+    job.replace_failure_info(Some(JobFailureInfo {
+        stage: "startup_recovery".to_string(),
+        category: AUTO_RESUME_LIMIT_CATEGORY.to_string(),
+        code: None,
+        failed_stage: Some("startup_recovery".to_string()),
+        failure_code: Some(AUTO_RESUME_LIMIT_CATEGORY.to_string()),
+        failure_category: Some("internal".to_string()),
+        provider_stage: None,
+        provider_code: None,
+        summary,
+        root_cause: Some(root_cause.clone()),
+        retryable: true,
+        upstream_host: None,
+        provider: None,
+        suggestion: Some(
+            "先看任务日志里最后处理到哪一页、哪一步，排查后再手动重试（手动重试会重新计数）".to_string(),
+        ),
+        last_log_line: Some(root_cause.clone()),
+        raw_excerpt: Some(root_cause.clone()),
+        raw_error_excerpt: Some(root_cause),
+        raw_diagnostic: None,
+        ai_diagnostic: None,
+        resume_from: recovery.resume_from.map(|s| s.as_str().to_string()),
+        recovery_hint: Some(recovery.hint.to_string()),
+    }));
 }
 
 /// 父任务已终态的 OCR 子任务一次性落终态，并收尾悬空的 pipeline attempt。

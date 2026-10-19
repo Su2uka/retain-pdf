@@ -148,6 +148,7 @@ pub use jobs::JobListSelection;
 pub use model_requests::{
     ModelOperation, ModelRecoverySummary, ModelReservation, ModelSession, ModelSessionConflict,
 };
+pub use pipeline::AutoResumeTally;
 pub use pipeline::{
     PipelineAttemptCursor, PipelineCheckpoint, PipelineCommitEventRecord, PipelineDispatchBegin,
     PipelineDispatchIntent, PipelineDispatchRecord, PipelineStageObservation, PipelineStageState,

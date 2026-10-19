@@ -5,7 +5,7 @@ use anyhow::Result;
 use tokio::sync::{RwLock, Semaphore};
 use tracing::{info, warn};
 
-use super::jobs::{adopt_unlinked_job_documents, reconcile_owned_runtime};
+use super::jobs::{adopt_unlinked_job_documents, install_restore_recovery, reconcile_owned_runtime};
 use crate::config::AppConfig;
 use crate::db::Db;
 use crate::services::ai::AgentCapabilityAuthority;
@@ -88,7 +88,7 @@ pub fn build_state(config: Arc<AppConfig>) -> Result<AppState> {
     if let Some(admin) = accounts.bootstrap_admin().map_err(|error| anyhow::anyhow!("{error}"))? {
         info!("multi-user mode: created the first administrator `{admin}` from RETAIN_BOOTSTRAP_ADMIN_*");
     }
-    Ok(AppState {
+    let state = AppState {
         accounts,
         ai_gateway: Arc::new(crate::services::ai::AiGateway::new(
             &config.ai_proxy,
@@ -117,7 +117,9 @@ pub fn build_state(config: Arc<AppConfig>) -> Result<AppState> {
         job_drivers: Arc::default(),
         job_runtime,
         agent_capabilities: Arc::new(AgentCapabilityAuthority::new_random()?),
-    })
+    };
+    install_restore_recovery(&state);
+    Ok(state)
 }
 
 #[cfg(test)]

@@ -6,7 +6,8 @@ use crate::config::AppConfig;
 use crate::db::Db;
 use crate::job_runner::{
     adopt_unlinked_job_sources, fail_unlaunched_job, launch_job, reconcile_stale_running_jobs,
-    requeue_stuck_queued_jobs, spawn_driverless_job_sweeper, spawn_job, ProcessRuntimeDeps,
+    recover_jobs_after_database_restore, requeue_stuck_queued_jobs, spawn_driverless_job_sweeper,
+    spawn_job, ProcessRuntimeDeps,
 };
 use crate::services::jobs::{
     build_jobs_facade, CommandJobsDeps, ControlDeps, JobLaunchDeps, JobRuntimeLauncher, JobsFacade,
@@ -52,6 +53,19 @@ pub(super) fn start_driverless_sweeper(state: &AppState) -> Option<tokio::task::
         return None;
     }
     Some(spawn_driverless_job_sweeper(build_process_runtime_deps(state)))
+}
+
+/// 数据库从备份恢复后，立即对账备份里带回来的排队/运行中任务（规则同启动恢复，见
+/// `recover_jobs_after_database_restore`）。远端模式 driver 在 jobsd 里，壳不碰：恢复时 pid
+/// 已经清掉，jobsd 的运行期巡检（每 30 秒）会接手，不会误杀进程。
+pub(super) fn install_restore_recovery(state: &AppState) {
+    if state.config.jobs_service.is_remote() {
+        return;
+    }
+    let deps = build_process_runtime_deps(state);
+    state
+        .backup
+        .set_after_restore(Arc::new(move || recover_jobs_after_database_restore(&deps)));
 }
 
 fn build_process_runtime_deps(state: &AppState) -> ProcessRuntimeDeps {
