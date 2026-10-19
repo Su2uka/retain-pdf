@@ -39,6 +39,7 @@ import {
   setBootProgress,
 } from "./session-helpers.js";
 import {
+  expiredMergedReadingDocumentId,
   isStaleDocumentJobFailure,
   parseDocumentLink,
   planJobLoad,
@@ -50,6 +51,7 @@ import {
   downloadJobPdfs,
   downloadOnePdf,
 } from "./session-pdf-download.js";
+import { reopenExpiredMergedReading } from "./merged-reading-recovery.js";
 
 export type SessionAssets = {
   sourceUrl: string;
@@ -456,6 +458,16 @@ export function useSessionAssets(options: {
         fence.markFailed();
         const status = Number((err as Error & { status?: number })?.status);
         const reason = `${(err as Error & { reason?: string })?.reason || ""}`;
+        const expiredMergeDocumentId = expiredMergedReadingDocumentId({ status, reason, sessionJobId });
+        if (expiredMergeDocumentId) {
+          // 合并阅读的临时目录被清理了：按书号重新问阅读入口，换成新编号重开（见 merged-reading-recovery）。
+          const reopened = await reopenExpiredMergedReading({
+            apiPrefix: API_PREFIX,
+            documentId: expiredMergeDocumentId,
+            expiredJobId: sessionJobId,
+          });
+          if (reopened || fence.isClosedOrStale()) return;
+        }
         if (isStaleDocumentJobFailure({
           status,
           reason,
