@@ -584,6 +584,10 @@ provider、operation、`resolution_revision`、允许的解决方式和需要填
 - `artifacts_display[].ready`
 - `GET /jobs/{job_id}/files` 里每一项的 `ready`
 
+文件还没产出（任务没跑完、`all.zip` 要求的成功还没到）一律 `404` + `error.details.reason = "not_ready"`，
+提示 `<名字> not ready`；任务不存在是不带 `reason` 的普通 `404`（2026-10-19，`all.zip` 以前是 `409`）。
+规矩见 [错误约定](../../api/00-约定/02-认证与错误.md#还没产出404)。
+
 Markdown 注意：
 
 - `reader/markdown` 返回结构化文档视图，包含 `content`、`content_with_absolute_image_urls`、`images[]` 图片直链清单，适合前端预览和 AI 问答
