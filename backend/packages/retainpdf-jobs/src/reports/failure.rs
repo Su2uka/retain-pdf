@@ -13,7 +13,8 @@ use crate::query::JobQueries;
 impl JobQueries<'_> {
     pub fn job_diagnostics_view(&self, job_id: &str) -> Result<JobDiagnosticsView, AppError> {
         let job = load_supported_job(self.db, self.data_root, job_id)?;
-        let ocr_ambiguity = if matches!(job.status, JobStatusKind::Failed) {
+        // 已取消的任务也给：上传到一半被取消时派发记录同样拿不准，续跑会被它挡住。
+        let ocr_ambiguity = if matches!(job.status, JobStatusKind::Failed | JobStatusKind::Canceled) {
             self.db
                 .latest_ocr_dispatch_for_job(job_id)?
                 .as_ref()

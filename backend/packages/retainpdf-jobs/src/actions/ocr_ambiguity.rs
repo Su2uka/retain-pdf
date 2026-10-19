@@ -27,7 +27,8 @@ impl<'a> JobsFacade<'a> {
         let source_job = load_job_or_404(self.command.db, source_job_id)?;
         use retainpdf_core::models::domain::JobStatusKind;
         match source_job.status {
-            JobStatusKind::Failed => {}
+            // 取消也算：OCR 上传到一半被取消，请求可能已经到了服务商，派发记录同样拿不准。
+            JobStatusKind::Failed | JobStatusKind::Canceled => {}
             // 正在跑：多半是上一次处理已经把它重新拉起来了，先取消或等它结束。
             JobStatusKind::Queued | JobStatusKind::Running => {
                 return Err(ActionBlockReason::JobActive.conflict(
@@ -36,7 +37,7 @@ impl<'a> JobsFacade<'a> {
             }
             _ => {
                 return Err(ActionBlockReason::NoOcrDispatch.conflict(
-                    "job is no longer failed and its OCR ambiguity cannot be resolved",
+                    "job is no longer failed or canceled and its OCR ambiguity cannot be resolved",
                 ));
             }
         }
