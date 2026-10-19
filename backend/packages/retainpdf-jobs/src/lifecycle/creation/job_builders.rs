@@ -18,9 +18,11 @@ pub fn build_translation_job_snapshot(
     // 而不是散落在各自的 prepare_* 里（见 validate_runtime_limits 的注释）。
     validate_runtime_limits(input)?;
     match input.workflow {
+        // submit_job 把 workflow=ocr 分给 build_ocr_job_snapshot，走不到这里；
+        // 对外入口对 ocr 的提示在各自的入口里（见 submission.rs）。
         WorkflowKind::Ocr => {
-            return Err(AppError::bad_request(
-                "workflow=ocr: upload the PDF with POST /api/v1/uploads, then POST /api/v1/jobs with workflow \"ocr\"",
+            return Err(AppError::internal(
+                "workflow=ocr must be built with build_ocr_job_snapshot",
             ));
         }
         WorkflowKind::Render => return build_render_job_snapshot(ctx, input),

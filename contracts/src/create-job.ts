@@ -216,6 +216,9 @@ export interface RenderInput {
  * models/input/runtime.rs :: RuntimeInput
  */
 export interface RuntimeInput {
+  /**
+   * 任务编号由服务器分配。公开入口（POST /jobs、书库的翻译和 OCR）收到非空的 runtime.job_id 会返回 400，请留空或不要发。
+   */
   job_id?: string;
   timeout_seconds?: number;
   /**

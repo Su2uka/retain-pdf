@@ -92,6 +92,27 @@ impl<'a> NewJob<'a> {
     }
 }
 
+/// 对外入口（`POST /jobs`、书库的翻译和 OCR、`/translate/bundle`）收到的请求，
+/// 不许带 `runtime.job_id`：任务编号由服务器分配。落库是 upsert，客户端自己指定编号
+/// 会覆盖已有任务，带 `..` 还会在输出目录外建目录。
+/// 重试、续跑这些内部提交自己清空这个字段，不经这里。
+pub fn reject_client_job_id(request: &CreateJobInput) -> Result<(), AppError> {
+    if request.runtime.job_id.trim().is_empty() {
+        return Ok(());
+    }
+    Err(AppError::bad_request(
+        "runtime.job_id is set by the server; do not send it",
+    ))
+}
+
+/// 任务编号只许 `[A-Za-z0-9_-]{1,128}`（服务器生成的是 `<时间戳>-<6 位十六进制>`）。
+fn is_valid_job_id(job_id: &str) -> bool {
+    (1..=128).contains(&job_id.len())
+        && job_id
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_' || byte == b'-')
+}
+
 /// 建新任务并开跑。见模块说明。
 pub fn submit_job(deps: &JobSubmitDeps<'_>, new: NewJob<'_>) -> Result<JobSnapshot, AppError> {
     let NewJob {
@@ -101,6 +122,21 @@ pub fn submit_job(deps: &JobSubmitDeps<'_>, new: NewJob<'_>) -> Result<JobSnapsh
         document_id,
         ocr_recovery,
     } = new;
+    // 兜底：调用方指定了编号的话，必须合法、且库里还没有（落库是 upsert，重名会整行覆盖）。
+    // 放在建任务目录之前，拒绝时不留副作用；没指定的由 ResolvedJobSpec 生成合法编号。
+    let requested_job_id = input.runtime.job_id.trim();
+    if !requested_job_id.is_empty() {
+        if !is_valid_job_id(requested_job_id) {
+            return Err(AppError::bad_request(
+                "job id may only contain letters, digits, '_' and '-' (1-128 characters)",
+            ));
+        }
+        if deps.launcher.db.get_job(requested_job_id).is_ok() {
+            return Err(AppError::conflict(format!(
+                "job already exists: {requested_job_id}"
+            )));
+        }
+    }
     let ocr_only = matches!(input.workflow, WorkflowKind::Ocr);
     if !ocr_only && ocr_recovery.is_none() {
         input = with_dev_translation_defaults(&input);

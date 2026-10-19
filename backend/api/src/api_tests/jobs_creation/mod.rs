@@ -740,6 +740,81 @@ fn build_ocr_job_snapshot_rejects_missing_file_and_source() {
     }
 }
 
+/// 对外入口（`POST /jobs`、书库的翻译和 OCR、`/translate/bundle`）不许客户端指定 `runtime.job_id`。
+#[tokio::test]
+async fn public_entries_reject_client_supplied_runtime_job_id() {
+    let state = test_state("reject-client-job-id");
+    let facade = bundle_facade(&state);
+    let mut input = base_translation_input(WorkflowKind::Ocr);
+    input.source.source_url = "https://example.com/input.pdf".to_string();
+    input.runtime.job_id = "../escape".to_string();
+
+    let expected = "runtime.job_id is set by the server; do not send it";
+    let err = facade
+        .create_submission("http://retain.test", &input)
+        .expect_err("POST /jobs 带 runtime.job_id 必须被拒绝");
+    assert!(matches!(&err, AppError::BadRequest(message) if message == expected), "{err:?}");
+    let err = facade
+        .create_document_submission("http://retain.test", &input, "doc-x")
+        .expect_err("书库入口带 runtime.job_id 必须被拒绝");
+    assert!(matches!(&err, AppError::BadRequest(message) if message == expected), "{err:?}");
+    let mut bundle = base_translation_input(WorkflowKind::Book);
+    bundle.runtime.job_id = "  existing-job ".to_string();
+    let err = facade
+        .create_translation_bundle_submission(
+            "http://retain.test",
+            bundle,
+            "input.pdf".to_string(),
+            build_test_pdf_bytes(),
+            false,
+        )
+        .await
+        .expect_err("bundle 带 runtime.job_id 必须被拒绝");
+    assert!(matches!(&err, AppError::BadRequest(message) if message == expected), "{err:?}");
+    // 被拒绝时不存文件、不落任务。
+    assert!(!state.config.uploads_dir.exists() || std::fs::read_dir(&state.config.uploads_dir).unwrap().next().is_none());
+    assert!(state.db.get_job("../escape").is_err());
+    assert!(state.db.get_job("existing-job").is_err());
+
+    // 空串（前端一直这么发）照常通过。
+    input.runtime.job_id = "  ".to_string();
+    facade
+        .create_submission("http://retain.test", &input)
+        .expect("空的 runtime.job_id 照常建任务");
+}
+
+/// 兜底：`submit_job` 不会用已有的编号建新任务（落库是 upsert，会整行覆盖），也不接不合法的编号。
+#[test]
+fn submit_job_refuses_existing_or_malformed_job_ids() {
+    let state = test_state("submit-job-id-guard");
+    let deps = submit_context(&state);
+    let mut input = base_translation_input(WorkflowKind::Ocr);
+    input.source.source_url = "https://example.com/input.pdf".to_string();
+
+    input.runtime.job_id = "custom-job_1".to_string();
+    let created = submit_input(&deps, &input).expect("合法编号照常建");
+    assert_eq!(created.job_id, "custom-job_1");
+
+    let err = submit_input(&deps, &input).expect_err("已有的编号不许再建");
+    assert!(matches!(&err, AppError::Conflict(_)), "{err:?}");
+    assert_eq!(
+        state.db.get_job("custom-job_1").unwrap().created_at,
+        created.created_at,
+        "已有任务不能被覆盖"
+    );
+
+    for bad in ["../escape", "a/b", "/abs", "has space", "中文", &"a".repeat(129)] {
+        input.runtime.job_id = bad.to_string();
+        let err = submit_input(&deps, &input).expect_err(&format!("{bad:?} 不是合法编号"));
+        assert!(matches!(&err, AppError::BadRequest(_)), "{bad:?}: {err:?}");
+    }
+    input.runtime.job_id = "a".repeat(128);
+    submit_input(&deps, &input).expect("128 个字符的编号放行");
+    // 服务器自己生成的编号（时间戳-随机数）照常通过。
+    input.runtime.job_id.clear();
+    submit_input(&deps, &input).expect("不带编号：服务器生成");
+}
+
 // 按页额度、平台设置接在建任务上的测试，共用上面的 `test_state`、`submit_context`。
 mod page_quota;
 mod platform;
