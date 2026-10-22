@@ -693,7 +693,7 @@ API / jobsd 重启时，翻译阶段运行中的任务以前一律自动续跑�
    `CreateCollectionInput`、`PatchCollectionInput`、`AddCollectionDocumentsInput`、`CollectionDeleteResultView`、
    `CollectionDocumentRemoveResultView`）。接口行为一点没变，只是把现在的返回写下来、Rust 测试钉住。
 2. `library-books.v1` 删了已不存在的 `POST /library/books/batch-delete` 条目和 `LibraryBatchDeleteInput`、
-   `LibraryBatchDeleteResultView` 两个类型（前端没有引用，`git grep` 过 main 和两个前端分支）。`LibraryBookDetailView` 还在，等前端去掉引用再删。
+   `LibraryBatchDeleteResultView` 两个类型（前端没有引用，`git grep` 过 main 和两个前端分支）。`LibraryBookDetailView` 还在，等前端去掉引用再删（2026-10-22 删了，见最上面一节）。
 
 ### 前端要做什么
 
