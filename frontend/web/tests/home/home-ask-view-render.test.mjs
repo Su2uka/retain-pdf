@@ -159,6 +159,21 @@ describe("HomeAskView 渲染", () => {
     assert.equal(floats.length, 1, `浮出了 ${floats.length} 个引用按钮`);
   });
 
+  it("键盘按「引用」也能引用（Enter/空格只触发 click，detail 为 0）", async () => {
+    // Shift+方向键选区后浮层会出现（hook 听 keyup），但按钮以前只绑 pointerdown，
+    // Tab 过去按 Enter 什么也不发生。
+    await selectInThread("键盘选中的一段文字");
+    const button = host.querySelector(".home-ask-quote-float");
+    assert.ok(button, "浮层没出来");
+    await act(async () => {
+      button.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true, detail: 0 }));
+      await new Promise((r) => setTimeout(r, 30));
+    });
+    assert.equal(host.querySelectorAll(".home-ask-quote-float").length, 0, "引用后浮层应收起");
+    const draft = host.querySelector("textarea")?.value || "";
+    assert.match(draft, /键盘选中的一段文字/, "引用的文字应进到输入框草稿里");
+  });
+
   it("没有选区时不留浮层", async () => {
     dom.window.getSelection().removeAllRanges();
     // hook 在 pointerup 之后延一拍再读选区（拖选过程中 selectionchange 会连发），

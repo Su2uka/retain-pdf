@@ -243,10 +243,17 @@ export function HomeAskView() {
                 type="button"
                 className="home-ask-quote-float"
                 style={{ left: `${selection.left}px`, top: `${selection.top}px` }}
-                // pointerdown 而不是 click：click 触发前浏览器会先清掉选区，
-                // 到那时 selection 已经没了。
+                // 鼠标走 pointerdown 而不是 click：click 触发前浏览器会先清掉选区，
+                // 到那时 selection 已经没了。键盘（Shift+方向键选区后 Tab 过来按
+                // Enter/空格）只有 click，detail 为 0；鼠标的 click 不会走到这里，
+                // pointerdown 已经收起了按钮。
                 onPointerDown={(event) => {
                   event.preventDefault();
+                  setQuoteRequest({ id: `q-${Date.now()}`, text: selection.text });
+                  clearSelection();
+                }}
+                onClick={(event) => {
+                  if (event.detail !== 0) return;
                   setQuoteRequest({ id: `q-${Date.now()}`, text: selection.text });
                   clearSelection();
                 }}
