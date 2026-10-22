@@ -47,7 +47,8 @@ export function createGlossaryOptionsLoader({
     glossaryOptionsLoading = fetchGlossaries(apiPrefix)
       .then((payload) => {
         const items = payload && typeof payload === "object" ? (payload as { items?: unknown }).items : undefined;
-        glossaryOptions = Array.isArray(items) ? items : [];
+        // 停用的表不进下拉：建任务引用停用的表后端回 400。enabled 缺省当作启用（旧数据、mock）。
+        glossaryOptions = Array.isArray(items) ? items.filter((item) => item?.enabled !== false) : [];
         glossaryOptionsLoaded = true;
         const requestedSelectedId = `${selectedId || ""}`.trim();
         const fallbackSelectedId = `${getDefaultSelectedId?.() || ""}`.trim();
