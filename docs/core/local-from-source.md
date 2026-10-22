@@ -84,6 +84,21 @@ ops/development/dev.sh up --same-origin
 
 如果 40001 本身也转发不了，用 WSL 的 IP 访问：`http://<WSL-IP>:40001`。
 
+### 用局域网 IP、公网 IP 或域名访问
+
+2026-10-22 起后端只给"本机页面"和"同主机的页面"回 CORS 头，监听回环地址时还校验 `Host`
+（规则见 [API 总入口 1.1](api/index.md#11-单机模式的来源和主机)）。各种访问方式要配什么：
+
+| 访问方式 | 要配什么 |
+| --- | --- |
+| 本机 `http://127.0.0.1:40001` / `http://localhost:40001` | 不用配 |
+| 局域网 / 公网 IP 分两个端口：页面 `http://<IP>:40001`、API `http://<IP>:41000` | 不用配：页面和 API 同主机只是端口不同。后端要监听非回环地址，所以 key 不能是默认值 |
+| 域名分两个端口：`http://box.example.com:40001` → `:41000` | 不用配（同上） |
+| `--same-origin`（`serve_same_origin.py`） | 不用配：浏览器看来同源，后端收到的 `Host` 是 `127.0.0.1:41000` |
+| 页面和 API 在不同主机（例如页面 `https://pdf.example.com`、API `http://10.0.0.2:41000`） | `RUST_API_ALLOWED_ORIGINS=https://pdf.example.com` |
+| 后端只监听 `127.0.0.1`，前面的反向代理把域名放进 `Host` | `RUST_API_ALLOWED_HOSTS=pdf.example.com`，否则所有请求 `403 request host is not allowed` |
+| Docker（web 容器同源代理，后端监听 `0.0.0.0`） | 不用配；想防 DNS rebinding 再写 `RUST_API_ALLOWED_HOSTS`，见 `ops/deployment/docker/delivery/docker/app.env` |
+
 ## 五、鉴权与凭据
 
 - **后端 key**：来自 `frontend/web/runtime-config.local.js` 的 `xApiKey`，由 `dev.sh`
