@@ -498,6 +498,21 @@ impl Db {
         Ok(())
     }
 
+    /// 一次写好几项,在一个事务里:要么都写进去,要么都没写。
+    pub fn sync_state_set_many(&self, entries: &[(&str, &str)]) -> Result<()> {
+        let mut conn = self.connect()?;
+        let tx = conn.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+        for (key, value) in entries {
+            tx.execute(
+                "INSERT INTO sync_state(key, value) VALUES(?1, ?2)
+                 ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                params![key, value],
+            )?;
+        }
+        tx.commit()?;
+        Ok(())
+    }
+
     /// 换了同步文件夹:忘掉同步记账(各实体的版本、文件、读取进度、等待区),
     /// 下一轮把本机书库全部重新发一遍。书库本身不动。
     pub fn sync_forget_folder(&self) -> Result<()> {

@@ -15,7 +15,7 @@ pub async fn list_backups_route(
     State(state): State<AppState>,
 ) -> Result<Json<ApiResponse<BackupStatusView>>, AppError> {
     let deps = build_backup_route_deps(&state);
-    Ok(ok_json(backup_status_view(&deps)?))
+    Ok(ok_json(backup_status_view(&deps).await?))
 }
 
 pub async fn create_backup_route(

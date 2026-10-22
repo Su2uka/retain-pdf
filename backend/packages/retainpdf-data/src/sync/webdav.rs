@@ -52,6 +52,8 @@ pub struct WebDavBackend {
     failed: Mutex<HashSet<String>>,
     /// 这个后端已经确认存在(或建好)的目录。
     made: Mutex<HashSet<String>>,
+    /// 没拿到回复时重试几次(正式同步 3 次;连通性测试 0 次)。
+    retries: u64,
 }
 
 fn percent_decode(text: &str) -> String {
@@ -109,6 +111,22 @@ fn status_error(status: StatusCode, action: &str, url: &Url) -> anyhow::Error {
 impl WebDavBackend {
     /// `cache_root`:本机缓存的上级目录(在它下面建一个这个后端独用的子目录)。
     pub fn new(config: &WebDavConfig, cache_root: &Path) -> Result<Self> {
+        let client = Client::builder()
+            .connect_timeout(Duration::from_secs(15))
+            // 文件包最大几十 MB;慢线路(经中转)也给足时间。
+            .timeout(Duration::from_secs(1800))
+            .build()?;
+        Self::with_client(config, cache_root, client, 3)
+    }
+
+    /// 连通性测试(「测试连接」)用:每个请求(含连接)最多等 `timeout`,没拿到回复不重试。
+    /// 测试本该几秒内给结论;正式同步用 [`WebDavBackend::new`]。
+    pub fn for_probe(config: &WebDavConfig, cache_root: &Path, timeout: Duration) -> Result<Self> {
+        let client = Client::builder().connect_timeout(timeout).timeout(timeout).build()?;
+        Self::with_client(config, cache_root, client, 0)
+    }
+
+    fn with_client(config: &WebDavConfig, cache_root: &Path, client: Client, retries: u64) -> Result<Self> {
         let mut text = config.url.trim().to_string();
         if !text.ends_with('/') {
             text.push('/');
@@ -117,11 +135,6 @@ impl WebDavBackend {
         if !matches!(base.scheme(), "http" | "https") {
             bail!("WebDAV 地址要以 http:// 或 https:// 开头");
         }
-        let client = Client::builder()
-            .connect_timeout(Duration::from_secs(15))
-            // 文件包最大几十 MB;慢线路(经中转)也给足时间。
-            .timeout(Duration::from_secs(1800))
-            .build()?;
         let cache_dir = cache_root.join(format!("webdav-cache-{:016x}", fastrand::u64(..)));
         let partial_dir = cache_root.join("webdav-partial");
         Ok(Self {
@@ -134,6 +147,7 @@ impl WebDavBackend {
             partial_dir,
             failed: Mutex::new(HashSet::new()),
             made: Mutex::new(HashSet::new()),
+            retries,
         })
     }
 
@@ -160,7 +174,7 @@ impl WebDavBackend {
             match builder.send() {
                 Ok(response) => return Ok(response),
                 Err(error) => match retry {
-                    Some(next) if attempt < 3 => {
+                    Some(next) if attempt < self.retries => {
                         attempt += 1;
                         std::thread::sleep(Duration::from_millis(500 * attempt));
                         builder = next;
@@ -306,6 +320,21 @@ impl Backend for WebDavBackend {
             let _ = self.delete(&temp);
         }
         moved
+    }
+
+    /// 探针:直接 PUT(同步文件夹已在时一个请求);上级目录不在(409)才先建目录再 PUT。
+    fn write_probe(&self, path: &str, bytes: &[u8]) -> Result<()> {
+        let url = self.url(path)?;
+        let send = || self.send(self.request(Method::PUT, url.clone()).body(bytes.to_vec()), "PUT", &url);
+        let mut response = send()?;
+        if response.status() == StatusCode::CONFLICT {
+            self.ensure_dirs(path)?;
+            response = send()?;
+        }
+        if !response.status().is_success() {
+            return Err(status_error(response.status(), "PUT", &url));
+        }
+        Ok(())
     }
 
     fn upload(&self, path: &str, source: &Path) -> Result<()> {

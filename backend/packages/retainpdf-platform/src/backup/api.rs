@@ -17,16 +17,20 @@ impl BackupApiDeps {
     }
 }
 
+/// 404 照旧;409 带 `details.reason`(`restore_blocked`、`backup_damaged`、`backup_newer`)。
+/// 坏备份、来自新版本的备份 2026-10-22 起由 400 改 409:请求没写错,是那份文件的状态不允许。
 fn refused(refusal: BackupRefusal) -> AppError {
+    let reason = refusal.reason();
     match refusal {
-        BackupRefusal::NotFound(reason) => AppError::not_found(reason),
-        BackupRefusal::Invalid(reason) => AppError::bad_request(reason),
-        BackupRefusal::Busy(reason) => AppError::conflict(reason),
+        BackupRefusal::NotFound(message) => AppError::not_found(message),
+        BackupRefusal::Damaged(message) | BackupRefusal::Newer(message) | BackupRefusal::Busy(message) => {
+            AppError::conflict_because(reason, message)
+        }
     }
 }
 
-pub fn backup_status_view(deps: &BackupApiDeps) -> Result<BackupStatusView, AppError> {
-    Ok(deps.service.status()?)
+pub async fn backup_status_view(deps: &BackupApiDeps) -> Result<BackupStatusView, AppError> {
+    Ok(deps.service.status().await?)
 }
 
 /// 立即备份一份,等它存完。
@@ -40,5 +44,5 @@ pub async fn restore_backup_view(deps: &BackupApiDeps, id: &str) -> Result<Backu
 
 pub async fn delete_backup_view(deps: &BackupApiDeps, id: &str) -> Result<BackupStatusView, AppError> {
     deps.service.delete(id).await?.map_err(refused)?;
-    Ok(deps.service.status()?)
+    Ok(deps.service.status().await?)
 }

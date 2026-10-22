@@ -835,3 +835,35 @@ API / jobsd 重启时，翻译阶段运行中的任务以前一律自动续跑�
 - 可以顺手改 `frontend/packages/api/src/providers.ts:4-6` 的注释：后端的超时变量现在叫 `RUST_API_PROVIDER_PROBE_TIMEOUT_SECS`
   （四个接口共用，默认 20 秒；旧名 `RUST_API_DEEPSEEK_PROBE_TIMEOUT_SECS` 还认）；
 - 以后有契约（`provider-probe.v1`）了再把四个函数的 `Promise<any>` 换成契约类型，这次没加契约。
+
+## 备份恢复和同步脱离请求、409 带 reason、`last_restore`（fix/backup-sync-detached）
+
+2026-10-22。方案见 [备份恢复和同步脱离请求](../../ops/planning/api-reorg/20261022-备份恢复和同步脱离请求.md)。
+
+### 变了什么
+
+1. `GET /api/v1/backups`（以及恢复、删除返回里的 `status`）多一个 `last_restore`：最近一次恢复的结果（不论成败），没恢复过
+   或服务重启后为 `null`。字段：`backup_id`、`ok`、`safety_backup`（可能为 `null`）、`reason`、`error`、`started_at`、`finished_at`。
+   恢复的请求中途断开（关了设置页）时恢复照样做完，刷新后凭它知道结果。
+2. 恢复备份的 `409` 带 `error.details.reason`：`restore_blocked`（有任务在跑）、`backup_damaged`、`backup_newer`。
+   **坏备份、来自新版本的备份由 `400` 改 `409`。** `POST /sync/run` 不跑时的 `409` 带 `sync_disabled` / `sync_not_configured`，
+   后者的 `message` 改成「同步已开启，但还没有填写同步位置」。
+3. `PUT /api/v1/sync`、`POST /api/v1/sync/test` 请求体里不认识的字段 `400`（以前静默忽略）；`PUT /sync` 校验失败时什么都不改。
+4. `POST /sync/test` 更快给结论：每个请求 10 秒、不重试，整体 60 秒；超时的 `error` 是「测试连接超时：60 秒内没有结果」。
+5. 立即备份的请求断开后 `running` 会回到 `false`（以前一直卡在 `true`，「立即备份」按钮禁用）。
+
+### 前端要做什么
+
+不用改代码。核对过：
+
+- `frontend/packages/api/src/backups.ts:38-50`、`sync.ts:76-88` 的 `readEnvelope` 只读 `message`，不看状态码；400 改 409 后提示文字不变
+  （「这份备份已损坏，不能恢复：…」「这份备份来自更新版本的程序…」）。`frontend/web/tests/backup/backup-panel.test.mjs:62` 本来就按 409 模拟。
+- `SyncSettingsPanel.tsx` 发的 `PUT /sync`（`save({ folder, transport })`、`save({ device_name })`、`save({ enabled })`、`davPayload()`）
+  和 `POST /sync/test`（`davPayload()`）都只带已知字段；CLI `backend/cli/src/cmd/sync.rs` 也只发已知字段。
+
+可选：
+
+| 文件 | 现在 | 可以改成 |
+|---|---|---|
+| `frontend/packages/api/src/backups.ts` 的 `BackupStatus` | 没有 `last_restore` | 加 `last_restore: { backup_id: string; ok: boolean; safety_backup: string \| null; reason: string \| null; error: string \| null; started_at: string; finished_at: string } \| null` |
+| `frontend/web/src/features/backup/ui/BackupPanel.tsx` | 恢复请求失败（网络断开）只显示报错 | 刷新状态后看 `last_restore`：`ok` 就提示已恢复、给出 `safety_backup`；失败显示 `error` |

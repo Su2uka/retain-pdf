@@ -5,23 +5,30 @@
 //! - 后台每小时看一次,最新的自动备份超过 `RUST_API_BACKUP_INTERVAL_HOURS`(默认 24,
 //!   0 关掉自动备份)就再存一份,并按保留规则清掉多余的;
 //! - 同一时间只做一件事(备份或恢复);
-//! - 恢复:有任务在跑时不恢复;先存一份「恢复前」备份;恢复期间停住同步,免得同步
-//!   读写到一半换了库;恢复成功后调应用装配层给的 [`AfterRestoreHook`](进程内模式下
-//!   立即对账备份里带回来的排队/运行中任务,见 `recover_jobs_after_database_restore`)。
+//! - 恢复:有任务在跑时不恢复;先检查备份(坏的、来自新版本的直接拒绝),再存一份「恢复前」
+//!   备份;恢复期间停住同步(也不改同步设置),免得同步读写到一半换了库;换库前再查一次有没有
+//!   在跑的任务;恢复成功后调应用装配层给的 [`AfterRestoreHook`](进程内模式下立即对账备份里
+//!   带回来的排队/运行中任务,见 `recover_jobs_after_database_restore`);
+//! - 立即备份、恢复整段在单独的 tokio 任务里做完(`crate::detached`):HTTP 请求断开时,锁、
+//!   「停住同步」在活真正结束后才放,`running` 不会卡住;恢复的结果记成 `last_restore`。
 
 pub mod api;
 pub mod views;
+#[cfg(test)]
+mod tests;
 
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 
 use anyhow::Result;
 use chrono::Utc;
 
+use retainpdf_core::models::domain::now_iso;
 use retainpdf_data::db::backup::{BackupInfo, RestoreRefusal, KIND_AUTO, KIND_BEFORE_RESTORE, KIND_MANUAL};
 use retainpdf_data::db::Db;
-use views::{BackupItemView, BackupRestoreView, BackupStatusView};
+use views::{BackupItemView, BackupRestoreView, BackupStatusView, LastRestoreView};
+use crate::detached::{blocking, detached, Running};
 use crate::sync::SyncService;
 
 /// 多久看一次要不要自动备份。
@@ -35,10 +42,42 @@ fn interval_hours_from_env() -> u64 {
 #[derive(Debug)]
 pub enum BackupRefusal {
     NotFound(String),
-    /// 备份文件坏了或来自更新的版本。
-    Invalid(String),
+    /// 备份文件坏了(解不开或完整性检查不过)。
+    Damaged(String),
+    /// 备份来自更新版本的程序。
+    Newer(String),
     /// 有任务在跑等。
     Busy(String),
+}
+
+impl BackupRefusal {
+    fn message(&self) -> &str {
+        match self {
+            Self::NotFound(m) | Self::Damaged(m) | Self::Newer(m) | Self::Busy(m) => m,
+        }
+    }
+
+    /// 稳定原因:409 的 `error.details.reason`,也记进 `last_restore.reason`。
+    pub(crate) fn reason(&self) -> &'static str {
+        match self {
+            Self::NotFound(_) => "not_found",
+            Self::Damaged(_) => "backup_damaged",
+            Self::Newer(_) => "backup_newer",
+            Self::Busy(_) => "restore_blocked",
+        }
+    }
+}
+
+impl From<RestoreRefusal> for BackupRefusal {
+    fn from(refusal: RestoreRefusal) -> Self {
+        let message = refusal.to_string();
+        match refusal {
+            RestoreRefusal::NotFound => Self::NotFound(message),
+            RestoreRefusal::Damaged(_) => Self::Damaged(message),
+            RestoreRefusal::Newer { .. } => Self::Newer(message),
+            RestoreRefusal::Blocked(_) => Self::Busy(message),
+        }
+    }
 }
 
 fn item_view(info: &BackupInfo) -> BackupItemView {
@@ -54,12 +93,18 @@ fn item_view(info: &BackupInfo) -> BackupItemView {
 /// 恢复成功后要做的事,返回处理了几个任务。在阻塞线程里调。
 pub type AfterRestoreHook = Arc<dyn Fn() -> Result<usize> + Send + Sync>;
 
+/// 一次恢复在阻塞线程里的结果:恢复前备份的编号(存了的话)和恢复本身的结果。
+type RestoreAttempt = (Option<String>, Result<std::result::Result<(), RestoreRefusal>>);
+
 pub struct BackupService {
     db: Arc<Db>,
     sync: Arc<SyncService>,
     interval_hours: u64,
+    /// 同一时间只做一件事(备份、恢复、删除)。只在 [`detached`] 起的任务里拿着跨过阻塞活。
     lock: tokio::sync::Mutex<()>,
     running: AtomicBool,
+    /// 最近一次恢复(不论成败);只在内存里,重启后为空。
+    last_restore: Mutex<Option<LastRestoreView>>,
     after_restore: OnceLock<AfterRestoreHook>,
 }
 
@@ -71,6 +116,7 @@ impl BackupService {
             interval_hours: interval_hours_from_env(),
             lock: tokio::sync::Mutex::new(()),
             running: AtomicBool::new(false),
+            last_restore: Mutex::new(None),
             after_restore: OnceLock::new(),
         }
     }
@@ -80,8 +126,10 @@ impl BackupService {
         let _ = self.after_restore.set(hook);
     }
 
-    pub fn status(&self) -> Result<BackupStatusView> {
-        let items = self.db.list_backups()?;
+    /// 状态(读目录、连库数在跑的任务,在阻塞线程里做)。
+    pub async fn status(&self) -> Result<BackupStatusView> {
+        let db = self.db.clone();
+        let (items, restore_blockers) = blocking(move || Ok((db.list_backups()?, db.restore_blockers()?))).await?;
         let last_auto_at = items
             .iter()
             .find(|b| b.kind == KIND_AUTO)
@@ -91,77 +139,127 @@ impl BackupService {
             auto_interval_hours: self.interval_hours,
             last_auto_at,
             running: self.running.load(Ordering::SeqCst),
-            restore_blockers: self.db.restore_blockers()?,
+            restore_blockers,
+            last_restore: self.last_restore.lock().expect("last restore poisoned").clone(),
             items: items.iter().map(item_view).collect(),
         })
     }
 
-    /// 在后台线程里做一件事,期间标着「正在进行」。调用方已拿到锁。
-    async fn blocking<T: Send + 'static>(
-        &self,
-        work: impl FnOnce(&Db) -> Result<T> + Send + 'static,
-    ) -> Result<T> {
-        self.running.store(true, Ordering::SeqCst);
-        let db = self.db.clone();
-        let outcome = tokio::task::spawn_blocking(move || work(&db)).await;
-        self.running.store(false, Ordering::SeqCst);
-        outcome?
-    }
-
-    async fn create(&self, kind: &'static str) -> Result<BackupInfo> {
-        let _guard = self.lock.lock().await;
-        self.blocking(move |db| {
-            let info = db.create_backup(kind)?;
-            db.prune_backups()?;
-            Ok(info)
+    /// 存一份。整段在单独的任务里做完:请求断开也不提前放锁、不让 `running` 卡在 true。
+    async fn create(self: &Arc<Self>, kind: &'static str) -> Result<BackupInfo> {
+        let this = self.clone();
+        detached(async move {
+            let _guard = this.lock.lock().await;
+            let _running = Running::raise(&this.running);
+            let db = this.db.clone();
+            blocking(move || {
+                let info = db.create_backup(kind)?;
+                db.prune_backups()?;
+                Ok(info)
+            })
+            .await
         })
         .await
     }
 
-    pub async fn create_manual(&self) -> Result<BackupItemView> {
+    pub async fn create_manual(self: &Arc<Self>) -> Result<BackupItemView> {
         Ok(item_view(&self.create(KIND_MANUAL).await?))
     }
 
     pub async fn delete(&self, id: &str) -> Result<std::result::Result<(), BackupRefusal>> {
         let _guard = self.lock.lock().await;
-        Ok(if self.db.delete_backup(id)? {
+        let db = self.db.clone();
+        let id = id.to_string();
+        Ok(if blocking(move || db.delete_backup(&id)).await? {
             Ok(())
         } else {
             Err(BackupRefusal::NotFound(RestoreRefusal::NotFound.to_string()))
         })
     }
 
-    pub async fn restore(&self, id: &str) -> Result<std::result::Result<BackupRestoreView, BackupRefusal>> {
-        let _guard = self.lock.lock().await;
-        if !self.db.list_backups()?.iter().any(|b| b.id == id) {
-            return Ok(Err(BackupRefusal::NotFound(RestoreRefusal::NotFound.to_string())));
-        }
-        let blockers = self.db.restore_blockers()?;
-        if !blockers.is_empty() {
-            return Ok(Err(BackupRefusal::Busy(format!(
-                "{}，等它们结束后再恢复",
-                blockers.join("，")
-            ))));
-        }
-        // 同步正在跑的话等它这一轮跑完;恢复完之前不再开始新的一轮。
-        let _sync_paused = self.sync.pause().await;
+    /// 恢复。整段(拿锁、停住同步、换库、恢复后的钩子、放锁)在单独的任务里做完,请求只等
+    /// 结果;请求断开时活照样做完,结果记进 `last_restore`。
+    pub async fn restore(self: &Arc<Self>, id: &str) -> Result<std::result::Result<BackupRestoreView, BackupRefusal>> {
+        let this = self.clone();
         let id = id.to_string();
-        let outcome = self
-            .blocking(move |db| {
-                let safety = db.create_backup(KIND_BEFORE_RESTORE)?;
-                let restored = db.restore_backup(&id)?;
-                db.prune_backups()?;
-                Ok((safety, restored, id))
-            })
-            .await?;
-        let (safety, restored, id) = outcome;
-        if let Err(refusal) = restored {
-            return Ok(Err(match refusal {
-                RestoreRefusal::NotFound => BackupRefusal::NotFound(refusal.to_string()),
-                _ => BackupRefusal::Invalid(refusal.to_string()),
-            }));
+        detached(async move { this.restore_detached(id).await }).await
+    }
+
+    async fn restore_detached(&self, id: String) -> Result<std::result::Result<BackupRestoreView, BackupRefusal>> {
+        let _guard = self.lock.lock().await;
+        let started_at = now_iso();
+        let (safety, outcome) = self.restore_locked(&id).await;
+        let record = LastRestoreView {
+            backup_id: id.clone(),
+            ok: matches!(outcome, Ok(Ok(()))),
+            safety_backup: safety.clone(),
+            reason: match &outcome {
+                Ok(Err(refusal)) => Some(refusal.reason().to_string()),
+                _ => None,
+            },
+            error: match &outcome {
+                Ok(Ok(())) => None,
+                Ok(Err(refusal)) => Some(refusal.message().to_string()),
+                Err(_) => Some("恢复没有完成，数据库没有改动（原因见服务日志）".to_string()),
+            },
+            started_at,
+            finished_at: now_iso(),
+        };
+        *self.last_restore.lock().expect("last restore poisoned") = Some(record);
+        match outcome {
+            Ok(Ok(())) => {}
+            Ok(Err(refusal)) => return Ok(Err(refusal)),
+            Err(error) => {
+                tracing::warn!(backup = %id, safety = ?safety, "restoring a backup failed: {error:#}");
+                return Err(error);
+            }
         }
-        tracing::warn!(backup = %id, safety = %safety.id, "database restored from a backup");
+        Ok(Ok(BackupRestoreView {
+            restored: id,
+            safety_backup: safety.unwrap_or_default(),
+            status: self.status().await?,
+        }))
+    }
+
+    /// 已拿着锁。返回恢复前备份的编号(存了的话)和结果。
+    async fn restore_locked(
+        &self,
+        id: &str,
+    ) -> (Option<String>, Result<std::result::Result<(), BackupRefusal>>) {
+        let db = self.db.clone();
+        let wanted = id.to_string();
+        let precheck = blocking(move || {
+            if !db.list_backups()?.iter().any(|b| b.id == wanted) {
+                return Ok(Err(BackupRefusal::NotFound(RestoreRefusal::NotFound.to_string())));
+            }
+            let blockers = db.restore_blockers()?;
+            if !blockers.is_empty() {
+                return Ok(Err(BackupRefusal::from(RestoreRefusal::Blocked(blockers))));
+            }
+            Ok(Ok(()))
+        })
+        .await;
+        match precheck {
+            Ok(Ok(())) => {}
+            Ok(Err(refusal)) => return (None, Ok(Err(refusal))),
+            Err(error) => return (None, Err(error)),
+        }
+        // 同步正在跑的话等它这一轮跑完;恢复完之前不再开始新的一轮,也不改同步设置。
+        let _sync_paused = self.sync.pause().await;
+        let _running = Running::raise(&self.running);
+        let db = self.db.clone();
+        let wanted = id.to_string();
+        let attempt = blocking(move || -> Result<RestoreAttempt> { Ok(restore_in_place(&db, &wanted)) }).await;
+        let (safety, restored) = match attempt {
+            Ok(attempt) => attempt,
+            Err(error) => return (None, Err(error)),
+        };
+        match restored {
+            Ok(Ok(())) => {}
+            Ok(Err(refusal)) => return (safety, Ok(Err(refusal.into()))),
+            Err(error) => return (safety, Err(error)),
+        }
+        tracing::warn!(backup = %id, safety = ?safety, "database restored from a backup");
         // 备份里带回来的排队/运行中任务没有 driver:立即对账,不让它们一直转圈。
         // 失败只记日志——恢复已经完成,运行期巡检还会再兜一次。
         if let Some(hook) = self.after_restore.get().cloned() {
@@ -174,19 +272,16 @@ impl BackupService {
                 Err(error) => tracing::warn!("reconciling restored jobs panicked: {error}"),
             }
         }
-        Ok(Ok(BackupRestoreView {
-            restored: id,
-            safety_backup: safety.id,
-            status: self.status()?,
-        }))
+        (safety, Ok(Ok(())))
     }
 
     /// 最新的自动备份过期了就再存一份。
-    async fn auto_backup_if_due(&self) -> Result<()> {
+    async fn auto_backup_if_due(self: &Arc<Self>) -> Result<()> {
         if self.interval_hours == 0 {
             return Ok(());
         }
-        let newest = self.db.list_backups()?.into_iter().find(|b| b.kind == KIND_AUTO);
+        let db = self.db.clone();
+        let newest = blocking(move || Ok(db.list_backups()?.into_iter().find(|b| b.kind == KIND_AUTO))).await?;
         let due = newest.map_or(true, |b| {
             Utc::now() - b.created_at >= chrono::Duration::hours(self.interval_hours as i64)
         });
@@ -216,4 +311,35 @@ impl BackupService {
             }
         })
     }
+}
+
+/// 在阻塞线程里:先检查备份(坏的、来自新版本的不存恢复前备份,见审计 C8),再存恢复前备份,
+/// 再换库(换库前 `restore_checked` 会再查一次有没有在跑的任务)。换库前又查到在跑的任务时,
+/// 刚存的恢复前备份和当前库一模一样,删掉,不挤占保留名额。
+fn restore_in_place(db: &Db, id: &str) -> RestoreAttempt {
+    let mut safety: Option<String> = None;
+    let outcome = (|| -> Result<std::result::Result<(), RestoreRefusal>> {
+        let checked = match db.check_backup(id)? {
+            Ok(checked) => checked,
+            Err(refusal) => return Ok(Err(refusal)),
+        };
+        let made = db.create_backup(KIND_BEFORE_RESTORE)?;
+        safety = Some(made.id.clone());
+        let restored = db.restore_checked(checked)?;
+        match &restored {
+            Ok(()) => {
+                if let Err(error) = db.prune_backups() {
+                    tracing::warn!("pruning backups after a restore failed: {error:#}");
+                }
+            }
+            Err(RestoreRefusal::Blocked(_)) => {
+                if db.delete_backup(&made.id).unwrap_or(false) {
+                    safety = None;
+                }
+            }
+            Err(_) => {}
+        }
+        Ok(restored)
+    })();
+    (safety, outcome)
 }

@@ -90,6 +90,10 @@ pub trait Backend: Send + Sync {
     fn local_copy(&self, path: &str) -> Result<Option<PathBuf>>;
     /// 删掉一个文件(只用于连通性测试的探针)。
     fn remove(&self, path: &str) -> Result<()>;
+    /// 连通性测试写探针文件:不要求原子,尽量少发请求。默认就是 `write_atomic`。
+    fn write_probe(&self, path: &str, bytes: &[u8]) -> Result<()> {
+        self.write_atomic(path, bytes)
+    }
     /// 一轮同步结束:丢掉这一轮的下载缓存。
     fn end_cycle(&self) {}
 }
@@ -483,7 +487,7 @@ impl SyncStore {
     pub fn probe(&self) -> Result<u64> {
         let started = std::time::Instant::now();
         let name = format!(".probe-{:016x}", fastrand::u64(..));
-        self.backend.write_atomic(&name, b"ok")?;
+        self.backend.write_probe(&name, b"ok")?;
         match self.backend.read(&name)? {
             Fetched::Bytes(bytes) if bytes == b"ok" => {}
             _ => bail!("写进去的测试文件读不回来"),

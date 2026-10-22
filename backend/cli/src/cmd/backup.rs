@@ -130,8 +130,14 @@ pub fn run(ctx: &Ctx, action: BackupCommand) -> Result<ExitCode> {
                     if !blockers.is_empty() {
                         bail!("{},等它们结束后再恢复", blockers.join(","));
                     }
+                    // 先检查备份:坏的、来自新版本的不存恢复前备份(不挤掉真正能退回的那份)。
+                    let checked = match db.check_backup(&id)? {
+                        Ok(checked) => checked,
+                        Err(refusal) => bail!("{refusal}"),
+                    };
                     let safety = db.create_backup(KIND_BEFORE_RESTORE)?;
-                    if let Err(refusal) = db.restore_backup(&id)? {
+                    if let Err(refusal) = db.restore_checked(checked)? {
+                        let _ = db.delete_backup(&safety.id);
                         bail!("{refusal}");
                     }
                     db.prune_backups()?;
