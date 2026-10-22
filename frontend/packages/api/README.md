@@ -6,6 +6,7 @@ Typed API clients using generated wire DTOs from `@retainpdf/contracts`.
 - `jobs-actions.ts` → `deleteJob` (`DELETE jobs/:id`), cancel / resume / retry-stage
 - `documents.ts` / `collections.ts` / `search.ts` → book library clients; their views (`DocumentRecord`, `CollectionRecord`, `SearchResultView` …) are re-exported from `@retainpdf/contracts/library-documents`
 - `types.ts` → generated Job/library DTO re-exports plus the generic `ApiResponse` envelope
+- `src/generated/*.ts` → request functions generated from the `endpoints` tables in `contracts/*.schema.json` (entries with `client_name`, `transport: json`); `request.ts` is the shared transport (URL, query, key, envelope, errors). Do not edit generated files — run `npm --prefix frontend/packages/api run generate:client`; `generate:client:check` and `web/tests/contracts/api-client-codegen.test.mjs` fail when they drift. Plan: `docs/ops/planning/api-client-codegen/`
 
 Build: `npm --prefix frontend/packages/api run build` → `dist/`
 Usage: `import { fetchJobsByIds } from "@retainpdf/api/jobs"`

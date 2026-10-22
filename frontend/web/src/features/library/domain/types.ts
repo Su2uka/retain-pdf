@@ -1,6 +1,7 @@
 // library 域共享类型：网格卡片 item、controller 契约、viewPort / viewStore。
 // 字段从 shapeDocumentCardItem / mergeLibraryJobItem / cardSignatureOf 反推。
 
+import type { PatchDocumentInput } from "@retainpdf/contracts/library-documents";
 import type { DialogStore } from "@/platform/store/dialog-store.js";
 import type { RecentJobsStatePort } from "./recent-jobs/state.js";
 import type {
@@ -116,10 +117,8 @@ export type DocumentJobSummary = LibraryCardItem & {
 /** POST /documents/:id/translate 返回（JobSubmissionView） */
 
 // PATCH /documents/:id 只认这两个字段；后端之后会拒绝不认识的字段（400），这里不留任意键。
-export type UpdateDocumentPayload = {
-  title?: string;
-  reading_status?: string;
-};
+/** 改书名、阅读状态：形状以契约 PatchDocumentInput 为准（reading_status 只有 unread / reading / done）。 */
+export type UpdateDocumentPayload = PatchDocumentInput;
 
 export type DeleteCardTarget = {
   documentId?: string;

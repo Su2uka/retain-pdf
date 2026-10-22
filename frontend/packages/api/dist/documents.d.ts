@@ -1,5 +1,7 @@
-import type { ApplyDocumentMetadataSuggestionInput, CoverageJobView, CoverageSegment, CreateDocumentMetadataSuggestionInput, DocumentDeleteResultView, DocumentListView, DocumentMetadataEvidenceView, DocumentMetadataSuggestionApplyView, DocumentMetadataSuggestionView, DocumentReadingView, DocumentRecord, DocumentTitleCandidateView, TranslationCoverageView } from "@retainpdf/contracts/library-documents";
+import type { ApplyDocumentMetadataSuggestionInput, CoverageJobView, CoverageSegment, CreateDocumentMetadataSuggestionInput, DocumentDeleteResultView, DocumentListView, DocumentMetadataEvidenceView, DocumentMetadataSuggestionApplyView, DocumentMetadataSuggestionView, DocumentReadingView, DocumentRecord, DocumentTitleCandidateView, PatchDocumentInput, TranslationCoverageView } from "@retainpdf/contracts/library-documents";
 export type { ApplyDocumentMetadataSuggestionInput, CreateDocumentMetadataSuggestionInput, DocumentDeleteResultView, DocumentListView, DocumentReadingView, DocumentRecord, TranslationCoverageView, };
+/** 阅读状态只有这三种，PATCH 时写别的后端回 400。 */
+export type DocumentReadingStatus = NonNullable<PatchDocumentInput["reading_status"]>;
 export type DocumentMetadataEvidence = DocumentMetadataEvidenceView;
 export type DocumentTitleCandidate = DocumentTitleCandidateView;
 export type DocumentMetadataSuggestion = DocumentMetadataSuggestionView;
@@ -67,7 +69,7 @@ export interface DocumentRequestError extends Error {
 export declare function fetchDocumentList(apiPrefix: string, { limit, offset, readingStatus, collectionId, q }?: DocumentListQuery): Promise<DocumentListView>;
 export declare function fetchDocumentByJobId(apiPrefix: string, jobId: string): Promise<DocumentRecord | null>;
 export declare function fetchDocument(apiPrefix: string, documentId: string): Promise<DocumentRecord>;
-export declare function patchDocument(apiPrefix: string, documentId: string, payload?: Record<string, unknown>): Promise<DocumentRecord>;
+export declare function patchDocument(apiPrefix: string, documentId: string, payload?: PatchDocumentInput): Promise<DocumentRecord>;
 /** GET /documents/:id/reading —— 阅读器该打开哪个任务。 */
 export declare function fetchDocumentReading(apiPrefix: string, documentId: string): Promise<DocumentReadingView>;
 /** GET /documents/:id/translation-coverage —— 一本书翻了哪些页、每次任务提供了几页。 */

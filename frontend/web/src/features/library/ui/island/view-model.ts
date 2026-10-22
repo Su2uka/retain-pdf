@@ -1,5 +1,7 @@
 // 库检索岛的纯逻辑层:不碰 DOM/React,便于 node 单测
 
+import type { DocumentReadingStatus } from "@/platform/api/index.js";
+
 // 后端 snippet 用 [ ] 包裹命中词,拆成分段供展示层渲染 <mark>
 export function highlightSegments(snippet = "") {
   const text = `${snippet || ""}`;
@@ -27,10 +29,10 @@ export const READING_STATUS_META: Readonly<Record<string, { label: string; order
   done: { label: "读完", order: 2 },
 });
 
-const READING_STATUS_CYCLE = ["unread", "reading", "done"];
+const READING_STATUS_CYCLE: readonly DocumentReadingStatus[] = ["unread", "reading", "done"];
 
-export function nextReadingStatus(status: string | null | undefined) {
-  const index = READING_STATUS_CYCLE.indexOf(`${status || ""}`.trim());
+export function nextReadingStatus(status: string | null | undefined): DocumentReadingStatus {
+  const index = READING_STATUS_CYCLE.indexOf(`${status || ""}`.trim() as DocumentReadingStatus);
   return READING_STATUS_CYCLE[(index + 1) % READING_STATUS_CYCLE.length];
 }
 
