@@ -1,4 +1,4 @@
-import type { AddCollectionDocumentsInput, ApplyDocumentMetadataSuggestionInput, CollectionDeleteResultView, CollectionDocumentRemoveResultView, CollectionListView, CollectionRecord, CreateCollectionInput, CreateDocumentMetadataSuggestionInput, DeleteDocumentQuery, DocumentDeleteResultView, DocumentFilesView, DocumentListView, DocumentMetadataSuggestionApplyView, DocumentMetadataSuggestionListView, DocumentMetadataSuggestionView, DocumentReadingView, DocumentRecord, ListDocumentMetadataSuggestionsQuery, ListDocumentsQuery, PatchCollectionInput, PatchDocumentInput, SearchQuery, SearchResultView, TranslationCoverageView } from "@retainpdf/contracts/library-documents";
+import type { AddCollectionDocumentsInput, ApplyDocumentMetadataSuggestionInput, CollectionDeleteResultView, CollectionDocumentRemoveResultView, CollectionListView, CollectionRecord, CreateCollectionInput, CreateDocumentMetadataSuggestionInput, CreateJobInput, DeleteDocumentQuery, DocumentDeleteResultView, DocumentFilesView, DocumentJobListView, DocumentListView, DocumentMetadataSuggestionApplyView, DocumentMetadataSuggestionListView, DocumentMetadataSuggestionView, DocumentReadingView, DocumentRecord, JobSubmissionView, ListDocumentJobsQuery, ListDocumentMetadataSuggestionsQuery, ListDocumentsQuery, PatchCollectionInput, PatchDocumentInput, SearchQuery, SearchResultView, TranslationCoverageView } from "@retainpdf/contracts/library-documents";
 import { type RequestOptions } from "../request.js";
 /** GET /api/v1/documents */
 export declare function listDocuments(apiPrefix: string | undefined, args?: {
@@ -75,3 +75,18 @@ export declare function removeCollectionDocument(apiPrefix: string | undefined, 
     collection_id: string;
     document_id: string;
 }, options?: RequestOptions): Promise<CollectionDocumentRemoveResultView>;
+/** GET /api/v1/documents/:document_id/jobs */
+export declare function listDocumentJobs(apiPrefix: string | undefined, args: {
+    document_id: string;
+    query?: ListDocumentJobsQuery;
+}, options?: RequestOptions): Promise<DocumentJobListView>;
+/** POST /api/v1/documents/:document_id/translate */
+export declare function translateDocument(apiPrefix: string | undefined, args: {
+    document_id: string;
+    body: CreateJobInput;
+}, options?: RequestOptions): Promise<JobSubmissionView>;
+/** POST /api/v1/documents/:document_id/ocr */
+export declare function ocrDocument(apiPrefix: string | undefined, args: {
+    document_id: string;
+    body: CreateJobInput;
+}, options?: RequestOptions): Promise<JobSubmissionView>;

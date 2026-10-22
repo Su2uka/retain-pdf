@@ -10,15 +10,19 @@ import type {
   CollectionRecord,
   CreateCollectionInput,
   CreateDocumentMetadataSuggestionInput,
+  CreateJobInput,
   DeleteDocumentQuery,
   DocumentDeleteResultView,
   DocumentFilesView,
+  DocumentJobListView,
   DocumentListView,
   DocumentMetadataSuggestionApplyView,
   DocumentMetadataSuggestionListView,
   DocumentMetadataSuggestionView,
   DocumentReadingView,
   DocumentRecord,
+  JobSubmissionView,
+  ListDocumentJobsQuery,
   ListDocumentMetadataSuggestionsQuery,
   ListDocumentsQuery,
   PatchCollectionInput,
@@ -180,4 +184,31 @@ export function removeCollectionDocument(
   options?: RequestOptions,
 ): Promise<CollectionDocumentRemoveResultView> {
   return request<CollectionDocumentRemoveResultView>({ apiPrefix, method: "DELETE", path: `collections/${encodePathParam(args.collection_id)}/documents/${encodePathParam(args.document_id)}`, options });
+}
+
+/** GET /api/v1/documents/:document_id/jobs */
+export function listDocumentJobs(
+  apiPrefix: string | undefined,
+  args: { document_id: string; query?: ListDocumentJobsQuery },
+  options?: RequestOptions,
+): Promise<DocumentJobListView> {
+  return request<DocumentJobListView>({ apiPrefix, method: "GET", path: `documents/${encodePathParam(args.document_id)}/jobs`, query: args.query, options });
+}
+
+/** POST /api/v1/documents/:document_id/translate */
+export function translateDocument(
+  apiPrefix: string | undefined,
+  args: { document_id: string; body: CreateJobInput },
+  options?: RequestOptions,
+): Promise<JobSubmissionView> {
+  return request<JobSubmissionView>({ apiPrefix, method: "POST", path: `documents/${encodePathParam(args.document_id)}/translate`, body: args.body, options });
+}
+
+/** POST /api/v1/documents/:document_id/ocr */
+export function ocrDocument(
+  apiPrefix: string | undefined,
+  args: { document_id: string; body: CreateJobInput },
+  options?: RequestOptions,
+): Promise<JobSubmissionView> {
+  return request<JobSubmissionView>({ apiPrefix, method: "POST", path: `documents/${encodePathParam(args.document_id)}/ocr`, body: args.body, options });
 }
