@@ -32,7 +32,8 @@ python3 -m http.server 40001 --bind 0.0.0.0
 
 ## 鉴权
 
-除 `GET /health` 外，其余 API 默认需要：
+除 `GET /health`、`GET /ready`、登录注册（`/api/v1/auth/session`、`login`、`register`）和模型执行器的内部接口
+（`/api/v1/internal/model/jobs/{job_id}/requests…`，凭任务的能力令牌）外，其余 API 默认需要：
 
 ```http
 X-API-Key: your-rust-api-key

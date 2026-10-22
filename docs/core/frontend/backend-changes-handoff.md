@@ -720,3 +720,41 @@ API / jobsd 重启时，翻译阶段运行中的任务以前一律自动续跑�
 - `PatchDocumentInput.reading_status`、`DocumentRecord.reading_status` 是 `"unread" | "reading" | "done"`，`title_source` 是
   `"filename" | "pdf_metadata" | "ocr" | "user"`（手写的类型里多一个 `"ai"`，后端没有写这个值的地方）。
 - 删合集回 `{ deleted: true }`、从合集拿掉一本书回 `{ removed: true }`，是同一个 Rust 类型的两种形状，契约里分成两个类型。
+
+---
+
+## 凭据不回明文、凭据接口的规矩、`/ready` 的信封（fix/credentials-no-plaintext）
+
+2026-10-22。做法和取舍见 [凭据不回明文与内部接口](../../ops/planning/api-reorg/20261022-凭据不回明文与内部接口.md)。
+（按约定加在末尾，免得和同时在做的分支冲突。）
+
+### 变了什么
+
+| 接口 | 以前 | 现在 |
+|---|---|---|
+| `GET /api/v1/credentials?include_values=true` | `200`，每条带 `secret` 明文 | `400`（``unknown field `include_values` … in the query string``）；不带参数照旧 `200`，任何接口都没有 `secret` 字段了 |
+| `GET /api/v1/credentials` 带别的查询参数 | 忽略 | `400` |
+| `PUT /api/v1/credentials/{credential_ref}` 带不同的 `kind` | 改掉种类 | `400`，凭据不变；带同样的 `kind`（大小写、空白不算）照常 |
+| 凭据的三种 `409` | `error.details` 是 `{}` | 多一个 `reason`：`credential_in_use`、`credential_revision_conflict`、`credential_vault_revision_conflict`；顶层 `code`、`error.code` 不变 |
+| `GET /ready` 不就绪（`503`） | 信封 `code: 0`、`message: "ok"` | `code: 50300`、`message: "not ready"`，多 `error`（`SERVICE_UNAVAILABLE`）；`data` 不变 |
+| `GET /health` 读不出任务数 | `queue_depth`、`running_jobs` 是 `0` | `null`（正常时照旧是数字） |
+| `POST /api/v1/internal/model/jobs/{job_id}/capability` | 发模型执行器的能力令牌 | 删了（`404`），前端本来就不调 |
+
+### 前端要做什么
+
+功能上不用改：`git grep` 过，前端没有调用方带 `include_values`（`createCredentialVault` 没有被引用，
+`browser.ts` 2026-09-16 起不再从服务端拉明文），`PUT` 发的 `kind` 和原来一样，`/ready` 只看状态码。可以顺手删的死代码：
+
+| 文件 | 现在 | 改成 |
+|---|---|---|
+| `frontend/packages/api/src/credentials.ts:16` | `CredentialMetadata` 里的 `secret?: string` | 删掉（后端不会再给） |
+| `frontend/packages/api/src/credentials.ts:81-82` | `listCredentials(apiPrefix, { includeValues = false } = {})`，`includeValues` 为真时拼 `?include_values=true` | `listCredentials(apiPrefix)`，不拼参数（拼了会 400） |
+| `frontend/packages/api/dist/credentials.{js,d.ts}` | 同上的构建产物 | 重新构建 |
+| `frontend/web/tests/credentials/mineru.test.mjs:171`、`frontend/web/tests/home/credentials-dialog-component.test.mjs:315` | 注释提到 `?include_values=true` | 可以改成"这个参数后端已删" |
+
+另外两点留给前端定：
+
+- 设置页说"Key 只存在这个浏览器里"，但提交任务时内联的 Key 会被后端导入凭据库，任务在就一直在服务端（什么时候清见
+  [凭据规范](../../../backend/api/docs/api-spec/credentials.md#when-credentials-imported-by-job-creation-are-removed)）。
+  要不要在设置页加"清除服务端保存的密钥"（`GET /credentials` 列出、`DELETE /credentials/{credential_ref}` 删），由前端定。
+- 凭据 `409` 现在可以按 `error.details.reason` 分支，`credentials.ts:75` 读顶层 `code` 的写法照旧能用。
