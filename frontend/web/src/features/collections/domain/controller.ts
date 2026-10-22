@@ -9,7 +9,7 @@ import {
   patchCollection,
   removeDocumentFromCollection,
 } from "@/platform/api/index.js";
-import { shapeDocumentsWithBooks } from "@/features/library/index.js";
+import { fetchAllDocuments, shapeDocumentsWithBooks } from "@/features/library/index.js";
 import type { LibraryCardItem } from "@/features/library/index.js";
 import type { DocumentRecord } from "@/platform/api/index.js";
 
@@ -33,16 +33,13 @@ export function createCollectionsController({ apiPrefix }: { apiPrefix: string }
 
     // 管理弹窗的勾选清单:全部文档(document 形状,含 title),够用不需要
     // job 卡片的视觉字段。
-    listAllDocuments: async () => {
-      const { documents = [] } = await fetchDocumentList(apiPrefix, { limit: 500 });
-      return documents;
-    },
+    listAllDocuments: () => fetchAllDocuments<DocumentRecord>((page) => fetchDocumentList(apiPrefix, page)),
 
     // 某个合集当前的成员 document_id 集合(管理弹窗打开已有合集时用来
     // 勾选初始状态)。
     // 没有 document_id 的记录无法被勾选或移除，直接跳过。
     async listCollectionDocumentIds(collectionId: string): Promise<string[]> {
-      const { documents = [] }: { documents?: DocumentRecord[] } = await fetchDocumentList(apiPrefix, { collectionId, limit: 500 });
+      const documents: DocumentRecord[] = await fetchAllDocuments((page) => fetchDocumentList(apiPrefix, { collectionId, ...page }));
       return documents.flatMap((doc) => (doc.document_id ? [doc.document_id] : []));
     },
 
@@ -56,7 +53,7 @@ export function createCollectionsController({ apiPrefix }: { apiPrefix: string }
     // 留已翻译文档 → 满是馆藏的合集显示"空合集"(和 document_count 对不上的
     // bug),收口到统一编排后不会再发散。
     async fetchFolderBooks(collectionId: string): Promise<LibraryCardItem[]> {
-      const { documents = [] } = await fetchDocumentList(apiPrefix, { collectionId, limit: 500 });
+      const documents = await fetchAllDocuments((page) => fetchDocumentList(apiPrefix, { collectionId, ...page }));
       return shapeDocumentsWithBooks(documents, {
         fetchJobsByIds,
         fetchJobPayload,
