@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { JobListItemView } from "@retainpdf/contracts/job-status";
 import {
   Activity,
+  Ban,
   CheckCircle2,
   Clock3,
   FileText,
@@ -40,6 +41,7 @@ const GROUP_ICONS = {
   queued: Clock3,
   failed: TriangleAlert,
   completed: CheckCircle2,
+  canceled: Ban,
 } satisfies Record<TaskCenterGroupKey, typeof Activity>;
 
 function shortJobId(jobId: string): string {
@@ -157,6 +159,8 @@ export function TaskCenter({ onOpenBookDetail }: TaskCenterProps) {
   const [busyByJob, setBusyByJob] = useState<Record<string, string>>({});
   const mountedRef = useRef(true);
   const requestInFlightRef = useRef(false);
+  // 列表请求进行中又要求整页刷新（比如重试建了新任务）时记一笔，等这次请求结束再刷，不能直接丢掉。
+  const reloadQueuedRef = useRef(false);
   const liveInFlightRef = useRef(false);
 
   const itemsRef = useRef<JobListItemView[]>([]);
@@ -183,8 +187,11 @@ export function TaskCenter({ onOpenBookDetail }: TaskCenterProps) {
     }
   }, []);
 
-  const load = useCallback(async ({ append = false }: { append?: boolean } = {}) => {
-    if (requestInFlightRef.current) return;
+  const load = useCallback(async ({ append = false }: { append?: boolean } = {}): Promise<void> => {
+    if (requestInFlightRef.current) {
+      if (!append) reloadQueuedRef.current = true;
+      return;
+    }
     requestInFlightRef.current = true;
     setRefreshing(true);
     generationRef.current += 1;
@@ -208,8 +215,23 @@ export function TaskCenter({ onOpenBookDetail }: TaskCenterProps) {
         setLoading(false);
         setRefreshing(false);
       }
+      if (reloadQueuedRef.current && mountedRef.current) {
+        reloadQueuedRef.current = false;
+        void load();
+      }
     }
   }, [refreshLive]);
+
+  // 只刷新一条任务，已经翻过的页留着。取消之后用它：整页重拉会退回第一页。
+  const refreshJob = useCallback(async (job: JobListItemView) => {
+    const generation = generationRef.current;
+    const [fresh] = await loadTaskCenterLiveJobs([job]);
+    if (!fresh || !mountedRef.current || generation !== generationRef.current) return;
+    if (!itemsRef.current.some((item) => item.job_id === fresh.job_id)) return;
+    const merged = mergeTaskCenterJobs(itemsRef.current, [fresh]);
+    itemsRef.current = merged;
+    setItems(merged);
+  }, []);
 
 
   useEffect(() => {
@@ -254,7 +276,7 @@ export function TaskCenter({ onOpenBookDetail }: TaskCenterProps) {
     try {
       await cancelTaskCenterJob(job);
       toast.success("已提交取消请求");
-      await load();
+      await refreshJob(job);
     } catch (cause) {
       toast.error(cause instanceof Error ? cause.message : "取消失败，请稍后重试。");
     } finally {
@@ -299,13 +321,14 @@ export function TaskCenter({ onOpenBookDetail }: TaskCenterProps) {
         </button>
       </header>
 
-      <div className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-5" aria-label="当前加载范围任务计数">
+      <div className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-6" aria-label="当前加载范围任务计数">
         {([
           ["全部", counts.total],
           ["运行中", counts.running],
           ["排队中", counts.queued],
           ["失败", counts.failed],
           ["已完成", counts.completed],
+          ["已取消", counts.canceled],
         ] as const).map(([label, count]) => (
           <div key={label} className="rounded-xl border border-border/70 bg-background/70 px-3 py-2.5">
             <div className="text-lg font-semibold text-foreground">{count}</div>
