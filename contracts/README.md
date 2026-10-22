@@ -13,6 +13,7 @@
 | `create-job.v1.schema.json` | POST /api/v1/jobs 的**请求**体（CreateJobInput 六个顶层字段 + 五个段），每段 additionalProperties:false 对应后端 deny_unknown_fields | `frontend/web` 的 payload 构造器（`features/ingest/domain/workflow/payload.ts`，用生成的 TS 类型）与 mock 层（`platform/api/mocks/job-payload-contract.ts`，用生成的运行期字段名清单） | `backend/packages/retainpdf-core/src/models/input/request.rs` 的 `contract_tests` |
 | `library-books.v1.schema.json` | 任务列表 `GET /api/v1/jobs`（书卡、文件夹按 `job_ids` 取活态）+ 删任务 `DELETE /api/v1/jobs/:job_id` 的返回；名字沿用书架时期，书架 `/api/v1/library/books` 和它的类型 2026-10-22 删了 | `@retainpdf/api`（`LibraryDeleteResultView`）、`frontend/packages/domain`、`frontend/web` 契约测试 | `backend/packages/retainpdf-jobs/src/views/job_types.rs`（任务列表）、`views/common.rs`（删任务的返回 `JobDeleteResultView`） |
 | `library-documents.v1.schema.json` | 书 `/api/v1/documents`（列表、单本、改、删）、阅读入口 `/reading`、翻译覆盖 `/translation-coverage`、书的文件清单 `/files`、元数据建议、全文检索 `/api/v1/search`、合集 `/api/v1/collections`；请求体和查询参数 `additionalProperties: false` 对应 `deny_unknown_fields` | `@retainpdf/contracts/library-documents`（前端以后换掉 `frontend/packages/api` 里手写的类型） | `backend/packages/retainpdf-core/src/models/library.rs`、`backend/packages/retainpdf-library/src/views.rs`、`merge/reading.rs`、`merge/coverage.rs`、`media.rs`；`backend/api/src/api_tests/library_documents_contract.rs` 钉键集合 |
+| `ocr-providers.v1.schema.json` | OCR 提供方清单 `GET /api/v1/providers/ocr`（不分页）：凭据字段、选项（带 `client_settable`，只能服务器定的不给默认值）、能力、产物布局 | `@retainpdf/contracts/ocr-providers`（前端现在用写死的 `frontend/web/src/platform/config/providers.ts`，要不要换由前端定） | `backend/packages/retainpdf-core/src/models/ocr.rs`、`backend/packages/retainpdf-data/src/ocr_provider/catalog.rs`（`provider_client_definitions`）；`backend/api/src/api_tests/providers.rs` 钉键集合 |
 | `job-status.v1.schema.json` | 任务详情、脱敏请求参数与阶段进度 | `@retainpdf/api`、`frontend/packages/domain`、`frontend/web`、`frontend/web-react` | `backend/api` public view models |
 | `job-events.v2.schema.json` | 普通/OCR 事件游标分页、稳定事件身份 | `@retainpdf/api`、`frontend/web` | `backend/api` event feed |
 | `jobs-control.v1.schema.json` | shell↔jobsd 控制面 | `backend/api/src/api_tests/jobs_control_contract.rs` | `backend/jobs/src/contract_lock.rs` |
@@ -36,7 +37,7 @@ endpoint 和它自己的 definition。全部接口见 `docs/api/00-接口目录.
 
 ## npm 包
 
-本目录发布为 `@retainpdf/contracts`。Wire DTO 从 `@retainpdf/contracts/job-status`、`@retainpdf/contracts/job-events`、`@retainpdf/contracts/library-books`、`@retainpdf/contracts/library-documents`、`@retainpdf/contracts/reader-data` 与 `@retainpdf/contracts/translation-revisions` 导出；原始 schema 以文件名子路径显式导出。包没有根 DTO 入口、wildcard export 或 runtime dependency。
+本目录发布为 `@retainpdf/contracts`。Wire DTO 从 `@retainpdf/contracts/job-status`、`@retainpdf/contracts/job-events`、`@retainpdf/contracts/library-books`、`@retainpdf/contracts/library-documents`、`@retainpdf/contracts/ocr-providers`、`@retainpdf/contracts/reader-data` 与 `@retainpdf/contracts/translation-revisions` 导出；原始 schema 以文件名子路径显式导出。包没有根 DTO 入口、wildcard export 或 runtime dependency。
 
 `@retainpdf/contracts/create-job-fields` 是唯一导出**运行期值**的子路径：`CREATE_JOB_TOP_LEVEL_FIELDS` 与 `CREATE_JOB_SECTION_FIELDS` 是 `create-job.v1.schema.json` 里各 definition 的 `properties` 键。TS 类型在运行期不存在，而 `frontend/web` 的 mock 要模拟后端的 `deny_unknown_fields`（多一个键 => 400），需要的正是一份运行期能读的白名单——以前那份是手抄在 mock 里的第二真相源。生成器只为 `additionalProperties: false` 的 definition 发这张表：定义本身允许额外字段却发一张封闭清单，就是对下游撒谎。
 
@@ -51,4 +52,4 @@ npm --prefix contracts test
 npm --prefix contracts run build
 ```
 
-`src/job-status.ts`、`src/job-events.ts`、`src/library-books.ts`、`src/library-documents.ts`、`src/reader-data.ts` 与 `src/translation-revisions.ts` 由固定版本的 `json-schema-to-typescript` 生成并入库，禁止手改。`src/create-job.ts` 与 `src/create-job-fields.ts` 同理。`generate:check` 阻止生成漂移；测试还会锁定 `job-status` 与 `library-books` 重复 Job definitions 的结构一致性。`frontend/packages/domain` 保留的是归一化模型，不应替代 wire DTO。
+`src/job-status.ts`、`src/job-events.ts`、`src/library-books.ts`、`src/library-documents.ts`、`src/ocr-providers.ts`、`src/reader-data.ts` 与 `src/translation-revisions.ts` 由固定版本的 `json-schema-to-typescript` 生成并入库，禁止手改。`src/create-job.ts` 与 `src/create-job-fields.ts` 同理。`generate:check` 阻止生成漂移；测试还会锁定 `job-status` 与 `library-books` 重复 Job definitions 的结构一致性。`frontend/packages/domain` 保留的是归一化模型，不应替代 wire DTO。

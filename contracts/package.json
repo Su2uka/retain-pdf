@@ -33,6 +33,10 @@
       "types": "./dist/library-documents.d.ts",
       "import": "./dist/library-documents.js"
     },
+    "./ocr-providers": {
+      "types": "./dist/ocr-providers.d.ts",
+      "import": "./dist/ocr-providers.js"
+    },
     "./reader-data": {
       "types": "./dist/reader-data.d.ts",
       "import": "./dist/reader-data.js"
@@ -55,6 +59,7 @@
     "./jobs-control.v1.schema.json": "./jobs-control.v1.schema.json",
     "./library-books.v1.schema.json": "./library-books.v1.schema.json",
     "./library-documents.v1.schema.json": "./library-documents.v1.schema.json",
+    "./ocr-providers.v1.schema.json": "./ocr-providers.v1.schema.json",
     "./pipeline-stdout.v1.schema.json": "./pipeline-stdout.v1.schema.json",
     "./public-document-operation.v1.schema.json": "./public-document-operation.v1.schema.json",
     "./reader-data.v1.schema.json": "./reader-data.v1.schema.json",
