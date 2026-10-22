@@ -157,6 +157,41 @@ test("finds next free gateway port", async (t) => {
   assert.notEqual(base, `http://127.0.0.1:${busyPort}`);
 });
 
+test("falls back to an OS-assigned port when the preferred range is busy", async (t) => {
+  const root = makeFrontendDir({ "index.html": "x" });
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const gateway = createLocalGateway(gatewayOptions({
+    frontendRoot: root,
+    getBackendBase: () => "",
+    canConnectToPort: async () => true,
+  }));
+  const base = await gateway.start("127.0.0.1", 40001);
+  t.after(() => gateway.stop());
+  const port = Number(new URL(base).port);
+  assert.ok(port > 0, `expected a real port, got ${base}`);
+  assert.ok(port < 40001 || port > 40051, "should not reuse the busy preferred range");
+  assert.equal((await getText(`${base}/index.html`)).status, 200);
+});
+
+test("falls back to an OS-assigned port when the probed port is taken before listen", async (t) => {
+  const blocker = http.createServer((req, res) => res.end("busy"));
+  await new Promise((resolve) => blocker.listen(0, "127.0.0.1", resolve));
+  t.after(() => blocker.close());
+  const busyPort = blocker.address().port;
+  const root = makeFrontendDir({ "index.html": "x" });
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const gateway = createLocalGateway(gatewayOptions({
+    frontendRoot: root,
+    getBackendBase: () => "",
+    // 探测说空闲，listen 时却被占（竞态）
+    canConnectToPort: async () => false,
+  }));
+  const base = await gateway.start("127.0.0.1", busyPort);
+  t.after(() => gateway.stop());
+  assert.notEqual(base, `http://127.0.0.1:${busyPort}`);
+  assert.equal((await getText(`${base}/index.html`)).status, 200);
+});
+
 test("inlines full runtime config including xApiKey", async (t) => {
   const root = makeFrontendDir({
     "index.html": "<html><head><script>window.__FRONT_RUNTIME_CONFIG__={xApiKey:\"\",ocrProvider:\"mineru\"};</script></head><body>x</body></html>",

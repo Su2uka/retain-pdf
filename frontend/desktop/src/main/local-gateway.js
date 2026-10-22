@@ -183,7 +183,21 @@ function createLocalGateway(options = {}) {
         return port;
       }
     }
-    throw new Error(`网关端口 ${preferred} 起 ${GATEWAY_MAX_OFFSET} 个端口均被占用`);
+    // 首选段全被占时让系统分配一个端口。网关起不来窗口就得退回 file://，页面的 Origin 变成
+    // "null"，而单机后端只放行回环来源——宁可端口不固定，也别走那条路。
+    logger.warn(`[desktop] gateway ports ${preferred}..${preferred + GATEWAY_MAX_OFFSET} all busy; using an OS-assigned port`);
+    return 0;
+  }
+
+  function listenOn(port, host) {
+    return new Promise((resolve, reject) => {
+      const created = http.createServer(requestHandler);
+      created.once("error", reject);
+      created.listen(port, host, () => {
+        created.removeListener("error", reject);
+        resolve(created);
+      });
+    });
   }
 
   // Start listening. Resolves to the base URL, e.g. http://127.0.0.1:40001.
@@ -193,17 +207,18 @@ function createLocalGateway(options = {}) {
       return baseUrl;
     }
     const port = await findFreePort(host, preferredPort);
-    await new Promise((resolve, reject) => {
-      const created = http.createServer(requestHandler);
-      created.once("error", reject);
-      created.listen(port, host, () => {
-        created.removeListener("error", reject);
-        server = created;
-        baseUrl = `http://${host}:${port}`;
-        logger.warn(`[desktop] local gateway listening on ${baseUrl}`);
-        resolve();
-      });
-    });
+    let created;
+    try {
+      created = await listenOn(port, host);
+    } catch (error) {
+      // 探测和 listen 之间端口被别人抢走：同样退到系统分配。
+      if (port === 0 || error?.code !== "EADDRINUSE") throw error;
+      logger.warn(`[desktop] gateway port ${port} taken before listen; using an OS-assigned port`);
+      created = await listenOn(0, host);
+    }
+    server = created;
+    baseUrl = `http://${host}:${created.address().port}`;
+    logger.warn(`[desktop] local gateway listening on ${baseUrl}`);
     return baseUrl;
   }
 
