@@ -139,7 +139,7 @@ cmd_up() {
   done
   load_env || return 1
   if [[ -z "${API_HOST:-}" && "$(api_host)" == "127.0.0.1" ]]; then
-    echo "API key 还是默认的 $DEFAULT_API_KEY，后端只监听 127.0.0.1（换成别的 key 才能绑 0.0.0.0）"
+    echo "API key 还是默认的 ${DEFAULT_API_KEY}，后端只监听 127.0.0.1（换成别的 key 才能绑 0.0.0.0）"
   fi
   # 先停：端口被占着起不来，而「起不来」的报错往往指向别处（之前有过一次
   # 主 checkout 的 jobsd 残留在 41002，表现是 502/503 风暴）。
@@ -202,7 +202,7 @@ print(f\"  后端    rust={d['status']} ai={d['ai_service']} jobsd={d['jobsd']} 
   code="$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$STATIC_PORT/reader.html" 2>/dev/null)"
   echo "  静态    reader.html -> ${code:-没在跑}"
   if pgrep -f "frontend/web/scripts/serve_same_origin.py" >/dev/null 2>&1; then
-    echo "  同源    /api 也走 $STATIC_PORT（浏览器不用够到 $API_PORT）"
+    echo "  同源    /api 也走 ${STATIC_PORT}（浏览器不用够到 ${API_PORT}）"
   fi
   echo "  阅读页  http://127.0.0.1:$STATIC_PORT/reader.html?job_id=<JOB_ID>"
   echo "  日志    $RUN_DIR/{stack,static}.log"
