@@ -7,7 +7,7 @@ export declare function fetchJobPayload(jobId: string, options?: FetchJobPayload
 export declare function fetchJobPayload(jobId: string, apiPrefix?: string): Promise<JobDetailView>;
 /** @deprecated swapped order: use fetchJobPayload(jobId, { apiPrefix }) */
 export declare function fetchJobPayload(apiPrefix: string, jobId: string): Promise<JobDetailView>;
-export declare function fetchJobList(apiPrefix?: string, { limit, offset, status, workflow, provider, scope, q, includeLiveStage, }?: {
+export declare function fetchJobList(apiPrefix?: string, { limit, offset, status, workflow, provider, scope, q, includeLiveStage, jobIds, }?: {
     limit?: number;
     offset?: number;
     status?: string;
@@ -16,4 +16,8 @@ export declare function fetchJobList(apiPrefix?: string, { limit, offset, status
     scope?: string;
     q?: string;
     includeLiveStage?: boolean;
+    /** 只列这些任务（`job_ids=a,b`），OCR 任务也在内。 */
+    jobIds?: string[];
 }): Promise<JobListView>;
+export declare const JOB_LIST_MAX_LIMIT = 500;
+export declare function fetchJobsByIds(apiPrefix?: string, jobIds?: string[]): Promise<Pick<JobListView, "items">>;

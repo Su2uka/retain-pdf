@@ -1,3 +1,4 @@
+import type { LibraryDeleteResultView } from "@retainpdf/contracts/library-books";
 export type OcrAmbiguityResolutionKind = "bind_existing_receipt" | "accept_duplicate_risk";
 export interface OcrAmbiguityResolutionRequest {
     resolution: OcrAmbiguityResolutionKind;
@@ -88,6 +89,13 @@ export declare function fetchJobDiagnostics(jobId: string, apiPrefix?: string): 
 export declare function fetchResumePlan(jobId: string, apiPrefix?: string): Promise<any>;
 /** body 可带 `{ overrides: { translation: { api_key | credential_ref } } }`：续跑出来的新任务用这把 key。 */
 export declare function resumeJob(jobId: string, apiPrefix?: string, body?: Record<string, unknown>): Promise<any>;
+/**
+ * 删一个任务和它的 `-ocr` 子任务，书留着（DELETE /jobs/:id，替代书架删除 DELETE /library/books/:id）。
+ * 传 `-ocr` 子任务编号时删的是它的父任务。返回形状契约里叫 LibraryDeleteResultView。
+ */
+export declare function deleteJob(apiPrefix: string | undefined, jobId: string, { force }?: {
+    force?: boolean;
+}): Promise<LibraryDeleteResultView>;
 export declare function cancelJob(jobId: string, apiPrefix?: string): Promise<any>;
 /** OCR 任务的取消和其它任务同一个地址（后端按任务类型分支）；保留这个名字给老调用方。 */
 export declare function cancelOcrJob(jobId: string, apiPrefix?: string): Promise<any>;
