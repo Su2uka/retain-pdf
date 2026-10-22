@@ -21,6 +21,10 @@ npm run verify                       改完之后跑这个（约 75 秒）
 
 支持 `up` / `up --fast` / `up --same-origin` / `down` / `status` / `logs`。
 
+后端默认绑 `0.0.0.0`。`runtime-config.local.js` 里的 key 还是默认的 `dev-local-key` 时，
+`dev_stack.py` 不许在非本机地址上监听，`up` 就自动退回 `127.0.0.1` 并提示一句；
+要指定地址用 `up --host <地址>`。静态服务照旧绑 `0.0.0.0`。
+
 `up --same-origin` 把静态服务换成 `frontend/web/scripts/serve_same_origin.py`：
 它照旧托管前端，但把 `/api` 也转发出去，于是浏览器只需要够得着 40001 一个端口。
 WSL2 的 localhost 转发会按端口失效（40001 通、41000 不通），这种情况下用它；

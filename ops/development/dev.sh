@@ -12,6 +12,7 @@
 #   ops/development/dev.sh up               起（首次或改过 Rust 之后）
 #   ops/development/dev.sh up --fast        起（跳过 cargo build，改前端时用）
 #   ops/development/dev.sh up --same-origin 起，前端与 API 同源（见下）
+#   ops/development/dev.sh up --host 127.0.0.1  后端只监听本机（key 是默认值时自动这样）
 #   ops/development/dev.sh down             停
 #   ops/development/dev.sh status           看端口和健康状况
 #   ops/development/dev.sh logs             跟日志
@@ -32,6 +33,8 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 RUN_DIR="${TMPDIR:-/tmp}/retainpdf-dev"
 STATIC_PORT=40001
 API_PORT=41000
+# 和 dev_stack.py 的 DEFAULT_API_KEY 一致：用它时后端只能监听本机。
+DEFAULT_API_KEY="dev-local-key"
 # data-root 默认指向主 checkout —— worktree 里开发时共用同一份 data，
 # 不然每个 worktree 都要重新跑一遍 OCR 和翻译。
 DATA_ROOT="${RETAINPDF_DATA_ROOT:-$HOME/Code/retain-pdf/data}"
@@ -78,11 +81,26 @@ port_pids() {
 # `unbound variable`。所以 `"${build_flag[@]}"` 在不带 --fast 时直接炸，
 # 也就是**改过 Rust 之后必须走的那条路**。而报错指向脚本行号，看不出是空数组。
 # `${arr[@]+"${arr[@]}"}` 是 3.2 安全的写法：数组为空时整个展开消失。
+#
+# 后端监听地址：默认 0.0.0.0（既定做法，见 test_dev_sh.py）。但 key 还是默认的
+# dev-local-key 时，dev_stack.py 拒绝在非本机地址上监听（"a non-default RUST_API_KEYS
+# value is required for non-loopback listening"），`up` 就起不来。这时退回 127.0.0.1，
+# 并在 `up` 里说一声；要别的地址用 `up --host <地址>`（或环境变量 API_HOST）。
+api_host() {
+  if [[ -n "${API_HOST:-}" ]]; then
+    printf '%s' "$API_HOST"
+  elif [[ ",${RUST_API_KEYS:-}," == *",$DEFAULT_API_KEY,"* || -z "${RUST_API_KEYS:-}" ]]; then
+    printf '127.0.0.1'
+  else
+    printf '0.0.0.0'
+  fi
+}
+
 stack_argv() {
   local fast="${1:-}"
   local build_flag=()
   [[ "$fast" == "--fast" ]] && build_flag=(--no-build)
-  printf '%s ' --host 0.0.0.0 --port "$API_PORT" --data-root "$DATA_ROOT" --no-sync \
+  printf '%s ' --host "$(api_host)" --port "$API_PORT" --data-root "$DATA_ROOT" --no-sync \
     ${build_flag[@]+"${build_flag[@]}"}
   printf '\n'
 }
@@ -107,14 +125,22 @@ cmd_up() {
   local same_origin=""
   # `${@+"$@"}`：bash 3.2 下 `set -u` 展开空的 "$@" 同样会报 unbound，
   # 和 stack_argv 里那个空数组是同一类坑。
-  for arg in "${@+"$@"}"; do
-    case "$arg" in
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
       --fast) fast="--fast" ;;
       --same-origin) same_origin=1 ;;
-      *) echo "未知参数: $arg（用法见 $0）" >&2; return 2 ;;
+      --host)
+        [[ $# -ge 2 ]] || { echo "--host 后面要跟地址" >&2; return 2; }
+        API_HOST="$2"; shift ;;
+      --host=*) API_HOST="${1#--host=}" ;;
+      *) echo "未知参数: $1（用法见 $0）" >&2; return 2 ;;
     esac
+    shift
   done
   load_env || return 1
+  if [[ -z "${API_HOST:-}" && "$(api_host)" == "127.0.0.1" ]]; then
+    echo "API key 还是默认的 $DEFAULT_API_KEY，后端只监听 127.0.0.1（换成别的 key 才能绑 0.0.0.0）"
+  fi
   # 先停：端口被占着起不来，而「起不来」的报错往往指向别处（之前有过一次
   # 主 checkout 的 jobsd 残留在 41002，表现是 502/503 风暴）。
   cmd_down >/dev/null
@@ -186,9 +212,9 @@ cmd_logs() { tail -f "$RUN_DIR/stack.log" "$RUN_DIR/static.log"; }
 
 case "${1:-status}" in
   up)     shift; cmd_up "${@+"$@"}" ;;
-  argv)   stack_argv "${2:-}" ;;
+  argv)   stack_argv "${2:-}" ;;  # 只组装参数（测试用），key 从环境变量 RUST_API_KEYS 读
   down)   cmd_down ;;
   status) cmd_status ;;
   logs)   cmd_logs ;;
-  *)      echo "用法: $0 {up [--fast] [--same-origin]|down|status|logs|argv [--fast]}" >&2; exit 2 ;;
+  *)      echo "用法: $0 {up [--fast] [--same-origin] [--host <地址>]|down|status|logs|argv [--fast]}" >&2; exit 2 ;;
 esac
