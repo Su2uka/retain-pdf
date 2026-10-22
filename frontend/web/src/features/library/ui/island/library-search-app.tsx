@@ -80,14 +80,20 @@ function LibrarySearchPanel({ ports }: { ports: LibrarySearchPorts }) {
   const [error, setError] = useState("");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | number>(0);
   const requestSeqRef = useRef(0);
+  // 书目列表在一次检索里只取一次：每敲一个键都把整份书目重拉一遍没有必要。清空查询时作废，
+  // 下次打开面板重新取；取失败也作废，下一次按键再试。
+  const documentsRef = useRef<Promise<LibrarySearchDocumentRow[]> | null>(null);
 
   useEffect(() => ports.subscribeQuery(setQuery), [ports]);
 
   useEffect(() => {
     const trimmed = query.trim();
     if (!trimmed) {
+      documentsRef.current = null;
       setHits([]);
+      setDocuments([]);
       setError("");
+      setBusy(false);
       return undefined;
     }
     clearTimeout(debounceRef.current);
@@ -95,16 +101,24 @@ function LibrarySearchPanel({ ports }: { ports: LibrarySearchPorts }) {
       const seq = requestSeqRef.current + 1;
       requestSeqRef.current = seq;
       setBusy(true);
+      if (!documentsRef.current) {
+        const loading = ports.fetchDocumentList().then((result) => result?.documents || []);
+        documentsRef.current = loading;
+        loading.catch(() => {
+          if (documentsRef.current === loading) documentsRef.current = null;
+        });
+      }
       try {
-        const [searchResult, documentsResult] = await Promise.all([
+        const [searchResult, documentRows] = await Promise.all([
           ports.searchLibrary(trimmed),
-          ports.fetchDocumentList(),
+          documentsRef.current,
         ]);
         if (requestSeqRef.current !== seq) {
           return;
         }
         setHits(searchResult?.hits || []);
-        setDocuments(documentsResult?.documents || []);
+        // 同一次检索里已经有书目时留着它：上面带着阅读状态的乐观更新，换成缓存会被冲回去。
+        setDocuments((current) => (current.length ? current : documentRows));
         setError("");
       } catch (searchError) {
         if (requestSeqRef.current === seq) {
@@ -116,7 +130,11 @@ function LibrarySearchPanel({ ports }: { ports: LibrarySearchPorts }) {
         }
       }
     }, 250);
-    return () => clearTimeout(debounceRef.current);
+    return () => {
+      clearTimeout(debounceRef.current);
+      // 查询一变就作废还在路上的请求：不然它回来时照样写回结果，新词的防抖期间先显示上一次的命中。
+      requestSeqRef.current += 1;
+    };
   }, [query, ports]);
 
   const cycleStatus = useCallback(async (doc: LibrarySearchDocumentRow) => {
@@ -127,9 +145,12 @@ function LibrarySearchPanel({ ports }: { ports: LibrarySearchPorts }) {
     try {
       await ports.patchDocument(doc.document_id, { reading_status: next });
     } catch (_err) {
-      // 回滚乐观更新
+      // 回滚乐观更新，但只在状态还是这次设的值时：连点两下、第一次失败的话，
+      // 不能把第二次的结果也冲掉。
       setDocuments((current) => current.map((item) => (
-        item.document_id === doc.document_id ? { ...item, reading_status: doc.reading_status } : item
+        item.document_id === doc.document_id && item.reading_status === next
+          ? { ...item, reading_status: doc.reading_status }
+          : item
       )));
     }
   }, [ports]);
