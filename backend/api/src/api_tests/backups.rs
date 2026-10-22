@@ -39,6 +39,7 @@ async fn back_up_now_then_restore_brings_the_library_back_and_keeps_a_safety_cop
     assert_eq!(status, StatusCode::OK, "{body}");
     assert_eq!(body["data"]["items"].as_array().map(Vec::len), Some(0));
     assert_eq!(body["data"]["auto_interval_hours"], 24);
+    assert!(body["data"]["last_restore"].is_null(), "{body}");
 
     sql(&state, "INSERT INTO documents(document_id, title, source_filename, added_at, updated_at) VALUES('d1', 'Before', 'a.pdf', 't', 't');");
     let (status, made) = call(&state, "POST", "/api/v1/backups").await;
@@ -53,6 +54,7 @@ async fn back_up_now_then_restore_brings_the_library_back_and_keeps_a_safety_cop
     let (status, body) = call(&state, "POST", &format!("/api/v1/backups/{id}/restore")).await;
     assert_eq!(status, StatusCode::CONFLICT, "{body}");
     assert!(body["message"].as_str().unwrap_or("").contains("任务"), "{body}");
+    assert_eq!(body["error"]["details"]["reason"], "restore_blocked", "{body}");
     assert_eq!(title(&state).as_deref(), Some("After"));
     sql(&state, "UPDATE jobs SET status_json = '\"succeeded\"' WHERE job_id = 'j1';");
 
@@ -63,6 +65,10 @@ async fn back_up_now_then_restore_brings_the_library_back_and_keeps_a_safety_cop
     let safety = body["data"]["safety_backup"].as_str().expect("safety").to_string();
     assert!(safety.starts_with("before-restore-"), "{safety}");
     assert_eq!(body["data"]["status"]["items"].as_array().map(Vec::len), Some(2));
+    assert_eq!(body["data"]["status"]["running"], false, "{body}");
+    let last = &body["data"]["status"]["last_restore"];
+    assert_eq!((last["backup_id"].as_str(), last["ok"].as_bool()), (Some(id.as_str()), Some(true)), "{body}");
+    assert_eq!(last["safety_backup"], safety.as_str());
 
     // 恢复错了:用恢复前那份退回。
     let (status, _) = call(&state, "POST", &format!("/api/v1/backups/{safety}/restore")).await;
@@ -109,4 +115,27 @@ async fn a_restore_reconciles_jobs_that_were_running_when_the_backup_was_taken()
     assert_eq!(job.pid, None, "备份里的 pid 不属于当前进程");
     let failure = job.failure.as_ref().expect("failure");
     assert_eq!(failure.failure_code.as_deref(), Some("worker_process_missing"));
+}
+
+/// 坏备份、来自新版本的备份 2026-10-22 起回 409（以前 400）带 `reason`；被拒的恢复记进
+/// `last_restore`，不存恢复前备份。
+#[tokio::test]
+async fn a_damaged_backup_is_a_conflict_with_a_reason_and_leaves_no_safety_copy() {
+    let state = test_state("backup-damaged");
+    state.db.init().expect("init");
+    let dir = state.db.backups_dir();
+    std::fs::create_dir_all(&dir).expect("dir");
+    let damaged = "manual-20261009T120000000Z-v19";
+    std::fs::write(dir.join(format!("{damaged}.db.gz")), b"not gzip").expect("write");
+    let (status, body) = call(&state, "POST", &format!("/api/v1/backups/{damaged}/restore")).await;
+    assert_eq!(status, StatusCode::CONFLICT, "{body}");
+    assert_eq!(body["error"]["details"]["reason"], "backup_damaged", "{body}");
+    assert!(body["message"].as_str().unwrap_or("").contains("损坏"), "{body}");
+    let (_, listed) = call(&state, "GET", "/api/v1/backups").await;
+    let items = listed["data"]["items"].as_array().expect("items");
+    assert!(items.iter().all(|b| b["kind"] != "before-restore"), "{listed}");
+    let last = &listed["data"]["last_restore"];
+    assert_eq!(last["ok"], false, "{listed}");
+    assert_eq!(last["reason"], "backup_damaged");
+    assert!(last["safety_backup"].is_null());
 }

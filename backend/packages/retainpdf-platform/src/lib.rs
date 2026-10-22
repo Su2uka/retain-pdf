@@ -6,13 +6,14 @@
 //! `runtime` 里，健康检查要的状态由调用方读好了传进 `HealthApiDeps`。
 
 mod backup;
+mod detached;
 mod fonts;
 mod health_api;
 mod sync;
 
 // 门面。
 pub use backup::{AfterRestoreHook, BackupService};
-pub use backup::views::{BackupItemView, BackupRestoreView, BackupStatusView};
+pub use backup::views::{BackupItemView, BackupRestoreView, BackupStatusView, LastRestoreView};
 pub use backup::api::{
     backup_status_view, create_backup_view, delete_backup_view, restore_backup_view, BackupApiDeps,
 };

@@ -49,8 +49,9 @@ async fn sync_is_off_until_a_folder_is_chosen_and_settings_are_checked() {
         assert_eq!(status, StatusCode::BAD_REQUEST, "{folder}: {body}");
     }
     // 关着时「立即同步」说明原因。
-    let (status, _) = call(&state, "POST", "/api/v1/sync/run", None).await;
+    let (status, body) = call(&state, "POST", "/api/v1/sync/run", None).await;
     assert_eq!(status, StatusCode::CONFLICT);
+    assert_eq!(body["error"]["details"]["reason"], "sync_disabled", "{body}");
 }
 
 #[tokio::test]
@@ -150,4 +151,47 @@ async fn webdav_settings_are_checked_and_the_password_never_comes_back() {
     let (_, ran) = call(&state, "POST", "/api/v1/sync/run", None).await;
     assert_eq!(ran["data"]["last_run"]["ok"], false, "{ran}");
     assert!(!ran.to_string().contains("top-secret-123"));
+}
+
+/// 回归（审计 C9）：校验失败时什么都不改；请求体里不认识的字段 400；开着但同步位置被清掉时，
+/// 立即同步的 409 说清是没配好（`sync_not_configured`），不再说「没有开启」。
+#[tokio::test]
+async fn bad_settings_change_nothing_and_unknown_fields_are_rejected() {
+    let state = test_state("sync-validation");
+    let cloud = temp_folder("validation");
+    let (status, body) = call(
+        &state,
+        "PUT",
+        "/api/v1/sync",
+        Some(json!({"folder": cloud.to_string_lossy(), "enabled": true})),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+
+    let (status, body) = call(
+        &state,
+        "PUT",
+        "/api/v1/sync",
+        Some(json!({"enabled": true, "transport": "webdav", "webdav_url": ""})),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+    let (_, now) = call(&state, "GET", "/api/v1/sync", None).await;
+    assert_eq!(now["data"]["transport"], "folder", "{now}");
+    assert_eq!(now["data"]["enabled"], true);
+    assert_eq!(now["data"]["folder"], cloud.to_string_lossy().as_ref());
+
+    for uri in ["/api/v1/sync", "/api/v1/sync/test"] {
+        let method = if uri.ends_with("test") { "POST" } else { "PUT" };
+        let (status, body) = call(&state, method, uri, Some(json!({"webdav_pasword": "x"}))).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{uri}: {body}");
+        assert!(body["message"].as_str().unwrap_or("").contains("webdav_pasword"), "{body}");
+    }
+
+    let (status, _) = call(&state, "PUT", "/api/v1/sync", Some(json!({"folder": ""}))).await;
+    assert_eq!(status, StatusCode::OK);
+    let (status, body) = call(&state, "POST", "/api/v1/sync/run", None).await;
+    assert_eq!(status, StatusCode::CONFLICT, "{body}");
+    assert_eq!(body["error"]["details"]["reason"], "sync_not_configured", "{body}");
+    std::fs::remove_dir_all(cloud).ok();
 }

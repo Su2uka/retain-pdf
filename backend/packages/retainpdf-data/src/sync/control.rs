@@ -37,6 +37,10 @@ pub const KEY_LAST_MAINTENANCE: &str = "last_maintenance";
 pub const SYNC_SUBDIR: &str = "RetainPDF-Sync";
 pub const TRANSPORT_FOLDER: &str = "folder";
 pub const TRANSPORT_WEBDAV: &str = "webdav";
+/// 「测试连接」里每个 WebDAV 请求最多等多久(含连接),不重试。一次测试通常 3 个请求
+/// (写、读、删;同步文件夹还没建时多 2 个),所以最慢约 30~50 秒就有结论。前端不设超时,
+/// 一直等到后端回话。
+pub const PROBE_REQUEST_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
 
 /// 这台电脑的名字(给其它设备看)。macOS 用「电脑名称」,其它系统用主机名。
 pub fn default_device_name() -> String {
@@ -179,7 +183,20 @@ impl SyncControl {
         }
     }
 
-    /// 改设置。开启时必须已配好同步目标。
+    /// 测试连接用的同步引擎:WebDAV 用短超时、不重试的客户端(见 [`PROBE_REQUEST_TIMEOUT`])。
+    fn probe_engine(&self, target: &SyncTarget, device_name: &str) -> Result<SyncEngine> {
+        match target {
+            SyncTarget::Folder(_) => self.engine(target, device_name),
+            SyncTarget::WebDav(config) => {
+                let backend =
+                    WebDavBackend::for_probe(config, &self.data_root.join("sync-work"), PROBE_REQUEST_TIMEOUT)?;
+                SyncEngine::with_backend(self.db.clone(), &self.data_root, Box::new(backend), device_name)
+            }
+        }
+    }
+
+    /// 改设置。开启时必须已配好同步目标。先把所有校验做完(开启时目标齐不齐按「给的值叠在
+    /// 已保存的值上」算),全部通过才写,写在一个事务里:校验失败时什么都不改。
     pub fn update(&self, input: &SyncSettingsInput) -> Result<std::result::Result<(), SyncSettingsError>> {
         if let Some(transport) = &input.transport {
             if transport != TRANSPORT_FOLDER && transport != TRANSPORT_WEBDAV {
@@ -207,6 +224,18 @@ impl SyncControl {
                 return Ok(Err(invalid("设备名最多 64 个字")));
             }
         }
+        if input.enabled == Some(true) && self.target(Some(input))?.is_none() {
+            let transport = match input.transport.as_deref().map(str::trim).filter(|t| !t.is_empty()) {
+                Some(transport) => transport.to_string(),
+                None => self.transport()?,
+            };
+            return Ok(Err(invalid(if transport == TRANSPORT_WEBDAV {
+                "请先填写 WebDAV 地址"
+            } else {
+                "请先选择同步文件夹"
+            })));
+        }
+        let mut writes: Vec<(&str, String)> = Vec::new();
         for (value, key) in [
             (&input.transport, KEY_TRANSPORT),
             (&input.folder, KEY_FOLDER),
@@ -215,22 +244,17 @@ impl SyncControl {
             (&input.device_name, KEY_DEVICE_NAME),
         ] {
             if let Some(value) = value {
-                self.db.sync_state_set(key, value.trim())?;
+                writes.push((key, value.trim().to_string()));
             }
         }
         if let Some(password) = &input.webdav_password {
-            self.db.sync_state_set(KEY_WEBDAV_PASSWORD, password)?;
+            writes.push((KEY_WEBDAV_PASSWORD, password.clone()));
         }
         if let Some(enabled) = input.enabled {
-            if enabled && self.target(None)?.is_none() {
-                return Ok(Err(invalid(if self.transport()? == TRANSPORT_WEBDAV {
-                    "请先填写 WebDAV 地址"
-                } else {
-                    "请先选择同步文件夹"
-                })));
-            }
-            self.db.sync_state_set(KEY_ENABLED, if enabled { "1" } else { "0" })?;
+            writes.push((KEY_ENABLED, if enabled { "1" } else { "0" }.to_string()));
         }
+        let entries: Vec<(&str, &str)> = writes.iter().map(|(key, value)| (*key, value.as_str())).collect();
+        self.db.sync_state_set_many(&entries)?;
         Ok(Ok(()))
     }
 
@@ -260,7 +284,8 @@ impl SyncControl {
     }
 
     /// 用给的设置(没给的用已保存的)测一次能不能读写。不改设置、不碰同步数据。会阻塞
-    /// (访问 NAS),异步调用方放到阻塞线程里。
+    /// (访问 NAS),异步调用方放到阻塞线程里。WebDAV 用短超时、不重试的客户端
+    /// ([`PROBE_REQUEST_TIMEOUT`]),正式同步的客户端不受影响。
     pub fn test(&self, input: &SyncSettingsInput) -> Result<SyncTestView> {
         if let Some(url) = input.webdav_url.as_deref().map(str::trim).filter(|u| !u.is_empty()) {
             if let Err(reason) = check_webdav_url(url) {
@@ -282,7 +307,7 @@ impl SyncControl {
         }
         let location = target.location();
         let device_name = self.device_name()?;
-        Ok(match self.engine(&target, &device_name).and_then(|engine| engine.probe()) {
+        Ok(match self.probe_engine(&target, &device_name).and_then(|engine| engine.probe()) {
             Ok(latency) => SyncTestView { ok: true, location, latency_ms: Some(latency), error: None },
             Err(error) => SyncTestView { ok: false, location, latency_ms: None, error: Some(format!("{error:#}")) },
         })
@@ -345,10 +370,13 @@ impl SyncControl {
                 view.error = Some(format!("{error:#}"));
             }
         }
-        if let Ok(json) = serde_json::to_string(&view) {
-            let _ = self.db.sync_state_set(KEY_LAST_RUN, &json);
-        }
+        let _ = self.record_run(&view);
         Ok(Some((view, peer_views)))
+    }
+
+    /// 记下一轮的结果(`last_run`)。
+    pub fn record_run(&self, view: &SyncRunView) -> Result<()> {
+        self.db.sync_state_set(KEY_LAST_RUN, &serde_json::to_string(view)?)
     }
 
     /// 状态视图。`running`、`interval_seconds`、`peers` 由调用方给(后端在内存里记着;

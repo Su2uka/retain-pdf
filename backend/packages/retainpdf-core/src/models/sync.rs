@@ -2,8 +2,9 @@
 
 use serde::{Deserialize, Serialize};
 
-/// 修改同步设置;没给的字段不变。
+/// 修改同步设置;没给的字段不变。不认识的字段 400(2026-10-22 起,`PUT /sync`、`POST /sync/test`)。
 #[derive(Debug, Clone, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct SyncSettingsInput {
     pub enabled: Option<bool>,
     /// 用户选的文件夹(绝对路径)。里面已经是同步文件夹就直接用,否则在里面建

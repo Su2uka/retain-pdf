@@ -1247,3 +1247,112 @@ fn over_webdav_compaction_and_pack_deletion_work_and_a_new_device_still_gets_eve
     assert_eq!(fs::read(b.root.join(format!("uploads/{UPLOAD}/book.pdf"))).unwrap(), b"%PDF source");
     fs::remove_dir_all(base).unwrap();
 }
+
+/// 回归（审计 C5）：「测试连接」以前用正式同步的客户端——单个请求最长 30 分钟、没拿到回复
+/// 再重试 3 次，一次测试 5 个请求。测试用单独的短超时、不重试的客户端：连得上但不回的
+/// 服务器，一个请求超时就放弃。
+#[test]
+fn a_probe_against_a_server_that_never_answers_gives_up_after_one_short_request() {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::Arc;
+    let base = std::env::temp_dir().join(format!("retain-sync-probe-{:016x}", fastrand::u64(..)));
+    fs::create_dir_all(&base).unwrap();
+    let root = fs::canonicalize(&base).unwrap();
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let accepted = Arc::new(AtomicUsize::new(0));
+    let counter = accepted.clone();
+    std::thread::spawn(move || {
+        // 收下连接，一个字也不回（防火墙吞包、中转断了）。
+        let mut held = Vec::new();
+        for stream in listener.incoming().flatten() {
+            counter.fetch_add(1, Ordering::SeqCst);
+            held.push(stream);
+        }
+    });
+    let config = super::WebDavConfig {
+        url: format!("http://127.0.0.1:{port}/dav/retainpdf"),
+        username: "nas-user".into(),
+        password: "secret".into(),
+    };
+    let backend =
+        super::WebDavBackend::for_probe(&config, &root.join("sync-work"), std::time::Duration::from_secs(1)).unwrap();
+    let db = Db::new(root.join("db").join("jobs.db"), root.clone());
+    db.init().unwrap();
+    let engine = SyncEngine::with_backend(db, &root, Box::new(backend), "probe").unwrap();
+    let started = std::time::Instant::now();
+    let error = engine.probe().unwrap_err();
+    assert!(started.elapsed() < std::time::Duration::from_secs(5), "took {:?}", started.elapsed());
+    assert!(format!("{error:#}").contains("连不上 WebDAV"), "{error:#}");
+    assert_eq!(accepted.load(Ordering::SeqCst), 1, "测试连接不重试");
+    fs::remove_dir_all(base).unwrap();
+}
+
+/// 测试连接一次只发必要的请求：同步文件夹已在时写、读、删各一个；还没建时先建再写。
+#[test]
+fn a_probe_sends_few_requests_and_creates_the_folder_only_when_missing() {
+    let base = std::env::temp_dir().join(format!("retain-sync-dav-{:016x}", fastrand::u64(..)));
+    let dav = super::test_dav::TestDav::start(&base.join("server"), "nas-user", "secret");
+    let root = base.join("device");
+    fs::create_dir_all(&root).unwrap();
+    let root = fs::canonicalize(&root).unwrap();
+    let db = Db::new(root.join("db").join("jobs.db"), root.clone());
+    db.init().unwrap();
+    let config = super::WebDavConfig { url: dav.url.clone(), username: "nas-user".into(), password: "secret".into() };
+    let probe = || {
+        let backend =
+            super::WebDavBackend::for_probe(&config, &root.join("sync-work"), std::time::Duration::from_secs(10)).unwrap();
+        SyncEngine::with_backend(db.clone(), &root, Box::new(backend), "probe").unwrap().probe()
+    };
+    // 文件夹还没有：PUT 回 409 → MKCOL → PUT → GET → DELETE。
+    probe().unwrap();
+    assert_eq!(dav.count(), 5);
+    // 文件夹已在：PUT、GET、DELETE。
+    probe().unwrap();
+    assert_eq!(dav.count() - 5, 3);
+    let left: Vec<_> = fs::read_dir(dav.root.join("dav/retainpdf")).unwrap().map(|e| e.unwrap().file_name()).collect();
+    assert!(left.is_empty(), "探针不留痕迹：{left:?}");
+    fs::remove_dir_all(base).unwrap();
+}
+
+fn control(name: &str) -> (PathBuf, super::SyncControl) {
+    let base = std::env::temp_dir().join(format!("retain-sync-control-{name}-{:016x}", fastrand::u64(..)));
+    fs::create_dir_all(&base).unwrap();
+    let root = fs::canonicalize(&base).unwrap();
+    let db = Db::new(root.join("db").join("jobs.db"), root.clone());
+    db.init().unwrap();
+    (root.clone(), super::SyncControl::new(db, root))
+}
+
+/// 回归（审计 C9）：`PUT /sync` 以前先把 transport、地址等写进去，最后才查「开启时目标齐不齐」，
+/// 校验失败时已经改了一半（原来开着的同步目标被清掉、后台静默停掉）。现在全部校验完才写，
+/// 写在一个事务里。
+#[test]
+fn settings_that_fail_validation_change_nothing() {
+    let (root, control) = control("partial");
+    let folder = root.parent().unwrap().join(format!("retain-sync-control-cloud-{:016x}", fastrand::u64(..)));
+    fs::create_dir_all(&folder).unwrap();
+    let folder = fs::canonicalize(&folder).unwrap();
+    let on = retainpdf_core::models::api::SyncSettingsInput {
+        enabled: Some(true),
+        folder: Some(folder.to_string_lossy().to_string()),
+        transport: Some("folder".into()),
+        ..Default::default()
+    };
+    assert!(control.update(&on).unwrap().is_ok());
+    let bad = retainpdf_core::models::api::SyncSettingsInput {
+        enabled: Some(true),
+        transport: Some("webdav".into()),
+        webdav_url: Some(String::new()),
+        webdav_username: Some("someone".into()),
+        ..Default::default()
+    };
+    let refused = control.update(&bad).unwrap().unwrap_err();
+    assert_eq!(refused.0, "请先填写 WebDAV 地址");
+    assert_eq!(control.transport().unwrap(), "folder", "校验失败时什么都不改");
+    assert!(control.enabled().unwrap());
+    assert_eq!(control.get("webdav_username").unwrap(), None);
+    assert!(control.target(None).unwrap().is_some(), "原来的同步目标还在");
+    fs::remove_dir_all(root).unwrap();
+    fs::remove_dir_all(folder).unwrap();
+}
