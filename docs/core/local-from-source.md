@@ -49,6 +49,10 @@ cp frontend/web/runtime-config.local.example.js frontend/web/runtime-config.loca
 `up` 会先 `down`（端口被占着起不来，而报错常常指向别处），并把两个进程 nohup +
 disown，关掉终端不会带走它们。
 
+key 还是默认的 `dev-local-key` 时，后端拒绝在非本机地址上监听，`dev.sh up` 会自动让后端只绑
+`127.0.0.1`（并提示一句）；这时只能从本机访问，要从别的机器或 Windows 侧访问就把 key 换成别的值。
+也可以用 `up --host <地址>` 指定。
+
 运行数据默认落在 `$HOME/Code/retain-pdf/data`；在别的 checkout 里开发时用
 `RETAINPDF_DATA_ROOT` 指过去，避免每个 checkout 各跑一遍 OCR 和翻译。
 
@@ -71,7 +75,7 @@ ops/development/dev.sh up --same-origin
 `127.0.0.1:41000`，绕开 localhost 转发。
 
 注意这**不是**把后端收窄到只监听本机：转发是在服务端做的，浏览器只需要够得着
-40001 一个端口；`dev.sh` 起的两个服务仍然都绑 `0.0.0.0`（这是既定做法，
+40001 一个端口；`dev.sh` 起的两个服务仍然都绑 `0.0.0.0`（key 是默认值时后端例外，见上）（这是既定做法，
 `ops/development/tests/test_dev_sh.py` 里有门禁守着）。也就是说，少的是浏览器
 要访问的端口数，不是监听面——要限制来源得靠防火墙或鉴权。
 

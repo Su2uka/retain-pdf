@@ -66,8 +66,12 @@ def test_up_stops_first(source: str) -> None:
 
 
 def test_it_binds_all_interfaces(source: str) -> None:
-    """产品决定：开发服务绑 0.0.0.0，不改成 127.0.0.1。"""
-    assert source.count("--host 0.0.0.0") == 2
+    """产品决定：开发服务绑 0.0.0.0，不改成 127.0.0.1。
+
+    静态服务写死在 cmd_up 里；后端的地址由 `api_host` 定，见下面几条真跑 bash 的。
+    """
+    up = source[source.index("cmd_up() {") : source.index("cmd_status() {")]
+    assert up.count("--host 0.0.0.0") == 1, "静态服务应当绑 0.0.0.0"
 
 
 def test_failure_shows_the_log_instead_of_just_timing_out(source: str) -> None:
@@ -88,15 +92,62 @@ def test_the_readme_documents_both_commands(source: str) -> None:
 # ---------------------------------------------------------------- 真跑一遍 bash
 
 
-def _argv(*extra: str) -> subprocess.CompletedProcess[str]:
+def _argv(*extra: str, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
     """跑 `dev.sh argv`，它只组装参数,不碰端口也不起进程。"""
+    import os
+
+    run_env = {k: v for k, v in os.environ.items() if k not in ("RUST_API_KEYS", "API_HOST")}
+    run_env.update(env or {})
     return subprocess.run(
         ["bash", str(SCRIPT), "argv", *extra],
         capture_output=True,
         text=True,
         timeout=30,
         check=False,
+        env=run_env,
     )
+
+
+def _host(done: subprocess.CompletedProcess[str]) -> str:
+    assert done.returncode == 0, done.stderr
+    args = done.stdout.split()
+    return args[args.index("--host") + 1]
+
+
+def test_the_backend_binds_all_interfaces_with_a_real_key() -> None:
+    """key 不是默认值时，后端照既定做法绑 0.0.0.0。"""
+    assert _host(_argv(env={"RUST_API_KEYS": "some-real-key"})) == "0.0.0.0"
+
+
+def test_the_backend_falls_back_to_loopback_with_the_default_key() -> None:
+    """key 还是默认的 dev-local-key（或没有 key）时，dev_stack.py 拒绝在非本机地址上监听，
+    绑 0.0.0.0 的 `up` 必然起不来。这时退回 127.0.0.1。
+
+    起因（2026-10-22）：本地 key 是默认值，`dev.sh up` 报 "a non-default RUST_API_KEYS
+    value is required for non-loopback listening" 退出。
+    """
+    assert _host(_argv(env={"RUST_API_KEYS": "dev-local-key"})) == "127.0.0.1"
+    assert _host(_argv(env={"RUST_API_KEYS": "other,dev-local-key"})) == "127.0.0.1"
+    assert _host(_argv()) == "127.0.0.1"
+
+
+def test_an_explicit_host_wins() -> None:
+    """`up --host <地址>` 设的 API_HOST 压过自动选择。"""
+    assert _host(_argv(env={"RUST_API_KEYS": "some-real-key", "API_HOST": "127.0.0.1"})) == "127.0.0.1"
+
+
+def test_dev_sh_and_dev_stack_agree_on_the_default_key(source: str) -> None:
+    """两边的默认 key 写法要一致，不然退回本机的判断会失效。"""
+    import re
+
+    stack = (SCRIPT.parent / "dev_stack.py").read_text(encoding="utf-8")
+    stack_default = re.search(r'^DEFAULT_API_KEY = "([^"]+)"', stack, re.M).group(1)
+    assert f'DEFAULT_API_KEY="{stack_default}"' in source
+
+
+def test_up_accepts_host_option(source: str) -> None:
+    up = source[source.index("cmd_up() {") : source.index("cmd_status() {")]
+    assert "--host)" in up and "--host=*)" in up
 
 
 def test_the_backend_argv_assembles_under_the_system_bash() -> None:
