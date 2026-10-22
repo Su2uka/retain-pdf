@@ -16,6 +16,7 @@ import {
 import { mockable } from "./_mockable.js";
 
 export type {
+  DocumentReadingStatus,
   DocumentRecord,
   DocumentReadingView,
   TranslationCoverageView,

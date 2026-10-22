@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { LibraryController, LibraryCardItem } from "@/features/library/index.js";
 import { fetchDocument } from "@/platform/api/index.js";
-import type { DocumentRecord } from "@/platform/api/index.js";
+import type { DocumentReadingStatus, DocumentRecord } from "@/platform/api/index.js";
 import { API_PREFIX } from "@/platform/config/api-constants.js";
 
 export type DocumentMetaOptions = {
@@ -120,7 +120,7 @@ export function useDocumentMeta({
     }
   }
 
-  async function handleReadingStatus(value: string) {
+  async function handleReadingStatus(value: DocumentReadingStatus) {
     if (value === readingStatus || busy) return;
     const previous = readingStatus;
     setReadingStatus(value);
