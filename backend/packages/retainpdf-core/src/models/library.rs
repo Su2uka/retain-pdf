@@ -97,7 +97,7 @@ pub struct CollectionRecord {
     pub parent_id: Option<String>,
     pub sort_order: i64,
     pub created_at: String,
-    /// 该文件夹当前文档数;只有列表接口才会填,单条查询恒为 0。
+    /// 该文件夹当前文档数;每次读时由 SQL 现算(`COLLECTION_COLUMNS`),单条和列表都是。
     #[serde(default)]
     pub document_count: i64,
 }

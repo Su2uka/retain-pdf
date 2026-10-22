@@ -44,12 +44,6 @@
       "query": "LibraryDeleteQuery",
       "output": "LibraryDeleteResultView",
       "note": "旧地址，新地址 DELETE /api/v1/jobs/:job_id；行为不变（OCR 任务 404）。"
-    },
-    {
-      "method": "POST",
-      "path": "/api/v1/library/books/batch-delete",
-      "input": "LibraryBatchDeleteInput",
-      "output": "LibraryBatchDeleteResultView"
     }
   ],
   "definitions": {
@@ -763,20 +757,6 @@
         }
       }
     },
-    "LibraryBatchDeleteResultView": {
-      "type": "object",
-      "required": [
-        "items"
-      ],
-      "properties": {
-        "items": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/LibraryDeleteResultView"
-          }
-        }
-      }
-    },
     "LibraryDeleteQuery": {
       "type": "object",
       "properties": {
@@ -786,26 +766,9 @@
         }
       }
     },
-    "LibraryBatchDeleteInput": {
-      "type": "object",
-      "required": [
-        "ids"
-      ],
-      "properties": {
-        "ids": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "force": {
-          "type": "boolean",
-          "default": false
-        }
-      }
-    },
     "ListLibraryBooksQuery": {
       "type": "object",
+      "description": "冻结（2026-10-19）：书架列表的查询参数，不再改。只列了前端发的四个；Rust 实际用的是任务列表的 ListJobsQuery，还认 status、workflow、provider、include_live_stage，不认识的参数忽略；limit 没传时 Rust 默认 20，下面的 default 40 是前端 fetchLibraryBookList 的默认值。新代码用 GET /api/v1/jobs 的 ListJobsQuery。",
       "properties": {
         "limit": {
           "type": "integer",

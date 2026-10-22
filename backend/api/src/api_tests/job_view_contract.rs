@@ -17,7 +17,7 @@ use crate::models::{CreateJobInput, JobArtifacts, JobSnapshot, JobStatusKind};
 
 use super::jobs_common::{read_json, test_state};
 
-fn contract(file_name: &str) -> Value {
+pub(super) fn contract(file_name: &str) -> Value {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .expect("backend root")
@@ -27,13 +27,13 @@ fn contract(file_name: &str) -> Value {
         .expect("parse contract")
 }
 
-fn definition<'a>(contract: &'a Value, name: &str) -> &'a Value {
+pub(super) fn definition<'a>(contract: &'a Value, name: &str) -> &'a Value {
     contract["definitions"]
         .get(name)
         .unwrap_or_else(|| panic!("contract definition missing: {name}"))
 }
 
-fn object_keys(value: &Value, path: &str) -> BTreeSet<String> {
+pub(super) fn object_keys(value: &Value, path: &str) -> BTreeSet<String> {
     value
         .as_object()
         .unwrap_or_else(|| panic!("{path} must be an object"))
@@ -42,7 +42,7 @@ fn object_keys(value: &Value, path: &str) -> BTreeSet<String> {
         .collect()
 }
 
-fn schema_keys(contract: &Value, name: &str) -> BTreeSet<String> {
+pub(super) fn schema_keys(contract: &Value, name: &str) -> BTreeSet<String> {
     definition(contract, name)["properties"]
         .as_object()
         .unwrap_or_else(|| panic!("definition {name} missing properties"))
@@ -51,7 +51,7 @@ fn schema_keys(contract: &Value, name: &str) -> BTreeSet<String> {
         .collect()
 }
 
-fn assert_exact_object_keys(value: &Value, contract: &Value, name: &str, path: &str) {
+pub(super) fn assert_exact_object_keys(value: &Value, contract: &Value, name: &str, path: &str) {
     assert_eq!(
         object_keys(value, path),
         schema_keys(contract, name),
@@ -61,7 +61,7 @@ fn assert_exact_object_keys(value: &Value, contract: &Value, name: &str, path: &
 
 /// 键集合要和契约一致，只有 `absent_ok` 里的键允许不出现（契约里是可选键，
 /// 序列化时 `skip_serializing_if` 会整个省掉）。多出契约没有的键永远不行。
-fn assert_object_keys_allowing_absent(
+pub(super) fn assert_object_keys_allowing_absent(
     value: &Value,
     contract: &Value,
     name: &str,
@@ -206,7 +206,7 @@ fn validate_schema(
     Ok(())
 }
 
-fn assert_definition(value: &Value, contract: &Value, name: &str, path: &str) {
+pub(super) fn assert_definition(value: &Value, contract: &Value, name: &str, path: &str) {
     if let Err(error) = validate_schema(value, definition(contract, name), contract, path) {
         panic!("{name} fixture violates schema: {error}");
     }

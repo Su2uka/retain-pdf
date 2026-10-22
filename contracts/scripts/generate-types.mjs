@@ -33,6 +33,11 @@ const TARGETS = [
     rootName: "LibraryBooksSchema",
   },
   {
+    input: "library-documents.v1.schema.json",
+    output: "src/library-documents.ts",
+    rootName: "LibraryDocumentsSchema",
+  },
+  {
     input: "reader-data.v1.schema.json",
     output: "src/reader-data.ts",
     rootName: "ReaderDataSchema",

@@ -9,8 +9,6 @@
  */
 export type LibraryBooksSchema =
   | JobListView
-  | LibraryBatchDeleteInput
-  | LibraryBatchDeleteResultView
   | LibraryBookDetailView
   | LibraryBookListView
   | LibraryDeleteQuery
@@ -161,19 +159,6 @@ export interface JobListInvocationSummaryView {
   stage_spec_count: number;
   unknown_count: number;
 }
-export interface LibraryBatchDeleteInput {
-  ids: string[];
-  force?: boolean;
-}
-export interface LibraryBatchDeleteResultView {
-  items: LibraryDeleteResultView[];
-}
-export interface LibraryDeleteResultView {
-  deleted: boolean;
-  job_id: string;
-  removed_paths: string[];
-  removed_child_jobs: string[];
-}
 /**
  * 已废弃：GET /api/v1/library/books/:job_id 2026-10-19 删了，Rust 侧不再产出。前端去掉引用后删除本定义（见 endpoints 里那条 removed 的说明）。
  */
@@ -238,6 +223,12 @@ export interface LibraryBookListItemView {
 export interface LibraryDeleteQuery {
   force?: boolean;
 }
+export interface LibraryDeleteResultView {
+  deleted: boolean;
+  job_id: string;
+  removed_paths: string[];
+  removed_child_jobs: string[];
+}
 export interface ListJobsQuery {
   limit?: number;
   offset?: number;
@@ -247,6 +238,9 @@ export interface ListJobsQuery {
   q?: string;
   job_ids?: string;
 }
+/**
+ * 冻结（2026-10-19）：书架列表的查询参数，不再改。只列了前端发的四个；Rust 实际用的是任务列表的 ListJobsQuery，还认 status、workflow、provider、include_live_stage，不认识的参数忽略；limit 没传时 Rust 默认 20，下面的 default 40 是前端 fetchLibraryBookList 的默认值。新代码用 GET /api/v1/jobs 的 ListJobsQuery。
+ */
 export interface ListLibraryBooksQuery {
   limit?: number;
   offset?: number;

@@ -84,6 +84,8 @@ Reader 宿主接入 job/artifact、Markdown、区域、页面元数据和实时�
 
 `/api/v1/library/books` 是旧的一套：每一项其实是一个任务（`id` 和 `job_id` 都是任务编号，没有 `document_id`），
 而且排除 OCR 任务。2026-10-19 起冻结，不再加字段；新代码用 `/documents` 和 `GET /jobs?job_ids=`（见上一节）。
+契约是 [`library-books.v1.schema.json`](../../../contracts/library-books.v1.schema.json)（2026-10-22 删了已不存在的
+`batch-delete` 条目和它的两个类型）。
 
 列表：
 
@@ -184,6 +186,14 @@ Reader 宿主接入 job/artifact、Markdown、区域、页面元数据和实时�
 - 这几个接口和书、合集的请求体（`PATCH /documents/{id}`、`POST|PATCH /collections`、
   `POST /collections/{id}/documents`）、`DELETE /documents/{id}` 的查询参数，不认识的字段一律 400。
   `PATCH /collections/{id}` 只认 `name`、`sort_order`，`parent_id` 400。冻结的书架（`/library/books`）不收紧。
+
+书、合集、全文检索、阅读入口（`/documents/{id}/reading`）、翻译覆盖（`/documents/{id}/translation-coverage`）、
+书的文件清单（`/documents/{id}/files`）、元数据建议的请求和返回，2026-10-22 起有契约
+[`library-documents.v1.schema.json`](../../../contracts/library-documents.v1.schema.json)（TS 类型
+`@retainpdf/contracts/library-documents`）。空值的写法照契约：类型带 `null` 的键总在、空时是 `null`；
+`DocumentRecord.active_version_id`、元数据建议的 `source_job_id` 和证据里的可选项没有时整个键不出现。
+`DocumentRecord` 的 `authors_json`（恒为 `"[]"`）、`year`（恒 `null`）、`doi`（恒 `""`）、`last_opened_at`（恒 `null`）
+没有功能，留着不删。Rust 侧 `backend/api/src/api_tests/library_documents_contract.rs` 钉住真实返回的键集合。
 
 文档级任务列表是刷新页面后恢复当前 OCR、翻译和渲染状态的权威入口；不要只保留
 浏览器内存中的最后一个 `job_id`。Agent 版本列表投影 candidate/committed 版本元数据
