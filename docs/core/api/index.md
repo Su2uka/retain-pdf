@@ -169,10 +169,21 @@ Reader 宿主接入 job/artifact、Markdown、区域、页面元数据和实时�
 - `POST|GET /api/v1/documents/{document_id}/metadata-suggestions`
 - `POST /api/v1/documents/{document_id}/metadata-suggestions/{suggestion_id}/apply`
 
-`GET /api/v1/documents` 返回 `{ "documents": [...], "total": 128 }`。
+`GET /api/v1/documents` 返回 `{ "documents": [...], "total": 128, "limit": 50, "offset": 0, "has_more": true }`。
 `total` 是应用 `reading_status`、`collection_id` 以及有效 upload
 约束后的跨页总数；`limit` 和 `offset` 只裁剪 `documents`。使用 `job_id`
 直查时，命中返回 `total: 1`，未命中返回 `total: 0`。
+
+2026-10-22 起书库的列表照[分页约定](../../api/00-约定/03-分页.md)：
+
+- `/documents`、`/search`、`/documents/{id}/metadata-suggestions` 回显 `limit`（`/documents` 还有 `offset`），给 `has_more`；
+  `limit` 越界 400（以前静默夹）。`/documents` 按 `added_at DESC, document_id DESC` 排，同一秒入库的书翻页不乱。
+- 带 `job_id` 时其余参数（`reading_status`、`collection_id`、`q`、`offset`）不起作用，`limit` 照样校验，
+  `limit`、`offset` 照请求回显，`has_more` 恒为 `false`。
+- `/documents/{id}/jobs` 的 `has_more` 改成多取一条判断，`total` 照旧。
+- 这几个接口和书、合集的请求体（`PATCH /documents/{id}`、`POST|PATCH /collections`、
+  `POST /collections/{id}/documents`）、`DELETE /documents/{id}` 的查询参数，不认识的字段一律 400。
+  `PATCH /collections/{id}` 只认 `name`、`sort_order`，`parent_id` 400。冻结的书架（`/library/books`）不收紧。
 
 文档级任务列表是刷新页面后恢复当前 OCR、翻译和渲染状态的权威入口；不要只保留
 浏览器内存中的最后一个 `job_id`。Agent 版本列表投影 candidate/committed 版本元数据
