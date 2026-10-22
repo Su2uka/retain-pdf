@@ -720,3 +720,38 @@ API / jobsd 重启时，翻译阶段运行中的任务以前一律自动续跑�
 - `PatchDocumentInput.reading_status`、`DocumentRecord.reading_status` 是 `"unread" | "reading" | "done"`，`title_source` 是
   `"filename" | "pdf_metadata" | "ocr" | "user"`（手写的类型里多一个 `"ai"`，后端没有写这个值的地方）。
 - 删合集回 `{ deleted: true }`、从合集拿掉一本书回 `{ removed: true }`，是同一个 Rust 类型的两种形状，契约里分成两个类型。
+
+## 术语表：重跑用现在的表、PUT 保留没给的字段、删 import（fix/glossaries-rerun-and-put）
+
+2026-10-22。方案见 [术语表重跑与整份替换](../../ops/planning/api-reorg/20261022-术语表重跑与整份替换.md)，接口见
+[术语表](../../api/04-翻译/03-术语表.md)。
+
+### 变了什么（前端不改也照旧能用）
+
+1. 重跑、阶段重试出新任务时按**现在的**术语表重新解析，加上当时内联的条目；源任务用的表已删 `409`，
+   `error.details.reason = "glossary_missing"`（以前 `404`），停用了 `409 glossary_disabled`。
+2. `PUT /glossaries/:id` 请求里没出现的 `description`、`source_lang`、`target_lang`、`enabled` 保留原值（以前被清空、
+   `enabled` 重置成 `true`）。`name`、`entries` 仍必填，缺了 `422`。可选 `expected_updated_at`，表被别处改过 `409 glossary_changed`。
+   表已删的 `PUT` 是 `404`，不会重新建出来。
+3. 建任务时 `translation.glossary_id` 指向不存在或停用的表 `400`（以前不存在 `404`、停用照样用）。前端下拉已经过滤掉删了的表；
+   停用的表现在下拉里还列着，选了会 400，所以下面第 2 条要改。
+4. 去重键改成（原词，上下文），`case_insensitive` 的原词按小写比、其余区分大小写：以前被吞掉的同词不同上下文、
+   大小写不同的精确词，以后会留下。`parse-csv` 回包多 `duplicate_count`。
+5. CSV：报错带行号（`row 3: …`）；制表符分隔的文本（Excel 复制）能直接解析；导出带 BOM、`Content-Disposition`，
+   `= + - @` 开头的单元格前加 `'`（粘回解析框会去掉）。
+6. JSON 词条里不认识的 `level`/`match_mode`、编译不过的正则 `400`；`context` 最多 500 字。前端只发合法值，不受影响。
+7. `GET /glossaries` 不认识的查询参数 `400`，`?q=` 空串不再返回空列表。前端不带参数，不受影响。
+8. 删了 `POST /api/v1/glossaries/import`（前端没用，`git grep` 过）。
+
+### 前端要做什么
+
+| 文件 | 现在 | 改成 |
+|---|---|---|
+| `frontend/web/src/features/glossaries/domain/glossaries-store.ts:44-50` | `GlossaryEntryRow` 没有 `context` | 加 `context: string` |
+| 同上 `:135-143`（`normalizeEntryForRow`） | 读详情时丢掉 `context` | `context: entry.context \|\| ""` |
+| 同上 `:171`（`readEditorPayload`） | `context: ""` 写死 | `context: \`${row.context \|\| ""}\`.trim()`（编辑器可以先不显示这一列，但要原样带回，否则存一次就把 `context` 清空） |
+| `frontend/web/src/features/ingest/domain/workflow/glossary-options.ts:47` | `fetchGlossaries(apiPrefix)` 列全部 | 下拉只列启用的：`GET /glossaries?enabled=true`（`frontend/packages/api/src/glossaries.ts:6` 的 `fetchGlossaries` 加个可选查询参数） |
+| `frontend/web/src/features/glossaries/ui/GlossaryImportPanel.tsx:21` | 占位符 `原词,译文,类型,匹配模式,备注`（没表头时后端按 `原词,译文,备注` 读，第 3 列会被当成备注） | 改成 `原词,译文,备注`，或提示「第一行写表头：原词,译文,类型,匹配模式,备注」 |
+| `frontend/web/src/features/glossaries/domain/controller.ts:192`（可选） | `PUT` 不带版本 | 带上详情里的 `updated_at` 作 `expected_updated_at`；`409` 且 `reason === "glossary_changed"` 时提示「术语表已被别处修改，请刷新后再改」 |
+| 重跑、重试失败的提示（可选） | 只显示 `message` | `reason === "glossary_missing"` 时提示「术语表已删除，请改选后重新翻译」 |
+| `parse-csv` 预览（可选） | — | `duplicate_count > 0` 时提示「有 N 行重复，已按最后一行」 |

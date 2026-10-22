@@ -59,6 +59,7 @@ Rust API 接口太多、太散，"牵一发动全身"。这里按日期记录整
 | 2026-10-16 | [任务问答方法实现记录](./20261016-任务问答方法实现记录.md) | 读任务请求改成问 `job.source_job_id()` 这样的方法；只有 6 个生成、改写请求的模块还直接动字段，名单冻结 |
 | 2026-10-16 | [领域门面实现记录](./20261016-领域门面实现记录.md) | services 35 个顶层模块分进 9 个领域目录；每个领域的 `mod.rs` 是唯一的门面，子模块私有；领域之间只能往下依赖 |
 | 2026-10-22 | [删书架旧地址](./20261022-删书架旧地址.md) | 前端改调以后删 `GET /library/books`、`DELETE /library/books/:job_id`（都 404）和合集工作区的 GET（405）；书库包的书架列表、书架投影、`LibraryBookListView`、`LibraryDeleteQuery` 一起删；契约 `library-books.v1` 删书架端点和 `LibraryBook*View`、`ListLibraryBooksQuery`、`ArtifactDisplayItemView`，留任务列表类型和 `LibraryDeleteResultView`；调用方核对和用量 |
+| 2026-10-22 | [术语表重跑与整份替换](./20261022-术语表重跑与整份替换.md) | 重跑用现在的表加当时的内联条目（任务请求另存 `glossary_inline_entries`，表删了 409 `glossary_missing`）；PUT 没给的字段保留原值、只 UPDATE、可带 `expected_updated_at`（409 `glossary_changed`，AI `term-set` 重读重试）；去重键（原词，上下文）、`duplicate_count`；CSV 行号、TSV、防公式注入、BOM；删 `import`；建任务引用不存在、停用的表 400 |
 
 已经确定的：
 
