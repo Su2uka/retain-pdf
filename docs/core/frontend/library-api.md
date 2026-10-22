@@ -6,6 +6,11 @@
 > [书架冻结与删任务新地址](../../ops/planning/api-reorg/20261019-书架冻结与删任务新地址.md)、[给前端的交接](backend-changes-handoff.md)）；
 > 所有业务接口使用 `X-API-Key` 认证，JSON 响应统一采用
 > `{code, message, data}` 包装。
+>
+> 字段以契约为准：书、合集、全文检索、阅读入口、翻译覆盖、书的文件清单、元数据建议见
+> [`library-documents.v1.schema.json`](../../../contracts/library-documents.v1.schema.json)（2026-10-22 起，TS 类型从
+> `@retainpdf/contracts/library-documents` 导入，可以换掉 `frontend/packages/api` 里手写的类型，见
+> [给前端的交接](backend-changes-handoff.md)）；冻结的书架见 `library-books.v1.schema.json`。
 
 ## 核心概念(前端需要理解的唯一模型变化)
 
@@ -22,9 +27,11 @@
 GET  /api/v1/documents?limit=50&offset=0&reading_status=reading&collection_id=xxx&q=xxx
 GET  /api/v1/documents?job_id=xxx          ← 任意 job_id(含历史 run)直查所属文档,勿再扫列表反查 active_job_id
      → data: { documents[], total, limit, offset, has_more }
-       documents[]: { document_id, title, source_filename, page_count, bytes,
-                      active_job_id, reading_status, added_at,
-                      last_opened_at, updated_at, authors_json, year, doi }
+       documents[]: DocumentRecord { document_id, title, title_source, title_locked,
+                      source_filename, page_count, bytes, active_job_id, active_version_id?,
+                      reading_status, added_at, updated_at, source_pdf_url, cover_url,
+                      thumbnail_url, has_translation,
+                      authors_json, year, doi, last_opened_at }   ← 最后四个没有功能,见下
 
 GET  /api/v1/documents/:document_id
 
@@ -33,7 +40,11 @@ PATCH /api/v1/documents/:document_id
 ```
 
 - `reading_status` 只接受 `unread | reading | done`,其他值返回 400;
-- `active_job_id` 是该文档当前生效的处理 run——**打开阅读器就用它**;
+- `active_job_id` 是书卡当前对应的任务(在跑的优先,其次最好的成功任务,再次最近提交的);打开阅读器用 `GET /api/v1/documents/:id/reading` 给的 `job_id`
+  (分次范围翻译时是合并后的虚拟任务),不要直接用 `active_job_id`;
+- `active_version_id` 没有时整个键不出现(不是 `null`);
+- `authors_json`(恒为字符串 `"[]"`)、`year`(恒 `null`)、`doi`(恒 `""`)、`last_opened_at`(恒 `null`)没有写入点,
+  留着只为不破坏旧客户端,不要拿来显示;
 - 列表按 `added_at` 倒序、同一秒的按 `document_id` 倒序,`limit` 默认 50、范围 1..=500,越界 400(2026-10-22 前静默夹)。
 - `limit`、`offset`、`has_more` 2026-10-22 起回显;有没有下一页看 `has_more`,不用再拿 `offset + 条数 < total` 算(两者结果一样)。
 - 带 `job_id` 时其余参数都不起作用,最多返回 1 条,`has_more` 恒为 `false`。

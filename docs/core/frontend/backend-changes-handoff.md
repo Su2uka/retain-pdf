@@ -643,3 +643,45 @@ API / jobsd 重启时，翻译阶段运行中的任务以前一律自动续跑�
 | `frontend/web/src/features/library/domain/documents/job-actions.ts:81` | `fetchDocumentJobs(API_PREFIX, id)` 固定 `limit=50, offset=0`，超过 50 个任务只显示前 50 个 | 按 `has_more` 翻页 |
 | `frontend/packages/api/src/documents.ts` | `DocumentListView` 已有 `limit`、`offset` | 加 `has_more: boolean`；`fetchDocumentMetadataSuggestions` 只取 `suggestions`，不用改 |
 
+
+## 书库契约 library-documents.v1（contracts/library-documents-v1）
+
+2026-10-22。方案见 [书库契约](../../ops/planning/api-reorg/20261022-书库契约.md)。
+
+### 变了什么
+
+1. 新契约 [`contracts/library-documents.v1.schema.json`](../../../contracts/library-documents.v1.schema.json)，生成的 TS 类型从
+   `@retainpdf/contracts/library-documents` 导入。收了书（`DocumentRecord`、`DocumentListView`、`PatchDocumentInput`、
+   `DeleteDocumentQuery`、`DocumentDeleteResultView`）、阅读入口（`DocumentReadingView`）、翻译覆盖（`TranslationCoverageView`、
+   `CoverageSegment`、`CoverageJobView`）、书的文件清单（`DocumentFilesView`）、元数据建议（`DocumentMetadataSuggestionView` 等）、
+   全文检索（`SearchQuery`、`SearchResultView`、`BlockSearchHit`）、合集（`CollectionRecord`、`CollectionListView`、
+   `CreateCollectionInput`、`PatchCollectionInput`、`AddCollectionDocumentsInput`、`CollectionDeleteResultView`、
+   `CollectionDocumentRemoveResultView`）。接口行为一点没变，只是把现在的返回写下来、Rust 测试钉住。
+2. `library-books.v1` 删了已不存在的 `POST /library/books/batch-delete` 条目和 `LibraryBatchDeleteInput`、
+   `LibraryBatchDeleteResultView` 两个类型（前端没有引用，`git grep` 过 main 和两个前端分支）。`LibraryBookDetailView` 还在，等前端去掉引用再删。
+
+### 前端要做什么
+
+不用改代码。可以逐步把手写的类型换成契约生成的（`import type { … } from "@retainpdf/contracts/library-documents"`，
+`frontend/packages/api` 和 `frontend/web` 都已经依赖 `@retainpdf/contracts`）：
+
+| 文件 | 现在手写的 | 换成 |
+|---|---|---|
+| `frontend/packages/api/src/documents.ts` | `DocumentRecord = Record<string, any> & {…}` | `DocumentRecord` |
+| 同上 | `DocumentListView`（没有 `has_more`） | `DocumentListView` |
+| 同上 | `DocumentMetadataEvidence`、`DocumentTitleCandidate`、`DocumentMetadataSuggestion` | `DocumentMetadataEvidenceView`、`DocumentTitleCandidateView`、`DocumentMetadataSuggestionView` |
+| 同上 | `CreateDocumentMetadataSuggestionInput`、`ApplyDocumentMetadataSuggestionInput` | 同名 |
+| 同上 | `DocumentReadingView` | 同名 |
+| 同上 | `TranslationCoverageSegment`、`TranslationCoverageJob`、`TranslationCoverageView` | `CoverageSegment`、`CoverageJobView`、`TranslationCoverageView`（`note`、`kept_origin_blocks`、`kept_origin_blocks_supplied`、`failure_summary`、`error_head` 五个键后端一直都给，可以去掉 `?`） |
+| `frontend/packages/api/src/collections.ts` | 六个函数都返回 `Promise<any>` | `CollectionListView`、`CollectionRecord`（建、改、加书）、`CollectionDeleteResultView`、`CollectionDocumentRemoveResultView` |
+| `frontend/packages/api/src/search.ts` | `searchLibrary` 返回 `Promise<any>` | `SearchResultView` |
+| `frontend/web/src/features/collections/domain/controller.ts:17` | `CollectionRecord`（字段大多可选） | `CollectionRecord` |
+| `frontend/web/src/features/library/ui/island/index.ts:25` | `LibrarySearchHit` | 可以从 `BlockSearchHit` 派生 |
+
+注意：
+
+- `DocumentRecord.active_version_id` 没有时整个键不出现，类型里是可选；`authors_json`、`year`、`doi`、`last_opened_at` 没有功能
+  （恒为 `"[]"`、`null`、`""`、`null`），不要拿来显示。
+- `PatchDocumentInput.reading_status`、`DocumentRecord.reading_status` 是 `"unread" | "reading" | "done"`，`title_source` 是
+  `"filename" | "pdf_metadata" | "ocr" | "user"`（手写的类型里多一个 `"ai"`，后端没有写这个值的地方）。
+- 删合集回 `{ deleted: true }`、从合集拿掉一本书回 `{ removed: true }`，是同一个 Rust 类型的两种形状，契约里分成两个类型。
