@@ -147,6 +147,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit -p tsconfig.json",
+    "generate:client": "node ./scripts/generate-client.mjs",
+    "generate:client:check": "node ./scripts/generate-client.mjs --check",
     "dev": "tsc --watch -p tsconfig.json",
     "verify:package": "node ./scripts/verify-package.mjs",
     "test": "npm run build && npm run verify:package",
