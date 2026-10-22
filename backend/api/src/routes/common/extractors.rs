@@ -49,11 +49,43 @@ fn unknown_field_message(rejection: &JsonRejection) -> Option<String> {
     let JsonRejection::JsonDataError(error) = rejection else {
         return None;
     };
-    let text = error.body_text();
+    unknown_field_detail(&error.body_text())
+}
+
+fn unknown_field_detail(text: &str) -> Option<String> {
     let start = text.find("unknown field ")?;
     let detail = &text[start..];
     let detail = detail.split(" at line ").next().unwrap_or(detail);
     Some(format!("{detail} in the request body"))
+}
+
+/// 先收原始字节、做完别的检查（例如先验令牌）再解析请求体的接口用：报错和 [`ApiJson`] 一样
+/// （不是 JSON 415、语法错 400、不认识的字段 400 带字段名、其余不合 schema 422），不回显请求里的值。
+pub fn parse_json_body<T: DeserializeOwned>(
+    headers: &axum::http::HeaderMap,
+    body: &[u8],
+) -> Result<T, AppError> {
+    let is_json = headers
+        .get(axum::http::header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .map(|value| value.split(';').next().unwrap_or("").trim().to_ascii_lowercase())
+        .is_some_and(|essence| {
+            essence == "application/json"
+                || (essence.starts_with("application/") && essence.ends_with("+json"))
+        });
+    if !is_json {
+        return Err(AppError::unsupported_media_type(
+            "expected an application/json request body",
+        ));
+    }
+    serde_json::from_slice(body).map_err(|error| match error.classify() {
+        serde_json::error::Category::Data => unknown_field_detail(&error.to_string())
+            .map(AppError::bad_request)
+            .unwrap_or_else(|| {
+                AppError::unprocessable_entity("JSON request body does not match the expected schema")
+            }),
+        _ => AppError::bad_request("invalid JSON request body"),
+    })
 }
 
 #[axum::async_trait]

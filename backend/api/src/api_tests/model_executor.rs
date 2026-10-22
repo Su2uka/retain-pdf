@@ -256,7 +256,7 @@ print('bridge-ok')
 }
 
 #[tokio::test]
-async fn http_routes_separate_launcher_and_worker_authority() {
+async fn http_worker_routes_accept_only_their_own_job_capability() {
     use axum::{body::Body, http::Request};
     use tower::ServiceExt;
     let f = Fixture::new();
@@ -273,39 +273,24 @@ async fn http_routes_separate_launcher_and_worker_authority() {
         ))
         .unwrap();
     let app = crate::app::build_app(state);
-    let capability_uri = "/api/v1/internal/model/jobs/j/capability";
+    // 签发接口 2026-10-22 删了：带不带应用密钥都是 404，令牌只由任务运行时在进程内发。
     let body = serde_json::to_vec(&profile).unwrap();
-    let unauthorized = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri(capability_uri)
-                .header("content-type", "application/json")
-                .body(Body::from(body.clone()))
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-    assert_eq!(unauthorized.status(), StatusCode::UNAUTHORIZED);
-    let authorized = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri(capability_uri)
-                .header("content-type", "application/json")
-                .header("x-api-key", "test-key")
-                .body(Body::from(body))
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-    assert_eq!(authorized.status(), StatusCode::OK);
-    let capability = crate::api_tests::jobs_common::read_json(authorized).await["capability"]
-        .as_str()
-        .unwrap()
-        .to_owned();
+    for key in [None, Some("test-key")] {
+        let mut builder = Request::builder()
+            .method("POST")
+            .uri("/api/v1/internal/model/jobs/j/capability")
+            .header("content-type", "application/json");
+        if let Some(key) = key {
+            builder = builder.header("x-api-key", key);
+        }
+        let response = app
+            .clone()
+            .oneshot(builder.body(Body::from(body.clone())).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::NOT_FOUND, "{key:?}");
+    }
+    let capability = f.executor.register_job("j", &profile, 60).unwrap();
     let uri = "/api/v1/internal/model/jobs/j/requests/op";
     let app_key_not_worker = app
         .clone()

@@ -255,6 +255,20 @@ mod tests { fn fixture() { let runtime: ProcessRuntimeDeps; } }
             checks.check_agent_calculation_dependencies,
         ))
 
+    def test_route_raw_extractors_are_caught_in_nested_axum_imports(self):
+        for source in (
+            "use axum::extract::{Path, State};",
+            "use axum::{\n    extract::{Path, State},\n    http::HeaderMap,\n    Json,\n};",
+            "use axum::extract::Json;",
+        ):
+            with self.subTest(source=source):
+                errors = self.check_sources({"routes/example.rs": source}, checks.check_route_input_extractors)
+                self.assertEqual(1, len(errors), errors)
+                self.assertIn("raw Axum input extractor", errors[0])
+        self.assertEqual([], self.check_sources({
+            "routes/example.rs": "use axum::{body::Bytes, extract::{rejection::BytesRejection, State}, Json};",
+        }, checks.check_route_input_extractors))
+
     def check_sources(self, sources, check=None):
         """sources 的键是 src/ 下的逻辑路径；以 packages/ 开头的是拆出去的领域包里的文件。
 

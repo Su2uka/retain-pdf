@@ -3,12 +3,11 @@
 use std::sync::Arc;
 
 pub use super::model_executor::{ModelConnection, ModelRequest};
-use super::model_executor::{ModelConnectionPolicy, ModelExecutor, ModelExecutorError};
+use super::model_executor::{ModelExecutor, ModelExecutorError};
 use retainpdf_api_base::error::AppError;
 use retainpdf_core::models::domain::{JobSnapshot, JobStatusKind};
 use retainpdf_data::db::Db;
 use retainpdf_data::db::ModelOperation;
-use serde_json::{json, Value};
 
 pub struct ModelRequestsApi {
     db: Arc<Db>,
@@ -47,26 +46,14 @@ impl ModelRequestsApi {
         Ok(job)
     }
 
-    pub fn issue(&self, job_id: &str, profile: ModelConnection) -> Result<Value, AppError> {
-        let executor = self.executor()?;
-        let job = self.active_job(job_id)?;
-        if job.model_connection() != Some(&profile) {
-            return Err(AppError::conflict(
-                "model connection must match the complete submission snapshot",
-            ));
-        }
-        if !job.matches_frozen_translation(&profile) {
-            return Err(AppError::conflict(
-                "connection does not match frozen job configuration",
-            ));
-        }
-        profile
-            .validate()
-            .map_err(|_| AppError::bad_request("invalid model connection"))?;
-        let capability = executor
-            .register_job(job_id, &profile, 3600)
-            .map_err(map_executor_error)?;
-        Ok(json!({"token_type":"Bearer","capability":capability,"expires_in":3600}))
+    /// 只验令牌（属于这个任务、没过期），不查任务、不碰请求体。HTTP 层先调它，再解析请求体，
+    /// 没有有效令牌的请求拿不到「哪个字段写错了」的回答。能力令牌由任务运行时在进程内直接发
+    /// （`retainpdf-runner` 的 `worker_process.rs`），没有签发接口。
+    pub fn authorize(&self, job_id: &str, token: &str) -> Result<(), AppError> {
+        self.executor()?
+            .authorize(job_id, token)
+            .map(|_| ())
+            .map_err(map_executor_error)
     }
 
     pub async fn submit(

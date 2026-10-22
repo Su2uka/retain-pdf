@@ -14,7 +14,7 @@ pub use credentials::{
     get_or_create_managed_credential, CredentialUsageLock,
 };
 pub use credentials::api::{
-    create_credential, delete_credential, get_credential_metadata, list_credentials_with_values,
+    create_credential, delete_credential, get_credential_metadata, list_credentials,
     update_credential, CreateCredentialInput, CredentialDeleteView, CredentialListView,
     CredentialMutationView, DeleteCredentialQuery, ListCredentialQuery, UpdateCredentialInput,
 };

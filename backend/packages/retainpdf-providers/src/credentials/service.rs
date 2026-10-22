@@ -126,11 +126,11 @@ pub struct DeleteCredentialQuery {
     pub force: bool,
 }
 
+/// 列表不收任何查询参数。以前的 `include_values=true` 会把凭据库里全部密钥原文回给调用方，
+/// 2026-10-22 删掉：现在带它（或任何别的参数）都是 400 `unknown field`。
 #[derive(Debug, Clone, Deserialize, Default)]
-pub struct ListCredentialQuery {
-    #[serde(default)]
-    pub include_values: bool,
-}
+#[serde(deny_unknown_fields)]
+pub struct ListCredentialQuery {}
 
 #[derive(Debug, Clone, Serialize)]
 pub struct CredentialMetadataView {
@@ -142,8 +142,6 @@ pub struct CredentialMetadataView {
     pub revision: u64,
     pub created_at: String,
     pub updated_at: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub secret: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -165,28 +163,14 @@ pub struct CredentialDeleteView {
     pub revision: u64,
 }
 
-/// 只剩测试在用：路由走 list_credentials_with_values，要不要带值由查询参数决定。
-#[cfg(test)]
+/// 凭据列表，只有元数据：密钥只进不出，任何接口都不回明文。
 pub fn list_credentials(data_root: &Path) -> Result<CredentialListView, AppError> {
-    list_credentials_with_values(data_root, false)
-}
-
-pub fn list_credentials_with_values(
-    data_root: &Path,
-    include_values: bool,
-) -> Result<CredentialListView, AppError> {
     let vault = load_vault(data_root)?;
     Ok(CredentialListView {
         credentials: vault
             .credentials
             .iter()
-            .map(|(credential_ref, credential)| {
-                let mut view = metadata(credential_ref, credential);
-                if include_values {
-                    view.secret = Some(credential.secret.clone());
-                }
-                view
-            })
+            .map(|(credential_ref, credential)| metadata(credential_ref, credential))
             .collect(),
         revision: vault.revision,
     })
@@ -267,7 +251,21 @@ pub fn update_credential(
         input.expected_revision
     };
     let expected_credential_revision = input.expected_credential_revision;
-    mutate_vault(data_root, expected_vault_revision, move |vault| {
+    // 凭据库的修订号放到闭包里查：先 404（没有这条）、再 400（改种类是请求写错了）、最后 409。
+    mutate_vault(data_root, None, move |vault| {
+        let current_kind = vault
+            .credentials
+            .get(&credential_ref)
+            .map(|current| current.kind.clone())
+            .ok_or_else(|| AppError::not_found("credential reference not found"))?;
+        // 种类定了就不能改：被任务引用的凭据改了种类，重试时会 CREDENTIAL_KIND_MISMATCH。
+        // 带上同样的种类可以（前端更新时整份载荷带着 kind）。
+        if kind.as_deref().is_some_and(|kind| kind != current_kind) {
+            return Err(AppError::bad_request(
+                "credential kind cannot be changed; create a new credential instead",
+            ));
+        }
+        require_revision(vault, expected_vault_revision)?;
         let current = vault
             .credentials
             .get_mut(&credential_ref)
@@ -278,9 +276,6 @@ pub fn update_credential(
                 "CREDENTIAL_REVISION_CONFLICT",
                 "凭据已在其他窗口更新，请重新加载后再保存",
             ));
-        }
-        if let Some(value) = kind {
-            current.kind = value;
         }
         if let Some(value) = provider {
             current.provider = value;
@@ -490,7 +485,6 @@ fn metadata(credential_ref: &str, credential: &StoredCredential) -> CredentialMe
         revision: credential.revision,
         created_at: credential.created_at.clone(),
         updated_at: credential.updated_at.clone(),
-        secret: None,
     }
 }
 

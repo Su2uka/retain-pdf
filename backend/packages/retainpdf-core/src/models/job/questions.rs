@@ -109,15 +109,6 @@ impl JobRecord {
         self.model_connection().is_some()
     }
 
-    /// `connection` 和提交时冻结的翻译设置一致：模型、地址（忽略末尾的 `/`）、凭据、并发数。
-    pub fn matches_frozen_translation(&self, connection: &ModelConnection) -> bool {
-        let translation = &self.request_payload.translation;
-        connection.model == translation.model
-            && connection.base_url.trim_end_matches('/') == translation.base_url.trim_end_matches('/')
-            && connection.credential_ref == translation.credential_ref
-            && connection.concurrency as i64 == translation.workers
-    }
-
     // --- 排版 ---
 
     /// 整份排版设置，给要原样记下来的地方（例如快照）。
@@ -178,13 +169,11 @@ mod tests {
     }
 
     #[test]
-    fn frozen_translation_ignores_trailing_slash_only() {
+    fn model_connection_is_the_bound_execution_connection() {
         let mut job = job();
-        job.request_payload.translation.model = "deepseek-chat".to_string();
-        job.request_payload.translation.base_url = "https://api.example.test/v1/".to_string();
-        job.request_payload.translation.credential_ref = "cred-t".to_string();
-        job.request_payload.translation.workers = 8;
-        let mut connection = ModelConnection {
+        assert!(job.model_connection().is_none());
+        assert!(!job.uses_model_executor());
+        let connection = ModelConnection {
             id: "conn".to_string(),
             revision: 1,
             provider: Provider::Deepseek,
@@ -197,9 +186,8 @@ mod tests {
             allow_private_endpoint: false,
             deadlines: Deadlines::default(),
         };
-        assert!(job.matches_frozen_translation(&connection));
-        assert!(!job.uses_model_executor());
-        connection.concurrency = 4;
-        assert!(!job.matches_frozen_translation(&connection));
+        job.request_payload.translation.execution_connection = Some(connection.clone());
+        assert_eq!(Some(&connection), job.model_connection());
+        assert!(job.uses_model_executor());
     }
 }
