@@ -5,8 +5,8 @@ import { resolve } from "node:path";
 
 const jobStatus = JSON.parse(readFileSync(resolve("job-status.v1.schema.json"), "utf8"));
 const libraryBooks = JSON.parse(readFileSync(resolve("library-books.v1.schema.json"), "utf8"));
+// ArtifactDisplayItemView 只给书架单本用，2026-10-22 从 library-books 删了。
 const EXPECTED_SHARED_DEFINITIONS = [
-  "ArtifactDisplayItemView",
   "InvocationSummaryView",
   "JobFailureBriefView",
   "JobListInvocationSummaryView",

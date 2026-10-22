@@ -85,7 +85,7 @@ pub async fn document_translation_coverage(
         .map_err(|_| AppError::internal("translation coverage task failed"))?
 }
 
-/// POST（旧地址 GET）/collections/:id/agent-workspace：物化合集的 agent 工作区。多次范围翻译的书
+/// POST /collections/:id/agent-workspace（旧的 GET 2026-10-22 删了）：物化合集的 agent 工作区。多次范围翻译的书
 /// 链到阅读入口指的合并目录。编号不合格 400，合集不存在 404。
 pub async fn collection_agent_workspace(
     deps: &LibraryDeps<'_>,

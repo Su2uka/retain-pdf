@@ -19,7 +19,6 @@ pub mod sync;
 pub mod health;
 pub mod job_helpers;
 pub mod jobs;
-pub mod library;
 pub mod library_data;
 pub mod library_extras;
 pub mod model_requests;

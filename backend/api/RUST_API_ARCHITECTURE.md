@@ -525,12 +525,10 @@ routes/library*.rs, collections.rs
   负责 jobs 相关业务
 - [packages/retainpdf-library/src](../packages/retainpdf-library/src)
   负责图书馆域业务（见 2.3）
-- [packages/retainpdf-library/src/book_projection.rs](../packages/retainpdf-library/src/book_projection.rs)
-  负责 library books 投影（由 `library/books` 调用）
 - [../packages/retainpdf-files/src/artifacts/presentation.rs](../packages/retainpdf-files/src/artifacts/presentation.rs)
   只将 `ArtifactLinksView` 转为公共产物展示数据，通过文件包门面（`services::files`）的
-  导出供 book/job 投影共用；不读取 DB、任务状态或文件系统。
-  `jobs` 不能反向依赖 `book_projection`，公共展示也不能回调这些业务模块。
+  导出供任务投影用；不读取 DB、任务状态或文件系统，也不能回调任务、书库这些业务模块。
+  （书架投影 `book_projection` 2026-10-22 跟 `/library/books` 一起删了。）
 - [../packages/retainpdf-files/src/derived_artifacts](../packages/retainpdf-files/src/derived_artifacts)
   负责 cover/thumbnail/page preview 等派生产物（由 library media / jobs downloads 调用，**不**被 route 直连）
 

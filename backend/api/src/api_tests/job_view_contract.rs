@@ -288,7 +288,6 @@ async fn real_job_and_library_views_match_published_schemas() {
         &format!("/api/v1/jobs/{job_id}/progress/events?limit=20&start=head"),
     )
     .await;
-    let library_list = get_data(app, "/api/v1/library/books").await;
 
     let job_contract = contract("job-status.v1.schema.json");
     assert_definition(&job_list, &job_contract, "JobListView", "job_list");
@@ -344,12 +343,6 @@ async fn real_job_and_library_views_match_published_schemas() {
         "JobListView",
         "job_list (library contract)",
     );
-    assert_definition(
-        &library_list,
-        &library_contract,
-        "LibraryBookListView",
-        "library_list",
-    );
     assert_exact_object_keys(
         &job_list,
         &library_contract,
@@ -363,21 +356,6 @@ async fn real_job_and_library_views_match_published_schemas() {
         "job_list.items[0] (library contract)",
         &["failure"],
     );
-    assert_exact_object_keys(
-        &library_list,
-        &library_contract,
-        "LibraryBookListView",
-        "library_list",
-    );
-    assert_exact_object_keys(
-        &library_list["items"][0],
-        &library_contract,
-        "LibraryBookListItemView",
-        "library_list.items[0]",
-    );
-    // 书架列表项没有书时同样不给封面地址。
-    assert!(library_list["items"][0]["thumbnail_url"].is_null());
-    assert!(library_list["items"][0]["cover_url"].is_null());
 }
 
 /// `/files` 的返回对着契约核对。用文件出口快照那套夹具：有书、有登记过的产物，
@@ -536,16 +514,13 @@ async fn failed_job_list_item_failure_matches_published_schema() {
     }
 }
 
-/// 删任务的返回（新地址 `DELETE /jobs/:job_id` 和书架旧地址同一个类型）对着契约的
-/// `LibraryDeleteResultView` 核对键集合。以前书架删除的返回没有测试钉。
+/// 删任务的返回 `DELETE /jobs/:job_id` 对着契约的 `LibraryDeleteResultView` 核对键集合
+/// （书架删除的旧地址 2026-10-22 删了）。
 #[tokio::test]
 async fn job_delete_result_matches_published_schema() {
     let state = test_state("job-delete-contract");
     let library_contract = contract("library-books.v1.schema.json");
-    for (job_id, uri) in [
-        ("job-delete-contract-new", "/api/v1/jobs/job-delete-contract-new"),
-        ("job-delete-contract-old", "/api/v1/library/books/job-delete-contract-old"),
-    ] {
+    for (job_id, uri) in [("job-delete-contract-new", "/api/v1/jobs/job-delete-contract-new")] {
         let mut job = JobSnapshot::new(job_id.to_string(), CreateJobInput::default(), vec!["python".to_string()]);
         job.status = JobStatusKind::Succeeded;
         state.db.save_job(&job).expect("save job");

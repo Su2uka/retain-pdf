@@ -14,15 +14,14 @@ use retainpdf_api_base::error::AppError;
 use retainpdf_core::models::api::{
     CollectionRecord, ConversationRecord, MessageRecord,
 };
-use retainpdf_jobs::{JobSubmissionView, ListJobsQuery};
+use retainpdf_jobs::JobSubmissionView;
 use crate::views::{
     AddCollectionDocumentsInput, AppendMessageInput, ApplyDocumentMetadataSuggestionInput,
     CollectionListView, CollectionMutationResult, ConversationDetailView, ConversationListView,
     ConversationMutationResult, CreateCollectionInput, CreateConversationInput,
     CreateDocumentMetadataSuggestionInput, DocumentDeleteResultView, DocumentJobRequest,
     DocumentMetadataSuggestionApplyView, DocumentMetadataSuggestionListView,
-    DocumentMetadataSuggestionView, LibraryBookListView,
-    LibraryDeleteResultView, ListConversationsQuery, ListDocumentMetadataSuggestionsQuery,
+    DocumentMetadataSuggestionView, ListConversationsQuery, ListDocumentMetadataSuggestionsQuery,
     PatchCollectionInput, PatchConversationInput, SearchQuery, SearchResultView,
 };
 use retainpdf_jobs::JobsFacade;
@@ -31,39 +30,12 @@ use super::{
     add_collection_documents, append_message, apply_metadata_suggestion,
     create_collection, create_conversation,
     create_metadata_suggestion, delete_collection, delete_conversation,
-    book_delete_job_ids, delete_document, delete_library_book, document_delete_job_ids,
+    delete_document, document_delete_job_ids,
     document_files_view, get_conversation, list_collections,
-    list_conversations, list_library_books, list_metadata_suggestions,
+    list_conversations, list_metadata_suggestions,
     ocr_document, patch_collection, patch_conversation, remove_collection_document,
     search_blocks, translate_document, LibraryDeps,
 };
-
-// --- books ---
-
-pub fn list_library_books_view(
-    db: &retainpdf_data::db::Db,
-    data_root: &std::path::Path,
-    query: &ListJobsQuery,
-    base_url: &str,
-) -> Result<LibraryBookListView, AppError> {
-    list_library_books(db, data_root, query, base_url)
-}
-
-pub fn delete_library_book_view(
-    deps: &LibraryDeps<'_>,
-    job_id: &str,
-    force: bool,
-) -> Result<LibraryDeleteResultView, AppError> {
-    delete_library_book(deps, job_id, force)
-}
-
-/// 强制删除一本书前要先取消的任务(书本身 + `-ocr` 子任务)。
-pub fn book_delete_job_ids_view(
-    deps: &LibraryDeps<'_>,
-    job_id: &str,
-) -> Result<Vec<String>, AppError> {
-    book_delete_job_ids(deps, job_id)
-}
 
 // --- documents ---
 

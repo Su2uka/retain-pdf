@@ -218,11 +218,6 @@ ROUTE_SERVICE_IMPORT_ALLOWLIST = {
     Path("src/routes/public_document_operations.rs"): (
         "crate::services::ai",
     ),
-    Path("src/routes/library.rs"): (
-        "crate::services::library",
-        # 书架按任务编号取封面、缩略图：和任务文件同一个出口。
-        "crate::services::jobs::{Disposition, JobFile}",
-    ),
     # Library thick routes migrate to library_api in PR2–PR5; allowlist is
     # ready so partial moves do not require revisiting this file each PR.
     Path("src/routes/library_data.rs"): (
@@ -358,7 +353,6 @@ OCR_FLOW_ALLOWED_RAW_TOKEN_FILES = {
 DOWNLOADS_ROOT = Path("src/services/jobs/files/downloads")
 STAGE_VIEW_CONSUMER_ROOTS = (
     Path("src/services/jobs/presentation"),
-    Path("src/services/library/book_projection"),
 )
 WORKER_COMMAND_FACADE = abs_src(Path("src/worker_command.rs"))
 
@@ -766,8 +760,6 @@ def check_service_model_facade_boundaries(errors: list[str]) -> None:
         abs_src(Path("src/services/jobs/support.rs")),
         abs_src(Path("src/services/library")),
         abs_src(Path("src/services/library/api.rs")),
-        abs_src(Path("src/services/library/book_projection")),
-        abs_src(Path("src/services/library/book_projection.rs")),
     )
     for root in scoped_roots:
         paths = [root] if root.is_file() else scan_rs_files(root)
@@ -957,16 +949,7 @@ def check_job_persist_deps_usage(errors: list[str]) -> None:
 
 
 def check_shared_artifact_presentation(errors: list[str]) -> None:
-    for path in scan_logical(Path("src/services")):
-        if path.stem == "tests" or path.stem.endswith("_tests"):
-            continue
-        relative = rel(path)
-        text = rust_boundary_source(path)
-        if is_rust_module_path(relative, Path("src/services/jobs")):
-            if re.search(r"\bbook_projection\b", text):
-                errors.append(
-                    f"{relative}: jobs must not depend on book_projection; shared display belongs in services::files::artifacts"
-                )
+    # 书库包的书架投影（book_projection）2026-10-22 跟书架接口一起删了，「任务不许依赖它」那两条规则也删了。
     # 产物的展示（列表里每一项叫什么、链接）在文件包 retainpdf-files 的 artifacts/presentation。
     files_root = extracted_domain_root("files")
     for path in scan_rs_files(files_root / "src"):
@@ -986,8 +969,6 @@ def check_shared_artifact_presentation(errors: list[str]) -> None:
             for token in PROVIDER_RAW_INTERNAL_TOKENS:
                 if token in route_source_without_tests(path):
                     errors.append(f"{relative}: shared artifact presentation must not interpret provider raw token '{token}'")
-    if (abs_src(Path("src/services/library/book_projection/artifacts.rs"))).exists():
-        errors.append("services/library/book_projection/artifacts.rs: shared artifact display belongs in retainpdf-files src/artifacts/presentation.rs")
 
 
 def check_runtime_deps_module_boundary(errors: list[str]) -> None:
@@ -1111,7 +1092,6 @@ def check_stage_view_projection_boundary(errors: list[str]) -> None:
     allowed = {
         Path("src/services/jobs/presentation/detail_projection.rs"),
         Path("src/services/jobs/presentation/listing.rs"),
-        Path("src/services/library/book_projection/live.rs"),
     }
     forbidden_tokens = (
         "public_stage_for_raw_stage(",
@@ -1124,7 +1104,7 @@ def check_stage_view_projection_boundary(errors: list[str]) -> None:
         for path in scan_rs_files(abs_src(root)):
             rel_path = rel(path)
             text = route_source_without_tests(path)
-            if "JobDetailView" not in text and "JobListItemView" not in text and "BookLiveProjection" not in text:
+            if "JobDetailView" not in text and "JobListItemView" not in text:
                 continue
             if rel_path not in allowed:
                 continue
@@ -1142,7 +1122,6 @@ def check_stage_view_projection_boundary(errors: list[str]) -> None:
 def check_job_readiness_boundary(errors: list[str]) -> None:
     scoped_roots = (
         abs_src(Path("src/services/jobs/presentation")),
-        abs_src(Path("src/services/library/book_projection")),
     )
     for root in scoped_roots:
         for path in scan_rs_files(root):
@@ -1846,7 +1825,6 @@ def check_request_payload_access(errors: list[str]) -> None:
 # 这里登记的是规则要求"不许存在"的路径，不算。
 RULE_PATHS_MUST_NOT_EXIST = {
     Path("src/services/jobs/lifecycle/creation/context.rs"),
-    Path("src/services/library/book_projection/artifacts.rs"),
 }
 RULE_SOURCE = Path(__file__).resolve()
 

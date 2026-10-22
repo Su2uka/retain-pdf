@@ -15,9 +15,6 @@ crate::endpoints! {
     DELETE "/api/v1/collections/:collection_id" => collections::delete_collection_route, signed;
     /// 物化合集的 Agent 工作区（会重建磁盘目录；多用户下关闭）
     POST "/api/v1/collections/:collection_id/agent-workspace" => collections::collection_agent_workspace_route, closed;
-    /// GET 会改磁盘，换成了 POST
-    GET "/api/v1/collections/:collection_id/agent-workspace" => collections::collection_agent_workspace_route, closed
-        old "/api/v1/collections/:collection_id/agent-workspace";
     /// 往合集里加书
     POST "/api/v1/collections/:collection_id/documents" => collections::add_collection_documents_route, signed;
     /// 从合集里拿掉一本书

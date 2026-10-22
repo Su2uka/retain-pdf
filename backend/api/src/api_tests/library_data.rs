@@ -1242,10 +1242,11 @@ async fn collections_crud_and_document_membership_roundtrip() {
 }
 
 #[tokio::test]
-async fn library_books_job_ids_filter_returns_only_requested_jobs() {
+async fn jobs_job_ids_filter_returns_only_requested_jobs() {
+    // 原来钉的是书架 `GET /library/books?job_ids=`（2026-10-22 删了），前端改调的是任务列表。
     use crate::models::{CreateJobInput, JobSnapshot};
 
-    let state = test_state("library-books-job-ids");
+    let state = test_state("jobs-job-ids-filter");
     for job_id in ["job-alpha", "job-beta", "job-gamma"] {
         let job = JobSnapshot::new(
             job_id.to_string(),
@@ -1260,7 +1261,7 @@ async fn library_books_job_ids_filter_returns_only_requested_jobs() {
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/api/v1/library/books?job_ids=job-alpha,job-gamma")
+                .uri("/api/v1/jobs?job_ids=job-alpha,job-gamma")
                 .header("X-API-Key", "test-key")
                 .body(Body::empty())
                 .expect("request"),
@@ -1284,7 +1285,7 @@ async fn library_books_job_ids_filter_returns_only_requested_jobs() {
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/api/v1/library/books")
+                .uri("/api/v1/jobs")
                 .header("X-API-Key", "test-key")
                 .body(Body::empty())
                 .expect("request"),
@@ -2027,7 +2028,7 @@ async fn deleting_a_job_reconciles_document_active_job() {
         .oneshot(
             Request::builder()
                 .method("DELETE")
-                .uri("/api/v1/library/books/job-b")
+                .uri("/api/v1/jobs/job-b")
                 .header("X-API-Key", "test-key")
                 .body(Body::empty())
                 .expect("request"),
@@ -2047,7 +2048,7 @@ async fn deleting_a_job_reconciles_document_active_job() {
         .oneshot(
             Request::builder()
                 .method("DELETE")
-                .uri("/api/v1/library/books/job-a")
+                .uri("/api/v1/jobs/job-a")
                 .header("X-API-Key", "test-key")
                 .body(Body::empty())
                 .expect("request"),
@@ -2472,7 +2473,7 @@ async fn get_json(app: &axum::Router, uri: &str) -> serde_json::Value {
 #[tokio::test]
 async fn cards_and_job_lists_show_the_document_title_not_the_upload_file_name() {
     // 书籍详情显示文档标题（会被元数据建议自动改名、或用户手改）；书架卡片和任务列表原来
-    // 显示的是上传文件名，两边对不上。
+    // 显示的是上传文件名，两边对不上。书架列表 2026-10-22 删了，书卡现在用任务列表。
     let state = test_state("library-card-title-follows-document");
     let app = build_app(state.clone());
     let document_id = seed_document(&state, b"card-title-follows-document");
@@ -2484,12 +2485,6 @@ async fn cards_and_job_lists_show_the_document_title_not_the_upload_file_name() 
     state.db.save_job(&job).unwrap();
     state.db.link_job_to_document("job-titled", &upload.upload_id).unwrap();
     state.db.update_document_fields(&document_id, Some("自动识别出的论文标题"), None).unwrap();
-
-    let books = get_json(&app, "/api/v1/library/books").await;
-    let book = books["data"]["items"].as_array().unwrap().iter().find(|item| item["job_id"] == "job-titled").expect("book item");
-    assert_eq!(book["title"], "自动识别出的论文标题", "书架卡片还是文件名");
-    assert_eq!(book["display_name"], "自动识别出的论文标题");
-    assert_eq!(book["source_file_name"], "光谱综述.pdf", "原始文件名仍要保留");
 
     let jobs = get_json(&app, "/api/v1/jobs").await;
     let listed = jobs["data"]["items"].as_array().unwrap().iter().find(|item| item["job_id"] == "job-titled").expect("job item");
@@ -2513,9 +2508,9 @@ async fn a_job_without_a_document_still_falls_back_to_the_upload_file_name() {
     job.upload_id = Some(upload.upload_id.clone());
     job.sync_runtime_state();
     state.db.save_job(&job).unwrap();
-    let books = get_json(&app, "/api/v1/library/books").await;
-    let book = books["data"]["items"].as_array().unwrap().iter().find(|item| item["job_id"] == "job-untitled").expect("book item");
-    assert_eq!(book["title"], "光谱综述.pdf");
+    let jobs = get_json(&app, "/api/v1/jobs").await;
+    let listed = jobs["data"]["items"].as_array().unwrap().iter().find(|item| item["job_id"] == "job-untitled").expect("job item");
+    assert_eq!(listed["display_name"], "光谱综述.pdf");
 }
 
 /// 书库列表带 `has_translation`：有没有任何成功的、带译文（非纯 OCR）的任务。

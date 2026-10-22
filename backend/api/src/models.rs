@@ -53,8 +53,7 @@ pub mod api {
         CreateDocumentMetadataSuggestionInput, DeleteDocumentQuery, DocumentDeleteResultView,
         DocumentJobRequest, DocumentListView, DocumentMetadataEvidenceView, DocumentMetadataSuggestionApplyView,
         DocumentMetadataSuggestionListView, DocumentMetadataSuggestionView, DocumentTitleCandidateView,
-        ForkConversationInput, ForkMessageInput, LibraryBookListItemView,
-        LibraryBookListView, LibraryDeleteQuery, LibraryDeleteResultView, ListConversationsQuery,
+        ForkConversationInput, ForkMessageInput, ListConversationsQuery,
         ListDocumentMetadataSuggestionsQuery, ListDocumentsQuery, PatchCollectionInput,
         PatchConversationInput, PatchDocumentInput, SearchQuery, SearchResultView,
     };

@@ -104,7 +104,7 @@ pub struct ListJobsQuery {
     pub owner: Option<String>,
 }
 
-/// `DELETE /api/v1/jobs/:job_id` 的查询参数（书架删除 `DELETE /library/books/:job_id` 是它的旧地址）。
+/// `DELETE /api/v1/jobs/:job_id` 的查询参数（书架删除的旧地址 `DELETE /library/books/:job_id` 2026-10-22 删了）。
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct DeleteJobQuery {
     /// 运行中的任务先取消再删；别的任务还在用它的产物也照删。
@@ -112,7 +112,7 @@ pub struct DeleteJobQuery {
     pub force: bool,
 }
 
-/// 删一个任务的结果：任务本身 + 删掉的 `-ocr` 子任务。书架删除的返回 `LibraryDeleteResultView` 是同一个类型。
+/// 删一个任务的结果：任务本身 + 删掉的 `-ocr` 子任务。契约 `library-books.v1` 里叫 `LibraryDeleteResultView`（前端用这个名字）。
 #[derive(Debug, Serialize)]
 pub struct JobDeleteResultView {
     pub deleted: bool,

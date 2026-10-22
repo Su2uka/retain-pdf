@@ -118,9 +118,9 @@ def benchmark(root):
 
 def benchmark_lists():
     report = {}
-    for name, path in [("jobs_100", "/api/v1/jobs?limit=100"), ("library_100", "/api/v1/library/books?limit=100"),
-                       ("jobs_500", "/api/v1/jobs?limit=500"), ("library_500", "/api/v1/library/books?limit=500"),
-                       ("library_search_beyond_10000", "/api/v1/library/books?q=acceptance-needle-beyond-10000&limit=100")]:
+    # 书架 /api/v1/library/books 2026-10-22 删了，书卡改用任务列表，这里只量任务列表。
+    for name, path in [("jobs_100", "/api/v1/jobs?limit=100"), ("jobs_500", "/api/v1/jobs?limit=500"),
+                       ("jobs_search_beyond_10000", "/api/v1/jobs?q=acceptance-needle-beyond-10000&limit=100")]:
         samples = []
         for _ in range(15):
             page, elapsed, size = data(path)

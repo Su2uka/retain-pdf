@@ -142,18 +142,3 @@ async fn jobs_list_q_filters_by_id_and_is_case_insensitive() {
     assert_eq!(body["data"]["items"].as_array().unwrap().len(), 1);
     assert_eq!(body["data"]["has_more"], true);
 }
-
-#[tokio::test]
-async fn library_books_job_ids_ignores_the_limit_bound() {
-    // 前端按书架批量取书：`job_ids=<n 个>&limit=<n>`，n 可以超过 500，仍然是 200。
-    let state = test_state("library-books-job-ids-limit");
-    save_plain_jobs(&state, 3);
-    let ids: Vec<String> = (0..501).map(|index| format!("job-page-{index:04}")).collect();
-    let uri = format!(
-        "/api/v1/library/books?job_ids={}&limit=501&include_live_stage=false",
-        ids.join(",")
-    );
-    let (status, body) = get_json(&state, &uri).await;
-    assert_eq!(status, StatusCode::OK, "{body}");
-    assert_eq!(body["data"]["items"].as_array().unwrap().len(), 3);
-}

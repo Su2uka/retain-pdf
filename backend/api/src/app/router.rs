@@ -21,7 +21,6 @@ mod sync;
 mod ingestion;
 mod internal_agent;
 mod jobs;
-mod library;
 mod model_requests;
 mod providers;
 mod public;
@@ -39,7 +38,6 @@ pub(crate) fn registered_endpoints() -> Vec<crate::app::endpoints::Endpoint> {
     tables.extend(jobs::endpoints());
     tables.extend([
         documents::ENDPOINTS,
-        library::ENDPOINTS,
         collections::ENDPOINTS,
         glossaries::ENDPOINTS,
         fonts::ENDPOINTS,
@@ -118,7 +116,6 @@ fn authenticated_api_routes(state: &AppState) -> Router<AppState> {
         .merge(ai::routes())
         .merge(collections::routes())
         .merge(internal_agent::routes())
-        .merge(library::routes())
         .merge(jobs::routes())
         .merge(providers::routes())
         .merge(fonts::routes())

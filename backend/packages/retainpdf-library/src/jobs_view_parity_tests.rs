@@ -1,4 +1,4 @@
-//! 书库视图和任务视图要对得上的测试。原来写在任务领域的事件流、下载测试里；任务拆成包以后，
+//! 书库视图和任务视图要对得上的测试（书架列表 2026-10-22 删了，只剩文档的任务列表和书的封面）。原来写在任务领域的事件流、下载测试里；任务拆成包以后，
 //! 任务包引用不到书库（书库依赖任务），挪到这里，测试内容不变。临时库、假渲染器从任务包的
 //! `test-fixtures` 特性取。
 
@@ -15,10 +15,7 @@ use retainpdf_jobs::{
     Disposition, DownloadFixture, EventFeedFixture, DOWNLOAD_FIXTURE_JOB_ID,
 };
 
-use super::{
-    build_library_book_list_view, open_document_file, DocumentFile,
-    LibraryDeps,
-};
+use super::{open_document_file, DocumentFile, LibraryDeps};
 
 #[test]
 fn summary_lists_skip_cold_history_without_changing_default_live_reads() {
@@ -35,9 +32,7 @@ fn summary_lists_skip_cold_history_without_changing_default_live_reads() {
         serde_json::from_value(json!({"include_live_stage":false})).unwrap();
     let bytes = jsonl_bytes_read();
     let jobs = build_job_list_view(&fs.db, &fs.root, &summary, "http://test").unwrap();
-    let books = build_library_book_list_view(&fs.db, &fs.root, &summary, "http://test").unwrap();
     assert_eq!(jobs.items.len(), 1);
-    assert_eq!(books.items.len(), 1);
     assert_eq!(jobs.items[0].status, JobStatusKind::Running);
     assert!(fs.db.load_event_feed("owner").unwrap().is_none());
     assert_eq!(
@@ -61,7 +56,7 @@ fn summary_lists_skip_cold_history_without_changing_default_live_reads() {
 }
 
 #[test]
-fn task_document_and_library_lists_keep_live_progress_and_background_stage_parity() {
+fn task_and_document_lists_keep_live_progress_and_background_stage_parity() {
 
     let fs = EventFeedFixture::new("batch-list-view-parity");
     fs.job("owner", None);
@@ -87,7 +82,6 @@ fn task_document_and_library_lists_keep_live_progress_and_background_stage_parit
         let doc =
             build_document_job_list_view(&fs.db, &fs.root, "document", &doc_query, "http://test")
                 .unwrap();
-        let books = build_library_book_list_view(&fs.db, &fs.root, &query, "http://test").unwrap();
         let task = serde_json::to_value(
             jobs.items
                 .iter()
@@ -102,15 +96,9 @@ fn task_document_and_library_lists_keep_live_progress_and_background_stage_parit
                 .unwrap(),
         )
         .unwrap();
-        let book = books
-            .items
-            .iter()
-            .find(|item| item.job_id == "owner")
-            .unwrap();
         assert_eq!(task, doc_task, "document listing shares the same task view");
         assert_eq!(task["stage_snapshot"]["progress"]["current"], expected);
         assert_eq!(task["background_snapshots"].as_array().unwrap().len(), 1);
-        assert_eq!(book.progress.current, Some(expected));
         assert!(fs.fast("owner"));
     }
 }

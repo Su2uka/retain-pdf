@@ -9,7 +9,8 @@
 - `backend/api/examples/query_acceptance.rs`：真实 `build_state` / `build_app`
   HTTP 服务，release 构建；新建隔离数据库，不启动 worker 或服务监督。
 - `backend/api/scripts/query_acceptance.py`：真实 HTTP 查询、正确性断言、计时，
-  以及只允许 GET 的本地网页代理。不伪造 API 结果。
+  以及只允许 GET 的本地网页代理。不伪造 API 结果。（书架 `/library/books` 2026-10-22 删了，脚本的列表压测
+  改成只量 `/jobs`，搜索那项改测 `/jobs?q=`；下面记的书架数字是当时的结果。）
 - `backend/api/scripts/test_query_acceptance.py`：统计计算、目录和夹具写入范围检查。
 
 在仓库根目录、终端 A 执行：

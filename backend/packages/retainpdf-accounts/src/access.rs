@@ -114,7 +114,7 @@ mod tests {
     #[test]
     fn references_in_query_and_body() {
         assert_eq!(
-            query_references("/api/v1/library/books", "job_ids=a,%20b,&limit=5&q=job_id"),
+            query_references("/api/v1/jobs", "job_ids=a,%20b,&limit=5&q=job_id"),
             vec![(OwnedKind::Job, "a".into()), (OwnedKind::Job, "b".into())]
         );
         let body = serde_json::json!({

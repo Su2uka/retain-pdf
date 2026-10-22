@@ -1,7 +1,7 @@
 //! 删一个任务（`DELETE /api/v1/jobs/:job_id`）：任务本身 + 它的 `-ocr` 子任务，书（文档行、上传、原文）留着。
 //!
-//! 2026-10-19 从书库包的书架删除（`DELETE /library/books/:job_id`）挪过来，书架删除现在是它的旧地址，
-//! 调的也是这里（只多一条「OCR 任务不算书 → 404」）。整本删除（`DELETE /documents/:id`）用这里的
+//! 2026-10-19 从书库包的书架删除（`DELETE /library/books/:job_id`）挪过来；书架删除那个旧地址 2026-10-22 删了。
+//! 整本删除（`DELETE /documents/:id`）用这里的
 //! 校验和删目录。强删前先取消 runner 由路由经任务门面 `cancel_before_delete` 做，再调 [`JobDeletion::delete`]。
 
 use std::path::{Path, PathBuf};
@@ -38,8 +38,8 @@ impl<'a> JobDeletion<'a> {
         self.scope_ids(job)
     }
 
-    /// 已经读出来的任务的删除范围编号（书架旧地址自己先查「是不是书」，再用这个）。
-    pub fn scope_ids(&self, job: JobSnapshot) -> Result<Vec<String>, AppError> {
+    /// 已经读出来的任务的删除范围编号。
+    fn scope_ids(&self, job: JobSnapshot) -> Result<Vec<String>, AppError> {
         Ok(self.scope(job)?.into_iter().map(|job| job.job_id.clone()).collect())
     }
 
@@ -52,7 +52,7 @@ impl<'a> JobDeletion<'a> {
     /// 删一个已经读出来的任务和它的 `-ocr` 子任务。
     ///
     /// 不带 `force`：范围内有排队 / 运行中的任务 409；别的任务还要用范围内任务的产物 409 + `job_has_dependents`。
-    pub fn delete_loaded(&self, job: JobSnapshot, force: bool) -> Result<JobDeleteResultView, AppError> {
+    fn delete_loaded(&self, job: JobSnapshot, force: bool) -> Result<JobDeleteResultView, AppError> {
         let job_id = job.job_id.clone();
         let jobs = self.scope(job)?;
         for job in &jobs {
