@@ -119,6 +119,7 @@ export function createLibraryController({
     getDocumentByJobId: jobActions.getDocumentByJobId,
     getJobStageActions: jobActions.getJobStageActions,
     retryJobStage: jobActions.retryJobStage,
+    resumeJob: jobActions.resumeJob,
     cancelJob: jobActions.cancelJob,
     deleteDocument: deleteActions.deleteDocument,
     deleteDocuments: deleteActions.deleteDocuments,

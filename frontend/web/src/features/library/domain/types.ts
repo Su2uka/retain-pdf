@@ -217,6 +217,8 @@ export type LibraryController = {
     stage?: string | null,
     payload?: Record<string, unknown>,
   ) => Promise<JobSubmissionView | null>;
+  /** 从断点继续（POST /jobs/:id/actions/resume），回执 promote 到详情 payload。 */
+  resumeJob: (jobId?: string | null) => Promise<JobSubmissionView | null>;
   /** 取消文档下的任务（workflow==="ocr" 走 OCR cancel 端点，其余走通用 cancel）。 */
   cancelJob: (jobId?: string | null, workflow?: string | null) => Promise<unknown>;
   deleteDocument: (documentId?: string | null) => Promise<void>;
@@ -268,6 +270,7 @@ export type LibraryActions = RecentJobActions & {
   getDocumentByJobId: LibraryController["getDocumentByJobId"];
   getJobStageActions: LibraryController["getJobStageActions"];
   retryJobStage: LibraryController["retryJobStage"];
+  resumeJob: LibraryController["resumeJob"];
   cancelJob: LibraryController["cancelJob"];
   deleteDocument: LibraryController["deleteDocument"];
   deleteDocuments: LibraryController["deleteDocuments"];

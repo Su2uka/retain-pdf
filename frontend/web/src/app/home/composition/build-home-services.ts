@@ -79,6 +79,7 @@ export function buildHomeServices({
       getDocumentByJobId: library.libraryController.getDocumentByJobId,
       getJobStageActions: library.libraryController.getJobStageActions,
       retryJobStage: library.libraryController.retryJobStage,
+      resumeJob: library.libraryController.resumeJob,
       cancelJob: library.libraryController.cancelJob,
       deleteDocument: library.libraryController.deleteDocument,
       deleteDocuments: library.libraryController.deleteDocuments,

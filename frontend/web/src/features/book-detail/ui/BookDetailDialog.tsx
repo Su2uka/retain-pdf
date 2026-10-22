@@ -171,6 +171,8 @@ export function BookDetailDialog() {
     open,
     job: latestTranslation,
     onJobSubmitted: documentJobs.upsert,
+    // 走书库动作：回执会 promote 到详情 payload，左栏和进度区跟上新任务。
+    resumeJob: actions?.resumeJob,
   });
   const artifactCenter = useBookDetailArtifactCenter({
     active: open,
