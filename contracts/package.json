@@ -13,6 +13,10 @@
       "types": "./dist/create-job-fields.d.ts",
       "import": "./dist/create-job-fields.js"
     },
+    "./job-actions": {
+      "types": "./dist/job-actions.d.ts",
+      "import": "./dist/job-actions.js"
+    },
     "./job-data": {
       "types": "./dist/job-data.d.ts",
       "import": "./dist/job-data.js"
@@ -20,6 +24,10 @@
     "./job-events": {
       "types": "./dist/job-events.d.ts",
       "import": "./dist/job-events.js"
+    },
+    "./job-reports": {
+      "types": "./dist/job-reports.d.ts",
+      "import": "./dist/job-reports.js"
     },
     "./job-status": {
       "types": "./dist/job-status.d.ts",
@@ -53,9 +61,11 @@
     "./agent-calculation.v1.schema.json": "./agent-calculation.v1.schema.json",
     "./ai-conversations.v1.schema.json": "./ai-conversations.v1.schema.json",
     "./create-job.v1.schema.json": "./create-job.v1.schema.json",
+    "./job-actions.v1.schema.json": "./job-actions.v1.schema.json",
     "./job-data.v1.schema.json": "./job-data.v1.schema.json",
     "./job-status.v1.schema.json": "./job-status.v1.schema.json",
     "./job-events.v2.schema.json": "./job-events.v2.schema.json",
+    "./job-reports.v1.schema.json": "./job-reports.v1.schema.json",
     "./jobs-control.v1.schema.json": "./jobs-control.v1.schema.json",
     "./library-books.v1.schema.json": "./library-books.v1.schema.json",
     "./library-documents.v1.schema.json": "./library-documents.v1.schema.json",

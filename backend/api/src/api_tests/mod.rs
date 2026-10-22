@@ -21,6 +21,7 @@ mod golden_replay;
 mod health;
 mod http_contract;
 mod isolation;
+mod job_actions_reports_contract;
 mod job_view_contract;
 mod job_data;
 mod job_loading_errors;

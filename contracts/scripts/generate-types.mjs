@@ -13,6 +13,11 @@ const TARGETS = [
     rootName: "CreateJobSchema",
   },
   {
+    input: "job-actions.v1.schema.json",
+    output: "src/job-actions.ts",
+    rootName: "JobActionsSchema",
+  },
+  {
     input: "job-data.v1.schema.json",
     output: "src/job-data.ts",
     rootName: "JobDataSchema",
@@ -21,6 +26,11 @@ const TARGETS = [
     input: "job-events.v2.schema.json",
     output: "src/job-events.ts",
     rootName: "JobEventsSchema",
+  },
+  {
+    input: "job-reports.v1.schema.json",
+    output: "src/job-reports.ts",
+    rootName: "JobReportsSchema",
   },
   {
     input: "job-status.v1.schema.json",

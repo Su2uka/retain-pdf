@@ -347,7 +347,7 @@ fn sample(schema: &Value, contract: &Value) -> Value {
     }
 }
 
-fn assert_request_fields_match<T: DeserializeOwned>(contract: &Value, name: &str) {
+pub(super) fn assert_request_fields_match<T: DeserializeOwned>(contract: &Value, name: &str) {
     let schema = definition(contract, name);
     assert_eq!(schema["additionalProperties"], false, "{name} 在 Rust 里是 deny_unknown_fields，契约要写 additionalProperties: false");
     assert_eq!(rust_field_names::<T>(name), schema_keys(contract, name), "{name}：Rust 认的字段和契约对不上");
