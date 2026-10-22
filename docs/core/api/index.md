@@ -12,7 +12,10 @@
 - 健康检查：`GET /health`
 - 就绪检查：`GET /ready`
 - 业务前缀：`/api/v1`
-- 除 `GET /health` 外，业务 API 默认需要 `X-API-Key`
+- 除下面这些外，接口都要 `X-API-Key`：`GET /health`、`GET /ready`；登录注册（`GET /api/v1/auth/session`、
+  `POST /api/v1/auth/login`、`POST /api/v1/auth/register`）；模型执行器的三个内部接口
+  `/api/v1/internal/model/jobs/{job_id}/requests…`（凭任务的能力令牌，见
+  [runtime-and-events](../../../backend/api/docs/api-spec/runtime-and-events.md#model-executor-worker-routes)）
 
 成功响应：
 
@@ -41,11 +44,33 @@
 - `40900`：状态冲突
 - `42900`：模型或外部服务限流
 - `50200`：模型或外部服务失败
+- `50300`：服务没就绪（`GET /ready` 不就绪时，2026-10-22 起；以前 503 时信封仍是 `0`）
 - `50000`：内部错误。原因不回给调用方（底层报错里常带服务器路径、SQL、上游返回），`message` 是
   `internal server error (ref <编号>)`，`error.details.error_id` 是同一个编号；拿编号去后端日志里搜
   `error_id=<编号>` 就能找到完整原因。
 
 `X-API-Key` 是访问 Rust API 的后端白名单 key，不是 OCR Provider token，也不是模型 API key。
+
+### 健康和就绪
+
+两个都不要密钥，第二个端口上也有。
+
+`GET /health`（进程活着）总是 `200`，`data`：
+
+| 字段 | 说明 |
+|---|---|
+| `status` | `up`；任务库 ping 不通是 `degraded` |
+| `db` | `ok` / `error`，同一个检查 |
+| `queue_depth`、`running_jobs` | 排队、在跑的任务数。读不出来时是 `null`（2026-10-22 以前当 `0`，看着像空闲） |
+| `provider_backends` | 这个版本支持的 OCR 服务商 |
+| `ai_service`、`jobsd` | 监督器的状态：`starting`、`healthy`、`unhealthy`、`unsupervised` |
+| `time` | 服务器时间 |
+
+`GET /ready`（能接请求了）就绪 `200`，不就绪 `503`。**看 HTTP 状态码**（Docker 用 `curl -f`，开发栈等 2xx）。
+`data` 是 `status`（`ready` / `not_ready`）、`components`（`db` 总是必需；AI 服务、jobsd 只在本进程监督它们时必需，
+否则 `status` 是 `not_required`）、`reasons`（`db_unavailable`、`ai_service_not_healthy`、`jobsd_not_healthy`）、`time`。
+不就绪时信封是 `code: 50300`、`message: "not ready"`，带 `error`（`SERVICE_UNAVAILABLE`，`details.reasons` 和 `data.reasons`
+一样），`data` 照旧给全；2026-10-22 以前 503 时信封仍是 `code: 0`、`message: "ok"`。
 
 ## 2. 推荐前端接入路径
 
@@ -233,8 +258,11 @@ Reader 宿主接入 job/artifact、Markdown、区域、页面元数据和实时�
 `provider timeout`，空闲超时是 `no output for {N}s`。
 
 推荐先通过 `POST /api/v1/credentials` 创建 `translation_api_key` 凭据，再把返回的
-`credential_ref` 放进任务。`GET /api/v1/credentials` 和任务详情只返回元数据，
-不会返回凭据值。`translation.api_key` 仍是兼容输入，但不能和 `credential_ref`
+`credential_ref` 放进任务。凭据接口和任务详情只返回元数据，任何接口都不回凭据值
+（`GET /api/v1/credentials` 以前的 `?include_values=true` 会回全部明文，2026-10-22 删了，
+现在带任何查询参数都是 `400`）。`PUT` 不能改凭据的 `kind`（带同样的值可以，换种类 `400`）；
+凭据接口的三种 `409` 带 `error.details.reason`。建任务时内联的密钥会被导入成托管凭据，
+什么时候清见 [凭据规范](../../../backend/api/docs/api-spec/credentials.md#when-credentials-imported-by-job-creation-are-removed)。`translation.api_key` 仍是兼容输入，但不能和 `credential_ref`
 同时提交，也不应作为新客户端的持久化方案。
 
 `ocr.options` 只放客户端可填的提供方选项。只能服务器定的——本地 / 命令型 OCR 要执行的 `command`、

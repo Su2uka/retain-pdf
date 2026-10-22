@@ -45,7 +45,6 @@ pub(crate) fn registered_endpoints() -> Vec<crate::app::endpoints::Endpoint> {
         backups::ENDPOINTS,
         ai::ENDPOINTS,
         internal_agent::ENDPOINTS,
-        model_requests::launcher::ENDPOINTS,
         model_requests::worker::ENDPOINTS,
         terminal::ENDPOINTS,
     ]);
@@ -119,7 +118,6 @@ fn authenticated_api_routes(state: &AppState) -> Router<AppState> {
         .merge(jobs::routes())
         .merge(providers::routes())
         .merge(fonts::routes())
-        .merge(model_requests::launcher::routes())
         .method_not_allowed_fallback(method_not_allowed)
         // 先挂的在里层、后跑：先认证（require_api_key），再看能不能访问（enforce_access）。
         .route_layer(middleware::from_fn_with_state(

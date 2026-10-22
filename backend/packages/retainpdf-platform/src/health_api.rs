@@ -38,8 +38,10 @@ impl<'a> HealthApiDeps<'a> {
 pub struct HealthView {
     pub status: &'static str,
     pub db: &'static str,
-    pub queue_depth: i64,
-    pub running_jobs: i64,
+    /// 排队的任务数。库读不出来时是 `null`（以前当 0，看着像「空闲」）。
+    pub queue_depth: Option<i64>,
+    /// 在跑的任务数。库读不出来时是 `null`。
+    pub running_jobs: Option<i64>,
     pub provider_backends: Vec<String>,
     pub ai_service: &'static str,
     pub jobsd: &'static str,
@@ -75,14 +77,8 @@ impl ReadinessView {
 
 pub fn build_health_view(deps: &HealthApiDeps<'_>) -> HealthView {
     let db_ok = deps.db.ping().is_ok();
-    let queued = deps
-        .db
-        .count_jobs_with_status(&JobStatusKind::Queued)
-        .unwrap_or(0);
-    let running = deps
-        .db
-        .count_jobs_with_status(&JobStatusKind::Running)
-        .unwrap_or(0);
+    let queued = deps.db.count_jobs_with_status(&JobStatusKind::Queued).ok();
+    let running = deps.db.count_jobs_with_status(&JobStatusKind::Running).ok();
     HealthView {
         status: if db_ok { "up" } else { "degraded" },
         db: if db_ok { "ok" } else { "error" },

@@ -60,6 +60,7 @@ Rust API 接口太多、太散，"牵一发动全身"。这里按日期记录整
 | 2026-10-16 | [任务问答方法实现记录](./20261016-任务问答方法实现记录.md) | 读任务请求改成问 `job.source_job_id()` 这样的方法；只有 6 个生成、改写请求的模块还直接动字段，名单冻结 |
 | 2026-10-16 | [领域门面实现记录](./20261016-领域门面实现记录.md) | services 35 个顶层模块分进 9 个领域目录；每个领域的 `mod.rs` 是唯一的门面，子模块私有；领域之间只能往下依赖 |
 | 2026-10-22 | [删书架旧地址](./20261022-删书架旧地址.md) | 前端改调以后删 `GET /library/books`、`DELETE /library/books/:job_id`（都 404）和合集工作区的 GET（405）；书库包的书架列表、书架投影、`LibraryBookListView`、`LibraryDeleteQuery` 一起删；契约 `library-books.v1` 删书架端点和 `LibraryBook*View`、`ListLibraryBooksQuery`、`ArtifactDisplayItemView`，留任务列表类型和 `LibraryDeleteResultView`；调用方核对和用量 |
+| 2026-10-22 | [凭据不回明文与内部接口](./20261022-凭据不回明文与内部接口.md) | `GET /credentials?include_values=true` 删掉（400），视图去掉 `secret`；凭据接口进阻塞线程、409 带 `reason`、查询拒绝不认识的参数、`PUT` 换 `kind` 400；模型执行器内部接口报错走信封、先验令牌再解析请求体，删 `capability`；`/ready` 503 的信封 `code` 改 `50300`，`/health` 读不出计数给 `null`，补字段和免密钥接口的说明 |
 
 已经确定的：
 

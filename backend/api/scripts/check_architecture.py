@@ -427,7 +427,9 @@ def check_route_input_extractors(errors: list[str]) -> None:
                 text,
             )
         )
-        for import_body in re.findall(r"use\s+axum::extract::\{(.*?)\};", text, re.DOTALL):
+        # `use axum::extract::{Path, ..};` 和嵌在 `use axum::{extract::{Path, ..}, ..};` 里的都算
+        # （模型执行器的内部接口以前就是靠嵌套写法漏过去的）。
+        for import_body in re.findall(r"\bextract::\{(.*?)\}", text, re.DOTALL):
             for extractor in raw_extractors:
                 if re.search(rf"\b{extractor}\b", import_body):
                     direct.add(extractor)

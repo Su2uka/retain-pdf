@@ -101,7 +101,7 @@ impl Fixture {
     }
 
     fn credential_count(&self) -> usize {
-        crate::services::providers::list_credentials_with_values(&self.state.config.data_root, false)
+        crate::services::providers::list_credentials(&self.state.config.data_root)
             .map(|view| view.credentials.len())
             .unwrap_or(0)
     }

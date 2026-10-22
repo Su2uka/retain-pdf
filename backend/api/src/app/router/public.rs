@@ -5,9 +5,9 @@ use crate::routes::{accounts, health};
 
 crate::endpoints! {
     state: AppState;
-    /// 进程活着
+    /// 进程活着（不要密钥）
     GET "/health" => health::health, public;
-    /// 能接请求了（AI 服务、jobsd 都就绪）
+    /// 能接请求了（库能用；受监督的 AI 服务、jobsd 也就绪）。不就绪 503，看 HTTP 状态码（不要密钥）
     GET "/ready" => health::ready, public;
     /// 现在是什么模式、登没登录（前端据此决定显示不显示登录页）
     GET "/api/v1/auth/session" => accounts::session_route, public;

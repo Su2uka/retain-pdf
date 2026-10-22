@@ -404,6 +404,17 @@ fn document_metadata_codes(code: &'static str) -> (&'static str, Option<&'static
     (code, Some(reason))
 }
 
+/// 凭据接口 409 的 `error.details.reason`（2026-10-22 起有，以前 `details` 是 `{}`）。顶层 `code`、`error.code`
+/// 照旧是大写码。取值写在 `docs/api/00-约定/02-认证与错误.md`「凭据的 409 原因」，只增不改；其余凭据错误不带 reason。
+fn credential_reference_reason(code: &str) -> Option<&'static str> {
+    match code {
+        "CREDENTIAL_IN_USE" => Some("credential_in_use"),
+        "CREDENTIAL_REVISION_CONFLICT" => Some("credential_revision_conflict"),
+        "CREDENTIAL_VAULT_REVISION_CONFLICT" => Some("credential_vault_revision_conflict"),
+        _ => None,
+    }
+}
+
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
         if let AppError::OcrArtifactReuse {
@@ -437,12 +448,14 @@ impl IntoResponse for AppError {
             message,
         } = &self
         {
+            let details = credential_reference_reason(code)
+                .map_or_else(|| json!({}), |reason| json!({ "reason": reason }));
             return (
                 *status,
                 Json(CredentialReferenceErrorBody {
                     code,
                     message: message.clone(),
-                    error: StructuredError::empty(code, *status),
+                    error: StructuredError::with_details(code, *status, details),
                 }),
             )
                 .into_response();
@@ -804,6 +817,22 @@ mod tests {
             assert_eq!(payload["error"]["code"], code);
             assert_eq!(payload["error"]["http_status"], status.as_u16());
             assert_eq!(payload["error"]["details"], serde_json::json!({}));
+        }
+    }
+
+    #[tokio::test]
+    async fn credential_conflicts_carry_a_lowercase_reason() {
+        for (code, reason) in [
+            ("CREDENTIAL_IN_USE", "credential_in_use"),
+            ("CREDENTIAL_REVISION_CONFLICT", "credential_revision_conflict"),
+            ("CREDENTIAL_VAULT_REVISION_CONFLICT", "credential_vault_revision_conflict"),
+        ] {
+            let (status, payload) =
+                response_json(AppError::credential_reference(StatusCode::CONFLICT, code, "x")).await;
+            assert_eq!(status, StatusCode::CONFLICT);
+            assert_eq!(payload["code"], code, "顶层码照旧");
+            assert_eq!(payload["error"]["code"], code);
+            assert_eq!(payload["error"]["details"], serde_json::json!({ "reason": reason }));
         }
     }
 

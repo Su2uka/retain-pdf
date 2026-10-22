@@ -13,8 +13,11 @@ and internal Agent contracts used by backend maintainers.
 - Base path: `/api/v1`
 - Health path: `/health`
 - Except for raw file download endpoints, responses are JSON.
-- Except for `GET /health`, endpoints require `X-API-Key` unless a documented
-  internal Agent capability authorizes the exact method and path.
+- Except for `GET /health`, `GET /ready`, the sign-in routes under
+  `/api/v1/auth/`, and the model-executor worker routes (per-job capability,
+  see [runtime-and-events](docs/api-spec/runtime-and-events.md#model-executor-worker-routes)),
+  endpoints require `X-API-Key` unless a documented internal Agent capability
+  authorizes the exact method and path.
 - `X-API-Key` authenticates access to the Rust API. It is not an OCR provider
   token or model API key.
 - API paths, stage names, artifact keys, schema versions, and stdout labels are

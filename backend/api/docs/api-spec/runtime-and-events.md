@@ -150,7 +150,12 @@ Planned but not fully implemented in this first pass:
 - Base path: `/api/v1`
 - Health path: `/health`
 - Except for raw file download endpoints, all responses are JSON
-- Except `GET /health`, all endpoints require `X-API-Key`
+- All endpoints require `X-API-Key` except: `GET /health` and `GET /ready`
+  (also served on the simple port), the sign-in routes `GET
+  /api/v1/auth/session`, `POST /api/v1/auth/login`, `POST /api/v1/auth/register`,
+  and the three model-executor worker routes under
+  `/api/v1/internal/model/jobs/:job_id/requests…`, which authenticate with a
+  per-job capability instead (see [Model Executor Worker Routes](#model-executor-worker-routes))
 
 ## Auth
 
@@ -276,6 +281,81 @@ Rules:
 - non-zero means business or server error
 - `message` is short, frontend-display-safe text
 - `data` is omitted only when no payload is needed
+
+Exceptions:
+
+- `GET /ready` that is not ready returns HTTP `503` with `code = 50300`,
+  `message = "not ready"`, an `error` object (`SERVICE_UNAVAILABLE`,
+  `details.reasons`) **and** the full readiness view in `data` (see
+  [Health and Readiness](#health-and-readiness)). Before 2026-10-22 the 503 body
+  still said `code: 0`, `message: "ok"`.
+- The model-executor worker routes return bare JSON on success (no envelope).
+
+## Health and Readiness
+
+Neither route needs `X-API-Key`; both are also served on the simple port.
+
+`GET /health` (liveness) always answers `200`:
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `status` | `"up"` \| `"degraded"` | `degraded` when the job database does not answer a ping |
+| `db` | `"ok"` \| `"error"` | same check |
+| `queue_depth` | integer \| `null` | queued jobs; `null` when the count cannot be read (before 2026-10-22 this was `0`, which looked idle) |
+| `running_jobs` | integer \| `null` | running jobs; `null` when the count cannot be read |
+| `provider_backends` | string[] | OCR provider keys this build supports |
+| `ai_service` | string | supervisor state of the AI service: `starting`, `healthy`, `unhealthy`, or `unsupervised` |
+| `jobsd` | string | supervisor state of jobsd, same values |
+| `time` | string | server time, ISO 8601 |
+
+`GET /ready` (readiness) answers `200` when ready and `503` otherwise; decide by
+the HTTP status (Docker uses `curl -f`, the dev stack waits for a 2xx):
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `status` | `"ready"` \| `"not_ready"` | |
+| `components.db` / `.ai_service` / `.jobsd` | `{required, status}` | `db` is always required; AI service and jobsd only when this process supervises them, otherwise `status = "not_required"` |
+| `reasons` | string[] | `db_unavailable`, `ai_service_not_healthy`, `jobsd_not_healthy`; empty when ready |
+| `time` | string | server time, ISO 8601 |
+
+Not ready:
+
+```json
+{
+  "code": 50300,
+  "message": "not ready",
+  "error": {
+    "code": "SERVICE_UNAVAILABLE",
+    "http_status": 503,
+    "details": { "reasons": ["ai_service_not_healthy"] }
+  },
+  "data": { "status": "not_ready", "components": { "...": "..." }, "reasons": ["ai_service_not_healthy"], "time": "..." }
+}
+```
+
+## Model Executor Worker Routes
+
+The translation worker calls the upstream model through the Rust executor:
+
+- `POST /api/v1/internal/model/jobs/:job_id/requests`
+- `GET /api/v1/internal/model/jobs/:job_id/requests/:operation_id`
+- `POST /api/v1/internal/model/jobs/:job_id/requests/:operation_id/cancel`
+
+They sit outside the `X-API-Key` layer and require `Authorization: Bearer
+<capability>`, a 64-hex token bound to one job and minted by the job runtime
+in-process when it launches the worker. An application API key is never
+accepted as a capability. There is no issuance route: `POST
+/api/v1/internal/model/jobs/:job_id/capability` had no production caller and was
+removed on 2026-10-22 (now `404`). Multi-user policy: `closed`.
+
+The capability is checked before the request body is parsed, so a request
+without a valid capability only ever gets `401` and learns nothing about the
+body. With a valid capability, body errors follow the shared extractor contract
+in the unified error envelope: missing or non-JSON `Content-Type` `415`, syntax
+error `400`, unknown field `400` (message names the field only), other schema
+mismatch `422`; values from the request are never echoed. Success responses
+are bare JSON (`ModelOperation`, or `{"changed": bool}` for cancel); every error
+uses the unified envelope.
 
 ## Status Model
 
