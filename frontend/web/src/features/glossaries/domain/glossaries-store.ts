@@ -47,6 +47,8 @@ export type GlossaryEntryRow = {
   note: string;
   level: string;
   match_mode: string;
+  /** 编辑器不展示，但要原样带回去：PUT 是整表覆盖，丢了它保存一次就把词条的语境清空了。 */
+  context: string;
 };
 
 export type GlossaryDraft = {
@@ -139,6 +141,7 @@ function normalizeEntryForRow(entry: Partial<GlossaryEntryRow> = {}): GlossaryEn
     note: entry.note || "",
     level: entry.level || "preserve",
     match_mode: entry.match_mode || "case_insensitive",
+    context: entry.context || "",
   };
 }
 
@@ -168,7 +171,7 @@ export function readEditorPayload(draft: GlossaryDraft = { name: "", entries: []
       target,
       level,
       match_mode: row.match_mode || "case_insensitive",
-      context: "",
+      context: `${row.context || ""}`.trim(),
       note: `${row.note || ""}`.trim(),
     });
   }

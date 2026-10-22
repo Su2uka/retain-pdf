@@ -19,8 +19,9 @@ async function credentialRequest(url, options = {}) {
     }
     return unwrapEnvelope(envelope);
 }
-export function listCredentials(apiPrefix, { includeValues = false } = {}) {
-    return credentialRequest(`${buildApiEndpoint(apiPrefix, "credentials")}${includeValues ? "?include_values=true" : ""}`, { cache: "no-store" });
+// 后端不返回明文，带任何查询参数都回 400（以前的 include_values 已删）。
+export function listCredentials(apiPrefix) {
+    return credentialRequest(buildApiEndpoint(apiPrefix, "credentials"), { cache: "no-store" });
 }
 export function createCredential(apiPrefix, input) {
     return credentialRequest(buildApiEndpoint(apiPrefix, "credentials"), {

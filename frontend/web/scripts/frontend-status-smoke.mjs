@@ -38,7 +38,7 @@ Options:
   --model <name>             Default deepseek-flash
   --base-url <url>           Default https://api.deepseek.com/v1
   --page-ranges <ranges>     Optional page ranges, e.g. 1-3
-  --ocr-options <json>       Provider options JSON; local requires a configured command
+  --ocr-options <json>       Provider options JSON (the backend rejects a `command` key with 400)
   --timeout-seconds <n>      Job runtime timeout payload field, default 1800
   --poll-ms <n>              Detail polling interval, default 1000
   --max-wait-ms <n>          Max local wait before abort, default 1800000

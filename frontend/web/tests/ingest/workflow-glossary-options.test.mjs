@@ -51,3 +51,20 @@ test("显式选中的术语表 id 仍然透传", async () => {
 
   assert.deepEqual(calls, [[["glossary-new"], "glossary-new"]]);
 });
+
+test("停用的术语表不进建任务的下拉（引用停用的表后端回 400），没写 enabled 的照旧算启用", async () => {
+  const calls = [];
+  const loader = createLoader({
+    items: [
+      { glossary_id: "glossary-on", name: "On", enabled: true },
+      { glossary_id: "glossary-off", name: "Off", enabled: false },
+      { glossary_id: "glossary-legacy", name: "Legacy" },
+    ],
+    defaultSelectedId: "glossary-off",
+    onOptions: (options, selectedId) => calls.push([options.map((item) => item.glossary_id), selectedId]),
+  });
+
+  await loader.loadGlossaryOptions({ force: true, selectedId: "" });
+
+  assert.deepEqual(calls, [[["glossary-on", "glossary-legacy"], ""]], "停用的表既不进下拉，也不当默认选中");
+});
