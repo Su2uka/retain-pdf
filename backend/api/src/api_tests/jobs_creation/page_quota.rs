@@ -103,6 +103,40 @@ fn submit_reserves_pages_and_failure_refunds_them() {
     assert_eq!(state.db.page_balance("u_alice").unwrap(), 5, "失败全额退");
 }
 
+/// 余额不够时回给客户端的整个信封：契约 library-documents.v1 的 translateDocument、ocrDocument 在 note 里
+/// 写了它，`error.details` 是 `PageQuotaExceededErrorDetails`。顶层 `code` 是字符串，不是 40200 这种数字。
+#[tokio::test]
+async fn quota_rejection_envelope_matches_the_library_documents_contract() {
+    use axum::response::IntoResponse;
+
+    use crate::api_tests::job_view_contract::{assert_definition, assert_exact_object_keys, contract};
+    use crate::api_tests::jobs_common::read_json;
+
+    let state = test_state("quota-envelope");
+    seed_user(&state, "u_alice", "user");
+    let upload = seed_owned_upload(&state, "up-alice", "u_alice", 3);
+    state.db.grant_pages("u_alice", 2, "", "u_root", &now_iso()).unwrap();
+
+    let error = submit_input(&quota_context(&state), &book_input(&upload)).expect_err("3 pages > 2 left");
+    let response = error.into_response();
+    assert_eq!(response.status().as_u16(), 402);
+    let body = read_json(response).await;
+    let keys: std::collections::BTreeSet<&str> = body.as_object().unwrap().keys().map(String::as_str).collect();
+    assert_eq!(keys, ["code", "error", "message"].into(), "{body}");
+    assert_eq!(body["code"], "PAGE_QUOTA_EXCEEDED");
+    assert!(body["message"].as_str().is_some_and(|message| message.contains("页数额度不够")), "{body}");
+    let error_keys: std::collections::BTreeSet<&str> =
+        body["error"].as_object().unwrap().keys().map(String::as_str).collect();
+    assert_eq!(error_keys, ["code", "details", "http_status"].into(), "{body}");
+    assert_eq!(body["error"]["code"], "PAGE_QUOTA_EXCEEDED");
+    assert_eq!(body["error"]["http_status"], 402);
+    let contract = contract("library-documents.v1.schema.json");
+    let details = &body["error"]["details"];
+    assert_definition(details, &contract, "PageQuotaExceededErrorDetails", "error.details");
+    assert_exact_object_keys(details, &contract, "PageQuotaExceededErrorDetails", "error.details");
+    assert_eq!((details["required_pages"].as_i64(), details["balance"].as_i64()), (Some(3), Some(2)));
+}
+
 #[test]
 fn ocr_only_jobs_charge_the_selected_pages() {
     let state = test_state("quota-ocr");

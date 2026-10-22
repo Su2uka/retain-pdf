@@ -5,15 +5,22 @@
 /**
  * Endpoint input, query, and output DTOs published by library-documents.v1.schema.json.
  */
-export type LibraryDocumentsSchema = AddCollectionDocumentsInput | ApplyDocumentMetadataSuggestionInput | CollectionDeleteResultView | CollectionDocumentRemoveResultView | CollectionListView | CollectionRecord | CreateCollectionInput | CreateDocumentMetadataSuggestionInput | DeleteDocumentQuery | DocumentDeleteResultView | DocumentFilesView | DocumentListView | DocumentMetadataSuggestionApplyView | DocumentMetadataSuggestionListView | DocumentMetadataSuggestionView | DocumentReadingView | DocumentRecord | ListDocumentMetadataSuggestionsQuery | ListDocumentsQuery | PatchCollectionInput | PatchDocumentInput | SearchQuery | SearchResultView | TranslationCoverageView;
+export type LibraryDocumentsSchema = AddCollectionDocumentsInput | ApplyDocumentMetadataSuggestionInput | CollectionDeleteResultView | CollectionDocumentRemoveResultView | CollectionListView | CollectionRecord | CreateCollectionInput | CreateDocumentMetadataSuggestionInput | CreateJobInput | DeleteDocumentQuery | DocumentDeleteResultView | DocumentFilesView | DocumentJobListView | DocumentListView | DocumentMetadataSuggestionApplyView | DocumentMetadataSuggestionListView | DocumentMetadataSuggestionView | DocumentReadingView | DocumentRecord | JobSubmissionView | ListDocumentJobsQuery | ListDocumentMetadataSuggestionsQuery | ListDocumentsQuery | PatchCollectionInput | PatchDocumentInput | SearchQuery | SearchResultView | TranslationCoverageView;
 /**
  * retainpdf-core models::domain::WorkflowKind。
  */
 export type WorkflowKind = "book" | "ocr" | "translate" | "render";
 /**
+ * 可安全跨线传输的任意 JSON 值；用于 provider 扩展 options。
+ */
+export type JsonValue = null | boolean | number | string | JsonValue[] | {
+    [key: string]: JsonValue;
+};
+/**
  * retainpdf-core models::domain::JobStatusKind（serde rename_all snake_case）。
  */
 export type JobStatusKind = "queued" | "running" | "succeeded" | "failed" | "canceled";
+export type JobStageStateView = "reused" | "queued" | "pending" | "in_progress" | "completed" | "failed" | "skipped";
 /**
  * views.rs :: AddCollectionDocumentsInput（deny_unknown_fields）。
  */
@@ -110,6 +117,224 @@ export interface CreateDocumentMetadataSuggestionInput {
     apply_if_default?: boolean;
 }
 /**
+ * models/input/request.rs :: CreateJobInput。六个顶层字段全部可省（Rust 侧都是 #[serde(default)]），但**不认识的字段一律 400**。
+ */
+export interface CreateJobInput {
+    workflow?: WorkflowKind;
+    source?: JobSourceInput;
+    ocr?: OcrInput;
+    translation?: TranslationInput;
+    render?: RenderInput;
+    runtime?: RuntimeInput;
+}
+/**
+ * models/input/source.rs :: JobSourceInput。三选一：上传件 / 外部 URL / 复用既有任务产物。
+ */
+export interface JobSourceInput {
+    upload_id?: string;
+    source_url?: string;
+    artifact_job_id?: string;
+}
+/**
+ * models/input/ocr.rs :: OcrInput。凭据可以用 credential_ref 引用，也可以内联 mineru_token / paddle_token。
+ */
+export interface OcrInput {
+    provider?: string;
+    credential_ref?: string;
+    mineru_token?: string;
+    model_version?: string;
+    paddle_token?: string;
+    paddle_api_url?: string;
+    paddle_model?: string;
+    is_ocr?: boolean;
+    disable_formula?: boolean;
+    disable_table?: boolean;
+    language?: string;
+    page_ranges?: string;
+    data_id?: string;
+    no_cache?: boolean;
+    cache_tolerance?: number;
+    extra_formats?: string;
+    poll_interval?: number;
+    poll_timeout?: number;
+    options?: {
+        [k: string]: JsonValue;
+    };
+}
+/**
+ * models/input/translation.rs :: TranslationInput。与响应侧的 PublicTranslationInput 的差别：这里 api_key 可以带明文，且**没有** api_key_configured —— 那个字段只存在于脱敏后的响应里，带上就会被 deny_unknown_fields 拒掉。
+ */
+export interface TranslationInput {
+    execution_connection?: ModelConnection;
+    mode?: string;
+    /**
+     * TRANSLATION_MATH_MODES
+     */
+    math_mode?: "direct_typst" | "placeholder";
+    skip_title_translation?: boolean;
+    classify_batch_size?: number;
+    rule_profile_name?: string;
+    custom_rules_text?: string;
+    glossary_id?: string;
+    glossary_name?: string;
+    glossary_resource_entry_count?: number;
+    glossary_inline_entry_count?: number;
+    glossary_overridden_entry_count?: number;
+    glossary_entries?: GlossaryEntryInput[];
+    /**
+     * 服务器写：建任务时用户真正内联的条目（规范化、去重后），客户端发了也会被覆盖。glossary_entries 是和术语表合并后的快照；重跑、阶段重试先换回这一份再按现在的表解析。空的时候不出现。2026-10-22 加。
+     */
+    glossary_inline_entries?: GlossaryEntryInput[];
+    /**
+     * TRANSLATION_CONTEXT_MODES
+     */
+    context_mode?: "needed" | "all" | "off";
+    /**
+     * TRANSLATION_GLOSSARY_MODES
+     */
+    glossary_mode?: "matched" | "all" | "off";
+    /**
+     * TRANSLATION_MEMORY_MODES
+     */
+    memory_mode?: "matched" | "broad" | "off";
+    /**
+     * TRANSLATION_PREPARATION_MODES。译前准备（全书术语预扫 + 风格指南）。off：不生成产物，prompt 与缓存 key 与不带该字段时完全一致；artifacts_only：只生成并冻结 translated/term-base.v1.json、translated/style-guide.v1.json，不注入；terms：按块命中注入术语库（用户术语优先）；terms+style：再把风格指南放进 system 前缀；editorial：terms+style 之上由术语专员审定术语表（专业术语锁定、文献与期刊保留原文、人名机构不强制、通用词剔除，首现括注只标需要的专业术语）。
+     */
+    preparation?: "off" | "artifacts_only" | "terms" | "terms+style" | "editorial";
+    /**
+     * TRANSLATION_REFINE_MODES。精修（挑错 + 定点修改），在渲染阶段、真正渲染之前运行，只在翻译之后紧接着的那次渲染里自动跑（普通的重新渲染不会再跑）。off：不挑错不修改，渲染行为与不带该字段时完全一致；review_only：只挑错，写 artifacts/refine_report.v1.json，不改译文；review_and_fix：再对 critical/major 问题做定点修改，经确定性检查通过才写回（走修订历史，可回退）。挑错模型用 reviewer_*，留空回退到翻译模型。editorial：编辑部模式——规则修正、审校挑错与质检出问题后，主编（模型）逐块在规则允许的动作里分流（局部改 / 整块重写 / 不改 / 交给人），修订执行并经同一套确定性检查验收，最多两轮，剩下的列入待人看；全程写 artifacts/editorial/ledger.jsonl。
+     */
+    refine?: "off" | "review_only" | "review_and_fix" | "editorial";
+    /**
+     * 精修最多挑错多少块；0 = 不限（默认，审全书）。超出就停，报告里写明停在哪一页（review.next_page），可以从那一页接着精修。
+     */
+    refine_max_items?: number;
+    /**
+     * 精修（挑错 + 修改）的总 token 上限；0 = 不限（默认）。给了上限、超出就停，报告里写明停在哪一页（review.next_page）。
+     */
+    refine_max_tokens?: number;
+    api_key?: string;
+    credential_ref?: string;
+    model?: string;
+    base_url?: string;
+    /**
+     * 审校（挑错）模型。本期只留配置位；留空回退到 model。
+     */
+    reviewer_model?: string;
+    /**
+     * 审校模型的 endpoint；留空回退到 base_url。
+     */
+    reviewer_base_url?: string;
+    /**
+     * 审校模型的内联 key，与 api_key 同样处理：创建任务时导入凭据库换成 reviewer_credential_ref 并清空，不明文落库。与 reviewer_credential_ref 互斥。
+     */
+    reviewer_api_key?: string;
+    /**
+     * 审校模型 key 的凭据引用（kind=translation_api_key）。reviewer_api_key 与它都为空时：reviewer_base_url 为空或与 base_url 相同则回退翻译 key，否则不带 key。
+     */
+    reviewer_credential_ref?: string;
+    /**
+     * TRANSLATION_API_PROTOCOLS。翻译模型接口的协议。openai：POST {base_url}/chat/completions + Bearer；openai_responses：POST {base_url}/responses + Bearer（OpenAI Responses API，服务商明确支持才用）；anthropic：POST {base_url}/messages + x-api-key（Anthropic Messages API）。带 execution_connection 时只能是 openai。
+     */
+    api_protocol?: "openai" | "openai_responses" | "anthropic";
+    /**
+     * TRANSLATION_THINKING_LEVELS。翻译模型的思考深度。auto：只对实测过的模型关掉或压低思考，其余由服务商默认；其余档位按协议与服务商换成对应字段，服务商不认时逐级退回，最后不带思考字段。
+     */
+    thinking?: "auto" | "off" | "low" | "medium" | "high" | "max";
+    /**
+     * 审校模型接口的协议；留空沿用 api_protocol。
+     */
+    reviewer_api_protocol?: "" | "openai" | "openai_responses" | "anthropic";
+    /**
+     * 审校模型的思考深度；留空沿用 thinking。
+     */
+    reviewer_thinking?: "" | "auto" | "off" | "low" | "medium" | "high" | "max";
+    start_page?: number;
+    end_page?: number;
+    /**
+     * 显式的一基页码；空数组保持 start_page/end_page 的旧语义。
+     */
+    page_ranges?: number[];
+    batch_size?: number;
+    workers?: number;
+    accepted_ambiguous_request_risk?: boolean;
+}
+/**
+ * model_connection.rs :: ModelConnection。不含明文密钥，只带 credential_ref。
+ */
+export interface ModelConnection {
+    id: string;
+    revision: number;
+    provider: "qwen" | "deepseek" | "openai_compatible";
+    base_url: string;
+    model: string;
+    credential_ref: string;
+    concurrency: number;
+    thinking?: "auto" | "off" | "on";
+    stream?: boolean | null;
+    allow_private_endpoint?: boolean;
+    deadlines?: {
+        queue_ms: number;
+        connect_ms: number;
+        idle_ms: number;
+        total_ms: number;
+    };
+}
+/**
+ * models/input/translation.rs :: GlossaryEntryInput
+ */
+export interface GlossaryEntryInput {
+    source?: string;
+    target?: string;
+    note?: string;
+    level?: string;
+    match_mode?: string;
+    context?: string;
+}
+/**
+ * models/input/render.rs :: RenderInput。默认值的权威来源是 backend/api/RENDER_OPTIONS_CONTRACT.md。
+ */
+export interface RenderInput {
+    render_mode?: string;
+    compile_workers?: number;
+    typst_font_family?: string;
+    pdf_compress_dpi?: number;
+    translated_pdf_name?: string;
+    body_font_size_factor?: number;
+    body_leading_factor?: number;
+    inner_bbox_shrink_x?: number;
+    inner_bbox_shrink_y?: number;
+    inner_bbox_dense_shrink_x?: number;
+    inner_bbox_dense_shrink_y?: number;
+    font_unify_mode?: string;
+    /**
+     * SOURCE_CLEANUP_STRATEGIES
+     */
+    source_cleanup_strategy?: "pikepdf_text_strip" | "bbox_text_strip" | "legacy" | "redact_restore_formulas";
+    /**
+     * RENDER_ENGINES：rpr_fit = 自研排版引擎，字号由引擎按测量决定、直接写 PDF（默认）；rpr = 同一引擎，字号用 retain-pdf 的规则；typst = 原 Typst 路线。引擎不可用或失败时回退 typst
+     */
+    engine?: "typst" | "rpr" | "rpr_fit";
+}
+/**
+ * models/input/runtime.rs :: RuntimeInput
+ */
+export interface RuntimeInput {
+    /**
+     * 任务编号由服务器分配。公开入口（POST /jobs、书库的翻译和 OCR）收到非空的 runtime.job_id 会返回 400，请留空或不要发。
+     */
+    job_id?: string;
+    timeout_seconds?: number;
+    /**
+     * 空闲检测：多久没有 stdout 输出就判定 worker 卡死（秒）。0 表示关闭，也是默认值。与 timeout_seconds 相互独立——后者是整段执行的上限，要按最坏情况给。
+     */
+    no_output_timeout_seconds?: number;
+    /**
+     * 内部执行策略：文档级翻译接口在翻译后还要产出渲染候选。公共 translate 工作流通常翻完即止。
+     */
+    render_after_translation?: boolean;
+}
+/**
  * views.rs :: DeleteDocumentQuery（deny_unknown_fields）。拼错的 force 是 400，不会悄悄变成不强删。
  */
 export interface DeleteDocumentQuery {
@@ -175,6 +400,140 @@ export interface DocumentPagesView {
      * 页数；不知道（书的 page_count 是 0）时是 null。
      */
     page_count: number | null;
+}
+/**
+ * retainpdf-jobs views/job_types.rs :: DocumentJobListView。
+ */
+export interface DocumentJobListView {
+    items: JobListItemView[];
+    invocation_summary: JobListInvocationSummaryView;
+    /**
+     * 这本书的任务总数（不随分页变）。
+     */
+    total: number;
+    /**
+     * 生效的 limit（没传是 20）。
+     */
+    limit: number;
+    offset: number;
+    /**
+     * 这一页之后还有没有（多取一条判断）。
+     */
+    has_more: boolean;
+}
+/**
+ * job_types.rs :: JobListItemView — 列表卡用；关键字段 job_id / display_name / workflow / status / stage_snapshot / progress(经 stage_snapshot.progress) / cover_url 均在契约内。
+ */
+export interface JobListItemView {
+    /**
+     * 复用了哪个任务的产物（OCR / 译文）；顺着它能找到真正持有译文的任务。没有复用时为 null。
+     */
+    source_artifact_job_id?: string | null;
+    job_id: string;
+    display_name: string;
+    workflow: WorkflowKind;
+    status: JobStatusKind;
+    attempt: number;
+    retry_count: number;
+    last_retry_at: string | null;
+    trace_id?: string | null;
+    /**
+     * 终态任务的完成说明，仅在有额外信息时出现（正常完成为 null）。例如「任务完成，但有 N 个内容块保留原文未翻译」。这不是阶段字段——终态的 stage_snapshot 恒为 null。
+     */
+    completion_note?: string | null;
+    stage_snapshot: JobStageSnapshotView | null;
+    background_snapshots: JobStageSnapshotView[];
+    stages: JobStagesView;
+    page_count?: number | null;
+    source_file_name?: string | null;
+    cover_url?: string | null;
+    thumbnail_url?: string | null;
+    output_pdf_ready: boolean;
+    markdown_ready: boolean;
+    bundle_ready: boolean;
+    invocation?: InvocationSummaryView | null;
+    created_at: string;
+    updated_at: string;
+    detail_path: string;
+    detail_url: string;
+    failure?: JobFailureBriefView;
+}
+/**
+ * job_types.rs :: JobStageSnapshotView。前端 adaptJobStageSnapshot / buildStageSnapshot 消费全部字段；lane=main|background。
+ */
+export interface JobStageSnapshotView {
+    display_stage?: string | null;
+    stage?: string | null;
+    substage?: string | null;
+    lane?: string | null;
+    stage_detail?: string | null;
+    progress: JobProgressView;
+}
+/**
+ * common.rs :: JobProgressView。前端 progress_unit / progress_current / progress_total 均由此归一。
+ */
+export interface JobProgressView {
+    /**
+     * JobProgress.current，null=未知
+     */
+    current?: number | null;
+    total?: number | null;
+    percent?: number | null;
+    /**
+     * page|batch|block|step|percent，skip_serializing_if None
+     */
+    unit?: string | null;
+}
+export interface JobStagesView {
+    ocr: JobStageRuntimeView;
+    translation: JobStageRuntimeView;
+    render: JobStageRuntimeView;
+}
+export interface JobStageRuntimeView {
+    state: JobStageStateView;
+    progress: JobProgressView;
+}
+export interface InvocationSummaryView {
+    stage: string;
+    input_protocol: string;
+    stage_spec_schema_version: string;
+}
+/**
+ * backend/packages/retainpdf-jobs/src/views/job_types.rs :: JobFailureBriefView — 列表里那份精简失败信息。只有失败的任务才带（JobListItemView.failure），成功 / 进行中的任务整个键不出现，不是 null。只放「一眼能判断该怎么办」的几项，不带 raw_excerpt / traceback；要完整错误按需去打任务详情（那边的 failure 是 JobFailureInfo）。root_cause / suggestion / provider 为空时整个键不出现（不是 null）。
+ */
+export interface JobFailureBriefView {
+    /**
+     * 面向用户的分类：provider / translation / timeout / render / internal …
+     */
+    category: string;
+    /**
+     * 失败发生在哪一段：ocr / translation / render
+     */
+    stage: string;
+    /**
+     * 能不能重试。
+     */
+    retryable: boolean;
+    /**
+     * 一句话结论。
+     */
+    summary: string;
+    /**
+     * 根因；没有时键不出现。
+     */
+    root_cause?: string;
+    /**
+     * 建议的处理办法；没有时键不出现。
+     */
+    suggestion?: string;
+    /**
+     * 上游是谁（mineru / deepseek …），排查时第一眼要看的；没有时键不出现。
+     */
+    provider?: string;
+}
+export interface JobListInvocationSummaryView {
+    stage_spec_count: number;
+    unknown_count: number;
 }
 /**
  * views.rs :: DocumentListView。
@@ -388,6 +747,86 @@ export interface DocumentReadingView {
      * 拼成这份译文的任务，按页序首次出现的顺序；不是合并时就是那一个任务，没有译文时是空数组。
      */
     contributing_job_ids: string[];
+}
+/**
+ * retainpdf-jobs views/common.rs :: JobSubmissionView —— 建任务的回包，status 刚建好是 queued。只有 sibling_job_ids 在没有时整个键不出现。
+ */
+export interface JobSubmissionView {
+    job_id: string;
+    status: JobStatusKind;
+    workflow: WorkflowKind;
+    /**
+     * 这个任务复用了已有 OCR（不重新识别）。
+     */
+    ocr_reused: boolean;
+    /**
+     * 复用了哪个任务的产物；没有复用时为 null。
+     */
+    source_artifact_job_id: string | null;
+    stages: JobStagesView;
+    links: JobLinksView;
+    actions: JobActionsView;
+    /**
+     * 同一次提交拆出来的其它任务（翻译复用 OCR、页不连续或超出覆盖时按连续段拆）。上面的字段描述第一个任务。只拆出一个任务时整个键不出现。
+     */
+    sibling_job_ids?: string[];
+}
+export interface JobLinksView {
+    self_path: string;
+    self_url: string;
+    artifacts_path: string;
+    artifacts_url: string;
+    artifacts_manifest_path: string;
+    artifacts_manifest_url: string;
+    events_path: string;
+    events_url: string;
+    cancel_path: string;
+    cancel_url: string;
+}
+export interface JobActionsView {
+    open_job: ActionLinkView;
+    open_artifacts: ActionLinkView;
+    cancel: ActionLinkView;
+    resume: ActionLinkView1;
+    rerun: ActionLinkView2;
+    download_pdf: ActionLinkView;
+    open_markdown: ActionLinkView;
+    open_markdown_raw: ActionLinkView;
+    download_bundle: ActionLinkView;
+}
+export interface ActionLinkView {
+    enabled: boolean;
+    method: string;
+    path: string;
+    url: string;
+}
+/**
+ * 从断点续跑：POST /api/v1/jobs/:job_id/actions/resume。
+ */
+export interface ActionLinkView1 {
+    enabled: boolean;
+    method: string;
+    path: string;
+    url: string;
+}
+/**
+ * 旧名，和 resume 同值，地址是旧地址 actions/rerun。新代码读 resume。
+ */
+export interface ActionLinkView2 {
+    enabled: boolean;
+    method: string;
+    path: string;
+    url: string;
+}
+/**
+ * retainpdf-jobs views/common.rs :: ListDocumentJobsQuery（deny_unknown_fields）。只认 limit、offset：书由地址给定，列表的其它筛选不认。
+ */
+export interface ListDocumentJobsQuery {
+    /**
+     * 越界 400，不会被夹。
+     */
+    limit?: number;
+    offset?: number;
 }
 /**
  * views.rs :: ListDocumentMetadataSuggestionsQuery（deny_unknown_fields）。没有 offset。

@@ -68,6 +68,7 @@ Rust API 接口太多、太散，"牵一发动全身"。这里按日期记录整
 | 2026-10-22 | [契约端点加函数名和传输方式](./20261022-契约端点加函数名和传输方式.md) | 端点表加 `client_name`（前端生成的函数名）、`transport`（`json`/`sse`/`binary`/`websocket`/`raw_json`），`library-documents.v1` 17 条写上前端的名单，`agent-calculation.v1` 的 `response_body` 并进 `transport`；lint 管端点键白名单、取值、小驼峰、跨契约不重名；rust_api `route_manifest` 对登记表比契约的方法加地址（排除 jobs-control、比 `proxy_path`、参数写法归一、去掉查询串），现有 60 条全对得上 |
 | 2026-10-22 | [契约第 1a 期补函数名](./20261022-契约第1a期补函数名.md) | 前端第 1 期清单 1a：`job-status`、`create-job`、`library-books`、`job-data`、`job-events`、`reader-data`、`token-usage` 已有的 16 条端点补 `client_name`（`transport: json`）；`GET /jobs` 两处登记只在 `job-status` 起名，`library-books` 那条留着导出类型；修 `job-status` 过时的 `ts_consumer`；`progress/pages/:page` 写明从 0 开始 |
 | 2026-10-22 | [契约第 1b 期任务操作与报告](./20261022-契约第1b期任务操作与报告.md) | 新契约 `job-actions.v1`（能做哪些操作、取消、续跑计划和续跑、阶段重试、OCR 歧义处理，6 条）、`job-reports.v1`（失败原因、质量体检卡和清单、翻译诊断，4 条），都写 `client_name`；409 的 `reason` 写进 `note`；共用定义从 `job-status.v1` 抄并加结构一致测试；续跑请求体如实写成只收换模型 key；rust_api 对真实返回钉键集合；`check_parity.py` 补 `job-data`、`token-usage` |
+| 2026-10-22 | [契约第 1b 期译文条目和书的任务](./20261022-契约第1b期译文条目和书的任务.md) | 前端第 1 期清单 1b 的 6 条：译文条目列表、单条、重放（不带请求体）进 `translation-revisions.v1`；书的任务列表、翻译、OCR 接在 `library-documents.v1` 原 17 条后面；请求体 `CreateJobInput` 从 `create-job.v1` 抄、任务列表条目和提交结果的链接从 `job-status.v1` 抄，新测试锁成一致；`JobSubmissionView` 第一次进契约；402 页数额度的信封写进 note、`error.details` 加定义；端点表测试改成只钉各期自己的名单 |
 
 已经确定的：
 

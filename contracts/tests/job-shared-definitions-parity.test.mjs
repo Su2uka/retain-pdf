@@ -63,3 +63,20 @@ test("definitions shared by job-actions and job-reports stay structurally identi
     "OcrAmbiguityResolutionKind",
   ], "job-actions and job-reports");
 });
+
+test("job-actions and library-documents copies (job submission and its links) stay structurally identical", () => {
+  // 两个 1b 分支各抄了一份 JobSubmissionView（续跑、取消和书的翻译、OCR 回的是同一个 Rust 类型）。
+  assertShared(jobActions, read("library-documents.v1.schema.json"), [
+    "ActionLinkView",
+    "JobActionsView",
+    "JobLinksView",
+    "JobProgressView",
+    "JobStageRuntimeView",
+    "JobStageStateView",
+    "JobStagesView",
+    "JobStatusKind",
+    "JobSubmissionView",
+    "JsonValue",
+    "WorkflowKind",
+  ], "job-actions and library-documents");
+});

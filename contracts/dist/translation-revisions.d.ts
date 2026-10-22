@@ -5,11 +5,41 @@
 /**
  * Endpoint input, query, and output DTOs published by translation-revisions.v1.schema.json.
  */
-export type TranslationRevisionsSchema = ReviseTranslationItemRequest | TranslationRevisionHistoryView | TranslationRevisionView;
+export type TranslationRevisionsSchema = ListTranslationItemsQuery | ReviseTranslationItemRequest | TranslationDebugItemView | TranslationDebugListView | TranslationReplayView | TranslationRevisionHistoryView | TranslationRevisionView;
 /**
  * Who produced the revision. Recorded only; it does not change validation.
  */
 export type TranslationRevisionSource = "user" | "agent" | "refine";
+/**
+ * views/common.rs :: ListTranslationItemsQuery (deny_unknown_fields: an unknown parameter is 400). Text filters are trimmed and compared case-insensitively; an empty value means no filter.
+ */
+export interface ListTranslationItemsQuery {
+    /**
+     * Out of range is 400, never clamped.
+     */
+    limit?: number;
+    offset?: number;
+    /**
+     * 1-based page number (matches page_number, not page_idx).
+     */
+    page?: number;
+    /**
+     * Exact final_status, e.g. translated, kept_origin.
+     */
+    final_status?: string;
+    /**
+     * Items whose error_types contain this value.
+     */
+    error_type?: string;
+    /**
+     * Substring of route_path joined with /.
+     */
+    route?: string;
+    /**
+     * Substring of item_id, source_preview or translated_preview.
+     */
+    q?: string;
+}
 export interface ReviseTranslationItemRequest {
     /**
      * New translation in the same form as the item's protected_translated_text. In direct_typst math mode this is the display text with inline math as $...$; in placeholder mode formulas may be written back verbatim and are re-protected before validation.
@@ -25,6 +55,94 @@ export interface ReviseTranslationItemRequest {
      * After a successful write, submit an in-place render retry (same as POST retry-stage {stage: render, create_new_job: false}). When revising several blocks, set it only on the last one or call retry-stage once afterwards.
      */
     rerender?: boolean;
+}
+/**
+ * views/translation.rs :: TranslationDebugItemView.
+ */
+export interface TranslationDebugItemView {
+    job_id: string;
+    item_id: string;
+    page_idx: number;
+    page_number: number;
+    /**
+     * The page file path as written in translation-manifest.json (normally relative to translated/, e.g. page-1.json).
+     */
+    page_path: string;
+    /**
+     * The item exactly as stored in the page payload (source_text, translated_text, protected_translated_text, translation_diagnostics, ...), with secrets from the job request redacted. Not a stable schema.
+     */
+    item: {
+        [k: string]: any;
+    };
+}
+export interface TranslationDebugListView {
+    items: TranslationDebugListItemView[];
+    /**
+     * Items after filtering, before paging.
+     */
+    total: number;
+    /**
+     * The effective limit (20 when omitted).
+     */
+    limit: number;
+    offset: number;
+    has_more: boolean;
+}
+/**
+ * views/translation.rs :: TranslationDebugListItemView. Every key is always present; missing values are empty strings, empty arrays, -1 (block_idx) or true (should_translate).
+ */
+export interface TranslationDebugListItemView {
+    item_id: string;
+    /**
+     * 0-based.
+     */
+    page_idx: number;
+    /**
+     * page_idx + 1.
+     */
+    page_number: number;
+    /**
+     * -1 when the page payload has none.
+     */
+    block_idx: number;
+    block_type: string;
+    math_mode: string;
+    continuation_group: string;
+    classification_label: string;
+    should_translate: boolean;
+    skip_reason: string;
+    /**
+     * From the item, else translation_diagnostics.final_status.
+     */
+    final_status: string;
+    /**
+     * Whitespace collapsed, at most 220 characters (cut with …).
+     */
+    source_preview: string;
+    /**
+     * Same rule as source_preview.
+     */
+    translated_preview: string;
+    route_path: string[];
+    fallback_to: string;
+    degradation_reason: string;
+    /**
+     * translation_diagnostics.error_trace[].type.
+     */
+    error_types: string[];
+}
+/**
+ * views/translation.rs :: TranslationReplayView.
+ */
+export interface TranslationReplayView {
+    job_id: string;
+    item_id: string;
+    /**
+     * What replay_translation_item.py printed, with secrets redacted. Today: job_root, job_id, item_id, page_idx, page_path, source_preview, saved_item, policy_before, policy_after, replay_result (null when the item is not translated or the model call failed), replay_error ({type, message} when the model call failed, else null; a failed model call is still 200). A devtools payload, not a stable schema.
+     */
+    payload: {
+        [k: string]: any;
+    };
 }
 export interface TranslationRevisionHistoryView {
     job_id: string;

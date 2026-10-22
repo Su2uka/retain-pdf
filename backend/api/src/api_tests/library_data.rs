@@ -14,7 +14,7 @@ use crate::models::domain::{
     now_iso, CreateJobInput, JobSnapshot, JobStatusKind, UploadRecord, WorkflowKind,
 };
 
-fn seed_document(state: &crate::AppState, content: &[u8]) -> String {
+pub(super) fn seed_document(state: &crate::AppState, content: &[u8]) -> String {
     let hash = sha256_hex(content);
     let upload_id = format!("up-{hash:.8}");
     let relative = format!("uploads/{upload_id}/paper.pdf");
@@ -65,7 +65,7 @@ fn seed_succeeded_job_for_document(state: &crate::AppState, document_id: &str, j
     .expect("link job to document");
 }
 
-fn seed_reusable_ocr_job(state: &crate::AppState, document_id: &str, job_id: &str) -> String {
+pub(super) fn seed_reusable_ocr_job(state: &crate::AppState, document_id: &str, job_id: &str) -> String {
     let upload = state
         .db
         .find_upload_for_document(document_id)

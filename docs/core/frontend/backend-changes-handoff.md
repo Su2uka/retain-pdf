@@ -997,3 +997,37 @@ API / jobsd 重启时，翻译阶段运行中的任务以前一律自动续跑�
    `stage`、`mode`、`create_new_job`、`overrides`、`ambiguous_request_policy`、`refine`；`resolveOcrAmbiguity` 发
    `resolution`、`resolution_revision` 和回执字段；`fetchQualityItems` 发 `kind`、`offset`、`limit`、可选 `page`、`severity`。
 
+## 第 1b 期：译文条目和书的任务进契约（contracts/phase1b-translations-documents）
+
+2026-10-22。决定见 [契约第 1b 期译文条目和书的任务](../../ops/planning/api-reorg/20261022-契约第1b期译文条目和书的任务.md)。接口行为没变，只是补了契约和类型。
+
+| 函数名 | 方法、地址 | 类型从哪导入 | 返回 | 请求 |
+|---|---|---|---|---|
+| `listTranslationItems` | `GET /api/v1/jobs/:job_id/translations` | `@retainpdf/contracts/translation-revisions` | `TranslationDebugListView` | 查询 `ListTranslationItemsQuery` |
+| `getTranslationItem` | `GET /api/v1/jobs/:job_id/translations/:item_id` | 同上 | `TranslationDebugItemView` | — |
+| `replayTranslationItem` | `POST /api/v1/jobs/:job_id/translations/:item_id/replay` | 同上 | `TranslationReplayView` | 不带请求体 |
+| `listDocumentJobs` | `GET /api/v1/documents/:document_id/jobs` | `@retainpdf/contracts/library-documents` | `DocumentJobListView` | 查询 `ListDocumentJobsQuery`（只认 `limit`、`offset`） |
+| `translateDocument` | `POST /api/v1/documents/:document_id/translate` | 同上 | `JobSubmissionView` | `CreateJobInput` |
+| `ocrDocument` | `POST /api/v1/documents/:document_id/ocr` | 同上 | `JobSubmissionView` | `CreateJobInput` |
+
+要注意的：
+
+1. **402 页数额度**（只有多用户模式）：`{"code": "PAGE_QUOTA_EXCEEDED", "message": "页数额度不够：…", "error": {"code": "PAGE_QUOTA_EXCEEDED", "http_status": 402, "details": {"required_pages": 3, "balance": 2}}}`。
+   顶层 `code` 是字符串，不是数字，按 `error.code` 认（现在的 `pageQuotaErrorFromPayload` 就是这么认的）；`details` 的类型是
+   `PageQuotaExceededErrorDetails`。被拒时不留任务。
+2. 翻译复用 OCR 出错（404 `OCR_JOB_NOT_FOUND`；409 `OCR_JOB_NOT_SUCCEEDED`、`OCR_ARTIFACT_NOT_REUSABLE`、`OCR_ARTIFACT_MISSING`、
+   `OCR_PAGE_COVERAGE_MISMATCH`）也是顶层字符串 `code`，同级有 `reason`、`can_fallback_to_ocr`，`error.details` 里也有这两个（`documentRequestError` 已经两处都读）。
+3. `CreateJobInput` 和 `@retainpdf/contracts/create-job` 里的是同一份（逐字抄的，测试锁住），两边的类型可以互用。
+4. `JobSubmissionView` 没有 `document_id`（`use-book-detail-*.ts` 里 `result.document_id || documentId` 的兜底照旧要留）；
+   `sibling_job_ids` 只有翻译拆成几个任务时才出现。书的任务列表条目是 `JobListItemView`（和 `GET /jobs` 同形），**没有** `ocr_reused`，
+   `DocumentJobSummary.ocr_reused` 这个可选字段在列表里永远读不到，提交结果里才有。
+5. 译文条目列表在任务还没产出翻译清单时是 200 空列表，404 只表示任务不存在（`fetchTranslationItems` 把 404 当空列表的兜底可以去掉，
+   要不要去由前端定）。单条、重放的 404 带 `error.details.reason = "not_ready"` 时是清单还没出来。`item`、`payload` 是原样的条目和
+   开发脚本输出，类型是开放对象。重放是同步跑一次模型，最长 300 秒，失败（脚本出错、超时）500；模型调用本身失败时仍是 200，
+   `payload.replay_error` 里有原因。合并阅读的虚拟任务（`merged-…`）重放 409 `TRANSLATION_REVISION_CONFLICT`、`reason: read_only_job`。
+6. 生成器合进来以后重新生成：`src/generated/` 会多出 `translation-revisions.ts`（3 个函数），`library-documents.ts` 多 3 个函数。
+
+| 做什么 | 在哪 |
+|---|---|
+| 换成生成的函数，中文报错、404 兜底留成薄包装 | `frontend/packages/api/src/translation-debug.ts`、`documents.ts`（`fetchDocumentJobs`、`translateDocument`、`ocrDocument`） |
+| 手写的 `DocumentJobSubmissionView`、`DocumentJobsView`、`DocumentJobSummary` 换成契约类型 | `frontend/packages/api/src/documents.ts` |
