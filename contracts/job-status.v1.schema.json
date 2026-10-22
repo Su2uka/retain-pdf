@@ -8,17 +8,21 @@
     {
       "method": "GET",
       "path": "/api/v1/jobs",
+      "client_name": "listJobs",
+      "transport": "json",
       "query": "ListJobsQuery",
       "output": "JobListView",
       "rust_view": "JobListView",
-      "ts_consumer": "apps/web/src/js/job/types.ts :: JobLike / apps/web-react type JobListView"
+      "ts_consumer": "@retainpdf/contracts/job-status :: JobListView"
     },
     {
       "method": "GET",
       "path": "/api/v1/jobs/:job_id",
+      "client_name": "getJob",
+      "transport": "json",
       "output": "JobDetailView",
       "rust_view": "JobDetailView",
-      "ts_consumer": "apps/web/src/js/job/types.ts :: JobPayload"
+      "ts_consumer": "@retainpdf/contracts/job-status :: JobDetailView"
     }
   ],
   "definitions": {

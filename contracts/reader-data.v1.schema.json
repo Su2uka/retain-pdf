@@ -8,6 +8,8 @@
     {
       "method": "GET",
       "path": "/api/v1/jobs/:job_id/files",
+      "client_name": "listJobFiles",
+      "transport": "json",
       "output": "JobFilesView",
       "rust_view": "JobFilesView",
       "ts_consumer": "@retainpdf/contracts/reader-data :: JobFilesView",
@@ -16,6 +18,8 @@
     {
       "method": "GET",
       "path": "/api/v1/jobs/:job_id/reader/markdown",
+      "client_name": "getReaderMarkdown",
+      "transport": "json",
       "output": "MarkdownDocumentView",
       "rust_view": "MarkdownDocumentView",
       "ts_consumer": "@retainpdf/contracts/reader-data :: MarkdownDocumentView"
@@ -23,6 +27,8 @@
     {
       "method": "GET",
       "path": "/api/v1/jobs/:job_id/reader/regions",
+      "client_name": "getReaderRegions",
+      "transport": "json",
       "output": "ReaderRegionsView",
       "rust_view": "ReaderRegionsView",
       "ts_consumer": "@retainpdf/contracts/reader-data :: ReaderRegionsView"
@@ -30,6 +36,8 @@
     {
       "method": "GET",
       "path": "/api/v1/jobs/:job_id/reader/metadata",
+      "client_name": "getReaderMetadata",
+      "transport": "json",
       "output": "ReaderMetadataView",
       "rust_view": "ReaderMetadataView",
       "ts_consumer": "@retainpdf/contracts/reader-data :: ReaderMetadataView"
@@ -37,6 +45,8 @@
     {
       "method": "GET",
       "path": "/api/v1/jobs/:job_id/progress/layout",
+      "client_name": "getLiveLayout",
+      "transport": "json",
       "output": "LiveTranslationLayout",
       "rust_view": "LiveTranslationLayoutView",
       "ts_consumer": "@retainpdf/contracts/reader-data :: LiveTranslationLayout"
@@ -44,9 +54,12 @@
     {
       "method": "GET",
       "path": "/api/v1/jobs/:job_id/progress/pages/:page",
+      "client_name": "getLivePage",
+      "transport": "json",
       "output": "LiveTranslationPageSnapshot",
       "rust_view": "LiveTranslationPageView",
-      "ts_consumer": "@retainpdf/contracts/reader-data :: LiveTranslationPageSnapshot"
+      "ts_consumer": "@retainpdf/contracts/reader-data :: LiveTranslationPageSnapshot",
+      "note": ":page 是从 0 开始的页序号（第一页是 0），和返回的 page_idx 同一个数；不是非负整数时 400。"
     },
     {
       "method": "GET",

@@ -8,6 +8,8 @@
     {
       "method": "GET",
       "path": "/api/v1/jobs/:job_id/progress/events",
+      "client_name": "listJobEvents",
+      "transport": "json",
       "query": "ListJobEventsQuery",
       "output": "JobEventListView"
     }

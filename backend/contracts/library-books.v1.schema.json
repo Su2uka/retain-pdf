@@ -11,11 +11,14 @@
       "query": "ListJobsQuery",
       "output": "JobListView",
       "rust_view": "JobListView",
-      "ts_consumer": "@retainpdf/contracts/library-books :: JobListView"
+      "ts_consumer": "@retainpdf/contracts/library-books :: JobListView",
+      "note": "和 job-status.v1 登记的是同一个接口，client_name（listJobs）只写在那边。这一条留着，是因为生成的 library-books.ts 只导出端点用到的类型，删了它 JobListView、ListJobsQuery 就不再从 @retainpdf/contracts/library-books 导出。两边的 Job 定义由 contracts/tests/job-definitions-parity.test.mjs 锁成一致。"
     },
     {
       "method": "DELETE",
       "path": "/api/v1/jobs/:job_id",
+      "client_name": "deleteJob",
+      "transport": "json",
       "query": "LibraryDeleteQuery",
       "output": "LibraryDeleteResultView",
       "rust_view": "JobDeleteResultView",

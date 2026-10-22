@@ -8,6 +8,8 @@
     {
       "method": "GET",
       "path": "/api/v1/jobs/:job_id/data",
+      "client_name": "listJobDatasets",
+      "transport": "json",
       "output": "JobDataCatalogView",
       "note": "这个任务有哪些数据集、文件在不在、有哪些字段。任务还没有输出目录（排队中）时每个数据集 available=false，照样 200。",
       "rust_view": "services/job_data :: JobDataCatalogView",
@@ -16,6 +18,8 @@
     {
       "method": "GET",
       "path": "/api/v1/jobs/:job_id/data/:dataset",
+      "client_name": "getJobDataset",
+      "transport": "json",
       "query": "fields=a,b · <字段>=值[,值…]（等值筛选，逗号为或）· group_by=字段 · sort=字段|-字段 · offset · limit（1..=1000，默认 200）",
       "output": "JobDataView",
       "errors": {
