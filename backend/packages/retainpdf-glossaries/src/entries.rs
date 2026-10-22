@@ -43,7 +43,9 @@ pub fn resolve_task_glossary_request(
             "translation.glossary_id is disabled: {glossary_id}"
         )));
     }
-    let base_entries = normalize_glossary_entries(&glossary.entries)?;
+    // 表里的词条保存时已经校验过；按当时的规矩存下的（例如 2026-10-22 以前没查的坏正则、超长上下文）
+    // 不在建任务时再拦，只按现在的键去重。要改得去编辑那张表。
+    let base_entries = dedupe_glossary_entries(glossary.entries.clone());
     let overridden_entry_count = count_overridden_entries(&base_entries, &inline_entries);
     let merged_entries = merge_glossary_entries(&base_entries, &inline_entries);
     if merged_entries.len() > MAX_GLOSSARY_ENTRIES {

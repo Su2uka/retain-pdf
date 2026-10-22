@@ -630,3 +630,19 @@ fn status_of(err: &retainpdf_api_base::error::AppError) -> u16 {
         other => panic!("unexpected error kind: {other:?}"),
     }
 }
+
+#[test]
+fn tables_saved_under_older_rules_still_resolve_for_new_jobs() {
+    let db = test_db();
+    let glossary = create_glossary(&db, &upsert("legacy", vec![])).expect("create");
+    // 2026-10-22 以前保存时不查正则、不限上下文长度。
+    let legacy = GlossaryRecord {
+        entries: vec![full_entry("band (gap", "带隙", "regex", ""), full_entry("DNA", "DNA", "exact", &"x".repeat(600))],
+        ..glossary.clone()
+    };
+    assert!(db.update_glossary(&legacy, None).expect("write legacy entries"));
+    let mut input = CreateJobInput::default();
+    input.translation.glossary_id = glossary.glossary_id;
+    let resolved = resolve_task_glossary_request(&db, &input).expect("old tables keep working");
+    assert_eq!(resolved.translation.glossary_entries.len(), 2);
+}
