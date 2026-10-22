@@ -133,6 +133,7 @@ const desktopWindows = createDesktopWindows(app, {
   appRoot: __dirname,
   closeSplashWindow,
   getFrontendBaseUrl: () => frontendGatewayBaseUrl,
+  getApiBase: () => buildDesktopRuntimeConfig(loadDesktopConfig()).apiBase,
   isQuitting: () => isQuitting,
   loadDesktopConfig,
   logDesktop,

@@ -1,6 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const { BrowserWindow, Menu, Tray, dialog, nativeImage, shell } = require("electron");
+const { installFileOriginBridge } = require("./file-origin-bridge");
 
 function createDesktopWindows(app, options = {}) {
   const appRoot = options.appRoot || process.cwd();
@@ -174,6 +175,9 @@ function createDesktopWindows(app, options = {}) {
       mainWindow.loadURL(indexUrl);
     } else {
       logDesktop(`[desktop] loading frontend index=${indexPath}`);
+      // file:// 页面握手 WebSocket 时 Origin 是 file://，单机后端不放行；给本机 API 请求补上回环来源。
+      const apiBase = typeof options.getApiBase === "function" ? options.getApiBase() : "";
+      installFileOriginBridge(mainWindow.webContents, apiBase);
       mainWindow.loadFile(indexPath);
     }
 
