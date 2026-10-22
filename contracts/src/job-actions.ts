@@ -155,7 +155,7 @@ export interface ActionLinkView {
   url: string;
 }
 /**
- * job_types.rs :: OcrAmbiguityResolutionRequest（deny_unknown_fields）。POST actions/resolve-ocr-ambiguity 的请求体。回执字段要哪几个看失败诊断里 ocr_ambiguity.receipt_fields；accept_duplicate_risk 不用填回执。
+ * job_types.rs :: OcrAmbiguityResolutionRequest（deny_unknown_fields）。POST actions/resolve-ocr-ambiguity 的请求体。回执字段要哪几个看失败诊断里 ocr_ambiguity.receipt_fields，填了不在里面的字段 400；accept_duplicate_risk 时回执字段都不能填（填了 400）。
  */
 export interface OcrAmbiguityResolutionRequest {
   resolution: OcrAmbiguityResolutionKind;

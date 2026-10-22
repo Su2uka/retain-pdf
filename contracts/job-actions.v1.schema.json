@@ -34,7 +34,7 @@
       "output": "OcrAmbiguityResolutionView",
       "rust_view": "OcrAmbiguityResolutionView",
       "ts_consumer": "@retainpdf/contracts/job-actions :: OcrAmbiguityResolutionView",
-      "note": "OCR 派发结果拿不准时（失败诊断 reports/failure 的 ocr_ambiguity 不为 null）由用户选：绑定已有回执，或接受重复派发。成功后建一个恢复任务（submission.job_id）。409 的 error.details.reason：job_active（任务在跑）、no_ocr_dispatch（没有可处理的歧义：任务不是失败 / 已取消，或没有记录在案的派发）、stale_resolution（resolution_revision 过期，或已被别的请求处理，刷新失败诊断再试）、ocr_dispatch_unsupported（这个服务商 / 操作不支持绑定回执）。bind_existing_receipt 缺必填回执字段（看 ocr_ambiguity.receipt_fields 的 required）400。多用户模式下页数额度不够 402，error.code=PAGE_QUOTA_EXCEEDED。"
+      "note": "OCR 派发结果拿不准时（失败诊断 reports/failure 的 ocr_ambiguity 不为 null）由用户选：绑定已有回执，或接受重复派发。成功后建一个恢复任务（submission.job_id）。409 的 error.details.reason：job_active（任务在跑）、no_ocr_dispatch（没有可处理的歧义：任务不是失败 / 已取消，或没有记录在案的派发）、stale_resolution（resolution_revision 过期，或已被别的请求处理，刷新失败诊断再试）、ocr_dispatch_unsupported（这个服务商 / 操作不支持绑定回执）。回执字段不对 400：bind_existing_receipt 缺必填字段（看 ocr_ambiguity.receipt_fields 的 required）、填了不属于这个服务商 / 操作的字段；accept_duplicate_risk 填了任何回执字段。accept_duplicate_risk 走的是 retry-stage stage=ocr，那边的 409 原因也可能出现。多用户模式下页数额度不够 402，error.code=PAGE_QUOTA_EXCEEDED。"
     },
     {
       "method": "GET",
@@ -559,7 +559,7 @@
     },
     "OcrAmbiguityResolutionRequest": {
       "type": "object",
-      "description": "job_types.rs :: OcrAmbiguityResolutionRequest（deny_unknown_fields）。POST actions/resolve-ocr-ambiguity 的请求体。回执字段要哪几个看失败诊断里 ocr_ambiguity.receipt_fields；accept_duplicate_risk 不用填回执。",
+      "description": "job_types.rs :: OcrAmbiguityResolutionRequest（deny_unknown_fields）。POST actions/resolve-ocr-ambiguity 的请求体。回执字段要哪几个看失败诊断里 ocr_ambiguity.receipt_fields，填了不在里面的字段 400；accept_duplicate_risk 时回执字段都不能填（填了 400）。",
       "additionalProperties": false,
       "required": [
         "resolution",
