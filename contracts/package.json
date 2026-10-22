@@ -29,6 +29,10 @@
       "types": "./dist/library-books.d.ts",
       "import": "./dist/library-books.js"
     },
+    "./library-documents": {
+      "types": "./dist/library-documents.d.ts",
+      "import": "./dist/library-documents.js"
+    },
     "./reader-data": {
       "types": "./dist/reader-data.d.ts",
       "import": "./dist/reader-data.js"
@@ -50,6 +54,7 @@
     "./job-events.v2.schema.json": "./job-events.v2.schema.json",
     "./jobs-control.v1.schema.json": "./jobs-control.v1.schema.json",
     "./library-books.v1.schema.json": "./library-books.v1.schema.json",
+    "./library-documents.v1.schema.json": "./library-documents.v1.schema.json",
     "./pipeline-stdout.v1.schema.json": "./pipeline-stdout.v1.schema.json",
     "./public-document-operation.v1.schema.json": "./public-document-operation.v1.schema.json",
     "./reader-data.v1.schema.json": "./reader-data.v1.schema.json",

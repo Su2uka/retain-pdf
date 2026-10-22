@@ -15,7 +15,7 @@ use crate::db::documents::sha256_hex;
 use crate::models::api::FtsBlockRow;
 use crate::models::domain::{now_iso, CreateJobInput, JobSnapshot, JobStatusKind, UploadRecord};
 
-fn seed_document(state: &crate::AppState, content: &[u8]) -> String {
+pub(super) fn seed_document(state: &crate::AppState, content: &[u8]) -> String {
     let hash = sha256_hex(content);
     let upload_id = format!("up-{hash:.8}");
     let absolute = state.config.data_root.join(format!("uploads/{upload_id}/paper.pdf"));
@@ -49,7 +49,7 @@ fn seed_job_for_document(state: &crate::AppState, document_id: &str, job_id: &st
     .unwrap();
 }
 
-async fn send(state: &crate::AppState, method: &str, uri: &str, body: Option<Value>) -> (StatusCode, Value) {
+pub(super) async fn send(state: &crate::AppState, method: &str, uri: &str, body: Option<Value>) -> (StatusCode, Value) {
     let mut request = Request::builder().method(method).uri(uri).header("X-API-Key", "test-key");
     let body = match body {
         Some(body) => {

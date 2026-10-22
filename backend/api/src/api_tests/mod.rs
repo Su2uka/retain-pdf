@@ -43,6 +43,7 @@ mod jobs_reader;
 pub(crate) mod jobs_retry;
 mod jobs_security;
 mod library_data;
+mod library_documents_contract;
 mod library_lookup_errors;
 mod library_paging;
 mod live_translation;

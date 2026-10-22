@@ -9,6 +9,7 @@ const generatedCreateJobFields = readFileSync(resolve("src/create-job-fields.ts"
 const generatedJobStatus = readFileSync(resolve("src/job-status.ts"), "utf8");
 const generatedJobEvents = readFileSync(resolve("src/job-events.ts"), "utf8");
 const generatedLibraryBooks = readFileSync(resolve("src/library-books.ts"), "utf8");
+const generatedLibraryDocuments = readFileSync(resolve("src/library-documents.ts"), "utf8");
 const generatedReaderData = readFileSync(resolve("src/reader-data.ts"), "utf8");
 const RAW_SCHEMA_EXPORTS = [
   "./ai-ask.v1.schema.json",
@@ -20,6 +21,7 @@ const RAW_SCHEMA_EXPORTS = [
   "./job-events.v2.schema.json",
   "./jobs-control.v1.schema.json",
   "./library-books.v1.schema.json",
+  "./library-documents.v1.schema.json",
   "./pipeline-stdout.v1.schema.json",
   "./public-document-operation.v1.schema.json",
   "./reader-data.v1.schema.json",
@@ -39,6 +41,7 @@ test("package exposes only explicit DTO and raw schema subpaths", () => {
       "./job-status",
       "./job-events",
       "./library-books",
+      "./library-documents",
       "./reader-data",
       "./token-usage",
       "./translation-revisions",
@@ -117,6 +120,51 @@ test("generated DTO entries expose the stable consumer type names", () => {
   ]) {
     assert.match(generatedLibraryBooks, new RegExp(`export (?:interface|type) ${typeName}\\b`));
   }
+});
+
+// 书库（书、合集、搜索、阅读入口、翻译覆盖、书的文件清单、元数据建议）：前端用这些名字换掉
+// frontend/packages/api/src/documents.ts、collections.ts、search.ts 里手写的类型。
+test("generated library-documents DTO entry exposes the book, collection and search types", () => {
+  for (const typeName of [
+    "AddCollectionDocumentsInput",
+    "ApplyDocumentMetadataSuggestionInput",
+    "BlockSearchHit",
+    "CollectionDeleteResultView",
+    "CollectionDocumentRemoveResultView",
+    "CollectionListView",
+    "CollectionRecord",
+    "CoverageJobView",
+    "CoverageSegment",
+    "CreateCollectionInput",
+    "CreateDocumentMetadataSuggestionInput",
+    "DeleteDocumentQuery",
+    "DocumentDeleteResultView",
+    "DocumentFilesView",
+    "DocumentListView",
+    "DocumentMetadataSuggestionApplyView",
+    "DocumentMetadataSuggestionListView",
+    "DocumentMetadataSuggestionView",
+    "DocumentReadingView",
+    "DocumentRecord",
+    "ListDocumentMetadataSuggestionsQuery",
+    "ListDocumentsQuery",
+    "PatchCollectionInput",
+    "PatchDocumentInput",
+    "SearchQuery",
+    "SearchResultView",
+    "TranslationCoverageView",
+  ]) {
+    assert.match(generatedLibraryDocuments, new RegExp(`export (?:interface|type) ${typeName}\\b`));
+  }
+  // 书列表的项是结构化的 DocumentRecord，不是 Record<string, any>。
+  assert.match(generatedLibraryDocuments, /documents: DocumentRecord\[\];/);
+  assert.match(generatedLibraryDocuments, /hits: BlockSearchHit\[\];/);
+  assert.doesNotMatch(generatedLibraryDocuments, /\[k: string\]: unknown/);
+});
+
+// 书架批量删除 2026-10-19 前就删了，契约里不再留它的类型。
+test("library-books no longer publishes the removed batch-delete DTOs", () => {
+  assert.doesNotMatch(generatedLibraryBooks, /LibraryBatchDelete/);
 });
 
 test("generated job DTOs keep request and event records structurally typed", () => {

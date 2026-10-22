@@ -50,7 +50,7 @@ fn pdf_texts(bytes: &[u8]) -> String {
     String::from_utf8(output.stdout).unwrap().trim().to_string()
 }
 
-fn state_with_real_pipeline(name: &str) -> crate::AppState {
+pub(super) fn state_with_real_pipeline(name: &str) -> crate::AppState {
     let base = test_state(name);
     let config = AppConfig {
         pipeline_command: venv_bin("retainpdf-pipeline").to_string_lossy().into_owned(),
@@ -59,7 +59,7 @@ fn state_with_real_pipeline(name: &str) -> crate::AppState {
     build_state(Arc::new(config)).expect("build state")
 }
 
-fn seed_document(state: &crate::AppState, pages: &[&str]) -> String {
+pub(super) fn seed_document(state: &crate::AppState, pages: &[&str]) -> String {
     let source = state.config.data_root.join("uploads/up-1/book.pdf");
     make_pdf(&source, pages);
     let bytes = fs::read(&source).unwrap();
@@ -80,7 +80,7 @@ fn seed_document(state: &crate::AppState, pages: &[&str]) -> String {
 }
 
 /// 一个子集 OCR 的范围翻译任务（页号全是本地的，和流水线真实产出一致）。
-fn seed_range_job(
+pub(super) fn seed_range_job(
     state: &crate::AppState,
     document_id: &str,
     job_id: &str,
