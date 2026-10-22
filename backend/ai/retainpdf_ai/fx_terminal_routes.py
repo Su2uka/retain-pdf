@@ -16,6 +16,11 @@ os.read —— 那会把整个 AI 服务卡住。
 请求头**，所以这里同时接受 `?api_key=` 查询参数。它会进 access log，这是已知
 代价；本服务只监听回环，且这个 key 本来就存在浏览器里（见 README 里关于
 凭据的说明）。
+
+**带 `Origin` 的握手一律拒。** 浏览器不对 WebSocket 做 CORS，单机的默认 key 又是公开的：
+不拒的话任意网页都能直连 `ws://127.0.0.1:41100/v1/fx/terminal` 执行命令（DNS rebinding
+也一样）。合法的调用方只有 rust_api 的代理（`/api/v1/ai/terminal`，它自己查 Origin，往这边
+转发时不带 Origin）和命令行客户端，都不带这个头；浏览器的 WebSocket 一定带。
 """
 
 from __future__ import annotations
@@ -67,6 +72,15 @@ def authorize_terminal_request(
     return header_key in allowed or query_key in allowed
 
 
+def handshake_is_not_from_a_browser(origin: str | None) -> bool:
+    """浏览器发起的 WebSocket 握手一定带 `Origin`；rust_api 的代理和命令行客户端不带。
+
+    本服务从不被浏览器直连（前端走 rust_api 的 `/api/v1/ai/terminal`），所以带了就拒，
+    不用维护来源名单。
+    """
+    return origin is None
+
+
 def register_fx_terminal_routes(
     app: FastAPI,
     *,
@@ -75,6 +89,10 @@ def register_fx_terminal_routes(
 ) -> None:
     @app.websocket("/v1/fx/terminal")
     async def fx_terminal(websocket: WebSocket) -> None:
+        if not handshake_is_not_from_a_browser(websocket.headers.get("origin")):
+            # 没 accept 就关，uvicorn 回 HTTP 403。日志里不记 key。
+            await websocket.close(code=_CLOSE_UNAUTHORIZED)
+            return
         if not authorize_terminal_request(
             settings.api_keys,
             websocket.headers.get("X-API-Key", ""),
@@ -195,4 +213,8 @@ async def _pump_output(websocket: WebSocket, session: PtySession) -> None:
             await websocket.send_json({"type": "output", "data": chunk})
 
 
-__all__ = ["authorize_terminal_request", "register_fx_terminal_routes"]
+__all__ = [
+    "authorize_terminal_request",
+    "handshake_is_not_from_a_browser",
+    "register_fx_terminal_routes",
+]

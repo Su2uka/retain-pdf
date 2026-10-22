@@ -4,7 +4,7 @@ use axum::middleware::Next;
 use axum::response::Response;
 
 use crate::error::AppError;
-use crate::routes::common::{build_auth_route_deps, AuthRouteDeps};
+use crate::routes::common::{build_auth_route_deps, request_host_is_allowed, AuthRouteDeps};
 use crate::services::accounts::{json_references, query_references, SESSION_COOKIE};
 /// 路由拿「当前用户」从这里引（路由层不直接碰 services）。处理函数参数里直接写 `Principal`
 /// 的提取器跟着类型放在账号包里（孤儿规则：外部类型实现外部 trait 只能写在类型所在的包）。
@@ -60,6 +60,36 @@ fn check_origin(state: &AppState, request: &Request<Body>) -> Result<(), AppErro
     } else {
         Err(AppError::forbidden("request origin is not allowed"))
     }
+}
+
+/// 单机模式防 DNS rebinding：后端监听回环地址时，`Host` 必须是 `localhost`、IP 字面量或
+/// `RUST_API_ALLOWED_HOSTS` 里的主机名，否则 403；监听非回环地址时只有配了名单才查。
+/// 挂在所有路由外面（含 `/health`：就绪探测用的都是 IP 字面量）。多用户模式不查。
+pub async fn reject_foreign_host(
+    axum::extract::State(state): axum::extract::State<AppState>,
+    request: Request<Body>,
+    next: Next,
+) -> Result<Response, AppError> {
+    let config = &state.config;
+    if !config.accounts.mode.is_multi()
+        && !request_host_is_allowed(
+            &config.origin_policy,
+            request.headers(),
+            request.uri(),
+            config.listens_on_loopback(),
+        )
+    {
+        tracing::warn!(
+            host = %request
+                .headers()
+                .get(header::HOST)
+                .map(|value| String::from_utf8_lossy(value.as_bytes()).into_owned())
+                .unwrap_or_default(),
+            "refused request for a host that is not allowed (set RUST_API_ALLOWED_HOSTS to add one)"
+        );
+        return Err(AppError::forbidden("request host is not allowed"));
+    }
+    Ok(next.run(request).await)
 }
 
 pub async fn require_api_key(
