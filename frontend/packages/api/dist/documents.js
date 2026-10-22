@@ -78,6 +78,7 @@ export async function patchDocument(apiPrefix, documentId, payload = {}) {
     }
     return unwrapEnvelope(await resp.json());
 }
+/** GET /documents/:id/reading —— 阅读器该打开哪个任务。 */
 export async function fetchDocumentReading(apiPrefix, documentId) {
     const normalized = `${documentId || ""}`.trim();
     if (!normalized)
@@ -89,6 +90,7 @@ export async function fetchDocumentReading(apiPrefix, documentId) {
         throw new Error(`读取阅读入口失败。(${resp.status})`);
     return unwrapEnvelope(await resp.json());
 }
+/** GET /documents/:id/translation-coverage —— 一本书翻了哪些页、每次任务提供了几页。 */
 export async function fetchDocumentTranslationCoverage(apiPrefix, documentId) {
     const normalized = `${documentId || ""}`.trim();
     if (!normalized)

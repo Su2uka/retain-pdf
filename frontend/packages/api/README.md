@@ -4,6 +4,7 @@ Typed API clients using generated wire DTOs from `@retainpdf/contracts`.
 
 - `jobs.ts` → `fetchJobPayload`, `fetchJobList`, `fetchJobsByIds` (batch live state for library cards via `GET jobs?job_ids=`)
 - `jobs-actions.ts` → `deleteJob` (`DELETE jobs/:id`), cancel / resume / retry-stage
+- `documents.ts` / `collections.ts` / `search.ts` → book library clients; their views (`DocumentRecord`, `CollectionRecord`, `SearchResultView` …) are re-exported from `@retainpdf/contracts/library-documents`
 - `types.ts` → generated Job/library DTO re-exports plus the generic `ApiResponse` envelope
 
 Build: `npm --prefix frontend/packages/api run build` → `dist/`

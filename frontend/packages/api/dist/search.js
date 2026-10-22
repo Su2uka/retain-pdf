@@ -5,7 +5,7 @@ import { buildApiEndpoint } from "./http.js";
 export async function searchLibrary(apiPrefix, q, { limit = 20 } = {}) {
     const query = `${q || ""}`.trim();
     if (!query)
-        return { hits: [] };
+        return { query, hits: [], limit, has_more: false };
     const params = new URLSearchParams();
     params.set("q", query);
     params.set("limit", `${limit}`);

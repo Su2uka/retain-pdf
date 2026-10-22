@@ -180,7 +180,7 @@ export function BookDetailDialog() {
     refreshRevision: documentJobs.succeededRevision,
     title: docState.doc?.title || item.title || "",
     source: {
-      filename: docState.doc?.source_filename || item.source_filename || item.title,
+      filename: docState.doc?.source_filename || (item.source_filename as string | undefined) || item.title,
       url: docState.doc?.source_pdf_url || item.source_pdf_url,
       sizeBytes: docState.doc?.bytes ?? item.bytes,
       generatedAt: docState.doc?.added_at || item.added_at || item.created_at,
@@ -220,7 +220,7 @@ export function BookDetailDialog() {
           coverUrl={coverUrl}
           title={docState.doc?.title || docState.titleText || item.title}
           authors={docState.authors}
-          year={docState.doc?.year || item.year}
+          year={docState.doc?.year || (item.year as number | undefined)}
           pageCount={docState.pageCount}
           readingStatus={docState.readingStatus}
           readerAvailable={readerAvailable}

@@ -162,7 +162,7 @@ function errorDetailOf(job: TranslationCoverageJob): string {
 /** 摘要里的「翻译」只认真正翻译的任务。重新渲染（render）任务也带 model、也复用 OCR，
  *  算进来的话顶部写的是渲染的用时，OCR 站也会误写成「复用已有 OCR」。 */
 const isTranslationJob = (job: TranslationCoverageJob) =>
-  job.workflow === "book" || job.workflow === "translate" || job.workflow === "translation";
+  job.workflow === "book" || job.workflow === "translate";
 
 /** 最近一次成功的翻译 / OCR（jobs 已是新到旧）。 */
 function latestSucceeded(view: TranslationCoverageView, matches: (job: TranslationCoverageJob) => boolean) {

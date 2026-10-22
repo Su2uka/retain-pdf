@@ -3,6 +3,7 @@ import { APP_EVENTS } from "@/platform/contracts/app-contract.js";
 import { RECENT_JOBS_IDS } from "../recent-jobs-dom-contract.js";
 import { fetchDocumentList, patchDocument } from "@/platform/api/index.js";
 import { searchLibrary } from "@/platform/api/index.js";
+import type { BlockSearchHit } from "@retainpdf/contracts/library-documents";
 
 /** Anchor payload used to open the reader from a search hit / document row. */
 export interface LibrarySearchAnchor {
@@ -21,11 +22,8 @@ export type LibraryDocumentPatch = {
   reading_status?: string;
 };
 
-/** 全文检索命中：锚点字段外，还带原文与译文两段 snippet（[ ] 包裹命中词）。 */
-export interface LibrarySearchHit extends LibrarySearchAnchor {
-  source_snippet?: string;
-  translated_snippet?: string;
-}
+/** 全文检索命中：锚点字段外，还带原文与译文两段 snippet（[ ] 包裹命中词）。形状以契约为准。 */
+export type LibrarySearchHit = BlockSearchHit;
 
 /** 搜索下拉里一本书要用到的字段。文档列表的每一行都有 document_id，它是行的主键。 */
 export interface LibrarySearchDocumentRow {
