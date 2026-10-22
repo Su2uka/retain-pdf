@@ -35,6 +35,27 @@
 接口换了新地址就直接改 `path`。返回形状不一样的新接口（比如 `/files` 和已删除的 `/artifacts-manifest`）要另写一条
 endpoint 和它自己的 definition。全部接口见 `docs/api/00-接口目录.md`。
 
+**端点表**：`endpoints[]` 每条至少有 `method`、`path`，请求体、查询参数、返回分别写 `input`、`query`、`output`（定义名）。
+给前端生成请求函数用的两个字段（方案见
+[从契约生成前端请求函数](../docs/ops/planning/api-client-codegen/20261022-从契约生成前端请求函数.md)）：
+
+| 字段 | 说明 |
+|------|------|
+| `client_name` | 前端生成的函数名，小驼峰（`listDocuments`），显式写、不从地址推；**全部契约里不许重名**。不复用 `op`（那是 jobs-control.v1 里 jobsd 的内部操作名） |
+| `transport` | 返回方式：`json`（不写等于它，`{code, data}` 信封）、`sse`、`binary`、`websocket`、`raw_json`（JSON 但不带信封）。不叫 `response`（jobs-control.v1 的 `response` 是返回类型） |
+
+现在 `library-documents.v1` 的 17 条都有 `client_name`；`agent-calculation.v1` 的计算产物下载是 `binary`
+（2026-10-22 以前写的是 `response_body: "binary"`，已并进 `transport`），`reader-data.v1` 的 `progress/stream` 是 `sse`。
+`scripts/lint-schemas.mjs` 查端点的键（有白名单，拼错的键直接红）、`method`、`transport` 的取值、`client_name` 的格式和重名。
+
+**和接口登记表一致**：rust_api 的 `route_manifest` 测试（`contract_endpoints_are_registered`）读 `backend/contracts/*.schema.json`
+的端点表，每条方法加地址都要在接口登记表（`backend/api/src/app/endpoints.rs` 那些 `crate::endpoints!` 表）里、而且不是旧地址；
+反过来不要求。删了接口、改了地址却忘了改契约，这条测试红。规则：
+
+- `jobs-control.v1` 排除：jobsd 自己的接口，由 `backend/jobs/src/contract_lock.rs` 对 jobsd 的路由双向比；
+- 有 `proxy_path` 的比 `proxy_path`（`runtime-config.v1` 的 `path` 是 Python AI 服务的地址）；
+- 地址先归一：`{job_id}` 换成 `:job_id`，`?` 后面的查询串去掉。
+
 ## npm 包
 
 本目录发布为 `@retainpdf/contracts`。Wire DTO 从 `@retainpdf/contracts/job-status`、`@retainpdf/contracts/job-events`、`@retainpdf/contracts/library-books`、`@retainpdf/contracts/library-documents`、`@retainpdf/contracts/ocr-providers`、`@retainpdf/contracts/reader-data` 与 `@retainpdf/contracts/translation-revisions` 导出；原始 schema 以文件名子路径显式导出。包没有根 DTO 入口、wildcard export 或 runtime dependency。

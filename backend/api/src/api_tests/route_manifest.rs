@@ -255,3 +255,93 @@ fn route_policies_come_from_the_registry() {
     // 没登记的接口默认关闭。
     assert_eq!(route_policy("GET", "/api/v1/reports"), RoutePolicy::Closed);
 }
+
+/// 不在 rust_api 登记表里的契约：文件名 → 为什么、由谁对。
+const CONTRACTS_OUTSIDE_RUST_API: &[(&str, &str)] = &[(
+    "jobs-control.v1.schema.json",
+    "jobsd 自己的接口；jobsd 挂的路由由 backend/jobs/src/contract_lock.rs 对这份契约双向比",
+)];
+
+/// 契约地址归一成登记表的写法：去掉 `?…` 查询串（reader-data 的 `progress/stream?after_seq=:seq`），
+/// `{job_id}` 换成 axum 的 `:job_id`。
+fn normalize_contract_path(path: &str) -> String {
+    let path = path.split('?').next().unwrap_or_default();
+    path.split('/')
+        .map(|segment| match segment.strip_prefix('{').and_then(|rest| rest.strip_suffix('}')) {
+            Some(name) => format!(":{name}"),
+            None => segment.to_string(),
+        })
+        .collect::<Vec<_>>()
+        .join("/")
+}
+
+/// 读 `<backend>/contracts/*.schema.json`（和根目录 `contracts/` 字节一致，`check_parity.py` 守着）
+/// 每份的端点表，返回 (文件名, 方法, 契约里写的地址, 归一后拿来比的地址)。
+/// 有 `proxy_path` 的（runtime-config.v1：`path` 是 Python AI 服务的地址）比 `proxy_path`。
+fn contract_endpoints(contracts_dir: &Path) -> Vec<(String, String, String, String)> {
+    let mut files: Vec<_> = std::fs::read_dir(contracts_dir)
+        .unwrap_or_else(|error| panic!("read {}: {error}", contracts_dir.display()))
+        .map(|entry| entry.unwrap().path())
+        .filter(|path| path.to_string_lossy().ends_with(".schema.json"))
+        .collect();
+    files.sort();
+    assert!(!files.is_empty(), "{} 下没有契约", contracts_dir.display());
+    let mut out = Vec::new();
+    for file in files {
+        let name = file.file_name().unwrap().to_string_lossy().to_string();
+        if CONTRACTS_OUTSIDE_RUST_API.iter().any(|(skip, _)| *skip == name) {
+            continue;
+        }
+        let schema: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(&file).unwrap())
+            .unwrap_or_else(|error| panic!("{name}: {error}"));
+        let Some(endpoints) = schema.get("endpoints") else { continue };
+        for endpoint in endpoints.as_array().unwrap_or_else(|| panic!("{name}: endpoints 不是数组")) {
+            let method = endpoint["method"].as_str().unwrap_or_else(|| panic!("{name}: 端点缺 method"));
+            let path = endpoint["path"].as_str().unwrap_or_else(|| panic!("{name}: 端点缺 path"));
+            let public = endpoint.get("proxy_path").and_then(|value| value.as_str()).unwrap_or(path);
+            out.push((name.clone(), method.to_string(), public.to_string(), normalize_contract_path(public)));
+        }
+    }
+    out
+}
+
+/// 契约端点表里的每条方法加地址都要在登记表里，而且是现用地址。反过来不要求：管理后台、内部接口可以不进契约。
+/// 删接口时契约里留下的残留地址在这里红（2026-10-22 删书架旧地址时是手工 grep 发现的）。
+/// 方案见 docs/ops/planning/api-reorg/20261022-契约端点加函数名和传输方式.md。
+#[test]
+fn contract_endpoints_are_registered() {
+    let contracts_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../contracts");
+    for (skip, _) in CONTRACTS_OUTSIDE_RUST_API {
+        assert!(contracts_dir.join(skip).is_file(), "CONTRACTS_OUTSIDE_RUST_API 里的 {skip} 已经不存在，删掉这一条");
+    }
+    let registry = crate::app::registered_endpoints();
+    let endpoints = contract_endpoints(&contracts_dir);
+    assert!(endpoints.len() > 40, "契约端点只读到 {} 条，读取逻辑可能坏了", endpoints.len());
+    let mut problems = Vec::new();
+    for (file, method, written, path) in &endpoints {
+        match registry.iter().find(|e| e.method == method && e.path == path) {
+            None => problems.push(format!("{file}: {method} {written} 不在接口登记表里")),
+            Some(found) => {
+                if let Some(replacement) = found.replaced_by {
+                    problems.push(format!("{file}: {method} {written} 是旧地址，契约里改成 {replacement}"));
+                }
+            }
+        }
+    }
+    assert!(
+        problems.is_empty(),
+        "契约端点表和接口登记表（app/endpoints.rs）对不上：\n  {}\n\
+         接口删了就删契约里的那条；改了地址就改契约的 path（contracts/ 和 backend/contracts/ 一起改）",
+        problems.join("\n  ")
+    );
+}
+
+#[test]
+fn contract_paths_normalize_to_registry_style() {
+    assert_eq!(normalize_contract_path("/internal/v1/jobs/{job_id}/launch"), "/internal/v1/jobs/:job_id/launch");
+    assert_eq!(
+        normalize_contract_path("/api/v1/jobs/:job_id/progress/stream?after_seq=:seq"),
+        "/api/v1/jobs/:job_id/progress/stream"
+    );
+    assert_eq!(normalize_contract_path("/api/v1/documents"), "/api/v1/documents");
+}

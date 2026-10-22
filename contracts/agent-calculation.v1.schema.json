@@ -44,7 +44,7 @@
       "method": "GET",
       "path": "/api/v1/ai/calculations/:calculation_id/artifacts/:artifact_id",
       "output": "AgentCalculationArtifactBody",
-      "response_body": "binary"
+      "transport": "binary"
     }
   ],
   "security_boundary": {

@@ -902,3 +902,36 @@ API / jobsd 重启时，翻译阶段运行中的任务以前一律自动续跑�
 | `frontend/web/src/features/glossaries/domain/controller.ts:192`（可选） | `PUT` 不带版本 | 带上详情里的 `updated_at` 作 `expected_updated_at`；`409` 且 `reason === "glossary_changed"` 时提示「术语表已被别处修改，请刷新后再改」 |
 | 重跑、重试失败的提示（可选） | 只显示 `message` | `reason === "glossary_missing"` 时提示「术语表已删除，请改选后重新翻译」 |
 | `parse-csv` 预览（可选） | — | `duplicate_count > 0` 时提示「有 N 行重复，已按最后一行」 |
+
+## 契约端点加 `client_name`、`transport`：可以开第 0 期（contracts/client-names-phase0）
+
+2026-10-22。方案是前端的 [从契约生成前端请求函数](../../ops/planning/api-client-codegen/20261022-从契约生成前端请求函数.md)，
+后端做了什么、一致性检查怎么比见 [契约端点加函数名和传输方式](../../ops/planning/api-reorg/20261022-契约端点加函数名和传输方式.md)，
+字段说明在 [`contracts/README.md`](../../../contracts/README.md) 的「端点表」。
+
+### 变了什么（接口行为没变）
+
+1. `contracts/library-documents.v1.schema.json` 的 17 条端点都有了 `client_name`（照前端给的名单，方法、地址逐条对过）和
+   `transport: "json"`。
+2. `agent-calculation.v1` 计算产物下载那条的 `response_body: "binary"` 改成 `transport: "binary"`（`git grep` 过，前端没人读
+   `response_body`）。`reader-data.v1` 的 `GET /jobs/:job_id/progress/stream` 标了 `transport: "sse"`。其余端点没写 `transport`，
+   按 `json` 算，还没有 `client_name`。
+3. `npm --prefix contracts run lint:schemas` 现在查端点表：键有白名单，`transport` 只能是 `json`/`sse`/`binary`/`websocket`/`raw_json`，
+   `client_name` 小驼峰、**全部契约里不重名**。
+4. rust_api 测试 `route_manifest::contract_endpoints_are_registered`：契约端点表的每条方法加地址都要在接口登记表里（排除
+   jobs-control，`runtime-config` 比 `proxy_path`，`{x}`/`:x` 归一，去掉 `?` 查询串）。契约里的地址现在全部是活的。
+5. `@retainpdf/contracts` 生成的 TS 类型没变（生成器只读 `input`/`query`/`output` 指向的定义）。
+
+### 前端可以开始第 0 期
+
+| 做什么 | 在哪 |
+|---|---|
+| 写生成器：读 `contracts/library-documents.v1.schema.json` 的 `endpoints`，有 `client_name` 且 `transport` 是 `json`（或不写）的生成函数 | `frontend/packages/api/scripts/` → `frontend/packages/api/src/generated/` |
+| 手写 `request()`（拼地址、`X-API-Key`、拆信封、`attachErrorDetails`） | `frontend/packages/api/src/` |
+| 把 `documents.ts`、`collections.ts`、`search.ts` 换成生成的函数，有中文报错、兜底的留成薄包装 | `frontend/packages/api/src/` |
+
+注意：
+
+- 生成的函数名以契约为准。要改名、要给别的契约的端点起名，告诉后端改契约（lint 会拦重名）。
+- 查询参数、请求体的定义都是 `additionalProperties: false`，后端对不认识的字段回 400。
+- 第 1 期要补进契约的接口，列清单给后端（方案第 5 节）。
