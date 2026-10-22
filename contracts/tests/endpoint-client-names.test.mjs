@@ -9,7 +9,8 @@ const read = (name) => JSON.parse(readFileSync(resolve(name), "utf8"));
 
 test("library-documents.v1 endpoints all carry the phase-0 client names over the json transport", () => {
   const contract = read("library-documents.v1.schema.json");
-  const table = contract.endpoints.map(({ method, path, client_name, transport }) => [method, path, client_name, transport]);
+  // 第 0 期的 17 条在最前面、顺序不动；第 1b 期加在后面的 3 条由下面单独的 test 钉。
+  const table = contract.endpoints.slice(0, 17).map(({ method, path, client_name, transport }) => [method, path, client_name, transport]);
   assert.deepEqual(table, [
     ["GET", "/api/v1/documents", "listDocuments", "json"],
     ["GET", "/api/v1/documents/:document_id", "getDocument", "json"],
@@ -31,9 +32,20 @@ test("library-documents.v1 endpoints all carry the phase-0 client names over the
   ]);
 });
 
+// 第 1a 期补名字的 7 份契约。之后几期在别的契约里起的名字各有自己的 test。
+const PHASE_1A_CONTRACTS = new Set([
+  "create-job.v1.schema.json",
+  "job-data.v1.schema.json",
+  "job-events.v2.schema.json",
+  "job-status.v1.schema.json",
+  "library-books.v1.schema.json",
+  "reader-data.v1.schema.json",
+  "token-usage.v1.schema.json",
+]);
+
 test("phase-1a endpoints carry the client names from the frontend list over the json transport", () => {
   const named = [];
-  for (const fileName of readdirSync(resolve(".")).filter((name) => name.endsWith(".schema.json") && name !== "library-documents.v1.schema.json")) {
+  for (const fileName of readdirSync(resolve(".")).filter((name) => PHASE_1A_CONTRACTS.has(name))) {
     for (const { method, path, client_name, transport } of read(fileName).endpoints || []) {
       if (client_name !== undefined) named.push([fileName, method, path, client_name, transport]);
     }
@@ -60,6 +72,37 @@ test("phase-1a endpoints carry the client names from the frontend list over the 
   // GET /api/v1/jobs 在 library-books.v1 也登记了（为了导出 JobListView），名字只写在 job-status.v1。
   const duplicate = read("library-books.v1.schema.json").endpoints.find((endpoint) => endpoint.method === "GET" && endpoint.path === "/api/v1/jobs");
   assert.equal(duplicate.client_name, undefined);
+});
+
+test("phase-1b translation items and document jobs endpoints carry the client names from the frontend list", () => {
+  const revisions = read("translation-revisions.v1.schema.json");
+  const named = revisions.endpoints
+    .filter((endpoint) => endpoint.client_name !== undefined)
+    .map(({ method, path, client_name, transport, input }) => [method, path, client_name, transport, input]);
+  assert.deepEqual(named, [
+    ["GET", "/api/v1/jobs/:job_id/translations", "listTranslationItems", "json", undefined],
+    ["GET", "/api/v1/jobs/:job_id/translations/:item_id", "getTranslationItem", "json", undefined],
+    // 重放一条不带请求体。
+    ["POST", "/api/v1/jobs/:job_id/translations/:item_id/replay", "replayTranslationItem", "json", undefined],
+  ]);
+  // 同一份契约里的写回（PATCH）和修订历史前端清单没给名字，不起名。
+  const unnamed = revisions.endpoints.filter((endpoint) => endpoint.client_name === undefined).map(({ method, path }) => [method, path]);
+  assert.deepEqual(unnamed, [
+    ["PATCH", "/api/v1/jobs/:job_id/translations/:item_id"],
+    ["GET", "/api/v1/jobs/:job_id/translations/:item_id/revisions"],
+  ]);
+
+  const documents = read("library-documents.v1.schema.json");
+  const added = documents.endpoints.slice(17).map(({ method, path, client_name, transport, query, input, output }) => [method, path, client_name, transport, query, input, output]);
+  assert.deepEqual(added, [
+    ["GET", "/api/v1/documents/:document_id/jobs", "listDocumentJobs", "json", "ListDocumentJobsQuery", undefined, "DocumentJobListView"],
+    ["POST", "/api/v1/documents/:document_id/translate", "translateDocument", "json", undefined, "CreateJobInput", "JobSubmissionView"],
+    ["POST", "/api/v1/documents/:document_id/ocr", "ocrDocument", "json", undefined, "CreateJobInput", "JobSubmissionView"],
+  ]);
+  for (const endpoint of documents.endpoints.slice(18)) {
+    assert.match(endpoint.note, /402/, `${endpoint.path} note 要写 402 页数额度`);
+    assert.match(endpoint.note, /PAGE_QUOTA_EXCEEDED/, `${endpoint.path} note 要写错误码`);
+  }
 });
 
 test("the old response_body key is merged into transport", () => {

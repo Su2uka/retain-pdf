@@ -198,7 +198,9 @@ Reader 宿主接入 job/artifact、Markdown、区域、页面元数据和实时�
 书、合集、全文检索、阅读入口（`/documents/{id}/reading`）、翻译覆盖（`/documents/{id}/translation-coverage`）、
 书的文件清单（`/documents/{id}/files`）、元数据建议的请求和返回，2026-10-22 起有契约
 [`library-documents.v1.schema.json`](../../../contracts/library-documents.v1.schema.json)（TS 类型
-`@retainpdf/contracts/library-documents`）。空值的写法照契约：类型带 `null` 的键总在、空时是 `null`；
+`@retainpdf/contracts/library-documents`）。同一天第 1b 期补上书的任务列表（`/documents/{id}/jobs`）、翻译这本书（`/translate`）、
+给这本书做 OCR（`/ocr`）：请求体是 `POST /jobs` 的 `CreateJobInput`，返回 `JobSubmissionView`，多用户模式下页数额度不够 402
+`PAGE_QUOTA_EXCEEDED`（顶层 `code` 是字符串，`error.details` 是 `{required_pages, balance}`）。空值的写法照契约：类型带 `null` 的键总在、空时是 `null`；
 `DocumentRecord.active_version_id`、元数据建议的 `source_job_id` 和证据里的可选项没有时整个键不出现。
 `DocumentRecord` 的 `authors_json`（恒为 `"[]"`）、`year`（恒 `null`）、`doi`（恒 `""`）、`last_opened_at`（恒 `null`）
 没有功能，留着不删。Rust 侧 `backend/api/src/api_tests/library_documents_contract.rs` 钉住真实返回的键集合。

@@ -150,6 +150,8 @@ Response:
 
 `GET /api/v1/jobs/{job_id}/translations`
 
+Contract: `contracts/translation-revisions.v1.schema.json` (`ListTranslationItemsQuery`, `TranslationDebugListView`, `TranslationDebugListItemView`; client name `listTranslationItems`). Every key of a list item is always present.
+
 The list is computed on every call from the manifest and its page files (the same files `GET .../translations/{item_id}` reads), so after a `PATCH` revision `translated_preview`, `final_status` and the `q` search reflect the revised text. `translation_debug_index.json` is only used when the manifest cannot be found. With neither, the list is `200` and empty.
 
 Query parameters (any other parameter is `400`):
@@ -202,6 +204,8 @@ Response:
 
 `GET /api/v1/jobs/{job_id}/translations/{item_id}`
 
+Contract: `contracts/translation-revisions.v1.schema.json` (`TranslationDebugItemView`; client name `getTranslationItem`). `data.item` is the stored item as is, not a stable schema.
+
 Response: the item is wrapped; the saved translated item is under `data.item`. Sensitive fields and inline secrets are redacted. Unknown items return a plain 404; no manifest yet returns 404 + `reason: "not_ready"`.
 
 ```json
@@ -234,6 +238,8 @@ Response: the item is wrapped; the saved translated item is under `data.item`. S
 ## Replay Translation Item
 
 `POST /api/v1/jobs/{job_id}/translations/{item_id}/replay`
+
+Contract: `contracts/translation-revisions.v1.schema.json` (`TranslationReplayView`; client name `replayTranslationItem`). No request body: the endpoint has no `input`, any body is ignored. `data.payload` is the devtools script output, not a stable schema.
 
 Behavior:
 

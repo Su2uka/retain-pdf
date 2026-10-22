@@ -20,8 +20,9 @@ use crate::models::api::{
     AddCollectionDocumentsInput, ApplyDocumentMetadataSuggestionInput, CreateCollectionInput,
     CreateDocumentMetadataSuggestionInput, DeleteDocumentQuery, FtsBlockRow,
     ListDocumentMetadataSuggestionsQuery, ListDocumentsQuery, PatchCollectionInput,
-    PatchDocumentInput, SearchQuery,
+    ListDocumentJobsQuery, PatchDocumentInput, SearchQuery,
 };
+use crate::models::CreateJobInput;
 
 const CONTRACT: &str = "library-documents.v1.schema.json";
 
@@ -293,8 +294,100 @@ async fn reading_and_coverage_of_a_translated_book_match_published_schema() {
     assert!(jobs[0]["failure_summary"].is_null() && jobs[0]["error_head"].is_null(), "{}", jobs[0]);
 }
 
+/// 第 1b 期（2026-10-22）：书的任务列表、翻译这本书、给这本书做 OCR。
+///
+/// OCR 是单个任务（`sibling_job_ids` 整个不出现）；翻译复用 OCR、页不连续时拆成两个任务，回包里
+/// `sibling_job_ids` 出现，键集合正好是 `JobSubmissionView` 的全部属性。任务列表的条目和 `GET /jobs` 是同一个
+/// `JobListItemView`（契约里抄了一份，由 contracts/tests/library-documents-shared-definitions.test.mjs 锁成一致）。
+#[tokio::test]
+async fn document_jobs_translate_and_ocr_views_match_published_schema() {
+    use super::library_data::{seed_document, seed_reusable_ocr_job};
+
+    let state = test_state("library-documents-contract-jobs");
+    let contract = contract(CONTRACT);
+    let document_id = seed_document(&state, b"library-documents-contract-jobs");
+
+    let ocr = ok_data(
+        &state,
+        "POST",
+        &format!("/api/v1/documents/{document_id}/ocr"),
+        Some(json!({
+            "ocr": {
+                "provider": "paddle",
+                "paddle_token": "paddle-test-token",
+                "paddle_api_url": "https://paddle.example.com",
+                "page_ranges": "2-4"
+            }
+        })),
+    )
+    .await;
+    assert_submission(&ocr, &contract, "ocr");
+    assert!(ocr.get("sibling_job_ids").is_none(), "单个任务时 sibling_job_ids 整个不出现：{ocr}");
+    assert_eq!(ocr["workflow"], "ocr");
+
+    let source_job_id = seed_reusable_ocr_job(&state, &document_id, "ocr-contract-whole-book");
+    let translated = ok_data(
+        &state,
+        "POST",
+        &format!("/api/v1/documents/{document_id}/translate"),
+        Some(json!({
+            "workflow": "translate",
+            "source": { "artifact_job_id": source_job_id },
+            "translation": {
+                "page_ranges": [1, 2, 7],
+                "api_key": "sk-test",
+                "model": "m",
+                "base_url": "https://api.example.com/v1"
+            }
+        })),
+    )
+    .await;
+    assert_submission(&translated, &contract, "translate (split)");
+    assert_exact_object_keys(&translated, &contract, "JobSubmissionView", "translate (split)");
+    assert_eq!(translated["sibling_job_ids"].as_array().map(Vec::len), Some(1), "{translated}");
+
+    let jobs = ok_data(&state, "GET", &format!("/api/v1/documents/{document_id}/jobs?limit=2"), None).await;
+    assert_exact(&jobs, &contract, "DocumentJobListView", "jobs");
+    assert_exact_object_keys(&jobs["invocation_summary"], &contract, "JobListInvocationSummaryView", "jobs.invocation_summary");
+    assert_eq!(jobs["limit"], 2);
+    let total = jobs["total"].as_u64().expect("jobs.total");
+    assert!(total >= 3, "OCR 一个、翻译拆成两个：{jobs}");
+    assert_eq!(jobs["has_more"], true, "{jobs}");
+    let items = jobs["items"].as_array().expect("jobs.items");
+    assert_eq!(items.len(), 2, "{jobs}");
+    for (index, item) in items.iter().enumerate() {
+        let path = format!("jobs.items[{index}]");
+        assert_definition(item, &contract, "JobListItemView", &path);
+        assert_object_keys_allowing_absent(item, &contract, "JobListItemView", &path, &["failure"]);
+        assert_exact_object_keys(&item["stages"], &contract, "JobStagesView", &format!("{path}.stages"));
+    }
+}
+
+/// `JobSubmissionView`：只有 `sibling_job_ids` 可以不出现；嵌套的阶段、链接、操作键集合都要对上。
+fn assert_submission(value: &Value, contract: &Value, path: &str) {
+    assert_definition(value, contract, "JobSubmissionView", path);
+    assert_object_keys_allowing_absent(value, contract, "JobSubmissionView", path, &["sibling_job_ids"]);
+    assert_exact_object_keys(&value["stages"], contract, "JobStagesView", &format!("{path}.stages"));
+    for stage in ["ocr", "translation", "render"] {
+        let stage_path = format!("{path}.stages.{stage}");
+        assert_exact_object_keys(&value["stages"][stage], contract, "JobStageRuntimeView", &stage_path);
+        assert_object_keys_allowing_absent(
+            &value["stages"][stage]["progress"],
+            contract,
+            "JobProgressView",
+            &format!("{stage_path}.progress"),
+            &["unit"],
+        );
+    }
+    assert_exact_object_keys(&value["links"], contract, "JobLinksView", &format!("{path}.links"));
+    assert_exact_object_keys(&value["actions"], contract, "JobActionsView", &format!("{path}.actions"));
+    for (name, action) in value["actions"].as_object().expect("actions") {
+        assert_exact_object_keys(action, contract, "ActionLinkView", &format!("{path}.actions.{name}"));
+    }
+}
+
 /// serde 认的字段（`deny_unknown_fields` 的报错里列着全部）。
-fn rust_field_names<T: DeserializeOwned>(type_name: &str) -> BTreeSet<String> {
+pub(super) fn rust_field_names<T: DeserializeOwned>(type_name: &str) -> BTreeSet<String> {
     const PROBE: &str = "__contract_probe__";
     let probe = Value::Object(serde_json::Map::from_iter([(PROBE.to_string(), json!(0))]));
     let Err(error) = serde_json::from_value::<T>(probe) else {
@@ -347,7 +440,7 @@ fn sample(schema: &Value, contract: &Value) -> Value {
     }
 }
 
-fn assert_request_fields_match<T: DeserializeOwned>(contract: &Value, name: &str) {
+pub(super) fn assert_request_fields_match<T: DeserializeOwned>(contract: &Value, name: &str) {
     let schema = definition(contract, name);
     assert_eq!(schema["additionalProperties"], false, "{name} 在 Rust 里是 deny_unknown_fields，契约要写 additionalProperties: false");
     assert_eq!(rust_field_names::<T>(name), schema_keys(contract, name), "{name}：Rust 认的字段和契约对不上");
@@ -370,6 +463,16 @@ fn request_bodies_and_queries_accept_exactly_the_contract_fields() {
     assert_request_fields_match::<CreateCollectionInput>(&contract, "CreateCollectionInput");
     assert_request_fields_match::<PatchCollectionInput>(&contract, "PatchCollectionInput");
     assert_request_fields_match::<AddCollectionDocumentsInput>(&contract, "AddCollectionDocumentsInput");
+    assert_request_fields_match::<ListDocumentJobsQuery>(&contract, "ListDocumentJobsQuery");
+    // 翻译、OCR 的请求体是 POST /jobs 的 CreateJobInput：顶层字段在这里对上，五个段从 create-job.v1 原样抄来，
+    // 由 contracts/tests/library-documents-shared-definitions.test.mjs 锁成一致，段和 Rust 的对照在
+    // retainpdf-core 的 models/input/request.rs contract_tests。
+    assert_eq!(
+        definition(&contract, "CreateJobInput")["additionalProperties"],
+        false,
+        "CreateJobInput 是 deny_unknown_fields"
+    );
+    assert_eq!(rust_field_names::<CreateJobInput>("CreateJobInput"), schema_keys(&contract, "CreateJobInput"));
 
     // 端点清单里的每个 input / query / output 都有定义，请求一侧都是封闭的。
     for endpoint in contract["endpoints"].as_array().expect("endpoints") {
