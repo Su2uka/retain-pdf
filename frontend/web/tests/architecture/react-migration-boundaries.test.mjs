@@ -264,9 +264,9 @@ test("@retainpdf/ui and @retainpdf/api packages expose expected entries", () => 
   // ui exports styles.css must resolve to existing built artifact after build
   const uiPkg = JSON.parse(readFileSync(join(PROJECT_ROOT, "../../frontend/packages/ui/package.json"), "utf8"));
   assert.ok(uiPkg.exports?.["./styles.css"], "@retainpdf/ui must export ./styles.css");
-  // api exports library-books / jobs subpaths
+  // api exports jobs subpaths（书架 library-books 已删：列表走 jobs?job_ids=，删除走 DELETE jobs/:id）
   const apiPkg = JSON.parse(readFileSync(join(PROJECT_ROOT, "../../frontend/packages/api/package.json"), "utf8"));
-  assert.ok(apiPkg.exports?.["./library-books"], "@retainpdf/api must export ./library-books");
+  assert.ok(apiPkg.exports?.["./jobs-actions"], "@retainpdf/api must export ./jobs-actions");
   assert.ok(apiPkg.exports?.["./jobs"], "@retainpdf/api must export ./jobs");
   assert.ok(apiPkg.exports?.["./job-images"], "@retainpdf/api must export ./job-images");
   assert.ok(apiPkg.exports?.["./reader"], "@retainpdf/api must export ./reader");

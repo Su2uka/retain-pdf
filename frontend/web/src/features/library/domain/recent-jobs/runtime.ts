@@ -47,8 +47,7 @@ export interface CreateRecentJobsRuntimeOptions {
     jobId: string,
     options?: { apiPrefix?: string } | string,
   ) => Promise<LibraryJobItem | Record<string, unknown> | null | undefined>;
-  fetchLibraryBookList?: RecentJobsPageFetcher;
-  deleteLibraryBook?: (apiPrefix: string, jobId: string) => Promise<unknown>;
+  deleteJobById?: (apiPrefix: string, jobId: string) => Promise<unknown>;
   apiPrefix: string;
   currentJobId?: () => string;
   /** 详情弹窗是否正持有当前 job 的展示权（见 active-refresh 的说明）。 */
@@ -83,8 +82,7 @@ export interface RecentJobsRuntime {
 export function createRecentJobsRuntime({
   fetchJobList,
   fetchJobPayload,
-  fetchLibraryBookList,
-  deleteLibraryBook,
+  deleteJobById,
   apiPrefix,
   currentJobId = () => "",
   // 详情弹窗是否正持有当前 job 的展示权（见 active-refresh 的说明）。
@@ -139,7 +137,7 @@ export function createRecentJobsRuntime({
 
   const recentJobActions = createRecentJobActions({
     apiPrefix,
-    deleteLibraryBook,
+    deleteJobById,
     activeJobRecoveryPort,
     navigationPort: recentJobNavigationPort,
     renderCurrentRecentJobs,
@@ -161,7 +159,6 @@ export function createRecentJobsRuntime({
 
   recentJobsLoader = createRecentJobsLoader({
     fetchJobList,
-    fetchLibraryBookList,
     apiPrefix,
     getQuery: () => refreshScheduler()?.getQuery?.() || "",
     recentJobActions,

@@ -40,7 +40,6 @@ export function isPrimaryRecentJob(item: LibraryJobItem | null | undefined) {
 
 export async function collectRecentJobsPage({
   fetchJobList,
-  fetchLibraryBookList,
   apiPrefix,
   startOffset,
   pageSize,
@@ -48,7 +47,6 @@ export async function collectRecentJobsPage({
   query = "",
 }: {
   fetchJobList?: RecentJobsPageFetcher;
-  fetchLibraryBookList?: RecentJobsPageFetcher;
   apiPrefix: string;
   startOffset: number;
   pageSize: number;
@@ -78,8 +76,6 @@ export async function collectRecentJobsPage({
     let payload = null;
     if (fetchJobList) {
       payload = await fetchJobList(apiPrefix, { limit: fetchLimit, offset: nextOffset, q: query });
-    } else if (fetchLibraryBookList) {
-      payload = await fetchLibraryBookList(apiPrefix, { limit: fetchLimit, offset: nextOffset, q: query });
     }
     latestInvocationSummary = payload?.invocation_summary || latestInvocationSummary;
     const items = Array.isArray(payload?.items) ? payload.items : [];

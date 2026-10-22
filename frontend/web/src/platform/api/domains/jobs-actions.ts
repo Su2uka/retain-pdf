@@ -2,6 +2,7 @@ import * as MockJobsActions from "../mocks/jobs-actions.js";
 import {
   cancelJob as _canonCancelJob,
   cancelOcrJob as _canonCancelOcrJob,
+  deleteJob as _canonDeleteJob,
   fetchJobDiagnostics as _canonFetchJobDiagnostics,
   fetchJobStageActions as _canonFetchJobStageActions,
   fetchResumePlan as _canonFetchResumePlan,
@@ -45,6 +46,7 @@ async function retryJobStageWithCurrentKey(
 
 export const resumeJob = mockable(resumeJobWithCurrentKey, MockJobsActions.resumeJob);
 export const cancelJob = mockable(_canonCancelJob, MockJobsActions.cancelJob);
+export const deleteJob = mockable(_canonDeleteJob, MockJobsActions.deleteJob);
 export const cancelOcrJob = mockable(_canonCancelOcrJob, MockJobsActions.cancelOcrJob);
 export const resolveOcrAmbiguity = mockable(_canonResolveOcrAmbiguity, MockJobsActions.resolveOcrAmbiguity);
 export const retryJobStage = mockable(retryJobStageWithCurrentKey, MockJobsActions.retryJobStage);

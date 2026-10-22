@@ -162,21 +162,60 @@ test("retry-stage 请求体只发后端认的字段，书的信息只用来补�
 });
 
 test("删书被拒的 409 带上 error.details.reason，书库能分清“任务在跑”和“别的任务在用它的产物”", async () => {
-  const { deleteLibraryBook } = await import("@retainpdf/api/library-books");
+  const { deleteJob } = await import("@retainpdf/api/jobs-actions");
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = async () => new Response(JSON.stringify({
+  const calls = [];
+  globalThis.fetch = async (url, options) => calls.push([`${url}`, options?.method]) && new Response(JSON.stringify({
     code: 409,
     message: "other jobs still use this job's artifacts: job-r (uses job-a); delete them first or pass force=true",
     error: { code: "CONFLICT", details: { reason: "job_has_dependents" } },
   }), { status: 409, headers: { "Content-Type": "application/json" } });
   try {
-    await assert.rejects(deleteLibraryBook("/api/v1", "job-a"), (error) => {
+    await assert.rejects(deleteJob("/api/v1", "job-a"), (error) => {
       assert.equal(error.status, 409);
       assert.equal(error.errorCode, "CONFLICT");
       assert.equal(error.reason, "job_has_dependents");
       assert.match(error.message, /job-r/);
       return true;
     });
+    // 书架删除 DELETE library/books/:id 冻结了，删单个任务走任务接口。
+    assert.deepEqual(calls.map(([url, method]) => [new URL(url, "http://local").pathname, method]), [
+      ["/api/v1/jobs/job-a", "DELETE"],
+    ]);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("按编号批量取任务走 GET jobs?job_ids=，名单超过 500 个分批，结果按批次顺序拼起来", async () => {
+  const { fetchJobsByIds } = await import("@retainpdf/api/jobs");
+  const originalFetch = globalThis.fetch;
+  const requests = [];
+  globalThis.fetch = async (url) => {
+    const parsed = new URL(`${url}`, "http://local");
+    requests.push(parsed);
+    const ids = (parsed.searchParams.get("job_ids") || "").split(",");
+    return new Response(JSON.stringify({
+      code: 0,
+      message: "ok",
+      data: { items: ids.slice(0, 2).map((job_id) => ({ job_id })), has_more: false },
+    }), { status: 200, headers: { "Content-Type": "application/json" } });
+  };
+  try {
+    const ids = Array.from({ length: 501 }, (_, index) => `job-${index}`);
+    const result = await fetchJobsByIds("/api/v1", [...ids, "job-0", " "]);
+    assert.equal(requests.length, 2, "去重去空后 501 个，分两批");
+    assert.equal(requests[0].pathname, "/api/v1/jobs");
+    assert.equal(requests[0].searchParams.get("limit"), "500");
+    assert.equal(requests[0].searchParams.get("job_ids").split(",").length, 500);
+    assert.equal(requests[1].searchParams.get("limit"), "1");
+    assert.equal(requests[1].searchParams.get("job_ids"), "job-500");
+    assert.equal(requests[0].searchParams.has("include_live_stage"), false, "默认带活态（后端默认 true）");
+    assert.deepEqual(result.items.map((item) => item.job_id), ["job-0", "job-1", "job-500"]);
+
+    requests.length = 0;
+    assert.deepEqual(await fetchJobsByIds("/api/v1", []), { items: [] });
+    assert.equal(requests.length, 0, "空名单不发请求");
   } finally {
     globalThis.fetch = originalFetch;
   }

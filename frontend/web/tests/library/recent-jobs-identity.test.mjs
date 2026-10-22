@@ -75,7 +75,7 @@ test("recent jobs state replace and prepend upsert by stable card identity", () 
 
 test("recent jobs pagination dedupes different job ids for the same document", async () => {
   const result = await collectRecentJobsPage({
-    fetchLibraryBookList: async () => ({
+    fetchJobList: async () => ({
       items: [
         { document_id: "doc-1", job_id: "job-new", workflow: "book" },
         { document_id: "doc-1", job_id: "job-old", workflow: "book" },

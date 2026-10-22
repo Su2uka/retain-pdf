@@ -12,18 +12,18 @@ import type {
 } from "./document-library-source.js";
 import type {
   JobPayloadFetcher,
-  LibraryBookListFetcher,
+  JobsByIdsFetcher,
 } from "./shape-documents-with-books.js";
 
 
 export function createDocumentLibraryResource({
   fetchDocumentList,
-  fetchLibraryBookList,
+  fetchJobsByIds,
   fetchJobPayload,
   apiPrefix,
 }: {
   fetchDocumentList: DocumentListFetcher;
-  fetchLibraryBookList?: LibraryBookListFetcher;
+  fetchJobsByIds?: JobsByIdsFetcher;
   fetchJobPayload?: JobPayloadFetcher;
   apiPrefix: string;
 }) {
@@ -48,7 +48,7 @@ export function createDocumentLibraryResource({
       onPreview = undefined,
     }: LibraryPageParams & { onPreview?: (page: DocumentLibraryPreview) => void } = {}) => collectDocumentLibraryPage({
       fetchDocumentList,
-      fetchLibraryBookList,
+      fetchJobsByIds,
       fetchJobPayload,
       apiPrefix,
       startOffset,

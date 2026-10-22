@@ -88,6 +88,7 @@ export async function fetchJobList(
     scope = "jobs",
     q = "",
     includeLiveStage = true,
+    jobIds = [],
   }: {
     limit?: number;
     offset?: number;
@@ -97,6 +98,8 @@ export async function fetchJobList(
     scope?: string;
     q?: string;
     includeLiveStage?: boolean;
+    /** 只列这些任务（`job_ids=a,b`），OCR 任务也在内。 */
+    jobIds?: string[];
   } = {},
 ): Promise<JobListView> {
   const params = new URLSearchParams();
@@ -107,10 +110,30 @@ export async function fetchJobList(
   if (provider) params.set("provider", provider);
   if (`${q || ""}`.trim()) params.set("q", `${q || ""}`.trim());
   if (!includeLiveStage) params.set("include_live_stage", "false");
+  const wantedJobIds = jobIds.map((id) => `${id}`.trim()).filter(Boolean);
+  if (wantedJobIds.length) params.set("job_ids", wantedJobIds.join(","));
   // 只看 OCR 任务：在通用列表上按 workflow 过滤，不再走 /ocr/jobs 列表别名。
   if (scope === "ocr" && !workflow) params.set("workflow", "ocr");
   const endpoint = buildJobsEndpoint(apiPrefix);
   const resp = await apiFetch(`${endpoint}?${params.toString()}`, { headers: buildApiHeaders() });
   if (!resp.ok) throw new Error(`读取最近任务失败，请稍后重试。(${resp.status})`);
   return unwrapEnvelope<JobListView>(await resp.json());
+}
+
+// GET /jobs 的 limit 只收 1..=500，越界 400。
+export const JOB_LIST_MAX_LIMIT = 500;
+
+// 按编号批量取任务的活态（列表项，阶段在 stage_snapshot 里）。名单超过 500 个就分批，结果按批次顺序拼起来；
+// 后端没有的编号不出现在 items 里。书架列表 GET /library/books 冻结后，文档卡片和文件夹都走这里。
+export async function fetchJobsByIds(
+  apiPrefix: string = API_PREFIX,
+  jobIds: string[] = [],
+): Promise<Pick<JobListView, "items">> {
+  const wanted = Array.from(new Set(jobIds.map((id) => `${id || ""}`.trim()).filter(Boolean)));
+  const batches: string[][] = [];
+  for (let start = 0; start < wanted.length; start += JOB_LIST_MAX_LIMIT) {
+    batches.push(wanted.slice(start, start + JOB_LIST_MAX_LIMIT));
+  }
+  const pages = await Promise.all(batches.map((batch) => fetchJobList(apiPrefix, { jobIds: batch, limit: batch.length })));
+  return { items: pages.flatMap((page) => (Array.isArray(page?.items) ? page.items : [])) };
 }

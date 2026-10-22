@@ -96,7 +96,7 @@ test("library books resource owns recent jobs page loading and cache keys", asyn
   const calls = [];
   const resource = createLibraryBooksResource({
     apiPrefix: "/api/v1",
-    fetchLibraryBookList: async (apiPrefix, params) => {
+    fetchJobList: async (apiPrefix, params) => {
       calls.push([apiPrefix, params]);
       return {
         invocation_summary: { total: 3 },
@@ -137,7 +137,7 @@ test("recent jobs pagination renders short first library page without waiting fo
     apiPrefix: "/api/v1",
     startOffset: 0,
     pageSize: 24,
-    fetchLibraryBookList: async (apiPrefix, params) => {
+    fetchJobList: async (apiPrefix, params) => {
       calls.push([apiPrefix, params]);
       return {
         items: [
@@ -159,7 +159,7 @@ test("recent jobs pagination renders short first library page without waiting fo
   assert.equal(calls.length, 1);
 });
 
-test("recent jobs pagination prefers the documented jobs list over legacy library books", async () => {
+test("recent jobs pagination reads the jobs list and keeps standalone OCR roots", async () => {
   const calls = [];
   const result = await collectRecentJobsPage({
     apiPrefix: "/api/v1",
@@ -177,10 +177,6 @@ test("recent jobs pagination prefers the documented jobs list over legacy librar
         has_more: false,
       };
     },
-    fetchLibraryBookList: async () => {
-      calls.push(["library"]);
-      return { items: [{ job_id: "legacy-library-book" }] };
-    },
   });
 
   assert.deepEqual(result.collected.map((item) => item.job_id), [
@@ -196,7 +192,7 @@ test("recent jobs pagination prefers the documented jobs list over legacy librar
   ]);
 });
 
-test("library books resource falls back to jobs list when library API is unavailable", async () => {
+test("library books resource loads pages from the jobs list", async () => {
   const calls = [];
   const resource = createLibraryBooksResource({
     apiPrefix: "/api/v1",
@@ -224,7 +220,7 @@ test("library books resource invalidation clears cached list pages", async () =>
   let version = 0;
   const resource = createLibraryBooksResource({
     apiPrefix: "/api/v1",
-    fetchLibraryBookList: async () => {
+    fetchJobList: async () => {
       version += 1;
       return {
         items: [{ job_id: `job-${version}` }],

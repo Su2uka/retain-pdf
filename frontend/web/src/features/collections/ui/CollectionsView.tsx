@@ -3,7 +3,7 @@
 // UI 层历史叫 categories（DOM id `categories-view` / 类 `.categories-*` / tab key `categories`）为契约保留。
 //
 // 图书馆网格的数据链路完全不动(调研计划「设计决策 2」)——文件夹展开时走
-// collection_id → documents(拿 active_job_id)→ job_ids 过滤 library/books
+// collection_id → documents(拿 active_job_id)→ jobs?job_ids= 取活态
 // 这条桥接路径(services.collections.controller.fetchFolderBooks),换回来的
 // 数据形状和图书馆首页卡片完全一致,直接复用 BookCard,不用
 // 另外做一套"文件夹详情卡片"渲染,也不会有第二套删除确认气泡状态。

@@ -9,12 +9,12 @@ import { mountedFeature } from "./feature-registry.js";
 import { API_PREFIX } from "@/platform/config/api-constants.js";
 import { APP_EVENTS } from "@/platform/contracts/app-contract.js";
 import { createStore } from "@/platform/store/store.js";
-// library-books 的 mock 包装统一由 platform/api 提供，避免在此重写第二份。
+// 任务列表 / 删除的 mock 包装统一由 platform/api 提供，避免在此重写第二份。
 import {
   fetchDocumentList,
   fetchJobPayload,
-  fetchLibraryBookList,
-  deleteLibraryBook,
+  fetchJobsByIds,
+  deleteJob,
 } from "@/platform/api/index.js";
 import {
   createRecentJobsStatePort,
@@ -63,7 +63,7 @@ export function createLibraryDomain({ features, documentRef }: CreateLibraryDoma
   const recentJobsViewPort = createRecentJobsReactViewPort() as RecentJobsReactViewPort;
   const documentLibraryResource = createDocumentLibraryResource({
     fetchDocumentList,
-    fetchLibraryBookList,
+    fetchJobsByIds,
     fetchJobPayload,
     apiPrefix: API_PREFIX,
   });
@@ -114,7 +114,7 @@ export function createLibraryDomain({ features, documentRef }: CreateLibraryDoma
   // startPolling/openReader 可由 navigationPort 兜底；签名仍标必填。
   const recentJobActions = createRecentJobActions({
     apiPrefix: API_PREFIX,
-    deleteLibraryBook,
+    deleteJobById: deleteJob,
     activeJobRecoveryPort: { readActiveJobId },
     navigationPort: recentJobsNavigationPort,
     renderCurrentRecentJobs: () => {},

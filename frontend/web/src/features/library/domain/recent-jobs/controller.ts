@@ -32,8 +32,7 @@ export type MountRecentJobsFeatureOptions = Omit<
 export function mountRecentJobsFeature({
   fetchJobList,
   fetchJobPayload,
-  fetchLibraryBookList,
-  deleteLibraryBook,
+  deleteJobById,
   apiPrefix,
   startPolling,
   openReader,
@@ -55,7 +54,6 @@ export function mountRecentJobsFeature({
   commandPort = createRecentJobsCommandPort(),
   libraryBooksResource = createLibraryBooksResource({
     fetchJobList,
-    fetchLibraryBookList,
     apiPrefix,
   }),
 }: MountRecentJobsFeatureOptions) {
@@ -64,8 +62,7 @@ export function mountRecentJobsFeature({
   const runtime = createRecentJobsRuntime({
     fetchJobList,
     fetchJobPayload,
-    fetchLibraryBookList,
-    deleteLibraryBook,
+    deleteJobById,
     apiPrefix,
     currentJobId,
     activeJobRecoveryPort,

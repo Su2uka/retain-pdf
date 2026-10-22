@@ -1,7 +1,8 @@
 // jobs-actions — pure (no mock)
 import { apiFetch } from "./internal/runtime.js";
 import { buildApiHeaders, unwrapEnvelope } from "./internal/runtime.js";
-import { buildJobDetailEndpoint, submitJson } from "./http.js";
+import { attachErrorDetails, buildJobDetailEndpoint, submitJson } from "./http.js";
+import { stripOcrSuffix } from "./utils/strip-ocr.js";
 export async function fetchJobDiagnostics(jobId, apiPrefix) {
     const resp = await apiFetch(`${buildJobDetailEndpoint(jobId, apiPrefix)}/reports/failure`, { headers: buildApiHeaders() });
     if (!resp.ok) {
@@ -23,6 +24,29 @@ export async function fetchResumePlan(jobId, apiPrefix) {
 /** body 可带 `{ overrides: { translation: { api_key | credential_ref } } }`：续跑出来的新任务用这把 key。 */
 export async function resumeJob(jobId, apiPrefix, body = {}) {
     return submitJson(`${buildJobDetailEndpoint(jobId, apiPrefix)}/actions/resume`, body);
+}
+/**
+ * 删一个任务和它的 `-ocr` 子任务，书留着（DELETE /jobs/:id，替代书架删除 DELETE /library/books/:id）。
+ * 传 `-ocr` 子任务编号时删的是它的父任务。返回形状契约里叫 LibraryDeleteResultView。
+ */
+export async function deleteJob(apiPrefix, jobId, { force = false } = {}) {
+    const normalizedJobId = stripOcrSuffix(`${jobId || ""}`);
+    if (!normalizedJobId)
+        throw new Error("删除失败: 缺少 job_id");
+    const params = force ? "?force=true" : "";
+    const resp = await apiFetch(`${buildJobDetailEndpoint(normalizedJobId, apiPrefix)}${params}`, {
+        method: "DELETE",
+        headers: buildApiHeaders(),
+    });
+    if (!resp.ok) {
+        const envelope = await resp.json().catch(() => null);
+        const message = typeof envelope?.message === "string" ? envelope.message : "删除任务失败，请稍后重试。";
+        const error = new Error(`${message}(${resp.status})`);
+        error.status = resp.status;
+        // 409 的 error.details.reason 区分“任务还在跑”（job_active）和“别的任务还在用它的产物”（job_has_dependents）。
+        throw attachErrorDetails(error, envelope);
+    }
+    return unwrapEnvelope(await resp.json());
 }
 export async function cancelJob(jobId, apiPrefix) {
     return submitJson(`${buildJobDetailEndpoint(jobId, apiPrefix)}/actions/cancel`, {});

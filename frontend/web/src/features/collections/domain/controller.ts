@@ -4,7 +4,7 @@ import {
   deleteCollection,
   fetchDocumentList,
   fetchJobPayload,
-  fetchLibraryBookList,
+  fetchJobsByIds,
   listCollections,
   patchCollection,
   removeDocumentFromCollection,
@@ -57,14 +57,14 @@ export function createCollectionsController({ apiPrefix }: { apiPrefix: string }
     // shapeDocumentCardItem)。
     //
     // 走和图书馆主网格(document-library-source.js)完全同一套 documents →
-    // cards 编排(shapeDocumentsWithBooks):已翻译文档叠加 library/books 活态,
+    // cards 编排(shapeDocumentsWithBooks):已翻译文档叠加任务活态（/jobs?job_ids=）,
     // 馆藏(未翻译)文档造馆藏卡,全部返回。曾经这里是一份发散的旧拷贝、只保
     // 留已翻译文档 → 满是馆藏的合集显示"空合集"(和 document_count 对不上的
     // bug),收口到统一编排后不会再发散。
     async fetchFolderBooks(collectionId: string): Promise<LibraryCardItem[]> {
       const { documents = [] } = await fetchDocumentList(apiPrefix, { collectionId, limit: 500 });
       return shapeDocumentsWithBooks(documents, {
-        fetchLibraryBookList,
+        fetchJobsByIds,
         fetchJobPayload,
         apiPrefix,
       });

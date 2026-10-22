@@ -26,11 +26,9 @@ export function normalizeExistingJobIds(value: LibraryPageParams["existingJobIds
 
 export function createLibraryBooksResource({
   fetchJobList,
-  fetchLibraryBookList,
   apiPrefix,
 }: {
   fetchJobList?: RecentJobsPageFetcher;
-  fetchLibraryBookList?: RecentJobsPageFetcher;
   apiPrefix: string;
 }) {
   return createResource({
@@ -53,7 +51,6 @@ export function createLibraryBooksResource({
       query = "",
     }: LibraryPageParams = {}) => collectRecentJobsPage({
       fetchJobList,
-      fetchLibraryBookList,
       apiPrefix,
       startOffset,
       pageSize,

@@ -32,7 +32,7 @@ test("RecentJobsLibrary：初始加载(mock=parallel)渲染网格 + DOM 契约",
   const dom = makeDom("?mock=parallel");
   const { services, root, host } = await bootHomeApp(dom, { readyId: "library-view" });
 
-  // mock=parallel 走 isMockMode() 短路(fetchLibraryBookList/fetchJobList 不
+  // mock=parallel 走 isMockMode() 短路(fetchJobsByIds/fetchJobList 不
   // 打真实网络),验证 mountRecentJobsFeature 装配在 initialize() 同步链内
   // 已生效——这正是"5 处默认参数断链"风险(蓝图风险 9)的端到端反证:如果
   // composition.js 传入的 React viewPort 被默认 createRecentJobsViewPort()

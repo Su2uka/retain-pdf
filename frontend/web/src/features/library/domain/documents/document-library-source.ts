@@ -4,7 +4,7 @@
 // recent-jobs 的 loader.js/commit.js/store 引擎可以一行不改地消费它。
 //
 // 每篇文档产出一张卡:先拉一页 /documents,收集该页 active_job_id,批量向
-// library/books?job_ids= 取这些 job 的实时活态,再按 job_id 合并
+// jobs?job_ids= 取这些 job 的实时活态,再按 job_id 合并
 // (shapeDocumentCardItem)。馆藏文档(无 active_job_id)拿合成 job_id 穿过引擎。
 //
 // 搜索：query 经 `q` 透传给后端（标题/原始文件名 LIKE，total 已是过滤后计数），
@@ -15,7 +15,7 @@ import {
 } from "./shape-documents-with-books.js";
 import type {
   JobPayloadFetcher,
-  LibraryBookListFetcher,
+  JobsByIdsFetcher,
 } from "./shape-documents-with-books.js";
 import { shapeDocumentCardItem } from "./document-card-item.js";
 import type { LibraryDocumentRecord } from "./document-card-item.js";
@@ -55,7 +55,7 @@ export type DocumentLibraryPreview = {
 
 export async function collectDocumentLibraryPage({
   fetchDocumentList,
-  fetchLibraryBookList,
+  fetchJobsByIds,
   fetchJobPayload,
   apiPrefix,
   startOffset = 0,
@@ -65,7 +65,7 @@ export async function collectDocumentLibraryPage({
   onPreview,
 }: {
   fetchDocumentList: DocumentListFetcher;
-  fetchLibraryBookList?: LibraryBookListFetcher;
+  fetchJobsByIds?: JobsByIdsFetcher;
   fetchJobPayload?: JobPayloadFetcher;
   apiPrefix: string;
   startOffset?: number;
@@ -117,7 +117,7 @@ export async function collectDocumentLibraryPage({
   let shaped;
   try {
     shaped = await shapeDocumentsWithBooks(documents, {
-      fetchLibraryBookList, fetchJobPayload, apiPrefix,
+      fetchJobsByIds, fetchJobPayload, apiPrefix,
     });
     if (typeof onPreview === "function") {
       shaped = shaped.map((item) => ({

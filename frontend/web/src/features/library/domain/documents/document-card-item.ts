@@ -4,7 +4,7 @@
 // 一张卡",但底层复用 features/recent-jobs 那套按 job_id 键控的 store/去重/轮询
 // 引擎(一行不改)。于是:
 // - 有 active job 的文档(翻译或 OCR-only):卡片带真实 job_id，并把
-//   library/books 或 canonical job detail 的实时 status/stage/readiness 合并进来。
+//   /jobs?job_ids= 列表项或 canonical job detail 的实时 status/stage/readiness 合并进来。
 // - 馆藏文档(active_job_id 为 null/空):给一个**合成命名空间 job_id**
 //   `doc:<document_id>`,让它能原样穿过按 job_id 去重的 dedupeRecentJobs / store,
 //   不被"空 job_id 直接丢弃"的逻辑滤掉;卡片靠 library_only 布尔分支馆藏态
