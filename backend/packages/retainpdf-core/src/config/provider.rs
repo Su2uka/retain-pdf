@@ -9,6 +9,19 @@ use super::env_vars::{env_bool, env_string, env_u16, env_u32, env_u64, env_usize
 /// credential-exfiltration via a spoofed `base_url`.
 const ALLOW_PRIVATE_PROVIDER_URLS_ENV: &str = "RUST_API_ALLOW_PRIVATE_PROVIDER_URLS";
 
+/// 密钥校验（MinerU、Paddle、翻译接口、余额）共用的超时，秒。要比网页端等的 30 秒短，
+/// 不然对端挂起时前端先放弃、后端还在等。没设时认旧名 `RUST_API_DEEPSEEK_PROBE_TIMEOUT_SECS`。
+const PROVIDER_PROBE_TIMEOUT_ENV: &str = "RUST_API_PROVIDER_PROBE_TIMEOUT_SECS";
+const LEGACY_DEEPSEEK_PROBE_TIMEOUT_ENV: &str = "RUST_API_DEEPSEEK_PROBE_TIMEOUT_SECS";
+const DEFAULT_PROVIDER_PROBE_TIMEOUT_SECS: u64 = 20;
+
+fn provider_probe_timeout_secs() -> u64 {
+    env_u64(
+        PROVIDER_PROBE_TIMEOUT_ENV,
+        env_u64(LEGACY_DEEPSEEK_PROBE_TIMEOUT_ENV, DEFAULT_PROVIDER_PROBE_TIMEOUT_SECS),
+    )
+}
+
 #[derive(Clone, Debug)]
 pub struct ProviderLimitsConfig {
     pub mineru_max_bytes: u64,
@@ -20,6 +33,8 @@ pub struct ProviderLimitsConfig {
 #[derive(Clone, Debug)]
 pub struct ProviderRuntimeConfig {
     pub ocr_provider_config_path: PathBuf,
+    /// 密钥校验接口的超时（秒），三家共用；正式跑任务用各家自己的超时，不看它。
+    pub probe_timeout_secs: u64,
     pub mineru: MineruRuntimeConfig,
     pub paddle: PaddleRuntimeConfig,
     pub deepseek: DeepSeekRuntimeConfig,
@@ -98,6 +113,7 @@ impl ProviderRuntimeConfig {
     pub fn from_env() -> Self {
         Self {
             ocr_provider_config_path: super::provider_config::ocr_provider_config_path(),
+            probe_timeout_secs: provider_probe_timeout_secs(),
             mineru: MineruRuntimeConfig::from_env(),
             paddle: PaddleRuntimeConfig::from_env(),
             deepseek: DeepSeekRuntimeConfig::from_env(),
@@ -227,7 +243,8 @@ impl DeepSeekRuntimeConfig {
                 "RUST_API_DEEPSEEK_BALANCE_URL",
                 "https://api.deepseek.com/user/balance",
             ),
-            probe_timeout_secs: env_u64("RUST_API_DEEPSEEK_PROBE_TIMEOUT_SECS", 20),
+            // 和 `ProviderRuntimeConfig::probe_timeout_secs` 同一个值（同一套环境变量）。
+            probe_timeout_secs: provider_probe_timeout_secs(),
             allow_private_urls: env_bool(ALLOW_PRIVATE_PROVIDER_URLS_ENV, false),
         }
     }
@@ -236,6 +253,26 @@ impl DeepSeekRuntimeConfig {
 #[cfg(test)]
 mod tests {
     use super::upload_timeout_for_bytes;
+
+    /// 新名优先，没设新名时认 DeepSeek 的旧名，都没设是 20 秒。
+    #[test]
+    fn probe_timeout_prefers_the_shared_name_and_keeps_the_old_one() {
+        use super::super::env_vars::env_test_lock;
+        let _guard = env_test_lock();
+        let clear = || {
+            std::env::remove_var("RUST_API_PROVIDER_PROBE_TIMEOUT_SECS");
+            std::env::remove_var("RUST_API_DEEPSEEK_PROBE_TIMEOUT_SECS");
+        };
+        clear();
+        assert_eq!(super::provider_probe_timeout_secs(), 20);
+        std::env::set_var("RUST_API_DEEPSEEK_PROBE_TIMEOUT_SECS", "12");
+        assert_eq!(super::provider_probe_timeout_secs(), 12);
+        std::env::set_var("RUST_API_PROVIDER_PROBE_TIMEOUT_SECS", "8");
+        assert_eq!(super::provider_probe_timeout_secs(), 8);
+        assert_eq!(super::DeepSeekRuntimeConfig::from_env().probe_timeout_secs, 8);
+        assert_eq!(super::ProviderRuntimeConfig::from_env().probe_timeout_secs, 8);
+        clear();
+    }
     use std::time::Duration;
 
     const MB: u64 = 1024 * 1024;

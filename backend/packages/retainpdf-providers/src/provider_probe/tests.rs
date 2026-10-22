@@ -3,6 +3,11 @@ use super::ocr::{classify_paddle_probe_error, classify_probe_error};
 use super::url_policy::validate_provider_base_url;
 use retainpdf_data::ocr_provider::paddle::PaddleProviderError;
 
+/// 测试的假服务商都在 127.0.0.1 上：全放开私网，超时按用例给。
+fn test_policy(timeout_secs: u64) -> super::policy::ProbePolicy {
+    super::policy::ProbePolicy::new(timeout_secs, super::policy::PrivateTargets::AllowAll)
+}
+
 #[test]
 fn validate_provider_base_url_allows_public_https_host() {
     assert!(validate_provider_base_url("https://api.deepseek.com/v1", false).is_ok());
@@ -232,6 +237,7 @@ async fn anthropic_probe_uses_the_messages_api() {
             probe_timeout_secs: 5,
             allow_private_urls: true,
         },
+        test_policy(5),
     )
     .await
     .unwrap();
@@ -282,7 +288,7 @@ async fn fake_provider(
     (addr, seen)
 }
 
-async fn probe_responses(base_url: String) -> super::types::MineruTokenValidationView {
+async fn probe_responses(base_url: String) -> super::types::ProviderProbeView {
     super::deepseek::validate_deepseek_token_view(
         super::types::DeepSeekTokenValidationRequest {
             api_key: "sk-openai".into(),
@@ -296,6 +302,7 @@ async fn probe_responses(base_url: String) -> super::types::MineruTokenValidatio
             probe_timeout_secs: 5,
             allow_private_urls: true,
         },
+        test_policy(5),
     )
     .await
     .unwrap()
@@ -384,7 +391,7 @@ async fn transport_failures_never_blame_the_api_key() {
     use retainpdf_core::config::DeepSeekRuntimeConfig;
     use tokio::io::AsyncReadExt;
 
-    async fn probe(base_url: String) -> super::types::MineruTokenValidationView {
+    async fn probe(base_url: String) -> super::types::ProviderProbeView {
         validate_deepseek_token_view(
             DeepSeekTokenValidationRequest {
                 api_key: "sk-test".into(),
@@ -398,6 +405,7 @@ async fn transport_failures_never_blame_the_api_key() {
                 probe_timeout_secs: 1,
                 allow_private_urls: true,
             },
+            test_policy(1),
         )
         .await
         .unwrap()
@@ -442,7 +450,7 @@ async fn transport_failures_never_blame_the_api_key() {
     }
 }
 
-async fn probe_anthropic(base_url: String, api_key: &str, model: &str) -> super::types::MineruTokenValidationView {
+async fn probe_anthropic(base_url: String, api_key: &str, model: &str) -> super::types::ProviderProbeView {
     super::deepseek::validate_deepseek_token_view(
         super::types::DeepSeekTokenValidationRequest {
             api_key: api_key.into(),
@@ -456,6 +464,7 @@ async fn probe_anthropic(base_url: String, api_key: &str, model: &str) -> super:
             probe_timeout_secs: 5,
             allow_private_urls: true,
         },
+        test_policy(5),
     )
     .await
     .unwrap()
@@ -509,4 +518,327 @@ fn classify_probe_error_maps_bare_http_401_to_unauthorized() {
         assert_eq!(view.summary, "MinerU Token 无效");
         assert!(!view.retryable);
     }
+}
+
+// --- MinerU 探针走真实的错误链 ------------------------------------------------
+// 以前只喂手写字符串，`err.to_string()` 只给最外层的 context，401、过期、超时全落成 provider_error。
+
+fn mineru_runtime_for_test() -> retainpdf_core::config::MineruRuntimeConfig {
+    // 正式任务的超时留着 120 秒：校验要用 `test_policy` 给的短超时，不看它。
+    let mut runtime = retainpdf_core::config::MineruRuntimeConfig::from_env();
+    runtime.request_timeout_secs = 120;
+    runtime.allow_private_urls = false;
+    runtime
+}
+
+async fn probe_mineru(base_url: String) -> super::types::ProviderProbeView {
+    super::ocr::validate_mineru_token_view(
+        super::types::MineruTokenValidationRequest {
+            mineru_token: "mineru-test-token".into(),
+            base_url,
+            model_version: String::new(),
+        },
+        mineru_runtime_for_test(),
+        test_policy(1),
+    )
+    .await
+    .unwrap()
+}
+
+#[tokio::test]
+async fn mineru_probe_classifies_real_provider_replies() {
+    let cases = [
+        (401, serde_json::json!({"msg": "unauthorized"}), "unauthorized"),
+        (200, serde_json::json!({"code": "A0202", "msg": "invalid token", "trace_id": "t-1"}), "unauthorized"),
+        (200, serde_json::json!({"code": "A0211", "msg": "token expired", "trace_id": "t-2"}), "expired"),
+    ];
+    for (status, reply, expected) in cases {
+        let (addr, seen) = fake_provider("/api/v4/file-urls/batch", status, reply.clone()).await;
+        let view = probe_mineru(format!("http://{addr}")).await;
+        assert!(!view.ok, "{reply}");
+        assert_eq!(view.status, expected, "{reply}: {}", view.summary);
+        assert!(!view.retryable, "{reply}");
+        assert_eq!(seen.lock().unwrap()[0].0.as_deref(), Some("Bearer mineru-test-token"));
+    }
+}
+
+#[tokio::test]
+async fn mineru_probe_reports_a_hanging_server_as_network_error() {
+    let silent = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = silent.local_addr().unwrap();
+    tokio::spawn(async move {
+        let mut held = Vec::new();
+        while let Ok((socket, _)) = silent.accept().await {
+            held.push(socket);
+        }
+    });
+    let started = std::time::Instant::now();
+    let view = probe_mineru(format!("http://{addr}")).await;
+    assert!(started.elapsed() < std::time::Duration::from_secs(10), "用的是校验的超时，不是任务的 120 秒");
+    assert!(!view.ok);
+    assert_eq!(view.status, "network_error", "{}", view.summary);
+    assert!(view.summary.contains("超时"), "{}", view.summary);
+    assert!(view.retryable);
+}
+
+// --- 超时、重试、重定向 ---------------------------------------------------------
+
+/// 收下连接、一直不回，记下一共来了几次连接。
+async fn silent_server() -> (std::net::SocketAddr, std::sync::Arc<std::sync::atomic::AtomicUsize>) {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    let accepted = std::sync::Arc::new(AtomicUsize::new(0));
+    let counter = accepted.clone();
+    tokio::spawn(async move {
+        let mut held = Vec::new();
+        while let Ok((socket, _)) = listener.accept().await {
+            counter.fetch_add(1, Ordering::SeqCst);
+            held.push(socket);
+        }
+    });
+    (addr, accepted)
+}
+
+fn paddle_runtime_for_test() -> retainpdf_core::config::PaddleRuntimeConfig {
+    // 正式任务：120 秒、重试 3 次。校验两样都不该用。
+    let mut runtime = retainpdf_core::config::PaddleRuntimeConfig::from_env();
+    runtime.request_timeout_secs = 120;
+    runtime.request_retry_attempts = 3;
+    runtime.request_retry_base_delay_millis = 1;
+    runtime.allow_private_urls = false;
+    runtime
+}
+
+async fn probe_paddle(base_url: String) -> super::types::ProviderProbeView {
+    super::ocr::validate_paddle_token_view(
+        super::types::PaddleTokenValidationRequest {
+            paddle_token: "paddle-test-token".into(),
+            base_url,
+        },
+        paddle_runtime_for_test(),
+        test_policy(1),
+    )
+    .await
+    .unwrap()
+}
+
+/// Paddle 校验只试一次、用校验的超时：以前对端挂起时 120 秒 × 3 次加退避，前端 30 秒早放弃了。
+#[tokio::test]
+async fn paddle_probe_does_not_retry_and_uses_the_probe_timeout() {
+    let (addr, accepted) = silent_server().await;
+    let started = std::time::Instant::now();
+    let view = probe_paddle(format!("http://{addr}")).await;
+    assert!(started.elapsed() < std::time::Duration::from_secs(10));
+    assert!(!view.ok);
+    assert_eq!(view.status, "network_error", "{}", view.summary);
+    assert_eq!(accepted.load(std::sync::atomic::Ordering::SeqCst), 1, "不重试");
+}
+
+/// 记下收到的每个请求（任何路径）的 `authorization`、`x-api-key` 头。
+async fn recording_target() -> (
+    std::net::SocketAddr,
+    std::sync::Arc<std::sync::Mutex<Vec<(String, Option<String>, Option<String>)>>>,
+) {
+    use axum::http::{HeaderMap, Uri};
+    use std::sync::{Arc, Mutex};
+    let seen: Arc<Mutex<Vec<(String, Option<String>, Option<String>)>>> = Arc::default();
+    let recorder = seen.clone();
+    let router = axum::Router::new().fallback(move |uri: Uri, headers: HeaderMap| {
+        let recorder = recorder.clone();
+        async move {
+            let header = |name: &str| headers.get(name).and_then(|v| v.to_str().ok()).map(str::to_string);
+            recorder.lock().unwrap().push((uri.path().to_string(), header("authorization"), header("x-api-key")));
+            axum::Json(serde_json::json!({"code": 0, "msg": "ok", "data": {}}))
+        }
+    });
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    tokio::spawn(async move {
+        axum::serve(listener, router).await.unwrap();
+    });
+    (addr, seen)
+}
+
+/// 任何路径都回 302，指到 `target`。
+async fn redirecting_server(target: std::net::SocketAddr) -> std::net::SocketAddr {
+    use axum::http::{header, StatusCode, Uri};
+    let router = axum::Router::new().fallback(move |uri: Uri| async move {
+        (StatusCode::FOUND, [(header::LOCATION, format!("http://{target}{}", uri.path()))], "")
+    });
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    tokio::spawn(async move {
+        axum::serve(listener, router).await.unwrap();
+    });
+    addr
+}
+
+/// 三家校验都不跟随重定向：302 直接算校验没通过（`redirected`），Key 不会出现在重定向后的地址上。
+/// Anthropic 的 `x-api-key` 是重点：reqwest 跨主机重定向只去掉 `Authorization`，不认识它。
+#[tokio::test]
+async fn probes_never_follow_redirects_or_forward_keys() {
+    let (target, seen) = recording_target().await;
+    let redirector = redirecting_server(target).await;
+    let base = format!("http://{redirector}");
+
+    let mut views = vec![
+        ("mineru", probe_mineru(base.clone()).await),
+        ("paddle", probe_paddle(base.clone()).await),
+        ("anthropic", probe_anthropic(format!("{base}/v1"), "sk-ant-secret", "claude-opus-5-5").await),
+        ("anthropic-models", probe_anthropic(format!("{base}/v1"), "sk-ant-secret", "").await),
+        ("responses", probe_responses(format!("{base}/v1")).await),
+    ];
+    views.push((
+        "openai",
+        super::deepseek::validate_deepseek_token_view(
+            super::types::DeepSeekTokenValidationRequest {
+                api_key: "sk-openai-secret".into(),
+                base_url: format!("{base}/v1"),
+                model: "deepseek-chat".into(),
+                api_protocol: String::new(),
+            },
+            retainpdf_core::config::DeepSeekRuntimeConfig::from_env(),
+            test_policy(5),
+        )
+        .await
+        .unwrap(),
+    ));
+    for (name, view) in &views {
+        assert!(!view.ok, "{name}");
+        assert_eq!(view.status, "redirected", "{name}: {}", view.summary);
+        assert_eq!(view.provider_code.as_deref(), Some("302"), "{name}");
+        assert!(!view.retryable, "{name}");
+        assert!(view.summary.contains("重定向"), "{name}: {}", view.summary);
+    }
+    assert!(seen.lock().unwrap().is_empty(), "重定向后的地址收到了请求：{:?}", seen.lock().unwrap());
+}
+
+/// 余额接口的地址是配置里固定的，也一样不跟随。
+#[tokio::test]
+async fn balance_probe_never_follows_redirects() {
+    let (target, seen) = recording_target().await;
+    let redirector = redirecting_server(target).await;
+    let mut runtime = retainpdf_core::config::DeepSeekRuntimeConfig::from_env();
+    runtime.balance_url = format!("http://{redirector}/user/balance");
+    let view = super::deepseek::query_deepseek_balance_view(
+        super::types::DeepSeekTokenValidationRequest {
+            api_key: "sk-deepseek-secret".into(),
+            base_url: String::new(),
+            model: String::new(),
+            api_protocol: String::new(),
+        },
+        runtime,
+        test_policy(5),
+    )
+    .await
+    .unwrap();
+    assert_eq!(view.status, "redirected", "{}", view.summary);
+    assert!(!view.ok);
+    assert!(seen.lock().unwrap().is_empty());
+}
+
+// --- 地址策略：单机放开本机和内网 -----------------------------------------------
+
+#[test]
+fn single_mode_allows_loopback_and_private_but_not_link_local() {
+    use super::policy::PrivateTargets;
+    use super::url_policy::validate_probe_base_url;
+    for allowed in [
+        "http://127.0.0.1:11434/v1",
+        "http://localhost:11434/v1",
+        "http://[::1]:8000/v1",
+        "http://10.0.0.5:8000/v1",
+        "http://172.16.0.5/v1",
+        "http://192.168.1.5:1234/v1",
+        "http://[fd00::1]/v1",
+        "http://0.0.0.0:11434/v1",
+        "https://api.deepseek.com/v1",
+    ] {
+        assert!(validate_probe_base_url(allowed, PrivateTargets::AllowLocal).is_ok(), "{allowed}");
+    }
+    for blocked in ["http://169.254.169.254/latest", "http://[fe80::1]/", "http://[::ffff:169.254.169.254]/"] {
+        let err = validate_probe_base_url(blocked, PrivateTargets::AllowLocal).unwrap_err();
+        assert!(err.to_string().contains("link-local"), "{blocked}: {err}");
+    }
+    // 别的检查照旧。
+    assert!(validate_probe_base_url("ftp://127.0.0.1", PrivateTargets::AllowLocal).is_err());
+    assert!(validate_probe_base_url("http://u:p@127.0.0.1", PrivateTargets::AllowLocal).is_err());
+}
+
+#[test]
+fn multi_mode_still_blocks_local_targets() {
+    use super::policy::PrivateTargets;
+    use super::url_policy::validate_probe_base_url;
+    for blocked in ["http://127.0.0.1:11434", "http://localhost:11434", "http://192.168.1.5", "http://169.254.169.254"] {
+        assert!(validate_probe_base_url(blocked, PrivateTargets::Block).is_err(), "{blocked}");
+    }
+    assert!(validate_probe_base_url("http://169.254.169.254", PrivateTargets::AllowAll).is_ok());
+}
+
+/// 单机下本机的模型服务（Ollama 之类）能校验：以前 400「localhost/private targets are blocked」。
+#[tokio::test]
+async fn single_mode_probe_reaches_a_local_model_server() {
+    let ok = serde_json::json!({"choices": [{"message": {"content": "p"}}]});
+    let (addr, seen) = fake_provider("/v1/chat/completions", 200, ok).await;
+    let view = super::deepseek::validate_deepseek_token_view(
+        super::types::DeepSeekTokenValidationRequest {
+            api_key: "ollama".into(),
+            base_url: format!("http://{addr}/v1"),
+            model: "qwen3".into(),
+            api_protocol: String::new(),
+        },
+        retainpdf_core::config::DeepSeekRuntimeConfig::from_env(),
+        super::policy::ProbePolicy::new(5, super::policy::PrivateTargets::AllowLocal),
+    )
+    .await
+    .unwrap();
+    assert!(view.ok, "{} {}", view.status, view.summary);
+    assert_eq!(seen.lock().unwrap().len(), 1);
+}
+
+// --- 请求体和返回 ---------------------------------------------------------------
+
+/// 拼错的字段 400，不再静默走默认地址；调用方（前端、CLI）发的字段都认。
+#[test]
+fn probe_requests_reject_unknown_fields() {
+    use super::types::{DeepSeekTokenValidationRequest, MineruTokenValidationRequest, PaddleTokenValidationRequest};
+    use serde_json::json;
+    assert!(serde_json::from_value::<MineruTokenValidationRequest>(json!({"mineru_token": "t"})).is_ok());
+    assert!(serde_json::from_value::<MineruTokenValidationRequest>(
+        json!({"mineru_token": "t", "base_url": "https://mineru.net", "model_version": "vlm"})
+    )
+    .is_ok());
+    assert!(serde_json::from_value::<MineruTokenValidationRequest>(json!({"mineru_token": "t", "baseurl": "x"})).is_err());
+    assert!(serde_json::from_value::<PaddleTokenValidationRequest>(
+        json!({"paddle_token": "t", "base_url": "https://paddleocr.aistudio-app.com"})
+    )
+    .is_ok());
+    assert!(serde_json::from_value::<PaddleTokenValidationRequest>(json!({"paddle_token": "t", "token": "x"})).is_err());
+    let cli_body = json!({"api_key": "k", "base_url": "https://api.deepseek.com/v1", "model": "m", "api_protocol": "openai"});
+    assert!(serde_json::from_value::<DeepSeekTokenValidationRequest>(cli_body).is_ok());
+    assert!(serde_json::from_value::<DeepSeekTokenValidationRequest>(json!({"api_key": "k", "base_url": "u"})).is_ok());
+    assert!(serde_json::from_value::<DeepSeekTokenValidationRequest>(json!({"api_key": "k", "protocol": "anthropic"})).is_err());
+}
+
+/// 服务商的错误正文是 JSON 但不带 `error.message` / `message` 时，整段正文会当 `provider_message`：
+/// 截到 500 字，不整段转给前端。
+#[tokio::test]
+async fn provider_message_is_truncated() {
+    use axum::http::StatusCode;
+    let body = serde_json::json!({"detail": "错".repeat(3000)});
+    let router = axum::Router::new().fallback(move || {
+        let body = body.clone();
+        async move { (StatusCode::BAD_GATEWAY, axum::Json(body)) }
+    });
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    tokio::spawn(async move {
+        axum::serve(listener, router).await.unwrap();
+    });
+    let view = probe_responses(format!("http://{addr}/v1")).await;
+    assert!(!view.ok);
+    let message = view.provider_message.unwrap();
+    assert!(message.chars().count() <= super::policy::PROVIDER_MESSAGE_MAX_CHARS + 1, "{}", message.chars().count());
+    assert!(message.ends_with('…'));
 }

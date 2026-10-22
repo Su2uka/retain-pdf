@@ -53,6 +53,7 @@ mod route_access;
 mod ocr_dispatch_ownership;
 mod ocr_lifecycle;
 mod providers;
+mod provider_probes;
 mod public_document_operations;
 mod quality;
 mod route_manifest;

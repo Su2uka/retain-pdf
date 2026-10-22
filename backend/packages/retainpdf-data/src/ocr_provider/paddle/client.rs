@@ -65,6 +65,18 @@ impl PaddleClient {
         token: impl Into<String>,
         runtime: PaddleRuntimeConfig,
     ) -> Self {
+        let http = build_http_client(&runtime);
+        Self::with_http_client(base_url, token, runtime, http)
+    }
+
+    /// 用调用方建好的 HTTP 客户端。给密钥校验用：校验有自己的超时、不跟随重定向、不重试
+    /// （重试次数看 `runtime.request_retry_attempts`），正式跑任务的客户端（[`Self::with_runtime`]）不受影响。
+    pub fn with_http_client(
+        base_url: impl Into<String>,
+        token: impl Into<String>,
+        runtime: PaddleRuntimeConfig,
+        http: Client,
+    ) -> Self {
         let base_url = {
             let raw = base_url.into();
             let trimmed = raw.trim();
@@ -74,7 +86,6 @@ impl PaddleClient {
                 trimmed.trim_end_matches('/').to_string()
             }
         };
-        let http = build_http_client(&runtime);
         Self {
             base_url,
             token: token.into(),

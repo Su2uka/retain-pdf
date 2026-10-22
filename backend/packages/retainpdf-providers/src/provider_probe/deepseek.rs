@@ -4,11 +4,13 @@ use retainpdf_core::config::DeepSeekRuntimeConfig;
 use retainpdf_api_base::error::AppError;
 use retainpdf_core::models::domain::now_iso;
 
+use super::ocr::redirected_view;
+use super::policy::ProbePolicy;
 use super::types::{
     DeepSeekBalanceInfoView, DeepSeekBalanceView, DeepSeekTokenValidationRequest,
-    MineruTokenValidationView,
+    ProviderProbeView,
 };
-use super::url_policy::validate_provider_base_url;
+use super::url_policy::validate_probe_base_url;
 
 /// 翻译接口探针。
 ///
@@ -27,7 +29,16 @@ use super::url_policy::validate_provider_base_url;
 pub async fn validate_deepseek_token_view(
     payload: DeepSeekTokenValidationRequest,
     runtime: DeepSeekRuntimeConfig,
-) -> Result<MineruTokenValidationView, AppError> {
+    policy: ProbePolicy,
+) -> Result<ProviderProbeView, AppError> {
+    Ok(validate_deepseek_token_inner(payload, runtime, policy).await?.bounded())
+}
+
+async fn validate_deepseek_token_inner(
+    payload: DeepSeekTokenValidationRequest,
+    runtime: DeepSeekRuntimeConfig,
+    policy: ProbePolicy,
+) -> Result<ProviderProbeView, AppError> {
     let api_key = payload.api_key.trim();
     if api_key.is_empty() {
         return Err(AppError::bad_request("api_key is required"));
@@ -41,21 +52,21 @@ pub async fn validate_deepseek_token_view(
     } else {
         normalize_deepseek_base_url(&payload.base_url, &runtime)
     };
-    validate_provider_base_url(&base_url, runtime.allow_private_urls)?;
+    validate_probe_base_url(&base_url, policy.private_targets)?;
     let checked_at = now_iso();
     let session_id = format!("provider-probe-{}-{:016x}", checked_at, fastrand::u64(..));
-    let client = reqwest::Client::builder()
+    let client = policy
+        .http_client_builder()
         .default_headers(crate::model_provider_headers::opencode_headers(
             &base_url,
             &session_id,
         ))
-        .timeout(std::time::Duration::from_secs(runtime.probe_timeout_secs))
         .build()
         .map_err(|err| AppError::internal(format!("build deepseek probe client failed: {err}")))?;
 
     // Key 里混进换行、全角空格之类放不进请求头的字符时，请求根本发不出去；先拦下来，直说是 Key 的问题。
     if reqwest::header::HeaderValue::from_str(api_key).is_err() {
-        return Ok(MineruTokenValidationView {
+        return Ok(ProviderProbeView {
             ok: false,
             status: "invalid_input",
             summary: "API Key 里有换行、全角空格等不能用的字符，请重新复制粘贴".to_string(),
@@ -156,8 +167,17 @@ async fn classify_deepseek_chat_probe_response(
     model: &str,
     base_url: String,
     checked_at: String,
-) -> MineruTokenValidationView {
+) -> ProviderProbeView {
     let status_code = response.status();
+    if status_code.is_redirection() {
+        return redirected_view(
+            "翻译 API",
+            status_code.as_u16(),
+            redirect_location(&response),
+            base_url,
+            checked_at,
+        );
+    }
     let trace_id = response
         .headers()
         .get("x-request-id")
@@ -166,7 +186,7 @@ async fn classify_deepseek_chat_probe_response(
     let body_text = response.text().await.unwrap_or_default();
 
     if status_code.is_success() {
-        return MineruTokenValidationView {
+        return ProviderProbeView {
             ok: true,
             status: "valid",
             summary: format!("翻译 API 与模型 {model} 可用"),
@@ -182,7 +202,7 @@ async fn classify_deepseek_chat_probe_response(
 
     // 限流说明 Key 与模型都已被服务商接受，只是此刻配额受限——判成失败会误导用户。
     if status_code == reqwest::StatusCode::TOO_MANY_REQUESTS {
-        return MineruTokenValidationView {
+        return ProviderProbeView {
             ok: true,
             status: "rate_limited",
             summary: format!("翻译 API 与模型 {model} 可用（当前被限流）"),
@@ -230,7 +250,7 @@ async fn classify_deepseek_chat_probe_response(
         )
     };
 
-    MineruTokenValidationView {
+    ProviderProbeView {
         ok: false,
         status,
         summary,
@@ -248,6 +268,7 @@ async fn classify_deepseek_chat_probe_response(
 pub(crate) async fn query_deepseek_balance_view(
     payload: DeepSeekTokenValidationRequest,
     runtime: DeepSeekRuntimeConfig,
+    policy: ProbePolicy,
 ) -> Result<DeepSeekBalanceView, AppError> {
     let api_key = payload.api_key.trim();
     if api_key.is_empty() {
@@ -255,7 +276,7 @@ pub(crate) async fn query_deepseek_balance_view(
     }
 
     let base_url = normalize_deepseek_base_url(&payload.base_url, &runtime);
-    validate_provider_base_url(&base_url, runtime.allow_private_urls)?;
+    validate_probe_base_url(&base_url, policy.private_targets)?;
     let checked_at = now_iso();
     let Some(balance_url) = deepseek_balance_url(&base_url, &runtime) else {
         return Ok(DeepSeekBalanceView {
@@ -273,19 +294,16 @@ pub(crate) async fn query_deepseek_balance_view(
         });
     };
 
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(runtime.probe_timeout_secs))
-        .build()
-        .map_err(|err| {
-            AppError::internal(format!("build deepseek balance client failed: {err}"))
-        })?;
+    let client = policy.http_client_builder().build().map_err(|err| {
+        AppError::internal(format!("build deepseek balance client failed: {err}"))
+    })?;
     let response = client.get(balance_url).bearer_auth(api_key).send().await;
     let view = match response {
         Ok(resp) => classify_deepseek_balance_response(resp, base_url.clone(), checked_at).await,
         Err(err) => classify_deepseek_balance_transport_error(err, base_url.clone(), checked_at),
     };
 
-    Ok(view)
+    Ok(view.bounded())
 }
 
 const ANTHROPIC_DEFAULT_BASE_URL: &str = "https://api.anthropic.com/v1";
@@ -294,8 +312,8 @@ const ANTHROPIC_VERSION: &str = "2023-06-01";
 /// 很多 OpenAI 兼容服务只实现了 `/chat/completions`：`/responses` 返回 404/405 且正文不提模型时，
 /// 原样报「模型不可用」会把人引去查模型名，这里改说是接口不支持。
 pub(super) fn explain_missing_responses_endpoint(
-    mut view: MineruTokenValidationView,
-) -> MineruTokenValidationView {
+    mut view: ProviderProbeView,
+) -> ProviderProbeView {
     let endpoint_missing = matches!(view.provider_code.as_deref(), Some("404") | Some("405"))
         && !view
             .provider_message
@@ -371,8 +389,17 @@ async fn classify_deepseek_probe_response(
     response: reqwest::Response,
     base_url: String,
     checked_at: String,
-) -> MineruTokenValidationView {
+) -> ProviderProbeView {
     let status_code = response.status();
+    if status_code.is_redirection() {
+        return redirected_view(
+            "翻译 API",
+            status_code.as_u16(),
+            redirect_location(&response),
+            base_url,
+            checked_at,
+        );
+    }
     let trace_id = response
         .headers()
         .get("x-request-id")
@@ -381,7 +408,7 @@ async fn classify_deepseek_probe_response(
     let body_text = response.text().await.unwrap_or_default();
 
     if status_code.is_success() {
-        return MineruTokenValidationView {
+        return ProviderProbeView {
             ok: true,
             status: "valid",
             summary: "翻译 API Key 可用".to_string(),
@@ -412,7 +439,7 @@ async fn classify_deepseek_probe_response(
         format!("翻译 API 返回 {}", status_code.as_u16())
     };
 
-    MineruTokenValidationView {
+    ProviderProbeView {
         ok: false,
         status,
         summary,
@@ -433,11 +460,11 @@ fn classify_deepseek_probe_transport_error(
     err: reqwest::Error,
     base_url: String,
     checked_at: String,
-) -> MineruTokenValidationView {
+) -> ProviderProbeView {
     let error_text = err.to_string();
     if err.is_builder() {
         // 地址和 Key 都提前校验过，这里几乎走不到；说不清是哪个，就都提一下。
-        return MineruTokenValidationView {
+        return ProviderProbeView {
             ok: false,
             status: "invalid_input",
             summary: "请求没法发出，请检查接口地址和 API Key 里有没有多余的字符".to_string(),
@@ -458,7 +485,7 @@ fn classify_deepseek_probe_transport_error(
         "和翻译 API 的连接中途失败，请稍后重试"
     };
 
-    MineruTokenValidationView {
+    ProviderProbeView {
         ok: false,
         status: "network_error",
         summary: summary.to_string(),
@@ -470,6 +497,14 @@ fn classify_deepseek_probe_transport_error(
         base_url,
         checked_at,
     }
+}
+
+fn redirect_location(response: &reqwest::Response) -> Option<String> {
+    response
+        .headers()
+        .get(reqwest::header::LOCATION)
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_string)
 }
 
 fn summarize_deepseek_models_payload(body_text: &str) -> Option<String> {
@@ -513,6 +548,21 @@ async fn classify_deepseek_balance_response(
     checked_at: String,
 ) -> DeepSeekBalanceView {
     let status_code = response.status();
+    if status_code.is_redirection() {
+        return DeepSeekBalanceView {
+            ok: false,
+            status: "redirected",
+            summary: format!("DeepSeek 余额接口返回了重定向（HTTP {}）", status_code.as_u16()),
+            retryable: false,
+            is_available: false,
+            balance_infos: vec![],
+            provider_code: Some(status_code.as_u16().to_string()),
+            provider_message: redirect_location(&response).map(|target| format!("Location: {target}")),
+            trace_id: None,
+            base_url,
+            checked_at,
+        };
+    }
     let trace_id = response
         .headers()
         .get("x-request-id")
