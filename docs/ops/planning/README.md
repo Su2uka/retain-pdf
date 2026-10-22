@@ -10,6 +10,7 @@
 - [翻译拆包记录（2026-10 起）](./translation-package/README.md)
 - [前端迁移计划与审计](./frontend-migration/README.md)
 - [前端请求函数生成（2026-10 起）](./api-client-codegen/README.md)
+- [桌面壳主进程用 Cordis 试点（2026-10）](./desktop-cordis-pilot/README.md)
 - [架构与 API 契约任务台账](./architecture_tasks.csv)
 - [2026-04-15 Rust API 去耦任务清单](./250415_task.csv)
 - [2026-04-16 Normalize/翻译持续试错台账](./260416.csv)
