@@ -212,3 +212,41 @@ def test_the_system_bash_is_the_one_that_has_this_trap() -> None:
     if probe.returncode == 0:
         pytest.skip("这个系统的 bash 已经不会在空数组上炸了,上面那条门禁可以退休")
     assert "unbound" in probe.stderr.lower()
+
+
+def test_no_bare_variable_runs_into_non_ascii_text(source: str) -> None:
+    """`$VAR，` 这种写法在 macOS 自带的 bash 3.2 下会炸。
+
+    起因（2026-10-22）：`echo "… $DEFAULT_API_KEY，后端只监听 …"` 在 UTF-8 环境下被
+    bash 3.2 当成变量 `DEFAULT_API_KEY\\xef…`，加上 `set -u` 直接报 unbound variable，
+    `dev.sh up` 不带 `--host` 起不来。变量后面紧跟中文标点、中文字时一律写成 `${VAR}`。
+    """
+    import re
+
+    bad = [
+        f"{n}: {line.strip()}"
+        for n, line in enumerate(source.splitlines(), 1)
+        if re.search(r"\$[A-Za-z_][A-Za-z0-9_]*[^\x00-\x7f]", line)
+    ]
+    assert not bad, "变量后面紧跟非 ASCII 字符，要写成 ${VAR}：\n" + "\n".join(bad)
+
+
+def test_the_system_bash_misreads_a_variable_followed_by_cjk_punctuation() -> None:
+    """把上面那条的起因钉住：系统 bash 在 UTF-8 下确实会这样读错。
+
+    哪天系统 bash 不再这样了，这条会跳过，上面那条可以一起退休。
+    """
+    import os
+
+    env = dict(os.environ, LANG="en_US.UTF-8", LC_ALL="en_US.UTF-8")
+    probe = subprocess.run(
+        ["/bin/bash", "-c", 'set -u; X=1; echo "$X，"'],
+        capture_output=True,
+        timeout=30,
+        check=False,
+        env=env,
+    )
+    # 报错里的变量名带着半个 UTF-8 字符，按字节看，不按文本解码。
+    if probe.returncode == 0:
+        pytest.skip("这个系统的 bash 不会把中文标点读进变量名")
+    assert b"unbound" in probe.stderr.lower()
