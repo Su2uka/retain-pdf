@@ -2,6 +2,8 @@
 import { apiFetch } from "./internal/runtime.js";
 import { buildApiHeaders, unwrapEnvelope } from "./internal/runtime.js";
 import { buildApiEndpoint, pageQuotaErrorFromPayload } from "./http.js";
+import * as generated from "./generated/library-documents.js";
+import { failWith, failWithServerMessage } from "./request.js";
 function documentRequestError(fallback, status, payload) {
     // 通用错误把结构化数据放在 payload.error.details；老接口可能直接在 payload.details/data。
     const structured = payload?.error && typeof payload.error === "object" ? payload.error : null;
@@ -26,140 +28,63 @@ function documentRequestError(fallback, status, payload) {
         error.canFallbackToOcr = canFallback;
     return error;
 }
+// 下面这些走生成的请求函数（契约 library-documents.v1 的端点表），这里只管参数整理和给用户看的报错。
+function trimmed(value) {
+    const text = `${value ?? ""}`.trim();
+    return text || undefined;
+}
+function requireId(value, name) {
+    const normalized = `${value || ""}`.trim();
+    if (!normalized)
+        throw new Error(`缺少 ${name}。`);
+    return normalized;
+}
+function documentError(fallback) {
+    return (status, payload) => documentRequestError(fallback, status, payload);
+}
 export async function fetchDocumentList(apiPrefix, { limit = 50, offset = 0, readingStatus = "", collectionId = "", q = "" } = {}) {
-    const params = new URLSearchParams();
-    params.set("limit", `${limit}`);
-    params.set("offset", `${offset}`);
-    if (`${readingStatus || ""}`.trim())
-        params.set("reading_status", `${readingStatus}`.trim());
-    if (`${collectionId || ""}`.trim())
-        params.set("collection_id", `${collectionId}`.trim());
-    if (`${q || ""}`.trim())
-        params.set("q", `${q}`.trim());
-    const resp = await apiFetch(`${buildApiEndpoint(apiPrefix, "documents")}?${params.toString()}`, { headers: buildApiHeaders() });
-    if (!resp.ok)
-        throw new Error(`读取文档库失败，请稍后重试。(${resp.status})`);
-    return unwrapEnvelope(await resp.json());
+    return generated.listDocuments(apiPrefix, { query: { limit, offset, reading_status: trimmed(readingStatus), collection_id: trimmed(collectionId), q: trimmed(q) } }, { onError: failWith("读取文档库失败，请稍后重试。") });
 }
 export async function fetchDocumentByJobId(apiPrefix, jobId) {
-    const normalized = `${jobId || ""}`.trim();
+    const normalized = trimmed(jobId);
     if (!normalized)
         return null;
-    const params = new URLSearchParams();
-    params.set("job_id", normalized);
-    const resp = await apiFetch(`${buildApiEndpoint(apiPrefix, "documents")}?${params.toString()}`, { headers: buildApiHeaders() });
-    if (!resp.ok)
-        throw new Error(`按 job 查文档失败，请稍后重试。(${resp.status})`);
-    const payload = unwrapEnvelope(await resp.json()) || { documents: [], total: 0, limit: 0, offset: 0 };
-    const { documents = [] } = payload;
+    const payload = await generated.listDocuments(apiPrefix, { query: { job_id: normalized } }, { onError: failWith("按 job 查文档失败，请稍后重试。") });
+    const documents = payload?.documents;
     return Array.isArray(documents) && documents.length ? documents[0] : null;
 }
 export async function fetchDocument(apiPrefix, documentId) {
-    const normalized = `${documentId || ""}`.trim();
-    if (!normalized)
-        throw new Error("缺少 document_id。");
-    const resp = await apiFetch(buildApiEndpoint(apiPrefix, `documents/${encodeURIComponent(normalized)}`), { headers: buildApiHeaders() });
-    if (!resp.ok)
-        throw new Error(`读取文档详情失败，请稍后重试。(${resp.status})`);
-    return unwrapEnvelope(await resp.json());
+    return generated.getDocument(apiPrefix, { document_id: requireId(documentId, "document_id") }, { onError: failWith("读取文档详情失败，请稍后重试。") });
 }
 export async function patchDocument(apiPrefix, documentId, payload = {}) {
-    const normalized = `${documentId || ""}`.trim();
-    if (!normalized)
-        throw new Error("缺少 document_id。");
-    const resp = await apiFetch(buildApiEndpoint(apiPrefix, `documents/${encodeURIComponent(normalized)}`), {
-        method: "PATCH",
-        headers: { ...buildApiHeaders(), "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-    });
-    if (!resp.ok) {
-        const envelope = await resp.json().catch(() => null);
-        throw new Error(`${envelope?.message || "更新文档失败，请稍后重试。"}(${resp.status})`);
-    }
-    return unwrapEnvelope(await resp.json());
+    return generated.patchDocument(apiPrefix, { document_id: requireId(documentId, "document_id"), body: payload }, { onError: failWithServerMessage("更新文档失败，请稍后重试。") });
 }
 /** GET /documents/:id/reading —— 阅读器该打开哪个任务。 */
 export async function fetchDocumentReading(apiPrefix, documentId) {
-    const normalized = `${documentId || ""}`.trim();
-    if (!normalized)
-        throw new Error("缺少 document_id。");
-    const resp = await apiFetch(buildApiEndpoint(apiPrefix, `documents/${encodeURIComponent(normalized)}/reading`), {
-        headers: buildApiHeaders(),
-    });
-    if (!resp.ok)
-        throw new Error(`读取阅读入口失败。(${resp.status})`);
-    return unwrapEnvelope(await resp.json());
+    return generated.getDocumentReading(apiPrefix, { document_id: requireId(documentId, "document_id") }, { onError: failWith("读取阅读入口失败。") });
 }
 /** GET /documents/:id/translation-coverage —— 一本书翻了哪些页、每次任务提供了几页。 */
 export async function fetchDocumentTranslationCoverage(apiPrefix, documentId) {
-    const normalized = `${documentId || ""}`.trim();
-    if (!normalized)
-        throw new Error("缺少 document_id。");
-    const resp = await apiFetch(buildApiEndpoint(apiPrefix, `documents/${encodeURIComponent(normalized)}/translation-coverage`), {
-        headers: buildApiHeaders(),
-    });
-    if (!resp.ok)
-        throw new Error(`读取翻译覆盖失败。(${resp.status})`);
-    return unwrapEnvelope(await resp.json());
+    return generated.getTranslationCoverage(apiPrefix, { document_id: requireId(documentId, "document_id") }, { onError: failWith("读取翻译覆盖失败。") });
 }
 export async function createDocumentMetadataSuggestion(apiPrefix, documentId, payload = {}) {
-    const normalized = `${documentId || ""}`.trim();
-    if (!normalized)
-        throw new Error("缺少 document_id。");
-    const resp = await apiFetch(buildApiEndpoint(apiPrefix, `documents/${encodeURIComponent(normalized)}/metadata-suggestions`), {
-        method: "POST",
-        headers: { ...buildApiHeaders(), "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-    });
-    if (!resp.ok) {
-        const envelope = await resp.json().catch(() => null);
-        throw documentRequestError("生成文档元数据建议失败。", resp.status, envelope);
-    }
-    return unwrapEnvelope(await resp.json());
+    return generated.createMetadataSuggestion(apiPrefix, { document_id: requireId(documentId, "document_id"), body: payload }, { onError: documentError("生成文档元数据建议失败。") });
 }
 export async function fetchDocumentMetadataSuggestions(apiPrefix, documentId, { limit = 20 } = {}) {
-    const normalized = `${documentId || ""}`.trim();
+    const normalized = trimmed(documentId);
     if (!normalized)
         return [];
-    const params = new URLSearchParams({ limit: `${limit}` });
-    const resp = await apiFetch(`${buildApiEndpoint(apiPrefix, `documents/${encodeURIComponent(normalized)}/metadata-suggestions`)}?${params.toString()}`, { headers: buildApiHeaders() });
-    if (!resp.ok) {
-        const envelope = await resp.json().catch(() => null);
-        throw documentRequestError("读取文档元数据建议失败。", resp.status, envelope);
-    }
-    const payload = unwrapEnvelope(await resp.json());
+    const payload = await generated.listMetadataSuggestions(apiPrefix, { document_id: normalized, query: { limit } }, { onError: documentError("读取文档元数据建议失败。") });
     return Array.isArray(payload?.suggestions) ? payload.suggestions : [];
 }
 export async function applyDocumentMetadataSuggestion(apiPrefix, documentId, suggestionId, payload = {}) {
-    const normalizedDocumentId = `${documentId || ""}`.trim();
-    const normalizedSuggestionId = `${suggestionId || ""}`.trim();
-    if (!normalizedDocumentId)
-        throw new Error("缺少 document_id。");
-    if (!normalizedSuggestionId)
-        throw new Error("缺少 suggestion_id。");
-    const resp = await apiFetch(buildApiEndpoint(apiPrefix, `documents/${encodeURIComponent(normalizedDocumentId)}/metadata-suggestions/${encodeURIComponent(normalizedSuggestionId)}/apply`), {
-        method: "POST",
-        headers: { ...buildApiHeaders(), "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-    });
-    if (!resp.ok) {
-        const envelope = await resp.json().catch(() => null);
-        throw documentRequestError("应用文档元数据建议失败。", resp.status, envelope);
-    }
-    return unwrapEnvelope(await resp.json());
+    const document_id = requireId(documentId, "document_id");
+    const suggestion_id = requireId(suggestionId, "suggestion_id");
+    return generated.applyMetadataSuggestion(apiPrefix, { document_id, suggestion_id, body: payload }, { onError: documentError("应用文档元数据建议失败。") });
 }
 export async function deleteDocument(apiPrefix, documentId, { force = false } = {}) {
-    const normalized = `${documentId || ""}`.trim();
-    if (!normalized)
-        throw new Error("缺少 document_id。");
-    const params = force ? "?force=true" : "";
-    const resp = await apiFetch(buildApiEndpoint(apiPrefix, `documents/${encodeURIComponent(normalized)}`) + params, { method: "DELETE", headers: buildApiHeaders() });
-    if (!resp.ok) {
-        const envelope = await resp.json().catch(() => null);
-        // 保留 HTTP 状态：409 是文档下还有排队或运行中的任务（force=true 才删）
-        throw documentRequestError("删除文档失败，请稍后重试。", resp.status, envelope);
-    }
-    return unwrapEnvelope(await resp.json());
+    // 保留 HTTP 状态：409 是文档下还有排队或运行中的任务（force=true 才删）
+    return generated.deleteDocument(apiPrefix, { document_id: requireId(documentId, "document_id"), query: { force: force || undefined } }, { onError: documentError("删除文档失败，请稍后重试。") });
 }
 export async function translateDocument(apiPrefix, documentId, payload = {}) {
     const normalized = `${documentId || ""}`.trim();
