@@ -8,6 +8,8 @@
     {
       "method": "GET",
       "path": "/api/v1/documents",
+      "client_name": "listDocuments",
+      "transport": "json",
       "query": "ListDocumentsQuery",
       "output": "DocumentListView",
       "rust_view": "DocumentListView",
@@ -17,12 +19,16 @@
     {
       "method": "GET",
       "path": "/api/v1/documents/:document_id",
+      "client_name": "getDocument",
+      "transport": "json",
       "output": "DocumentRecord",
       "rust_view": "DocumentRecord"
     },
     {
       "method": "PATCH",
       "path": "/api/v1/documents/:document_id",
+      "client_name": "patchDocument",
+      "transport": "json",
       "input": "PatchDocumentInput",
       "output": "DocumentRecord",
       "rust_view": "DocumentRecord",
@@ -31,6 +37,8 @@
     {
       "method": "DELETE",
       "path": "/api/v1/documents/:document_id",
+      "client_name": "deleteDocument",
+      "transport": "json",
       "query": "DeleteDocumentQuery",
       "output": "DocumentDeleteResultView",
       "rust_view": "DocumentDeleteResultView",
@@ -39,6 +47,8 @@
     {
       "method": "GET",
       "path": "/api/v1/documents/:document_id/reading",
+      "client_name": "getDocumentReading",
+      "transport": "json",
       "output": "DocumentReadingView",
       "rust_view": "DocumentReadingView",
       "note": "阅读器该打开哪个任务。多次范围翻译拼成的是虚拟任务 merged-<文档>-<指纹>，按需生成合并目录。"
@@ -46,6 +56,8 @@
     {
       "method": "GET",
       "path": "/api/v1/documents/:document_id/translation-coverage",
+      "client_name": "getTranslationCoverage",
+      "transport": "json",
       "output": "TranslationCoverageView",
       "rust_view": "TranslationCoverageView",
       "note": "只计算合并计划，不生成合并目录。"
@@ -53,6 +65,8 @@
     {
       "method": "GET",
       "path": "/api/v1/documents/:document_id/files",
+      "client_name": "listDocumentFiles",
+      "transport": "json",
       "output": "DocumentFilesView",
       "rust_view": "DocumentFilesView",
       "note": "书本身的文件清单。取文件本身走 GET /api/v1/documents/:document_id/files/:name 和 /files/pages/:page，返回的是文件，不在本契约里。"
@@ -60,6 +74,8 @@
     {
       "method": "GET",
       "path": "/api/v1/documents/:document_id/metadata-suggestions",
+      "client_name": "listMetadataSuggestions",
+      "transport": "json",
       "query": "ListDocumentMetadataSuggestionsQuery",
       "output": "DocumentMetadataSuggestionListView",
       "rust_view": "DocumentMetadataSuggestionListView"
@@ -67,6 +83,8 @@
     {
       "method": "POST",
       "path": "/api/v1/documents/:document_id/metadata-suggestions",
+      "client_name": "createMetadataSuggestion",
+      "transport": "json",
       "input": "CreateDocumentMetadataSuggestionInput",
       "output": "DocumentMetadataSuggestionView",
       "rust_view": "DocumentMetadataSuggestionView"
@@ -74,6 +92,8 @@
     {
       "method": "POST",
       "path": "/api/v1/documents/:document_id/metadata-suggestions/:suggestion_id/apply",
+      "client_name": "applyMetadataSuggestion",
+      "transport": "json",
       "input": "ApplyDocumentMetadataSuggestionInput",
       "output": "DocumentMetadataSuggestionApplyView",
       "rust_view": "DocumentMetadataSuggestionApplyView",
@@ -82,6 +102,8 @@
     {
       "method": "GET",
       "path": "/api/v1/search",
+      "client_name": "searchLibrary",
+      "transport": "json",
       "query": "SearchQuery",
       "output": "SearchResultView",
       "rust_view": "SearchResultView",
@@ -90,6 +112,8 @@
     {
       "method": "GET",
       "path": "/api/v1/collections",
+      "client_name": "listCollections",
+      "transport": "json",
       "output": "CollectionListView",
       "rust_view": "CollectionListView",
       "note": "不分页。"
@@ -97,6 +121,8 @@
     {
       "method": "POST",
       "path": "/api/v1/collections",
+      "client_name": "createCollection",
+      "transport": "json",
       "input": "CreateCollectionInput",
       "output": "CollectionRecord",
       "rust_view": "CollectionRecord"
@@ -104,6 +130,8 @@
     {
       "method": "PATCH",
       "path": "/api/v1/collections/:collection_id",
+      "client_name": "patchCollection",
+      "transport": "json",
       "input": "PatchCollectionInput",
       "output": "CollectionRecord",
       "rust_view": "CollectionRecord"
@@ -111,6 +139,8 @@
     {
       "method": "DELETE",
       "path": "/api/v1/collections/:collection_id",
+      "client_name": "deleteCollection",
+      "transport": "json",
       "output": "CollectionDeleteResultView",
       "rust_view": "CollectionMutationResult",
       "note": "合集不存在 404。删合集和它的成员关系、工作区目录，书不动。"
@@ -118,6 +148,8 @@
     {
       "method": "POST",
       "path": "/api/v1/collections/:collection_id/documents",
+      "client_name": "addCollectionDocuments",
+      "transport": "json",
       "input": "AddCollectionDocumentsInput",
       "output": "CollectionRecord",
       "rust_view": "CollectionRecord",
@@ -126,6 +158,8 @@
     {
       "method": "DELETE",
       "path": "/api/v1/collections/:collection_id/documents/:document_id",
+      "client_name": "removeCollectionDocument",
+      "transport": "json",
       "output": "CollectionDocumentRemoveResultView",
       "rust_view": "CollectionMutationResult",
       "note": "书不在这个合集里 404。"

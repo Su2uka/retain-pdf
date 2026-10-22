@@ -51,6 +51,7 @@
     {
       "method": "GET",
       "path": "/api/v1/jobs/:job_id/progress/stream?after_seq=:seq",
+      "transport": "sse",
       "output": "LiveTranslationCommitEvent",
       "rust_view": "LiveTranslationCommitEventView",
       "ts_consumer": "@retainpdf/contracts/reader-data :: LiveTranslationCommitEvent"
