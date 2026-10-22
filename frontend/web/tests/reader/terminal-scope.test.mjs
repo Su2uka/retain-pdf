@@ -139,9 +139,9 @@ test("切之前必须先物化", () => {
   // 没有任何报错。
   const block = CHROME.slice(CHROME.indexOf("const select ="), CHROME.indexOf("if (options.length === 0)"));
   const ensureAt = block.indexOf("ensureCollectionWorkspace");
-  const changeAt = block.indexOf('onChange({ kind: "collection"');
+  const changeAt = block.indexOf('onChange(target, { kind: "collection"');
   assert.ok(ensureAt > 0 && changeAt > ensureAt, "onChange 跑在物化之前了");
-  assert.match(block, /if \(reason\) \{[\s\S]{0,60}setFailure\(reason\);[\s\S]{0,20}return;/,
+  assert.match(block, /if \(reason\) \{[\s\S]{0,60}setFailure\(\{ tabId: target, text: reason \}\);[\s\S]{0,20}return;/,
     "物化失败了还照切");
 });
 
