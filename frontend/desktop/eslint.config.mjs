@@ -18,6 +18,10 @@ const nodeGlobals = {
 
 export default [
   {
+    // 第三方代码按原样放着（见 src/main/vendor/cordis/README.md），不按本仓库的规则检查。
+    ignores: ["src/main/vendor/**"],
+  },
+  {
     files: ["main.js", "preload.js", "src/main/**/*.js", "src/main/**/*.mjs", "scripts/run-local.mjs"],
     languageOptions: {
       ecmaVersion: "latest",
