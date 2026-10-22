@@ -15,7 +15,7 @@ use crate::models::api::{
     ApiResponse, JobFilesQuery, ApplyDocumentMetadataSuggestionInput, CreateDocumentMetadataSuggestionInput,
     DocumentDeleteResultView, DocumentJobListView, DocumentJobRequest, DocumentListView,
     DocumentMetadataSuggestionApplyView, DocumentMetadataSuggestionListView,
-    DocumentMetadataSuggestionView, DocumentRecord, JobSubmissionView, LibraryDeleteQuery,
+    DeleteDocumentQuery, DocumentMetadataSuggestionView, DocumentRecord, JobSubmissionView,
     ListDocumentJobsQuery, ListDocumentMetadataSuggestionsQuery, ListDocumentsQuery,
     PatchDocumentInput, SearchQuery, SearchResultView,
 };
@@ -196,11 +196,11 @@ pub async fn apply_document_metadata_suggestion_route(
 }
 
 /// DELETE /api/v1/documents/:id —— 彻底删除文档(行 + jobs + uploads + 文件)。
-/// 被收藏引用 → 409;运行中 job 需 ?force=true。
+/// 运行中 job 需 ?force=true;不认识的查询参数 400(拼错的 force 不会当成不强删)。
 pub async fn delete_document_route(
     State(state): State<AppState>,
     ApiPath(document_id): ApiPath<String>,
-    ApiQuery(query): ApiQuery<LibraryDeleteQuery>,
+    ApiQuery(query): ApiQuery<DeleteDocumentQuery>,
 ) -> Result<Json<ApiResponse<DocumentDeleteResultView>>, AppError> {
     if query.force {
         // 强删文档：名下运行中的任务先走取消的同一条路径（登记取消 + 终止 worker），再删。

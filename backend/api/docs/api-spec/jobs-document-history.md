@@ -29,7 +29,10 @@ Storage ownership:
   "message": "ok",
   "data": {
     "documents": [],
-    "total": 128
+    "total": 128,
+    "limit": 24,
+    "offset": 0,
+    "has_more": true
   }
 }
 ```
@@ -38,6 +41,23 @@ Storage ownership:
 and to `total`. Documents without a backing upload are excluded from both.
 `limit` and `offset` affect only `documents`. With `job_id`, an associated
 document returns `total: 1`; a miss returns an empty page with `total: 0`.
+
+Paging (2026-10-22, rules in `docs/api/00-约定/03-分页.md`):
+
+- `limit` (default `50`) outside `1..=500` is rejected with `400`
+  (`limit must be 1..=500`); it used to be clamped silently.
+- `limit`, `offset` and `has_more` are echoed. `has_more` is
+  `offset + documents.length < total`; the page and `total` are read from one
+  SQLite snapshot and no rows are skipped, so the comparison is exact.
+- Ordering is `added_at DESC, document_id DESC`: documents added in the same
+  second (a batch upload) no longer move between pages.
+- With `job_id` the request is a lookup, not a page: `reading_status`,
+  `collection_id`, `q` and `offset` have no effect, at most one document is
+  returned, `limit` is still validated, `limit`/`offset` are echoed as sent and
+  `has_more` is always `false`.
+- Unknown query parameters are rejected with `400`
+  (``unknown field `tag`, expected one of ... in the query string``). Tags were
+  removed on 2026-09-26; `tag` used to be ignored silently.
 
 `q` is document-level text search: a document matches when either its `title`
 or its original `source_filename` contains the query (case-insensitive for
@@ -101,7 +121,12 @@ addition to `items` and `invocation_summary`, this projection returns:
 
 - `total`: authoritative number of jobs linked through `jobs.document_id`
 - `limit` / `offset`: the effective page request
-- `has_more`: whether another page exists
+- `has_more`: whether another page exists. Since 2026-10-22 it is computed by
+  reading one extra row (like `GET /api/v1/jobs`), not from `total`: unreadable
+  rows are skipped by the list but still counted by `COUNT(*)`, which used to
+  make the last page report `has_more: true`. `total` is unchanged.
+- Unknown query parameters are rejected with `400` (2026-10-22); only `limit`
+  and `offset` are accepted.
 
 The omitted `limit` defaults to `20`; a `limit` outside `1..=500` is rejected
 with `400` (not clamped, rule 3 of `docs/api/00-约定/03-分页.md`). Ordering is `updated_at DESC, job_id DESC`, so equal timestamps do

@@ -35,8 +35,10 @@ fn default_true() -> bool {
     true
 }
 
-/// GET /api/v1/documents 查询参数。
+/// GET /api/v1/documents 查询参数。不认识的参数 400（2026-10-22 起；标签 `tag` 早已删掉）。
+/// 带 `job_id` 时是另一种查法：只按任务找它所属的书，其余参数不起作用（`limit` 照样校验）。
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ListDocumentsQuery {
     #[serde(default = "default_documents_limit")]
     pub limit: u32,
@@ -61,10 +63,16 @@ pub struct DocumentListView {
     pub documents: Vec<DocumentRecord>,
     /// Number of documents matching the filters before pagination.
     pub total: u64,
+    /// 生效的 `limit`（没传就是默认值；越界 400，不夹）。
+    pub limit: u32,
+    pub offset: u32,
+    /// 这一页之后还有没有：`offset + 这一页条数 < total`（页和 total 读自同一个快照）。
+    pub has_more: bool,
 }
 
-/// PATCH /api/v1/documents/:id
+/// PATCH /api/v1/documents/:id。只认 `title`、`reading_status`，别的字段 400。
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct PatchDocumentInput {
     pub title: Option<String>,
     pub reading_status: Option<String>,
@@ -86,8 +94,9 @@ pub struct CreateDocumentMetadataSuggestionInput {
     pub apply_if_default: bool,
 }
 
-/// GET /api/v1/documents/:id/metadata-suggestions
+/// GET /api/v1/documents/:id/metadata-suggestions。只认 `limit`（1..=100），没有 `offset`。
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ListDocumentMetadataSuggestionsQuery {
     #[serde(default = "default_metadata_suggestion_limit")]
     pub limit: u32,
@@ -164,6 +173,10 @@ pub struct DocumentMetadataSuggestionView {
 #[derive(Debug, Serialize)]
 pub struct DocumentMetadataSuggestionListView {
     pub suggestions: Vec<DocumentMetadataSuggestionView>,
+    /// 生效的 `limit`。
+    pub limit: u32,
+    /// 还有更早的建议（多取一条判断）。
+    pub has_more: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -172,8 +185,9 @@ pub struct DocumentMetadataSuggestionApplyView {
     pub document: DocumentRecord,
 }
 
-/// GET /api/v1/search
+/// GET /api/v1/search。只认 `q`、`limit`（1..=100）、`document_id`，没有 `offset`。
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct SearchQuery {
     pub q: String,
     #[serde(default = "default_search_limit")]
@@ -187,6 +201,10 @@ pub struct SearchQuery {
 pub struct SearchResultView {
     pub query: String,
     pub hits: Vec<BlockSearchHit>,
+    /// 生效的 `limit`。
+    pub limit: u32,
+    /// 命中不止这么多（多取一条判断）。没有 `offset`，要更多就加大 `limit`。
+    pub has_more: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -289,7 +307,9 @@ pub struct ConversationMutationResult {
     pub deleted: bool,
 }
 
+/// POST /api/v1/collections。不认识的字段 400。
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct CreateCollectionInput {
     pub name: String,
     #[serde(default)]
@@ -301,13 +321,18 @@ pub struct CollectionListView {
     pub collections: Vec<CollectionRecord>,
 }
 
+/// PATCH /api/v1/collections/:id：只能改名字和排序。`parent_id` 从来改不了，2026-10-22 起传了是 400
+/// （以前 200 但不生效）。
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct PatchCollectionInput {
     pub name: Option<String>,
     pub sort_order: Option<i64>,
 }
 
+/// POST /api/v1/collections/:id/documents。不认识的字段 400。
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct AddCollectionDocumentsInput {
     pub document_ids: Vec<String>,
 }
@@ -349,8 +374,18 @@ pub struct LibraryBookListView {
     pub items: Vec<LibraryBookListItemView>,
 }
 
+/// 书架删除 `DELETE /api/v1/library/books/:job_id` 的查询参数。书架冻结，不收紧：不认识的参数照旧忽略。
 #[derive(Debug, Deserialize)]
 pub struct LibraryDeleteQuery {
+    #[serde(default)]
+    pub force: bool,
+}
+
+/// `DELETE /api/v1/documents/:id` 的查询参数。不认识的参数 400（拼错的 `force` 不会悄悄变成不强删）。
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DeleteDocumentQuery {
+    /// 名下运行中的任务先取消再删。
     #[serde(default)]
     pub force: bool,
 }

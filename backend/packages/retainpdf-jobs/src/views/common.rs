@@ -124,7 +124,9 @@ pub struct JobDeleteResultView {
 /// Pagination for one document's complete OCR/translation task history.
 /// Keep this deliberately narrower than `ListJobsQuery`: document scope is
 /// supplied by the path and must not be overridable by list filters.
+/// 只认 `limit`、`offset`，不认识的参数 400（2026-10-22 起）。
 #[derive(Debug, Deserialize, Clone)]
+#[serde(deny_unknown_fields)]
 pub struct ListDocumentJobsQuery {
     #[serde(default = "default_limit")]
     pub limit: u32,

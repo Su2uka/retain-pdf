@@ -547,7 +547,8 @@ def build_default_registry(settings: Settings, rust: RustApiClient) -> ToolRegis
             }
         documents = rust.list_documents(
             reading_status=str(arguments.get("reading_status") or ""),
-            limit=int(arguments.get("limit") or 50),
+            # 和工具声明的范围一致（1..=200）；书库列表 2026-10-22 起 limit 越界返回 400，不再替我们夹。
+            limit=max(1, min(int(arguments.get("limit") or 50), 200)),
         )
         # 只回模型需要的字段,别把整条记录灌进上下文
         return {

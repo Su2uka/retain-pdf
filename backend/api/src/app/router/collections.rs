@@ -9,7 +9,7 @@ crate::endpoints! {
     POST "/api/v1/collections" => collections::create_collection_route, signed;
     /// 合集列表
     GET "/api/v1/collections" => collections::list_collections_route, signed;
-    /// 改合集（名字、上级）
+    /// 改合集（名字、排序）
     PATCH "/api/v1/collections/:collection_id" => collections::patch_collection_route, signed;
     /// 删除合集
     DELETE "/api/v1/collections/:collection_id" => collections::delete_collection_route, signed;

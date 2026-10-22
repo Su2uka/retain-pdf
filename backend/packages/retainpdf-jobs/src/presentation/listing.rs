@@ -53,17 +53,20 @@ pub fn build_document_job_list_view(
 ) -> Result<DocumentJobListView, AppError> {
     let limit = checked_limit(query.limit, MAX_JOB_LIMIT)?;
     let total = db.count_jobs_for_document(document_id)?;
-    let jobs = db.list_jobs_for_document(document_id, limit, query.offset)?;
+    // 多取一条判断 has_more（和 `GET /jobs` 一样）。不用 `offset + 条数 < total`：读不出来的行
+    // 列表会跳过、COUNT 照样算，最后一页会误报还有下一页。
+    let mut jobs = db.list_jobs_for_document(document_id, limit + 1, query.offset)?;
+    let has_more = jobs.len() > limit as usize;
+    jobs.truncate(limit as usize);
     let items = build_job_list_items(db, data_root, &jobs, base_url, true);
     let invocation_summary = summarize_list_invocation(&items);
-    let returned = items.len() as u64;
     Ok(DocumentJobListView {
         items,
         invocation_summary,
         total,
         limit,
         offset: query.offset,
-        has_more: u64::from(query.offset).saturating_add(returned) < total,
+        has_more,
     })
 }
 

@@ -12,6 +12,7 @@ use serde_json::Value;
 use sha2::{Digest, Sha256};
 
 use retainpdf_api_base::error::AppError;
+use retainpdf_api_base::paging::checked_limit;
 use retainpdf_core::models::api::DocumentRecord;
 use crate::views::{
     ApplyDocumentMetadataSuggestionInput, CreateDocumentMetadataSuggestionInput,
@@ -28,6 +29,7 @@ use normalized::{read_title_pages, NormalizedReadError};
 use retainpdf_jobs::{stored_path, StoredFile};
 
 const MAX_NORMALIZED_DOCUMENT_BYTES: u64 = 256 * 1024 * 1024;
+/// 建议列表 `limit` 的上限，越界 400。
 const MAX_SUGGESTIONS: u32 = 100;
 const MAX_TITLE_CHARS: usize = 512;
 
@@ -108,17 +110,20 @@ pub fn list_metadata_suggestions(
     document_id: &str,
     query: &ListDocumentMetadataSuggestionsQuery,
 ) -> Result<DocumentMetadataSuggestionListView, AppError> {
+    let limit = checked_limit(query.limit, MAX_SUGGESTIONS)?;
     let document = deps
         .db
         .get_document(document_id)
         .map_err(|error| AppError::from_lookup(error, format!("document not found: {document_id}")))?;
-    let suggestions = deps
-        .db
-        .list_document_metadata_suggestions(document_id, query.limit.clamp(1, MAX_SUGGESTIONS))?
+    // 多取一条判断 has_more。
+    let mut records = deps.db.list_document_metadata_suggestions(document_id, limit + 1)?;
+    let has_more = records.len() > limit as usize;
+    records.truncate(limit as usize);
+    let suggestions = records
         .into_iter()
         .map(|record| stored_to_view(record, &document))
         .collect::<Result<Vec<_>, _>>()?;
-    Ok(DocumentMetadataSuggestionListView { suggestions })
+    Ok(DocumentMetadataSuggestionListView { suggestions, limit, has_more })
 }
 
 pub fn apply_metadata_suggestion(

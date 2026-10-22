@@ -107,7 +107,8 @@ raw rejection details.
 | JSON value does not match the request schema (wrong type, missing field, unknown enum value) | 422 | `42200` | `UNPROCESSABLE_ENTITY` | `JSON request body does not match the expected schema` |
 | Missing JSON content type | 415 | `41500` | `UNSUPPORTED_MEDIA_TYPE` | `expected an application/json request body` |
 | JSON body exceeds the configured limit | 413 | `41300` | `PAYLOAD_TOO_LARGE` | `request body is too large` |
-| Invalid query parameters | 400 | `40000` | `BAD_REQUEST` | `invalid query parameters` |
+| Query string has a parameter the endpoint does not accept (`deny_unknown_fields`) | 400 | `40000` | `BAD_REQUEST` | ``unknown field `<name>`, expected one of ... in the query string`` (parameter names only, never values; since 2026-10-22, before that `invalid query parameters`) |
+| Invalid query parameters (wrong type, out-of-range integer, missing required parameter) | 400 | `40000` | `BAD_REQUEST` | `invalid query parameters` |
 | Invalid typed path parameters | 400 | `40000` | `BAD_REQUEST` | `invalid path parameters` |
 | Invalid initial multipart request | 400 | `40000` | `BAD_REQUEST` | `invalid multipart request` |
 
