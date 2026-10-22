@@ -50,11 +50,12 @@ test("task center:按 job_id 保留同一文档的独立任务并分组", () => 
     ["running", ["job-running"]],
     ["queued", ["job-queued"]],
     ["failed", ["job-failed"]],
-    ["completed", ["job-done", "job-cancelled"]],
+    ["completed", ["job-done"]],
+    ["canceled", ["job-cancelled"]],
   ]);
   assert.equal(taskIdentity(items[0]), "job:job-running");
   assert.equal(taskIdentity(items[1]), "job:job-queued");
-  assert.deepEqual(taskCenterCounts(items), { total: 5, running: 1, queued: 1, failed: 1, completed: 2 });
+  assert.deepEqual(taskCenterCounts(items), { total: 5, running: 1, queued: 1, failed: 1, completed: 1, canceled: 1 });
 });
 
 test("task center:文档名称和进度只读取 jobs 契约字段", () => {

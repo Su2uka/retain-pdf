@@ -1,5 +1,6 @@
 // 管理后台几处共用的小件：时间显示、复制、只显示一次的初始密码。
 import { useState } from "react";
+import { copyText as copyToClipboard } from "@/platform/utils/clipboard.js";
 import { formatZhDateTime } from "@/platform/utils/datetime.js";
 
 export function formatWhen(value: string | null | undefined, empty = "—"): string {
@@ -8,10 +9,11 @@ export function formatWhen(value: string | null | undefined, empty = "—"): str
   return Number.isNaN(date.getTime()) ? value : formatZhDateTime(date);
 }
 
-/** 复制到剪贴板；浏览器不让（非安全上下文、没权限）时返回 false。 */
+/** 复制到剪贴板；浏览器不让时返回 false。局域网 http 打开不是安全上下文、没有
+ * navigator.clipboard，走平台那份的 execCommand 兜底，不然初始密码复制不了。 */
 export async function copyText(text: string): Promise<boolean> {
   try {
-    await navigator.clipboard.writeText(text);
+    await copyToClipboard(text);
     return true;
   } catch {
     return false;

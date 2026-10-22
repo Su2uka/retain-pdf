@@ -125,4 +125,18 @@ describe("主页问答的跟随底部", () => {
     assert.ok(scroller.calls.length > 0);
     probe.unmount();
   });
+  it("容器挂载后才出现（欢迎页 → 对话区）时，上滑照样让开", () => {
+    const ref = { current: null };
+    const probe = mount(ref);
+    // 第一问发出后对话区才渲染出来
+    ref.current = scroller.node;
+    probe.bump();
+    scroller.node.scrollTop = 100;
+    scroller.fireScroll();
+    const before = scroller.calls.length;
+    scroller.node.scrollHeight = 1400;
+    probe.bump();
+    assert.equal(scroller.calls.length, before, "容器后出现时监听没挂上，用户上滑仍被拽回底部");
+    probe.unmount();
+  });
 });

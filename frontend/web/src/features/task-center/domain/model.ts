@@ -1,7 +1,7 @@
 import type { JobListItemView } from "@retainpdf/contracts/job-status";
 import { JOB_STATUS_LABELS, jobStatusLabel, normalizeJobStatus } from "@retainpdf/domain/job";
 
-export type TaskCenterGroupKey = "running" | "queued" | "failed" | "completed";
+export type TaskCenterGroupKey = "running" | "queued" | "failed" | "completed" | "canceled";
 
 export type TaskCenterGroup = {
   key: TaskCenterGroupKey;
@@ -14,6 +14,7 @@ export const TASK_CENTER_GROUP_ORDER: TaskCenterGroupKey[] = [
   "queued",
   "failed",
   "completed",
+  "canceled",
 ];
 
 const GROUP_LABELS: Record<TaskCenterGroupKey, string> = {
@@ -21,6 +22,7 @@ const GROUP_LABELS: Record<TaskCenterGroupKey, string> = {
   queued: JOB_STATUS_LABELS.queued,
   failed: JOB_STATUS_LABELS.failed,
   completed: JOB_STATUS_LABELS.succeeded,
+  canceled: JOB_STATUS_LABELS.canceled,
 };
 
 export function taskIdentity(job: Pick<JobListItemView, "job_id">): string {
@@ -51,6 +53,8 @@ export function taskGroupKey(job: Pick<JobListItemView, "status">): TaskCenterGr
     case "running": return "running";
     case "queued": return "queued";
     case "failed": return "failed";
+    // 已取消不算「已完成」：以前落进 default，计数和分组标题都把它当成功的。
+    case "canceled": return "canceled";
     default: return "completed";
   }
 }
@@ -78,6 +82,7 @@ export function taskCenterCounts(items: JobListItemView[] = []): Record<TaskCent
     queued: groups.find((group) => group.key === "queued")?.items.length || 0,
     failed: groups.find((group) => group.key === "failed")?.items.length || 0,
     completed: groups.find((group) => group.key === "completed")?.items.length || 0,
+    canceled: groups.find((group) => group.key === "canceled")?.items.length || 0,
   };
 }
 

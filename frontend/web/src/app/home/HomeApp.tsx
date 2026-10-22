@@ -260,15 +260,14 @@ function HomeShell() {
     document.addEventListener(HOME_TASK_CENTER_OPEN_EVENT, open);
     return () => document.removeEventListener(HOME_TASK_CENTER_OPEN_EVENT, open);
   }, []);
+  // 任务中心开着时切顶栏 tab：URL 和顶栏都换了，舞台也要跟着换，不能还停在任务中心。
+  useEffect(() => setTasksOpen(false), [activeTab]);
 
   // 合集/AI tab：视图挂载即可尝试恢复 panel 滚动（图书馆由 RecentJobsLibrary 在有列表后恢复）
   useHomeReturnRestore(isCategoriesTab || isAskTab);
 
-  // 这里曾挂一张页面级状态卡 #job-status-card。已下线：进度主场是书籍详情的
-  // 「进度」Tab（#book-detail-job-status-card），图书馆卡片与任务中心也各自
-  // 显示进度——主页这张只是重复的遗留界面，实测还会留在详情弹窗背后讲同一份
-  // 进度、并被视口左缘截掉一半。statusArea 状态机本身保留（工作流弹窗靠
-  // statusAreaPort.isVisible() 算 upload/status 模式）。
+  // 主页的页面级状态卡 #job-status-card 已下线：进度看书籍详情的「进度」Tab、图书馆卡片和任务中心。
+  // statusArea 状态机保留（工作流弹窗靠 statusAreaPort.isVisible() 算 upload/status 模式）。
 
   return (
     <>

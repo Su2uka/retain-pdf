@@ -55,6 +55,10 @@ export function CollectionDialog({
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [originalIds, setOriginalIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  // 编辑时成员 id 回来之前不许保存：差集要按这个合集的成员算，不能拿上一个合集的勾选去算。
+  const [membersReady, setMembersReady] = useState(false);
+  // 新建模式下已经建好的合集。建好后加书失败、用户再点保存，要接着改这个合集，不能再建一个同名的。
+  const [created, setCreated] = useState<{ collection_id: string; name: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [error, setError] = useState("");
@@ -67,6 +71,10 @@ export function CollectionDialog({
     let cancelled = false;
     setError("");
     setName(editing?.name || "");
+    setCreated(null);
+    setSelectedIds([]);
+    setOriginalIds([]);
+    setMembersReady(!editing);
     // 已有书目数据时 soft 重拉（切编辑目标），不整表 loading 闪空
     setLoading((prev) => (allDocuments.length === 0 ? true : prev));
     const documentsPromise = controller.listAllDocuments();
@@ -81,6 +89,7 @@ export function CollectionDialog({
         setAllDocuments(documents);
         setSelectedIds(memberIds);
         setOriginalIds(memberIds);
+        setMembersReady(true);
       })
       .catch((err) => {
         if (cancelled) {
@@ -123,27 +132,37 @@ export function CollectionDialog({
     }
     setSaving(true);
     setError("");
+    // 已经落到服务端的成员。中途失败时写回 originalIds，重试只补没做完的那部分。
+    let committedIds = originalIds;
+    let createdNow = false;
     try {
-      let collectionId = editing?.collection_id || "";
-      if (isCreate) {
-        const created = await controller.createCollection({ name: trimmed }) as {
-          collection_id?: string;
-        };
-        collectionId = created.collection_id || "";
-      } else if (trimmed !== editing.name) {
+      const target = editing || created;
+      let collectionId = target?.collection_id || "";
+      if (!target) {
+        const record = await controller.createCollection({ name: trimmed });
+        collectionId = record.collection_id || "";
+        setCreated({ collection_id: collectionId, name: trimmed });
+        createdNow = true;
+      } else if (trimmed !== target.name) {
         await controller.patchCollection(collectionId, { name: trimmed });
+        if (!editing) setCreated({ collection_id: collectionId, name: trimmed });
       }
       const toAdd = selectedIds.filter((id) => !originalIds.includes(id));
       const toRemove = originalIds.filter((id) => !selectedIds.includes(id));
       if (toAdd.length) {
         await controller.addDocuments(collectionId, toAdd);
+        committedIds = [...committedIds, ...toAdd];
       }
       for (const documentId of toRemove) {
         await controller.removeDocument(collectionId, documentId);
+        committedIds = committedIds.filter((id) => id !== documentId);
       }
       reloadSignal.actions.bump();
       dialogStore.close();
     } catch (err) {
+      setOriginalIds(committedIds);
+      // 合集已经建出来了，列表里要能看到它。
+      if (createdNow) reloadSignal.actions.bump();
       setError((err as { message?: string } | null)?.message || (isCreate ? "新建合集失败，请稍后重试。" : "保存失败，请稍后重试。"));
     } finally {
       setSaving(false);
@@ -235,7 +254,7 @@ export function CollectionDialog({
               <Button
                 id="collection-save-btn"
                 className="app-button"
-                disabled={saving || loading}
+                disabled={saving || loading || !membersReady}
                 onClick={handleSave}
               >
                 {saving ? "保存中…" : "保存"}

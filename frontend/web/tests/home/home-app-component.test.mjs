@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { wait, waitFor } from "../helpers/async.mjs";
-import { byId, clickWithMouseDown, makeDom, typeInput } from "../helpers/dom.mjs";
+import { byId, click, clickWithMouseDown, makeDom, typeInput } from "../helpers/dom.mjs";
 
 // HomeApp(Phase 3a:app-shell / upload / workflow 三域 React 骨架)组件级测试。
 // 校验:DOM 契约 id 逐一存在、idle 复位链落 store、工作流对话框开合的
@@ -312,6 +312,112 @@ test("HomeApp：分类管理对话框快速切换编辑目标不被迟到响应�
   root.unmount();
   services.dispose();
   host.remove();
+});
+
+async function mountCollectionDialogHarness(hostId, controllerOverrides) {
+  const host = dom.window.document.createElement("div");
+  host.id = hostId;
+  dom.window.document.body.appendChild(host);
+  const services = createServices();
+  services.initialize();
+  Object.assign(services.collections.controller, controllerOverrides);
+  const root = createRoot(host);
+  root.render(React.createElement(HomeApp, { services }));
+  await waitFor(() => byId(dom, "app-shell"), "HomeApp 首帧渲染");
+  await wait(0);
+  return {
+    services,
+    dialogStore: services.collections.dialogStore,
+    cleanup() {
+      root.unmount();
+      services.dispose();
+      host.remove();
+    },
+  };
+}
+
+test("CollectionDialog：新建后加书失败，再点保存不会再建一个同名合集", async () => {
+  const calls = [];
+  let failAdd = true;
+  const harness = await mountCollectionDialogHarness("home-root-create-retry", {
+    listAllDocuments: () => Promise.resolve([{ document_id: "doc-1", title: "Doc One" }]),
+    createCollection: async (payload) => {
+      calls.push(["create", payload.name]);
+      return { collection_id: "col-new", name: payload.name };
+    },
+    patchCollection: async (id, payload) => {
+      calls.push(["patch", id, payload.name]);
+      return { collection_id: id, name: payload.name };
+    },
+    addDocuments: async (id, ids) => {
+      calls.push(["add", id, ids.join(",")]);
+      if (failAdd) throw new Error("加书失败");
+      return { collection_id: id };
+    },
+    removeDocument: async () => ({ removed: true }),
+  });
+
+  harness.dialogStore.open(null);
+  await waitFor(() => byId(dom, "collection-manage-dialog")?.querySelector("input[type=checkbox]"), "新建对话框出现书目");
+  typeInput(dom, byId(dom, "collection-name-input"), "化学");
+  click(dom, dom.window.document.querySelector("#collection-manage-dialog input[type=checkbox]"));
+  await wait(0);
+  click(dom, byId(dom, "collection-save-btn"));
+  await waitFor(() => /加书失败/.test(byId(dom, "collection-manage-dialog")?.textContent || ""), "第一次保存报错");
+
+  failAdd = false;
+  typeInput(dom, byId(dom, "collection-name-input"), "化学 2");
+  await waitFor(() => !byId(dom, "collection-save-btn")?.disabled, "保存按钮恢复可点");
+  click(dom, byId(dom, "collection-save-btn"));
+  await waitFor(() => byId(dom, "collection-manage-dialog") === null, "重试成功后对话框关闭");
+
+  assert.deepEqual(calls, [
+    ["create", "化学"],
+    ["add", "col-new", "doc-1"],
+    ["patch", "col-new", "化学 2"],
+    ["add", "col-new", "doc-1"],
+  ]);
+  harness.cleanup();
+});
+
+test("CollectionDialog：切到另一个合集时先清掉上一个的勾选，成员回来前不能保存", async () => {
+  const memberResolvers = {};
+  const harness = await mountCollectionDialogHarness("home-root-stale-members", {
+    listAllDocuments: () => Promise.resolve([{ document_id: "doc-1", title: "Doc One" }]),
+    listCollectionDocumentIds: (collectionId) => (collectionId === "col-a"
+      ? Promise.resolve(["doc-1"])
+      : new Promise((resolve) => { memberResolvers[collectionId] = resolve; })),
+  });
+  const checkbox = () => dom.window.document.querySelector("#collection-manage-dialog input[type=checkbox]");
+
+  harness.dialogStore.open({ collection_id: "col-a", name: "A" });
+  await waitFor(() => checkbox()?.checked === true, "A 的成员勾上");
+  harness.dialogStore.close();
+  await wait(0);
+
+  harness.dialogStore.open({ collection_id: "col-b", name: "B" });
+  await waitFor(() => byId(dom, "collection-name-input")?.value === "B", "切到 B");
+  await wait(0);
+  assert.equal(checkbox()?.checked ?? false, false, "B 的成员还没回来时不该显示 A 的勾选");
+  assert.equal(byId(dom, "collection-save-btn").disabled, true, "B 的成员还没回来时保存按钮要禁用");
+
+  memberResolvers["col-b"]([]);
+  await waitFor(() => byId(dom, "collection-save-btn").disabled === false, "B 的成员回来后可以保存");
+  assert.equal(checkbox().checked, false);
+  harness.cleanup();
+});
+
+test("HomeApp：任务中心开着时切顶栏 tab，舞台跟着换", async () => {
+  const harness = await mountCollectionDialogHarness("home-root-tasks-tab", {});
+  dom.window.document.dispatchEvent(new dom.window.Event("retainpdf:open-task-center"));
+  await waitFor(() => byId(dom, "task-center-back-btn") !== null, "任务中心打开");
+
+  clickWithMouseDown(dom, byId(dom, "library-top-tab-categories"));
+  await waitFor(() => byId(dom, "categories-view") !== null, "切到合集后显示合集视图");
+  assert.equal(byId(dom, "task-center-back-btn"), null, "切 tab 后任务中心应关闭");
+  clickWithMouseDown(dom, byId(dom, "library-top-tab-library"));
+  await waitFor(() => byId(dom, "library-view") !== null, "切回图书馆");
+  harness.cleanup();
 });
 
 test("HomeApp：3b 回调桥接口定型(蓝图 §4)", () => {

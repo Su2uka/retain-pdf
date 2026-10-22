@@ -45,6 +45,9 @@ export function useDocumentMeta({
   const [error, setError] = useState("");
   const [editing, setEditing] = useState(false);
   const [titleText, setTitleText] = useState("");
+  // refresh 是异步回来的，用 ref 读编辑状态：任务完成触发的 refresh 不能冲掉用户正在输入的标题。
+  const editingRef = useRef(false);
+  editingRef.current = editing;
   const requestGenerationRef = useRef(0);
   const scopeRef = useRef({ open, documentId });
   scopeRef.current = { open, documentId };
@@ -75,7 +78,7 @@ export function useDocumentMeta({
       };
       setDoc(full);
       setReadingStatus(detail.reading_status || "unread");
-      setTitleText(detail.title || detail.source_filename || "");
+      if (!editingRef.current) setTitleText(detail.title || detail.source_filename || "");
       return full;
     } catch {
       return null;

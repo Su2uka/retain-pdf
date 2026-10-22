@@ -58,7 +58,7 @@ test("书架、书籍详情、任务中心说同一套话", () => {
   }
   assert.equal(taskStatusLabel({ status: "running" }), "处理中", "任务中心不再写「运行中」");
   assert.equal(documentJobPresentation({ status: "queued" }).label, "排队中", "书籍详情不再把排队写成处理中");
-  assert.equal(taskGroupKey({ status: "Cancelled" }), "completed");
+  assert.equal(taskGroupKey({ status: "Cancelled" }), "canceled");
 });
 
 test("任务详情：取消的任务写「已取消」（以前落到兜底写成「准备中」）", async () => {
