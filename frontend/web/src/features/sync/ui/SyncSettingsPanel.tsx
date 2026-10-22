@@ -44,6 +44,10 @@ export function SyncSettingsPanel() {
   const [testResult, setTestResult] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState<"" | "save" | "run" | "test">("");
   const [actionError, setActionError] = useState("");
+  // 定时刷新的错误单独放：下一次刷新成功就该消失，不能和保存、测试的报错混在一起。
+  const [refreshError, setRefreshError] = useState("");
+  // 每刷新完一次加一，下一次定时器按它重排。只看 status 的话，刷新失败时 status 不变，轮询就永久停了。
+  const [pollRound, setPollRound] = useState(0);
   const desktop = getDesktopHost();
   const editing = useRef({ folder: false, name: false, dav: false });
 
@@ -60,8 +64,11 @@ export function SyncSettingsPanel() {
   const refresh = useCallback(async () => {
     try {
       applyStatus(await fetchSyncStatusApi(API_PREFIX));
+      setRefreshError("");
     } catch (error) {
-      setActionError(errorText(error));
+      setRefreshError(errorText(error));
+    } finally {
+      setPollRound((round) => round + 1);
     }
   }, [applyStatus]);
 
@@ -73,7 +80,7 @@ export function SyncSettingsPanel() {
     const delay = status?.running || busy === "run" ? POLL_BUSY_MS : POLL_IDLE_MS;
     const timer = window.setTimeout(refresh, delay);
     return () => window.clearTimeout(timer);
-  }, [status, busy, refresh]);
+  }, [status, busy, refresh, pollRound]);
 
   async function save(payload: SyncSettings): Promise<boolean> {
     setBusy("save");
@@ -350,7 +357,7 @@ export function SyncSettingsPanel() {
           </button>
         ) : null}
       </div>
-      {actionError ? <p className="sync-settings-error" role="alert">{actionError}</p> : null}
+      {actionError || refreshError ? <p className="sync-settings-error" role="alert">{actionError || refreshError}</p> : null}
 
       <section className="sync-settings-field">
         <span className="sync-settings-label">其它设备</span>

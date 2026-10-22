@@ -195,3 +195,29 @@ test("WebDAV：填地址账号密码、测试连接、保存；密码只写不�
   root.unmount();
   dom.window.close();
 });
+
+test("定时刷新失败一次以后照旧轮询，下一次成功就把报错收起来", async () => {
+  const dom = makeDom("", { keys: ["window", "document", "HTMLElement", "HTMLInputElement", "HTMLButtonElement", "Event", "MouseEvent", "FocusEvent", "Node", "MutationObserver", "URL"] });
+  const backend = fakeBackend();
+  backend.state.running = true; // 同步中按 2 秒一次轮询
+  const okFetch = globalThis.fetch;
+  let failNext = false;
+  globalThis.fetch = async (url, init = {}) => {
+    if (failNext && (init.method || "GET") === "GET") {
+      failNext = false;
+      throw new Error("本机服务连不上");
+    }
+    return okFetch(url, init);
+  };
+  const { root, host } = await mountPanel(dom);
+  const gets = () => backend.calls.filter((call) => call.method === "GET").length;
+  await waitFor(() => gets() >= 1, "首次读取状态");
+
+  failNext = true;
+  await waitFor(() => host.textContent.includes("本机服务连不上"), "第二次刷新失败，报错显示出来", 5_000);
+  const getsAfterFailure = gets();
+  await waitFor(() => gets() > getsAfterFailure, "失败之后还会再刷新", 5_000);
+  await waitFor(() => !host.textContent.includes("本机服务连不上"), "刷新成功后报错收起", 2_000);
+  root.unmount();
+  host.remove();
+});
