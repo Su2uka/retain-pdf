@@ -5,7 +5,7 @@
 /**
  * Endpoint input, query, and output DTOs published by job-data.v1.schema.json.
  */
-export type JobDataSchema = JobDataCatalogView | JobDataView;
+export type JobDataSchema = JobDataCatalogView | JobDataView | JobDatasetQuery;
 /**
  * 任意 JSON 值。
  */
@@ -65,4 +65,24 @@ export interface JobDataView {
 export interface JobDataGroup {
     value: JsonValue;
     count: number;
+}
+/**
+ * GET /jobs/:job_id/data/:dataset 的查询参数。五个保留参数之外的键都是等值筛选：键是数据集登记的、能筛选的字段名，值是一个或几个用逗号分开的值（为「或」）；没登记、不能筛选、值类型不对都是 400。保留参数名和 retainpdf-jobs data::RESERVED_PARAMS 由 Rust 测试对上。
+ */
+export interface JobDatasetQuery {
+    /**
+     * 只要这几个字段，逗号分开；不写返回登记的全部字段
+     */
+    fields?: string;
+    /**
+     * 按这个字段分组（字段要能筛选）；带上后 offset/limit 翻的是分组
+     */
+    group_by?: string;
+    /**
+     * 按这个字段排序，前面加 - 是倒序
+     */
+    sort?: string;
+    offset?: number;
+    limit?: number;
+    [k: string]: string | number | boolean | undefined;
 }

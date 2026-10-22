@@ -46,7 +46,7 @@ endpoint 和它自己的 definition。全部接口见 `docs/api/00-接口目录.
 
 现在 `library-documents.v1` 的 17 条都有 `client_name`；第 1a 期（2026-10-22）给 `job-status`、`create-job`、`library-books`、`job-data`、`job-events`、`reader-data`、`token-usage` 的 16 条补上了（`GET /api/v1/jobs` 在 `library-books.v1` 也登记了一次，名字只写在 `job-status.v1`）；`agent-calculation.v1` 的计算产物下载是 `binary`
 （2026-10-22 以前写的是 `response_body: "binary"`，已并进 `transport`），`reader-data.v1` 的 `progress/stream` 是 `sse`。
-`scripts/lint-schemas.mjs` 查端点的键（有白名单，拼错的键直接红）、`method`、`transport` 的取值、`client_name` 的格式和重名。
+`scripts/lint-schemas.mjs` 查端点的键（有白名单，拼错的键直接红）、`method`、`transport` 的取值、`client_name` 的格式和重名；带 `client_name` 的端点，`query`/`input`/`output` 必须是本契约 definitions 里的名字（生成器按名字取类型，写说明文字会让它报错）。
 
 **和接口登记表一致**：rust_api 的 `route_manifest` 测试（`contract_endpoints_are_registered`）读 `backend/contracts/*.schema.json`
 的端点表，每条方法加地址都要在接口登记表（`backend/api/src/app/endpoints.rs` 那些 `crate::endpoints!` 表）里、而且不是旧地址；

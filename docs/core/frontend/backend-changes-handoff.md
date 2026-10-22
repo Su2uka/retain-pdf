@@ -947,6 +947,9 @@ API / jobsd 重启时，翻译阶段运行中的任务以前一律自动续跑�
 2. `GET /api/v1/jobs` 在 `library-books.v1` 的那条留着、不起名（删了它，`JobListView`、`ListJobsQuery` 就不再从
    `@retainpdf/contracts/library-books` 导出）。生成器按 `client_name` 取端点，不会生成两遍。
 3. `progress/pages/:page` 从 0 开始，和返回的 `page_idx` 一致。
+4. `getJobDataset` 的 `query` 以前是一段说明文字，生成器会报错；现在是 `JobDatasetQuery`（`@retainpdf/contracts/job-data`）：
+   `fields`、`group_by`、`sort`、`offset`、`limit` 具名，其余键是等值筛选（索引签名 `string | number | boolean | undefined`），
+   `{ group_by: "reader_item_id", limit: 1000 }` 可以直接传。
 
 | 做什么 | 在哪 |
 |---|---|

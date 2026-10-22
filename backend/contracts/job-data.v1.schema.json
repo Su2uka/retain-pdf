@@ -20,18 +20,30 @@
       "path": "/api/v1/jobs/:job_id/data/:dataset",
       "client_name": "getJobDataset",
       "transport": "json",
-      "query": "fields=a,b · <字段>=值[,值…]（等值筛选，逗号为或）· group_by=字段 · sort=字段|-字段 · offset · limit（1..=1000，默认 200）",
+      "query": "JobDatasetQuery",
       "output": "JobDataView",
       "errors": {
         "400": "BAD_REQUEST：未登记的字段、不能筛选的字段、值类型不对、limit 越界",
         "404": "NOT_FOUND：任务或数据集不存在"
       },
-      "note": "文件不存在、或任务还没有输出目录（排队中）时 available=false、没有记录，不报错（2026-10-19 以前后者是 404）。记录类数据集返回 rows；带 group_by 返回 groups（offset/limit 翻的是分组，分组个数在 group_total，total 仍是筛选后的行数）；单对象数据集返回 object。每条记录都带公共字段 item_id（译文条目编号，三位）、reader_item_id（阅读页编号，四位）、page（1 起），取得到才有。",
+      "note": "查询参数：fields=a,b · <字段>=值[,值…]（等值筛选，逗号为或）· group_by=字段 · sort=字段|-字段 · offset · limit（1..=1000，默认 200），见 JobDatasetQuery。文件不存在、或任务还没有输出目录（排队中）时 available=false、没有记录，不报错（2026-10-19 以前后者是 404）。记录类数据集返回 rows；带 group_by 返回 groups（offset/limit 翻的是分组，分组个数在 group_total，total 仍是筛选后的行数）；单对象数据集返回 object。每条记录都带公共字段 item_id（译文条目编号，三位）、reader_item_id（阅读页编号，四位）、page（1 起），取得到才有。",
       "rust_view": "services/job_data :: JobDataView",
       "ts_consumer": "@retainpdf/contracts/job-data :: JobDataView"
     }
   ],
   "definitions": {
+    "JobDatasetQuery": {
+      "type": "object",
+      "description": "GET /jobs/:job_id/data/:dataset 的查询参数。五个保留参数之外的键都是等值筛选：键是数据集登记的、能筛选的字段名，值是一个或几个用逗号分开的值（为「或」）；没登记、不能筛选、值类型不对都是 400。保留参数名和 retainpdf-jobs data::RESERVED_PARAMS 由 Rust 测试对上。",
+      "properties": {
+        "fields": { "type": "string", "description": "只要这几个字段，逗号分开；不写返回登记的全部字段" },
+        "group_by": { "type": "string", "description": "按这个字段分组（字段要能筛选）；带上后 offset/limit 翻的是分组" },
+        "sort": { "type": "string", "description": "按这个字段排序，前面加 - 是倒序" },
+        "offset": { "type": "integer", "minimum": 0, "default": 0 },
+        "limit": { "type": "integer", "minimum": 1, "maximum": 1000, "default": 200 }
+      },
+      "additionalProperties": { "type": ["string", "number", "boolean"], "tsType": "string | number | boolean | undefined" }
+    },
     "JsonValue": {
       "description": "任意 JSON 值。",
       "tsType": "null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue }",

@@ -186,3 +186,18 @@ fn a_changed_file_is_reparsed() {
 }
 
 
+
+#[test]
+fn dataset_query_contract_names_the_reserved_params_and_limits() {
+    let contract: serde_json::Value = serde_json::from_str(REGISTRY_JSON).unwrap();
+    let query = &contract["definitions"]["JobDatasetQuery"];
+    let mut named: Vec<&str> = query["properties"].as_object().unwrap().keys().map(String::as_str).collect();
+    named.sort_unstable();
+    let mut reserved = RESERVED_PARAMS.to_vec();
+    reserved.sort_unstable();
+    assert_eq!(named, reserved);
+    assert_eq!(query["properties"]["limit"]["maximum"], json!(MAX_LIMIT));
+    assert_eq!(query["properties"]["limit"]["default"], json!(DEFAULT_LIMIT));
+    // 保留参数之外的键是等值筛选，契约里必须放开（不能是 additionalProperties: false）。
+    assert!(query["additionalProperties"].is_object());
+}
