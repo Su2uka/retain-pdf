@@ -69,3 +69,15 @@ export function addCollectionDocuments(apiPrefix, args, options) {
 export function removeCollectionDocument(apiPrefix, args, options) {
     return request({ apiPrefix, method: "DELETE", path: `collections/${encodePathParam(args.collection_id)}/documents/${encodePathParam(args.document_id)}`, options });
 }
+/** GET /api/v1/documents/:document_id/jobs */
+export function listDocumentJobs(apiPrefix, args, options) {
+    return request({ apiPrefix, method: "GET", path: `documents/${encodePathParam(args.document_id)}/jobs`, query: args.query, options });
+}
+/** POST /api/v1/documents/:document_id/translate */
+export function translateDocument(apiPrefix, args, options) {
+    return request({ apiPrefix, method: "POST", path: `documents/${encodePathParam(args.document_id)}/translate`, body: args.body, options });
+}
+/** POST /api/v1/documents/:document_id/ocr */
+export function ocrDocument(apiPrefix, args, options) {
+    return request({ apiPrefix, method: "POST", path: `documents/${encodePathParam(args.document_id)}/ocr`, body: args.body, options });
+}
