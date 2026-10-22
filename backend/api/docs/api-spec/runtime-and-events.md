@@ -265,7 +265,19 @@ Provider HTTP and retry:
 - `RUST_API_PADDLE_MAX_INPUT_IMAGES`: default `999`
 - `RUST_API_DEEPSEEK_BASE_URL`: default `https://api.deepseek.com/v1`
 - `RUST_API_DEEPSEEK_BALANCE_URL`: default `https://api.deepseek.com/user/balance`
-- `RUST_API_DEEPSEEK_PROBE_TIMEOUT_SECS`: default `20`
+- `RUST_API_PROVIDER_PROBE_TIMEOUT_SECS`: default `20`; timeout shared by the four
+  credential probes (`/providers/{mineru,paddle}/validate-token`,
+  `/providers/deepseek/{validate-token,balance}`). Keep it below the web client's
+  30 s wait. Probes never retry and never follow redirects (a 3xx answer becomes
+  `status: "redirected"`); task-time MinerU / Paddle clients keep their own
+  timeouts and retries above.
+- `RUST_API_DEEPSEEK_PROBE_TIMEOUT_SECS`: legacy name, used only when
+  `RUST_API_PROVIDER_PROBE_TIMEOUT_SECS` is unset
+- `RUST_API_ALLOW_PRIVATE_PROVIDER_URLS`: default off. Probe `base_url` policy:
+  single-user mode allows loopback and private networks (the user's own machine)
+  but still blocks link-local / cloud metadata addresses; multi-user mode blocks
+  loopback, private and link-local. Setting this to `1` allows everything in both
+  modes. Details: `docs/core/rust_api/08-Provider 校验接口.md`.
 
 Notes:
 

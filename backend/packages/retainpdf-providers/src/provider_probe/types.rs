@@ -1,6 +1,11 @@
 use serde::{Deserialize, Serialize};
 
+use super::policy::truncate_provider_message;
+
+// 三个请求体都拒绝不认识的字段（400）：`base_url` 拼错以前会静默走默认地址，校验的是另一个服务商。
+
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct MineruTokenValidationRequest {
     pub mineru_token: String,
     #[serde(default)]
@@ -9,8 +14,10 @@ pub struct MineruTokenValidationRequest {
     pub model_version: String,
 }
 
+/// 三个密钥校验接口（MinerU、Paddle、翻译接口）共用的返回。以前叫 `MineruTokenValidationView`，
+/// 只改了 Rust 里的名字，JSON 字段不变。各家 `status` 的取值见 `docs/core/rust_api/08-Provider 校验接口.md`。
 #[derive(Debug, Serialize)]
-pub struct MineruTokenValidationView {
+pub struct ProviderProbeView {
     pub ok: bool,
     pub status: &'static str,
     pub summary: String,
@@ -24,13 +31,16 @@ pub struct MineruTokenValidationView {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct PaddleTokenValidationRequest {
     pub paddle_token: String,
     #[serde(default)]
     pub base_url: String,
 }
 
+/// 翻译接口校验和 DeepSeek 余额共用（CLI 查余额时四个字段都发）。
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct DeepSeekTokenValidationRequest {
     pub api_key: String,
     #[serde(default)]
@@ -64,4 +74,20 @@ pub struct DeepSeekBalanceView {
     pub trace_id: Option<String>,
     pub base_url: String,
     pub checked_at: String,
+}
+
+impl ProviderProbeView {
+    /// 交出去之前截短服务商原文：一整页 HTML 错误页不原样转给前端。
+    pub(super) fn bounded(mut self) -> Self {
+        self.provider_message = truncate_provider_message(self.provider_message);
+        self.operator_hint = truncate_provider_message(self.operator_hint);
+        self
+    }
+}
+
+impl DeepSeekBalanceView {
+    pub(super) fn bounded(mut self) -> Self {
+        self.provider_message = truncate_provider_message(self.provider_message);
+        self
+    }
 }

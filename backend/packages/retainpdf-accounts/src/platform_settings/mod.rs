@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 use retainpdf_core::config::{
-    DeepSeekRuntimeConfig, MineruRuntimeConfig, PaddleRuntimeConfig, PlatformModels,
+    DeepSeekRuntimeConfig, DeploymentMode, MineruRuntimeConfig, PaddleRuntimeConfig, PlatformModels,
 };
 use retainpdf_data::db::{Db, PlatformSettingsRecord};
 use retainpdf_api_base::error::AppError;
@@ -22,8 +22,8 @@ use retainpdf_core::models::now_iso;
 use retainpdf_providers::{
     create_credential, delete_credential, validate_deepseek_token_view, validate_mineru_token_view,
     validate_paddle_token_view, validate_provider_base_url, CreateCredentialInput,
-    DeepSeekTokenValidationRequest, MineruTokenValidationRequest, MineruTokenValidationView,
-    PaddleTokenValidationRequest,
+    DeepSeekTokenValidationRequest, MineruTokenValidationRequest, PaddleTokenValidationRequest,
+    PrivateTargets, ProbePolicy, ProviderProbeView,
 };
 
 pub const TRANSLATION_KEY_KIND: &str = "translation_api_key";
@@ -516,7 +516,7 @@ fn missing_input(target: &str, summary: &str) -> PlatformTestView {
 
 fn from_probe(
     target: &str,
-    result: Result<MineruTokenValidationView, AppError>,
+    result: Result<ProviderProbeView, AppError>,
 ) -> PlatformTestView {
     match result {
         Ok(view) => PlatformTestView {
@@ -549,6 +549,12 @@ pub async fn test(
     input: TestPlatformInput,
 ) -> Result<PlatformTestView, AppError> {
     let (current, _) = current_record(db, env)?;
+    // 平台设置只在多用户下用：地址照旧按多用户拦（`RUST_API_ALLOW_PRIVATE_PROVIDER_URLS=1` 才放开）；
+    // 超时、不重试、不跟随重定向和公开的校验接口一样。
+    let policy = ProbePolicy::new(
+        runtimes.deepseek.probe_timeout_secs,
+        PrivateTargets::for_deployment(DeploymentMode::Multi, runtimes.deepseek.allow_private_urls),
+    );
     match input.target.trim() {
         "translation" => {
             let target = "translation";
@@ -580,7 +586,7 @@ pub async fn test(
             };
             Ok(from_probe(
                 target,
-                validate_deepseek_token_view(request, runtimes.deepseek.clone()).await,
+                validate_deepseek_token_view(request, runtimes.deepseek.clone(), policy).await,
             ))
         }
         "ocr" => {
@@ -611,6 +617,7 @@ pub async fn test(
                             model_version: String::new(),
                         },
                         runtimes.mineru.clone(),
+                        policy,
                     )
                     .await
                 }
@@ -621,6 +628,7 @@ pub async fn test(
                             base_url: String::new(),
                         },
                         runtimes.paddle.clone(),
+                        policy,
                     )
                     .await
                 }

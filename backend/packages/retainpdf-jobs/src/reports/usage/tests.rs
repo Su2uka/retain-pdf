@@ -156,6 +156,31 @@ fn assistant_rows_and_job_directories_feed_the_global_summary() {
     let _ = fs::remove_dir_all(root);
 }
 
+/// 台账里的时间戳是原样的字符串：前 7 个字节切在多字节字符中间（手改过、别的工具写的）以前会 panic，
+/// 整个 `/usage` 500。取不出 `YYYY-MM` 的行照样计入总数，只是不进按月、不当最早最晚时间。
+#[test]
+fn odd_timestamps_are_left_out_of_the_monthly_breakdown() {
+    let root = temp_root("odd-ts");
+    write_ledger(&root, "job-odd", &[
+        row("2026-10-01T00:00:00Z", "translation", 100, 10, None),
+        row("2026年10月1日", "translation", 200, 20, None),
+        row("garbage-ts", "translation", 300, 30, None),
+        row("20261001", "translation", 400, 40, None),
+        // 第 7 个字节落在「月」中间：以前 `ts[..7]` 直接 panic。
+        row("2026-1月1日", "translation", 500, 50, None),
+    ]);
+
+    let view = summarize_jobs("job", &root, ["job-odd"], Vec::new());
+
+    assert_eq!(view.totals.requests, 5);
+    assert_eq!(view.totals.input_tokens, 1500);
+    assert_eq!(view.by_month.iter().map(|m| m.month.as_str()).collect::<Vec<_>>(), ["2026-10"]);
+    assert_eq!(view.by_month[0].usage.input_tokens, 100);
+    assert_eq!(view.first_at.as_deref(), Some("2026-10-01T00:00:00Z"));
+    assert_eq!(view.last_at.as_deref(), Some("2026-10-01T00:00:00Z"));
+    let _ = fs::remove_dir_all(root);
+}
+
 /// 响应字段和契约 token-usage.v1 一字不差：Rust 多一个或契约多一个都红。
 #[test]
 fn view_fields_match_the_token_usage_contract() {

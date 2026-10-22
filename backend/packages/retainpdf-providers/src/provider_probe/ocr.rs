@@ -2,6 +2,7 @@ use retainpdf_core::config::{MineruRuntimeConfig, PaddleRuntimeConfig};
 use retainpdf_api_base::error::AppError;
 use retainpdf_core::models::domain::now_iso;
 use retainpdf_data::ocr_provider::mineru::client::MineruUploadOptions;
+use retainpdf_data::ocr_provider::mineru::response_error::MineruResponseError;
 use retainpdf_data::ocr_provider::mineru::{
     extract_provider_error_code, extract_provider_message, extract_provider_trace_id,
     map_provider_error_code, MineruClient,
@@ -9,15 +10,17 @@ use retainpdf_data::ocr_provider::mineru::{
 use retainpdf_data::ocr_provider::paddle::{PaddleClient, PaddleProviderError};
 use retainpdf_data::ocr_provider::OcrErrorCategory;
 
+use super::policy::ProbePolicy;
 use super::types::{
-    MineruTokenValidationRequest, MineruTokenValidationView, PaddleTokenValidationRequest,
+    MineruTokenValidationRequest, PaddleTokenValidationRequest, ProviderProbeView,
 };
-use super::url_policy::validate_provider_base_url;
+use super::url_policy::validate_probe_base_url;
 
 pub async fn validate_mineru_token_view(
     payload: MineruTokenValidationRequest,
     runtime: MineruRuntimeConfig,
-) -> Result<MineruTokenValidationView, AppError> {
+    policy: ProbePolicy,
+) -> Result<ProviderProbeView, AppError> {
     let token = payload.mineru_token.trim();
     if token.is_empty() {
         return Err(AppError::bad_request("mineru_token is required"));
@@ -25,9 +28,12 @@ pub async fn validate_mineru_token_view(
 
     let base_url = payload.base_url.trim().to_string();
     let model_version = payload.model_version.trim().to_string();
-    let allow_private_urls = runtime.allow_private_urls;
-    let client = MineruClient::with_runtime(base_url.clone(), token.to_string(), runtime);
-    validate_provider_base_url(&client.base_url, allow_private_urls)?;
+    let http = policy
+        .http_client_builder()
+        .build()
+        .map_err(|err| AppError::internal(format!("build mineru probe client failed: {err}")))?;
+    let client = MineruClient::with_http_client(base_url, token.to_string(), runtime, http);
+    validate_probe_base_url(&client.base_url, policy.private_targets)?;
     let checked_at = now_iso();
 
     let view = match client
@@ -45,7 +51,7 @@ pub async fn validate_mineru_token_view(
         )
         .await
     {
-        Ok(result) => MineruTokenValidationView {
+        Ok(result) => ProviderProbeView {
             ok: true,
             status: "valid",
             summary: "MinerU Token 可用".to_string(),
@@ -57,29 +63,36 @@ pub async fn validate_mineru_token_view(
             base_url: client.base_url.clone(),
             checked_at,
         },
-        Err(err) => classify_probe_error(err.to_string(), client.base_url.clone(), checked_at),
+        Err(err) => classify_mineru_probe_error(&err, client.base_url.clone(), checked_at),
     };
 
-    Ok(view)
+    Ok(view.bounded())
 }
 
 pub async fn validate_paddle_token_view(
     payload: PaddleTokenValidationRequest,
-    runtime: PaddleRuntimeConfig,
-) -> Result<MineruTokenValidationView, AppError> {
+    mut runtime: PaddleRuntimeConfig,
+    policy: ProbePolicy,
+) -> Result<ProviderProbeView, AppError> {
     let token = payload.paddle_token.trim();
     if token.is_empty() {
         return Err(AppError::bad_request("paddle_token is required"));
     }
 
     let base_url = payload.base_url.trim().to_string();
-    let allow_private_urls = runtime.allow_private_urls;
-    let client = PaddleClient::with_runtime(base_url.clone(), token.to_string(), runtime);
-    validate_provider_base_url(&client.base_url, allow_private_urls)?;
+    // 校验是用户在等的前台操作：只试一次，不像正式任务那样超时、断连都重试 3 次。
+    runtime.request_retry_attempts = 1;
+    let http = policy
+        .http_client_builder()
+        .no_proxy()
+        .build()
+        .map_err(|err| AppError::internal(format!("build paddle probe client failed: {err}")))?;
+    let client = PaddleClient::with_http_client(base_url, token.to_string(), runtime, http);
+    validate_probe_base_url(&client.base_url, policy.private_targets)?;
     let checked_at = now_iso();
 
     let view = match client.probe_token().await {
-        Ok(result) => MineruTokenValidationView {
+        Ok(result) => ProviderProbeView {
             ok: true,
             status: "valid",
             summary: "Paddle Access Token 可用".to_string(),
@@ -96,14 +109,124 @@ pub async fn validate_paddle_token_view(
         Err(err) => classify_paddle_probe_error(err, client.base_url.clone(), checked_at),
     };
 
-    Ok(view)
+    Ok(view.bounded())
+}
+
+/// 服务商回了 3xx：校验不跟随重定向（免得把 Key 带到别的地址），直接算校验没通过。
+pub(super) fn redirected_view(
+    provider: &str,
+    http_status: u16,
+    location: Option<String>,
+    base_url: String,
+    checked_at: String,
+) -> ProviderProbeView {
+    ProviderProbeView {
+        ok: false,
+        status: "redirected",
+        summary: format!("{provider} 返回了重定向（HTTP {http_status}），请检查接口地址"),
+        retryable: false,
+        provider_code: Some(http_status.to_string()),
+        provider_message: location.map(|target| format!("Location: {target}")),
+        operator_hint: Some(
+            "校验不跟随重定向，免得把 Key 带到别的地址。常见原因：http 和 https 写反了、地址多了或少了一段路径。"
+                .to_string(),
+        ),
+        trace_id: None,
+        base_url,
+        checked_at,
+    }
+}
+
+fn is_redirect(http_status: Option<u16>) -> bool {
+    matches!(http_status, Some(300..=399))
+}
+
+/// MinerU 探针的错误：先在错误链里找服务商的回复（`MineruResponseError`）和传输错误（`reqwest::Error`），
+/// 都找不到才退回按完整错误链（`{:#}`）的文字判断。以前用 `to_string()` 只拿到最外层的
+/// 「MinerU apply upload url failed」，Token 无效、过期、超时全落成 provider_error。
+pub(super) fn classify_mineru_probe_error(
+    err: &anyhow::Error,
+    base_url: String,
+    checked_at: String,
+) -> ProviderProbeView {
+    if let Some(response_err) = err.downcast_ref::<MineruResponseError>() {
+        let info = &response_err.info;
+        if is_redirect(info.http_status) {
+            return redirected_view(
+                "MinerU",
+                info.http_status.unwrap_or_default(),
+                None,
+                base_url,
+                checked_at,
+            );
+        }
+        let (status, summary, retryable) = match info.category {
+            OcrErrorCategory::Unauthorized | OcrErrorCategory::PermissionDenied => {
+                ("unauthorized", "MinerU Token 无效".to_string(), false)
+            }
+            OcrErrorCategory::CredentialExpired => {
+                ("expired", "MinerU Token 已过期".to_string(), false)
+            }
+            _ if info.provider_code.is_some() => {
+                ("provider_error", "MinerU Token 校验失败".to_string(), true)
+            }
+            _ => (
+                "provider_error",
+                format!(
+                    "MinerU 返回 HTTP {}，校验没有通过",
+                    info.http_status.unwrap_or_default()
+                ),
+                true,
+            ),
+        };
+        return ProviderProbeView {
+            ok: false,
+            status,
+            summary,
+            retryable,
+            provider_code: info
+                .provider_code
+                .clone()
+                .or_else(|| info.http_status.map(|code| code.to_string())),
+            provider_message: info.provider_message.clone(),
+            operator_hint: info.operator_hint.clone(),
+            trace_id: info.trace_id.clone(),
+            base_url,
+            checked_at,
+        };
+    }
+
+    if let Some(transport) = err.chain().find_map(|cause| cause.downcast_ref::<reqwest::Error>()) {
+        if transport.is_timeout() || transport.is_connect() || transport.is_request() {
+            let summary = if transport.is_timeout() {
+                "连接 MinerU 超时，请检查网络后重试"
+            } else {
+                "连接 MinerU 失败，请检查网络后重试"
+            };
+            let error_text = format!("{err:#}");
+            return ProviderProbeView {
+                ok: false,
+                status: "network_error",
+                summary: summary.to_string(),
+                retryable: true,
+                provider_code: None,
+                provider_message: Some(error_text.clone()),
+                operator_hint: Some(format!("没有收到 MinerU 的回复，和 Token 无关。底层错误：{error_text}")),
+                trace_id: None,
+                base_url,
+                checked_at,
+            };
+        }
+    }
+
+    classify_probe_error(format!("{err:#}"), base_url, checked_at)
 }
 
 pub(super) fn classify_probe_error(
     error_text: String,
     base_url: String,
     checked_at: String,
-) -> MineruTokenValidationView {
+) -> ProviderProbeView {
     let provider_code = extract_provider_error_code(&error_text);
     let provider_message = extract_provider_message(&error_text);
     let trace_id = extract_provider_trace_id(&error_text);
@@ -114,7 +237,7 @@ pub(super) fn classify_probe_error(
             provider_message.clone().unwrap_or_default(),
             trace_id.as_deref(),
         );
-        return MineruTokenValidationView {
+        return ProviderProbeView {
             ok: false,
             status: match mapped.category {
                 OcrErrorCategory::Unauthorized => "unauthorized",
@@ -157,7 +280,7 @@ pub(super) fn classify_probe_error(
         ("provider_error", "没能完成 MinerU 校验，请稍后重试", true)
     };
 
-    MineruTokenValidationView {
+    ProviderProbeView {
         ok: false,
         status,
         summary: summary.to_string(),
@@ -175,13 +298,22 @@ pub(super) fn classify_paddle_probe_error(
     err: anyhow::Error,
     base_url: String,
     checked_at: String,
-) -> MineruTokenValidationView {
+) -> ProviderProbeView {
     if let Some(provider_err) = err.downcast_ref::<PaddleProviderError>() {
         let info = provider_err.info();
+        if is_redirect(info.http_status) {
+            return redirected_view(
+                "Paddle",
+                info.http_status.unwrap_or_default(),
+                None,
+                base_url,
+                checked_at,
+            );
+        }
         let valid_404 = matches!(info.http_status, Some(404))
             || matches!(info.provider_code.as_deref(), Some("404"));
         if valid_404 {
-            return MineruTokenValidationView {
+            return ProviderProbeView {
                 ok: true,
                 status: "valid",
                 summary: "Paddle Access Token 可用".to_string(),
@@ -215,7 +347,7 @@ pub(super) fn classify_paddle_probe_error(
             // 服务商回了错误，但不是鉴权问题：别说成 Token 有问题。
             _ => "Paddle 返回错误，校验没有通过".to_string(),
         };
-        return MineruTokenValidationView {
+        return ProviderProbeView {
             ok: false,
             status,
             summary,
@@ -248,7 +380,7 @@ pub(super) fn classify_paddle_probe_error(
         ("provider_error", "没能完成 Paddle 校验，请稍后重试", true)
     };
 
-    MineruTokenValidationView {
+    ProviderProbeView {
         ok: false,
         status,
         summary: summary.to_string(),

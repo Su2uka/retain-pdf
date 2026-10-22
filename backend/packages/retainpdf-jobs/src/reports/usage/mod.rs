@@ -300,6 +300,18 @@ pub fn stage_label(stage: &str) -> (&'static str, &'static str) {
     }
 }
 
+/// 时间戳的 `YYYY-MM`。台账里的 `ts` 是原样的字符串，可能被手改过或由别的工具写入：
+/// 取不出（太短、不是这个形状、第 7 个字节切在多字节字符中间）就返回 `None`，这一行照样计入总数，
+/// 只是不进按月、不当最早最晚时间。以前直接 `ts[..7]`，一行怪时间戳就让整份汇总 panic。
+fn month_of(ts: &str) -> Option<&str> {
+    let month = ts.get(..7)?;
+    let bytes = month.as_bytes();
+    let shaped = bytes[4] == b'-'
+        && bytes[..4].iter().all(u8::is_ascii_digit)
+        && bytes[5..].iter().all(u8::is_ascii_digit);
+    shaped.then_some(month)
+}
+
 /// 汇总若干条用量。`job_counts` 是（有用量的任务数，其中折算的任务数）。
 pub fn summarize(scope: &'static str, records: &[UsageRecord], job_counts: (u64, u64)) -> UsageSummaryView {
     let mut totals = UsageBucket::default();
@@ -310,8 +322,8 @@ pub fn summarize(scope: &'static str, records: &[UsageRecord], job_counts: (u64,
         totals.add(record);
         by_stage.entry(record.stage.clone()).or_default().add(record);
         by_model.entry((record.model.clone(), record.host.clone())).or_default().add(record);
-        if record.ts.len() >= 7 {
-            by_month.entry(record.ts[..7].to_string()).or_default().add(record);
+        if let Some(month) = month_of(&record.ts) {
+            by_month.entry(month.to_string()).or_default().add(record);
         }
     }
     let mut by_stage: Vec<UsageStageView> = by_stage
@@ -327,7 +339,7 @@ pub fn summarize(scope: &'static str, records: &[UsageRecord], job_counts: (u64,
         .map(|((model, host), usage)| UsageModelView { model, host, usage })
         .collect();
     by_model.sort_by(|a, b| b.usage.total_tokens.cmp(&a.usage.total_tokens).then(a.model.cmp(&b.model)));
-    let timestamps = records.iter().map(|record| record.ts.as_str()).filter(|ts| !ts.is_empty());
+    let timestamps = records.iter().map(|record| record.ts.as_str()).filter(|ts| month_of(ts).is_some());
     UsageSummaryView {
         scope,
         totals,

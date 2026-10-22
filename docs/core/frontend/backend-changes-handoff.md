@@ -808,3 +808,30 @@ API / jobsd 重启时，翻译阶段运行中的任务以前一律自动续跑�
 
 - `frontend/packages/api/src/internal/runtime.ts` 第 89 行注释说"当前后端是 `CorsLayer::permissive()`"，已经不对了，前端顺手改掉即可，
   不影响行为。
+
+## 服务商密钥校验：超时、重定向、不认识的字段，单机能测本机模型（fix/provider-probes）
+
+2026-10-22。方案见 [服务商探测与用量](../../ops/planning/api-reorg/20261022-服务商探测与用量.md)，接口说明见
+[Provider 校验接口](../rust_api/08-Provider%20校验接口.md)。
+
+### 变了什么
+
+| 接口 | 以前 | 现在 |
+|---|---|---|
+| `POST /providers/mineru/validate-token` | Token 无效、过期、超时都报 `provider_error`「没能完成 MinerU 校验，请稍后重试」 | 分得清：`unauthorized`、`expired`、`network_error`；服务商回 3xx 给 `redirected` |
+| `POST /providers/{mineru,paddle}/validate-token` | 超时 120 秒（Paddle 还重试 3 次），前端 30 秒先放弃 | 四个接口共用 20 秒（`RUST_API_PROVIDER_PROBE_TIMEOUT_SECS`），不重试 |
+| 四个校验接口 | 跟随重定向（Key 会被带到重定向后的地址） | 不跟随，`status: "redirected"`、`ok: false` |
+| 四个校验接口 | 请求体里不认识的字段忽略 | 400，`message` 带字段名 |
+| 四个校验接口（单机） | `base_url` 是 `127.0.0.1`、`localhost`、内网地址时 400 | 正常检测（链路本地 `169.254.x` 照旧 400）；多用户不变 |
+| 四个校验接口 | `provider_message` 不截断 | 最多 500 字，超出以 `…` 结尾 |
+| `GET /usage` 等三个用量接口 | 台账里一行怪时间戳能让接口 500 | 那一行照样计入总数，只是不进 `by_month` |
+
+### 前端要做什么
+
+不用改代码，字段和地址都没变；核对过前端发的字段都认（`mineru_token`；`paddle_token`、`base_url`；`api_key`、`base_url`、`model`、
+`api_protocol`；余额 `api_key`、`base_url`）。
+
+- `status` 多一个值 `redirected`，界面按 `summary` 显示就行；
+- 可以顺手改 `frontend/packages/api/src/providers.ts:4-6` 的注释：后端的超时变量现在叫 `RUST_API_PROVIDER_PROBE_TIMEOUT_SECS`
+  （四个接口共用，默认 20 秒；旧名 `RUST_API_DEEPSEEK_PROBE_TIMEOUT_SECS` 还认）；
+- 以后有契约（`provider-probe.v1`）了再把四个函数的 `Promise<any>` 换成契约类型，这次没加契约。

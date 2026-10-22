@@ -23,9 +23,9 @@ pub use model_requests_api::{ModelConnection, ModelRequest, ModelRequestsApi};
 pub use provider_api::{
     query_deepseek_balance, validate_deepseek_token, validate_mineru_token, validate_paddle_token,
     DeepSeekBalanceView, DeepSeekTokenValidationRequest, MineruTokenValidationRequest,
-    MineruTokenValidationView, PaddleTokenValidationRequest, ProviderApiDeps,
+    ProviderProbeView, PaddleTokenValidationRequest, ProviderApiDeps,
 };
 pub use provider_probe::{
     validate_deepseek_token_view, validate_mineru_token_view, validate_paddle_token_view,
-    validate_provider_base_url,
+    validate_provider_base_url, PrivateTargets, ProbePolicy,
 };
