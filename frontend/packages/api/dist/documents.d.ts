@@ -1,47 +1,10 @@
-export type DocumentRecord = Record<string, any> & {
-    document_id?: string;
-    title?: string;
-    title_source?: "filename" | "pdf_metadata" | "ocr" | "ai" | "user" | string;
-    title_locked?: boolean;
-    updated_at?: string;
-};
-export type DocumentMetadataEvidence = {
-    source: string;
-    page_idx?: number;
-    block_id?: string;
-    structure_role?: string;
-    layout_role?: string;
-};
-export type DocumentTitleCandidate = {
-    value: string;
-    source: string;
-    confidence: number;
-    evidence: DocumentMetadataEvidence[];
-};
-export type DocumentMetadataSuggestion = {
-    suggestion_id: string;
-    document_id: string;
-    source_job_id?: string;
-    artifact_sha256: string;
-    status: "completed" | "applied" | string;
-    fields: string[];
-    title_candidates: DocumentTitleCandidate[];
-    selected_title: string;
-    generation_method: string;
-    needs_ai_review: boolean;
-    applied: boolean;
-    can_apply: boolean;
-    created_at: string;
-    updated_at: string;
-};
-export type CreateDocumentMetadataSuggestionInput = {
-    job_id?: string;
-    fields?: Array<"title">;
-    apply_if_default?: boolean;
-};
-export type ApplyDocumentMetadataSuggestionInput = {
-    expected_document_updated_at?: string;
-};
+import type { ApplyDocumentMetadataSuggestionInput, CoverageJobView, CoverageSegment, CreateDocumentMetadataSuggestionInput, DocumentDeleteResultView, DocumentListView, DocumentMetadataEvidenceView, DocumentMetadataSuggestionApplyView, DocumentMetadataSuggestionView, DocumentReadingView, DocumentRecord, DocumentTitleCandidateView, TranslationCoverageView } from "@retainpdf/contracts/library-documents";
+export type { ApplyDocumentMetadataSuggestionInput, CreateDocumentMetadataSuggestionInput, DocumentDeleteResultView, DocumentListView, DocumentReadingView, DocumentRecord, TranslationCoverageView, };
+export type DocumentMetadataEvidence = DocumentMetadataEvidenceView;
+export type DocumentTitleCandidate = DocumentTitleCandidateView;
+export type DocumentMetadataSuggestion = DocumentMetadataSuggestionView;
+export type TranslationCoverageSegment = CoverageSegment;
+export type TranslationCoverageJob = CoverageJobView;
 export type DocumentListQuery = {
     limit?: number;
     offset?: number;
@@ -49,13 +12,6 @@ export type DocumentListQuery = {
     collectionId?: string;
     /** 服务端标题/原始文件名包含匹配（后端 LIKE，已转义 %/_）。空串不发送。 */
     q?: string;
-};
-export type DocumentListView = {
-    documents: DocumentRecord[];
-    /** Total matches for the current filters; unaffected by limit/offset. */
-    total: number;
-    limit: number;
-    offset: number;
 };
 export type DocumentJobSummary = Record<string, any> & {
     job_id?: string;
@@ -113,61 +69,17 @@ export declare function fetchDocumentByJobId(apiPrefix: string, jobId: string): 
 export declare function fetchDocument(apiPrefix: string, documentId: string): Promise<DocumentRecord>;
 export declare function patchDocument(apiPrefix: string, documentId: string, payload?: Record<string, unknown>): Promise<DocumentRecord>;
 /** GET /documents/:id/reading —— 阅读器该打开哪个任务。 */
-export type DocumentReadingView = {
-    /** 该打开的任务 id；多次范围翻译拼成的是 `merged-<文档>-<指纹>`。null = 还没有可读的译文。 */
-    job_id: string | null;
-    merged: boolean;
-    contributing_job_ids: string[];
-};
 export declare function fetchDocumentReading(apiPrefix: string, documentId: string): Promise<DocumentReadingView>;
 /** GET /documents/:id/translation-coverage —— 一本书翻了哪些页、每次任务提供了几页。 */
-export type TranslationCoverageSegment = {
-    first: number;
-    last: number;
-    job_id: string | null;
-};
-export type TranslationCoverageJob = {
-    job_id: string;
-    workflow: string;
-    status: string;
-    created_at: string;
-    finished_at: string | null;
-    model: string;
-    /** 这个任务处理的文档页（1 起）。 */
-    pages: number[];
-    /** 当前合并结果里取自它的页数。 */
-    supplied_pages: number;
-    ocr_reused: boolean;
-    /** 成功但有额外说明（「N 个内容块保留原文未翻译」）。旧后端没有这个字段。 */
-    note?: string | null;
-    /** 成功的翻译任务里保留原文的内容块数。 */
-    kept_origin_blocks?: number;
-    /** 其中落在「当前合并结果仍取自这个任务」的页上的块数（分次范围翻译后不会偏大）。 */
-    kept_origin_blocks_supplied?: number;
-    /** 失败原因一句话（中文）。只有失败任务有。 */
-    failure_summary?: string | null;
-    /** 原始错误第一行，展开看原因用。只有失败任务有。 */
-    error_head?: string | null;
-};
-export type TranslationCoverageView = {
-    page_count: number;
-    translated_pages: number;
-    contributing_jobs: number;
-    segments: TranslationCoverageSegment[];
-    jobs: TranslationCoverageJob[];
-};
 export declare function fetchDocumentTranslationCoverage(apiPrefix: string, documentId: string): Promise<TranslationCoverageView>;
 export declare function createDocumentMetadataSuggestion(apiPrefix: string, documentId: string, payload?: CreateDocumentMetadataSuggestionInput): Promise<DocumentMetadataSuggestion>;
 export declare function fetchDocumentMetadataSuggestions(apiPrefix: string, documentId: string, { limit }?: {
     limit?: number;
 }): Promise<DocumentMetadataSuggestion[]>;
-export declare function applyDocumentMetadataSuggestion(apiPrefix: string, documentId: string, suggestionId: string, payload?: ApplyDocumentMetadataSuggestionInput): Promise<{
-    suggestion: DocumentMetadataSuggestion;
-    document: DocumentRecord;
-}>;
+export declare function applyDocumentMetadataSuggestion(apiPrefix: string, documentId: string, suggestionId: string, payload?: ApplyDocumentMetadataSuggestionInput): Promise<DocumentMetadataSuggestionApplyView>;
 export declare function deleteDocument(apiPrefix: string, documentId: string, { force }?: {
     force?: boolean;
-}): Promise<any>;
+}): Promise<DocumentDeleteResultView>;
 export declare function translateDocument(apiPrefix: string, documentId: string, payload?: Record<string, unknown>): Promise<DocumentJobSubmissionView>;
 export declare function ocrDocument(apiPrefix: string, documentId: string, payload?: Record<string, unknown>): Promise<any>;
 export declare function submitDocument(apiPrefix: string, documentId: string, payload?: Record<string, unknown>): Promise<DocumentJobSubmissionView>;
