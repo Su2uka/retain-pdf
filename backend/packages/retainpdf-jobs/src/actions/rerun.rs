@@ -11,6 +11,7 @@ use retainpdf_api_base::job_loading::load_job_or_404;
 use crate::facade::JobsFacade;
 use crate::actions::ocr_ambiguity::ambiguous_ocr_dispatch;
 use crate::actions::stage_retry_overrides::{apply_retry_overrides, discard_ocr_secret_sources};
+use retainpdf_data::ocr_provider::strip_server_owned_ocr_options;
 
 impl<'a> JobsFacade<'a> {
     /// `overrides` 只会带换过的模型 key（路由层已校验）：续跑出新任务时替换原任务的旧凭据，
@@ -128,6 +129,9 @@ pub(super) fn prepare_in_place_render_job(mut job: JobSnapshot) -> Result<JobSna
     // A ref that no longer resolves never fails the render; see
     // retainpdf-runner worker_process::apply_job_credentials.
     discard_ocr_secret_sources(&mut job.request_payload.ocr);
+    // 只能服务器定的 OCR 选项同样去掉（老任务里可能存着，见 build_rerun_request）。之后的 overrides
+    // 再带就 400（stage_retry_overrides）。
+    strip_server_owned_ocr_options(&mut job.request_payload.ocr);
     job.request_payload.translation.api_key.clear();
     job.request_payload.translation.reviewer_api_key.clear();
     job.request_payload.runtime.job_id = job.job_id.clone();
@@ -252,5 +256,8 @@ fn build_rerun_request(
     request.source.source_url.clear();
     request.source.artifact_job_id = source_job.job_id.clone();
     request.runtime.job_id.clear();
+    // 老任务的请求里可能存着只能服务器定的 OCR 选项（2026-10-22 之前建任务不拦）：复制时去掉，
+    // 重跑不因此 400，也不再带下去。
+    strip_server_owned_ocr_options(&mut request.ocr);
     Ok(request)
 }

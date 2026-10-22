@@ -28,10 +28,11 @@ DEFAULT_LOCAL_OCR_COMMAND_TIMEOUT_SECONDS = 1800.0
 def run_local_command_ocr_to_job_dir(args: SimpleNamespace) -> OcrProviderResult:
     provider_name = str(getattr(args, "provider", "") or "local").strip().lower() or "local"
     provider_kind = str(getattr(args, "ocr_provider_kind", "") or "").strip().lower()
+    # 命令只认进程内设的 args.local_ocr_command（drivers 从 ocr_providers.json 填）和环境变量，
+    # 不认任务请求 / stage spec 里的 options.command（审计 A2，2026-10-22，见 provider_pipeline）。
     command = _configured_text(
         args,
         "local_ocr_command",
-        "command",
         env_name=LOCAL_OCR_COMMAND_ENV,
     )
     if not command:
@@ -60,7 +61,6 @@ def run_local_command_ocr_to_job_dir(args: SimpleNamespace) -> OcrProviderResult
     raw_provider = _configured_text(
         args,
         "local_ocr_raw_provider",
-        "raw_provider",
         env_name=LOCAL_OCR_RAW_PROVIDER_ENV,
         env=env,
     )

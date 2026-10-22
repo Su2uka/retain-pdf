@@ -2,6 +2,7 @@ use retainpdf_api_base::error::AppError;
 use crate::views::{ActionBlockReason, RetryStageKind};
 use retainpdf_core::models::domain::{CreateJobInput, JobSnapshot, WorkflowKind};
 use retainpdf_core::models::request::JobSourceInput;
+use retainpdf_data::ocr_provider::strip_server_owned_ocr_options;
 
 pub(super) fn build_retry_request(
     source_job: &JobSnapshot,
@@ -55,6 +56,9 @@ pub(super) fn build_retry_request(
         RetryStageKind::Refine => unreachable!("refine is rejected above"),
     }
     request.runtime.job_id.clear();
+    // 老任务的请求里可能存着只能服务器定的 OCR 选项（2026-10-22 之前建任务不拦）：复制时去掉，
+    // 重试不因此 400，也不再带下去。overrides 里再带就 400（stage_retry_overrides）。
+    strip_server_owned_ocr_options(&mut request.ocr);
     Ok(request)
 }
 

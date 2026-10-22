@@ -3,7 +3,7 @@ use axum::Json;
 
 use crate::error::AppError;
 use crate::models::api::ApiResponse;
-use crate::ocr_provider::{provider_public_definitions, OcrProviderPublicDefinition};
+use crate::ocr_provider::{provider_client_definitions, OcrProviderPublicDefinition};
 use crate::routes::common::{build_provider_route_deps, ApiJson};
 use crate::services::providers::{
     self, DeepSeekBalanceView, DeepSeekTokenValidationRequest, MineruTokenValidationRequest,
@@ -11,9 +11,10 @@ use crate::services::providers::{
 };
 use crate::AppState;
 
+/// 只能服务器定的选项（`client_settable: false`）不给默认值，见 `provider_client_definitions`。
 pub async fn list_ocr_providers(
 ) -> Result<Json<ApiResponse<Vec<OcrProviderPublicDefinition>>>, AppError> {
-    Ok(Json(ApiResponse::ok(provider_public_definitions())))
+    Ok(Json(ApiResponse::ok(provider_client_definitions())))
 }
 
 pub async fn validate_mineru_token(

@@ -623,11 +623,106 @@ async fn multi_user_cases(recorder: &mut Recorder) {
         .await;
 }
 
+/// 只能服务器定的 OCR 选项（审计 A2，2026-10-22）：对外入口带了 400；老任务里存着的，重试、续跑复制时去掉，
+/// 不因此 400；重试的 overrides 再带就 400。
+async fn server_owned_ocr_option_cases(recorder: &mut Recorder) {
+    let fixture = Fixture::new("server-owned", false);
+    let jobs = fixture.jobs();
+    let library = crate::routes::common::build_library_route_deps(&fixture.state).library;
+    fixture.seed_upload("up-owned", "local", 2);
+
+    recorder
+        .case(&fixture, "POST /jobs  ocr，local 带 ocr.options.command", None, || async {
+            view(jobs.create_submission(
+                BASE_URL,
+                &input(json!({
+                    "workflow": "ocr",
+                    "source": { "upload_id": "up-owned" },
+                    "ocr": { "provider": "local", "options": { "command": "sh -c 'touch /tmp/pwned'" } }
+                })),
+            ))
+        })
+        .await;
+    recorder
+        .case(&fixture, "POST /jobs  book，带 ocr.options.raw_provider", None, || async {
+            let mut request = book_with_keys("up-owned");
+            request["ocr"]["options"] = json!({ "raw_provider": "attacker_adapter" });
+            view(jobs.create_submission(BASE_URL, &input(request)))
+        })
+        .await;
+    recorder
+        .case(&fixture, "POST /documents/:id/ocr  带 ocr.options.command", None, || async {
+            view(
+                crate::services::library::ocr_document_view(
+                    &library,
+                    &jobs,
+                    "doc-up-owned",
+                    document_input(json!({
+                        "ocr": { "provider": "local", "options": { "command": "/bin/evil" } }
+                    })),
+                    BASE_URL,
+                )
+                .await,
+            )
+        })
+        .await;
+
+    // 2026-10-22 之前建的任务，请求里可能存着这些键。
+    let ocr_upload = fixture.seed_upload("up-owned-ocr", "local", 1);
+    failed_ocr_source(&fixture, "src-owned-ocr", &ocr_upload);
+    let mut job = fixture.state.db.get_job("src-owned-ocr").unwrap();
+    job.request_payload.ocr.options.insert("command".into(), json!("/bin/evil"));
+    job.request_payload.ocr.options.insert("raw_provider".into(), json!("attacker_adapter"));
+    fixture.state.db.save_job(&job).unwrap();
+    recorder
+        .case(&fixture, "POST /jobs/:id/retry-stage  ocr，源任务请求里存着 command（复制时去掉）", None, || async {
+            view(jobs.retry_stage_submission(BASE_URL, "src-owned-ocr", retry("ocr", json!({}))))
+        })
+        .await;
+    let upload = fixture.seed_upload("up-owned-book", "local", 2);
+    translated_source(&fixture, "src-owned-translated", &upload);
+    let mut job = fixture.state.db.get_job("src-owned-translated").unwrap();
+    job.request_payload.ocr.options.insert("command".into(), json!("/bin/evil"));
+    fixture.state.db.save_job(&job).unwrap();
+    recorder
+        .case(&fixture, "POST /jobs/:id/retry-stage  translation，overrides 带 ocr.options.command", None, || async {
+            view(jobs.retry_stage_submission(
+                BASE_URL,
+                "src-owned-translated",
+                retry("translation", json!({ "overrides": { "ocr": { "options": { "command": "/bin/evil" } } } })),
+            ))
+        })
+        .await;
+    recorder
+        .case(&fixture, "POST /jobs/:id/retry-stage  render（原地），overrides 带 ocr.options.raw_provider", None, || async {
+            view(jobs.retry_stage_submission(
+                BASE_URL,
+                "src-owned-translated",
+                retry(
+                    "render",
+                    json!({ "create_new_job": false, "overrides": { "ocr": { "options": { "raw_provider": "x" } } } }),
+                ),
+            ))
+        })
+        .await;
+    recorder
+        .case(&fixture, "POST /jobs/:id/retry-stage  translation，源任务请求里存着 command（复制时去掉）", None, || async {
+            view(jobs.retry_stage_submission(BASE_URL, "src-owned-translated", retry("translation", json!({}))))
+        })
+        .await;
+    recorder
+        .case(&fixture, "POST /jobs/:id/rerun  续跑（原地重渲染），源任务请求里存着 command", None, || async {
+            view(jobs.rerun_submission(BASE_URL, "src-owned-translated", &json!({})))
+        })
+        .await;
+}
+
 #[tokio::test]
 async fn submission_snapshot() {
     let mut recorder = Recorder::new();
     single_user_cases(&mut recorder).await;
     multi_user_cases(&mut recorder).await;
+    server_owned_ocr_option_cases(&mut recorder).await;
     let actual = format!(
         "# 建任务各入口的结果快照（UPDATE_SUBMISSIONS=1 cargo test -p retainpdf-api --lib submissions 重新生成）\n\n{}",
         recorder.out

@@ -262,10 +262,7 @@ target.write_text(json.dumps({
                 "ocr": {
                     "provider": "local",
                     "credential_ref": "",
-                    "options": {
-                        "command": f"{sys.executable} {local_script}",
-                        "raw_provider": "generic_flat_ocr",
-                    },
+                    "options": {},
                 },
                 "translation": {"credential_ref": "", "glossary_entries": []},
                 "render": {},
@@ -275,6 +272,11 @@ target.write_text(json.dumps({
         ),
         encoding="utf-8",
     )
+
+    # 本地 OCR 的命令只认服务器配置（环境变量 / ocr_providers.json），不认 stage spec 里的 options.command
+    # （审计 A2，2026-10-22，见 test_local_command_server_owned.py）。
+    monkeypatch.setenv("RETAIN_LOCAL_OCR_COMMAND", f"{sys.executable} {local_script}")
+    monkeypatch.setenv("RETAIN_OCR_RAW_PROVIDER", "generic_flat_ocr")
 
     def _unexpected_run_book_pipeline(**_: object) -> dict:
         raise AssertionError("ocr workflow must not run translation/render pipeline")

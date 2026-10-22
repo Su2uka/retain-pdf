@@ -28,6 +28,7 @@ from retainpdf_pipeline.ocr.retry import direct_session
 from retainpdf_pipeline.ocr.retry import request_with_retry
 from retainpdf_pipeline.ocr.ocr_provider.drivers import normalize_provider_name
 from retainpdf_pipeline.ocr.ocr_provider.drivers import run_registered_ocr_provider
+from retainpdf_pipeline.ocr.ocr_provider.provider_config import client_ocr_options
 from retainpdf_pipeline.ocr.ocr_provider.paddle_api import PADDLE_BASE_URL
 from retainpdf_pipeline.ocr.ocr_provider.paddle_api import build_optional_payload as build_paddle_optional_payload
 from retainpdf_pipeline.ocr.ocr_provider.paddle_api import download_jsonl_result
@@ -92,7 +93,9 @@ def _args_from_spec(spec: ProviderStageSpec) -> SimpleNamespace:
     job_dirs = spec.job_dirs
     provider = str(spec.ocr.provider or "mineru").strip().lower()
     provider_token = resolve_credential_ref(spec.ocr.credential_ref)
-    ocr_options = dict(spec.ocr.options or {})
+    # 只能服务器定的选项（command、raw_provider、配置里带 env 的）不认 stage spec 里的：本地 OCR 的命令
+    # 由 drivers 从 ocr_providers.json 的默认值和环境变量取（审计 A2，2026-10-22）。
+    ocr_options = client_ocr_options(provider, spec.ocr.options)
     return SimpleNamespace(
         workflow=spec.job.workflow,
         provider=provider,
@@ -115,8 +118,6 @@ def _args_from_spec(spec: ProviderStageSpec) -> SimpleNamespace:
         extra_formats=spec.ocr.extra_formats,
         poll_interval=spec.ocr.poll_interval,
         poll_timeout=spec.ocr.poll_timeout,
-        local_ocr_command=str(ocr_options.get("command", "") or ""),
-        local_ocr_raw_provider=str(ocr_options.get("raw_provider", "") or ""),
         ocr_provider_options=ocr_options,
         job_root=str(job_dirs.root),
         source_dir=str(job_dirs.source_dir),

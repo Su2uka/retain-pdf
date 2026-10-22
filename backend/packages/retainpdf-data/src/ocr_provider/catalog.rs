@@ -219,11 +219,11 @@ fn parse_option_specs(value: Option<&Value>) -> BTreeMap<String, OcrProviderOpti
     };
     object
         .iter()
-        .filter_map(|(key, value)| parse_option_spec(value).map(|spec| (key.clone(), spec)))
+        .filter_map(|(key, value)| parse_option_spec(key, value).map(|spec| (key.clone(), spec)))
         .collect()
 }
 
-fn parse_option_spec(value: &Value) -> Option<OcrProviderOptionSpec> {
+fn parse_option_spec(key: &str, value: &Value) -> Option<OcrProviderOptionSpec> {
     let object = value.as_object()?;
     let option_type = object
         .get("type")
@@ -268,6 +268,7 @@ fn parse_option_spec(value: &Value) -> Option<OcrProviderOptionSpec> {
                 .collect()
         })
         .unwrap_or_default();
+    let client_settable = option_is_client_settable(key, object, env.is_some());
     Some(OcrProviderOptionSpec {
         option_type,
         default,
@@ -278,7 +279,90 @@ fn parse_option_spec(value: &Value) -> Option<OcrProviderOptionSpec> {
             .get("required")
             .and_then(Value::as_bool)
             .unwrap_or(false),
+        client_settable,
     })
+}
+
+/// 不管哪个提供方、配置怎么写，都只能服务器定的选项：本地 / 命令型 OCR 要执行的命令，
+/// 和原始结果交给哪个转换器（`document_schema` 的 adapter 名）。
+pub const SERVER_OWNED_OCR_OPTION_KEYS: [&str; 2] = ["command", "raw_provider"];
+
+/// 一个选项客户端能不能在建任务请求里带（审计 A2，2026-10-22）：
+/// 1. `command`、`raw_provider` 永远不能；
+/// 2. 配置里写了 `client_settable` 的照它（只能用来放开没列在第 1 条里的）；
+/// 3. 配置里带 `env` 的不能——带 `env` 说明这是运维用环境变量定的东西；
+/// 4. 其余能。
+fn option_is_client_settable(
+    key: &str,
+    object: &serde_json::Map<String, Value>,
+    has_env: bool,
+) -> bool {
+    if SERVER_OWNED_OCR_OPTION_KEYS.contains(&key) {
+        return false;
+    }
+    if let Some(explicit) = object.get("client_settable").and_then(Value::as_bool) {
+        return explicit;
+    }
+    !has_env
+}
+
+/// 给 `GET /providers/ocr` 的提供方清单：只能服务器定的选项照样列出（客户端能看到有这么个
+/// 选项、`client_settable: false`），但不给默认值（`default: null`）——运维在配置文件里写的
+/// 命令通常带本机路径，不该给所有登录用户。流水线要的真实默认值用 [`provider_public_definitions`]。
+pub fn provider_client_definitions() -> Vec<OcrProviderPublicDefinition> {
+    provider_public_definitions()
+        .into_iter()
+        .map(|mut definition| {
+            for spec in definition.options.values_mut() {
+                if !spec.client_settable {
+                    spec.default = Value::Null;
+                }
+            }
+            definition
+        })
+        .collect()
+}
+
+/// 这个提供方的这个选项是不是只能服务器定。配置里没登记的选项（例如 Paddle CLI 的
+/// `cli_timeout`）除 [`SERVER_OWNED_OCR_OPTION_KEYS`] 外都算客户端可填。
+pub fn is_server_owned_ocr_option(provider: &str, key: &str) -> bool {
+    if SERVER_OWNED_OCR_OPTION_KEYS.contains(&key) {
+        return true;
+    }
+    let provider_key = provider.trim().to_ascii_lowercase();
+    provider_config::ocr_provider_definitions()
+        .get(&provider_key)
+        .and_then(|definition| definition.get("options"))
+        .and_then(Value::as_object)
+        .and_then(|options| options.get(key))
+        .and_then(Value::as_object)
+        .is_some_and(|object| {
+            let has_env = object
+                .get("env")
+                .and_then(Value::as_str)
+                .is_some_and(|env| !env.trim().is_empty());
+            !option_is_client_settable(key, object, has_env)
+        })
+}
+
+/// 请求的 `ocr.options` 里只能服务器定的那些键（按键名排序）。
+pub fn server_owned_ocr_options(input: &OcrInput) -> Vec<String> {
+    input
+        .options
+        .keys()
+        .filter(|key| is_server_owned_ocr_option(&input.provider, key))
+        .cloned()
+        .collect()
+}
+
+/// 去掉 `ocr.options` 里只能服务器定的键，返回去掉了哪些。重跑、阶段重试复制源任务的请求时用：
+/// 以前的任务请求里可能存着它们（2026-10-22 之前建任务不拦），复制过来不能因此 400，也不该再带下去。
+pub fn strip_server_owned_ocr_options(input: &mut OcrInput) -> Vec<String> {
+    let keys = server_owned_ocr_options(input);
+    for key in &keys {
+        input.options.remove(key);
+    }
+    keys
 }
 
 pub fn provider_capabilities(kind: &OcrProviderKind) -> Option<OcrProviderCapabilities> {
@@ -455,6 +539,102 @@ mod tests {
         assert_eq!(credential.field, "acme_token");
         assert_eq!(credential.env, "ACME_OCR_TOKEN");
         assert_eq!(credential.required_for, vec!["local_upload"]);
+    }
+
+    /// 配置里每个提供方的每个选项都分了类（客户端可填 / 只能服务器定）。往 ocr_providers.json
+    /// 加选项时这里会红：想清楚它该归哪边，再改这张表和方案文件
+    /// `docs/ops/planning/api-reorg/20261022-OCR提供方选项分客户端和服务器.md` 的表。
+    #[test]
+    fn every_configured_option_is_classified() {
+        let actual: Vec<(String, String, bool)> = provider_public_definitions()
+            .into_iter()
+            .flat_map(|definition| {
+                let key = definition.key.clone();
+                definition
+                    .options
+                    .into_iter()
+                    .map(move |(option, spec)| (key.clone(), option, spec.client_settable))
+            })
+            .collect();
+        let expected: Vec<(String, String, bool)> = [
+            ("mineru", "disable_formula", true),
+            ("mineru", "disable_table", true),
+            ("mineru", "language", true),
+            ("mineru", "model_version", true),
+            ("paddle", "paddle_api_url", true),
+            ("paddle", "paddle_model", true),
+            ("paddle", "transport", true),
+            ("local", "command", false),
+            ("local", "raw_provider", false),
+        ]
+        .into_iter()
+        .map(|(provider, option, settable)| (provider.to_string(), option.to_string(), settable))
+        .collect();
+        assert_eq!(actual, expected);
+        for (provider, option, settable) in &expected {
+            assert_eq!(is_server_owned_ocr_option(provider, option), !settable, "{provider}.{option}");
+        }
+        // 没登记的选项（Paddle CLI 的超时、开关）客户端可填；command / raw_provider 对哪个提供方都不行。
+        assert!(!is_server_owned_ocr_option("paddle", "cli_timeout"));
+        assert!(is_server_owned_ocr_option("paddle", "command"));
+        assert!(is_server_owned_ocr_option("mineru", "raw_provider"));
+        assert!(is_server_owned_ocr_option("no-such-provider", "command"));
+    }
+
+    #[test]
+    fn env_backed_options_are_server_owned_unless_config_opts_in() {
+        let definition = provider_public_definition_from_config(
+            "acme".to_string(),
+            serde_json::json!({
+                "kind": "remote_command",
+                "options": {
+                    "endpoint": {"type": "string", "env": "ACME_ENDPOINT", "default": "http://10.0.0.5"},
+                    "timeout": {"type": "number", "env": "ACME_TIMEOUT", "client_settable": true, "default": 30},
+                    "command": {"type": "string", "client_settable": true, "default": "/opt/acme/run"},
+                    "lang": {"type": "string", "default": "en"}
+                }
+            }),
+        );
+        let settable = |key: &str| definition.options[key].client_settable;
+        assert!(!settable("endpoint"), "带 env 的默认只能服务器定");
+        assert!(settable("timeout"), "配置可以明说放开");
+        assert!(!settable("command"), "command 配置里放开也不算");
+        assert!(settable("lang"));
+    }
+
+    #[test]
+    fn client_definitions_hide_defaults_of_server_owned_options() {
+        let definitions = provider_client_definitions();
+        let local = definitions
+            .iter()
+            .find(|definition| definition.key == "local")
+            .expect("local");
+        for key in ["command", "raw_provider"] {
+            let spec = &local.options[key];
+            assert!(!spec.client_settable, "{key}");
+            assert!(spec.default.is_null(), "{key}: {:?}", spec.default);
+        }
+        let paddle = definitions
+            .iter()
+            .find(|definition| definition.key == "paddle")
+            .expect("paddle");
+        assert_eq!(paddle.options["transport"].default, serde_json::json!("official_http"));
+        // 流水线用的那份照旧带真实默认值。
+        let internal = provider_public_definitions();
+        let local = internal.iter().find(|definition| definition.key == "local").unwrap();
+        assert_eq!(local.options["raw_provider"].default, serde_json::json!("generic_flat_ocr"));
+    }
+
+    #[test]
+    fn strip_removes_only_server_owned_options() {
+        let mut input = OcrInput::default();
+        input.provider = "local".to_string();
+        for (key, value) in [("command", "x"), ("raw_provider", "y"), ("credential", "z")] {
+            input.options.insert(key.to_string(), serde_json::json!(value));
+        }
+        assert_eq!(server_owned_ocr_options(&input), vec!["command", "raw_provider"]);
+        assert_eq!(strip_server_owned_ocr_options(&mut input), vec!["command", "raw_provider"]);
+        assert_eq!(input.options.keys().collect::<Vec<_>>(), vec!["credential"]);
     }
 
     #[test]

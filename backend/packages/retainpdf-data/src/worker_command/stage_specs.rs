@@ -8,7 +8,7 @@ use crate::models::domain::{
     normalize_translation_refine_mode, ResolvedJobSpec, DEFAULT_TRANSLATION_REFINE_MAX_ITEMS,
     DEFAULT_TRANSLATION_REFINE_MAX_TOKENS,
 };
-use crate::ocr_provider::provider_public_definitions;
+use crate::ocr_provider::{is_server_owned_ocr_option, provider_public_definitions};
 use crate::ocr_provider::{
     configured_provider_credential_env, is_configured_command_provider, provider_model_version,
     require_supported_provider,
@@ -479,7 +479,12 @@ fn provider_options_for_stage(
             options
         })
         .unwrap_or_default();
+    // 只能服务器定的选项（command、raw_provider、配置里带 env 的）只用配置里的值，请求里的不认。
+    // 建任务时已经 400（retainpdf-jobs validate_client_ocr_options）；这里是第二道，挡住老任务里存着的。
     for (key, value) in overrides {
+        if is_server_owned_ocr_option(provider, key) {
+            continue;
+        }
         options.insert(key.clone(), value.clone());
     }
     serde_json::Value::Object(options)
@@ -523,6 +528,31 @@ mod tests {
 
         assert_eq!(credential_ref, "env:RETAIN_OCR_CREDENTIAL");
         assert!(!credential_ref.contains("cred_ocr_local"));
+    }
+
+    /// 审计 A2（2026-10-22）：请求里的 `ocr.options.command` / `raw_provider` 以前原样盖在配置
+    /// 默认值上，流水线拿 `command` 去 `subprocess.run`。建任务校验已经 400，这里是第二道：
+    /// 就算有一份老任务的请求带着它们，写进 stage spec 的也只能是服务器配置里的值。
+    #[test]
+    fn provider_stage_options_never_take_server_owned_options_from_the_request() {
+        let mut overrides = std::collections::BTreeMap::new();
+        overrides.insert("command".to_string(), json!("sh -c 'touch /tmp/pwned'"));
+        overrides.insert("raw_provider".to_string(), json!("attacker_adapter"));
+        overrides.insert("credential".to_string(), json!("inline-secret"));
+
+        let options = provider_options_for_stage("local", &overrides);
+
+        assert_eq!(options["command"], json!(""), "{options}");
+        assert_eq!(options["raw_provider"], json!("generic_flat_ocr"), "{options}");
+        // 客户端可填的照旧覆盖。
+        assert_eq!(options["credential"], json!("inline-secret"));
+
+        let mut paddle = std::collections::BTreeMap::new();
+        paddle.insert("transport".to_string(), json!("official_cli"));
+        paddle.insert("command".to_string(), json!("/bin/evil"));
+        let options = provider_options_for_stage("paddle", &paddle);
+        assert_eq!(options["transport"], json!("official_cli"));
+        assert!(options.get("command").is_none(), "{options}");
     }
 
     #[test]

@@ -10,11 +10,11 @@ use retainpdf_core::models::domain::{
     TRANSLATION_PREPARATION_MODES, TRANSLATION_REFINE_MODES, TRANSLATION_API_PROTOCOLS,
     TRANSLATION_THINKING_LEVELS,
 };
-use retainpdf_core::models::request::CreateJobInput;
+use retainpdf_core::models::request::{CreateJobInput, OcrInput};
 use retainpdf_data::ocr_provider::{
     is_configured_command_provider, parse_provider_kind, provider_display_name, provider_token,
-    provider_token_field_name, require_supported_provider, PADDLE_OFFICIAL_CLI_TRANSPORT,
-    PADDLE_OFFICIAL_HTTP_TRANSPORT,
+    provider_token_field_name, require_supported_provider, server_owned_ocr_options,
+    PADDLE_OFFICIAL_CLI_TRANSPORT, PADDLE_OFFICIAL_HTTP_TRANSPORT,
 };
 
 const RENDER_MODES: &[&str] = &["auto", "overlay", "typst", "typst_visual", "dual"];
@@ -357,6 +357,29 @@ pub fn validate_runtime_limits(input: &CreateJobInput) -> Result<(), AppError> {
         ));
     }
     Ok(())
+}
+
+/// `ocr.options` 里只能服务器定的选项（本地 OCR 要执行的命令 `command`、原始结果的转换器名
+/// `raw_provider`、配置里带 `env` 的）不许出现在请求里（审计 A2，2026-10-22）。以前它们原样盖在
+/// 配置默认值上，流水线拿 `command` 去执行——能调 `POST /jobs` 的就能让服务器跑任意程序。
+///
+/// 和 `validate_runtime_limits` 一样挂在所有建任务路径的公共入口（`job_builders`）上，`submit_job`
+/// 的每个调用方都经过；重试的 overrides 另外在合并后查一次（`stage_retry_overrides`）。重跑、阶段
+/// 重试复制源任务的请求时先去掉老任务里存着的这类键（`strip_server_owned_ocr_options`），不会因此 400。
+pub fn validate_client_ocr_options(ocr: &OcrInput) -> Result<(), AppError> {
+    let keys = server_owned_ocr_options(ocr);
+    if keys.is_empty() {
+        return Ok(());
+    }
+    let fields = keys
+        .iter()
+        .map(|key| format!("ocr.options.{key}"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let verb = if keys.len() == 1 { "is" } else { "are" };
+    Err(AppError::bad_request(format!(
+        "{fields} {verb} server-owned; configure it on the server (backend/config/ocr_providers.json or the option's environment variable), not in the request"
+    )))
 }
 
 pub fn validate_ocr_provider_request(input: &CreateJobInput) -> Result<(), AppError> {
