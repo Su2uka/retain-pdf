@@ -21,6 +21,9 @@ export function useCollectionsList({ controller, version, setOpenFolder }: UseCo
   // 内容各自动重试一次(1.5s),仍失败才亮错误 + 手动重试入口。
   const listAutoRetriedRef = useRef(false);
   const reloadRef = useRef<(() => Promise<void> | void) | null>(null);
+  // 自动重试的定时器：卸载（切走分类 tab）时清掉，不然 1.5 秒后照样发一次请求。
+  const retryTimerRef = useRef(0);
+  useEffect(() => () => window.clearTimeout(retryTimerRef.current), []);
 
   const reload = useCallback((options: { soft?: boolean } = {}) => {
     // soft：version bump / 二次拉取时保留旧列表，不整表切成 loading（分类 tab 闪一下）
@@ -53,7 +56,8 @@ export function useCollectionsList({ controller, version, setOpenFolder }: UseCo
         if (!listAutoRetriedRef.current) {
           // 瞬时故障:静默自动重试一次,保持 loading 不闪错误
           listAutoRetriedRef.current = true;
-          window.setTimeout(() => {
+          window.clearTimeout(retryTimerRef.current);
+          retryTimerRef.current = window.setTimeout(() => {
             void reloadRef.current?.();
           }, 1500);
           return;

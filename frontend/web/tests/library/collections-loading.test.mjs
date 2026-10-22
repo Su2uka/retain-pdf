@@ -97,3 +97,18 @@ test("合集首次请求失败也会退出 loading 并显示错误", async () =>
   assert.doesNotMatch(dom.window.document.body.textContent, /正在加载合集/);
   root.unmount();
 });
+
+test("首次请求失败后切走（卸载），自动重试的定时器跟着取消，不再发请求", async () => {
+  const dom = installDom();
+  let calls = 0;
+  const root = renderCollections(dom, async () => {
+    calls += 1;
+    throw new Error("合集服务暂不可用");
+  });
+  await waitFor(() => calls === 1, "合集首次请求没有开始");
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  root.unmount();
+  // 自动重试排在 1.5 秒后
+  await new Promise((resolve) => setTimeout(resolve, 1700));
+  assert.equal(calls, 1, "卸载后不该再发自动重试的请求");
+});
