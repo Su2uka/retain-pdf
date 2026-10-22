@@ -720,3 +720,16 @@ API / jobsd 重启时，翻译阶段运行中的任务以前一律自动续跑�
 - `PatchDocumentInput.reading_status`、`DocumentRecord.reading_status` 是 `"unread" | "reading" | "done"`，`title_source` 是
   `"filename" | "pdf_metadata" | "ocr" | "user"`（手写的类型里多一个 `"ai"`，后端没有写这个值的地方）。
 - 删合集回 `{ deleted: true }`、从合集拿掉一本书回 `{ removed: true }`，是同一个 Rust 类型的两种形状，契约里分成两个类型。
+
+---
+
+## OCR 提供方选项分客户端和服务器：请求不许带 `ocr.options.command`（fix/ocr-server-owned-options）
+
+2026-10-22，审计 A2。做法和每个选项的分类见 [OCR 提供方选项分客户端和服务器](../../ops/planning/api-reorg/20261022-OCR提供方选项分客户端和服务器.md)。
+
+| 地方 | 以前 | 现在 | 前端要做的 |
+|---|---|---|---|
+| `POST /api/v1/jobs`、`/documents/{id}/translate`、`/ocr`、`retry-stage` 的 `overrides.ocr.options` | `ocr.options.command`、`raw_provider` 原样盖在服务器配置上，流水线拿 `command` 去执行 | `400` `ocr.options.<键> is server-owned; …` | 无：界面不发 `ocr.options`（`buildOcrPayload` 只发 `provider`、`credential_ref`/token、`model_version`、`language`、`page_ranges`、Paddle 的 `paddle_api_url`） |
+| `GET /api/v1/providers/ocr` 的 `options.<键>` | 没有 `client_settable`；`local.command`、`raw_provider` 给配置里的默认值 | 每个选项多一个 `client_settable`（只增）；`false` 的 `default` 恒为 `null` | 无（前端用自己写死的 `platform/config/providers.ts`，没调这个接口）。以后要改用它，契约在 `@retainpdf/contracts/ocr-providers`；`client_settable: false` 的不要做成输入框 |
+| `frontend/web/scripts/frontend-status-smoke.mjs` 的 `--ocr-options` | 可以传 `{"command": …}` 跑本地 OCR | 带 `command`/`raw_provider` 会 400 | 冒烟脚本跑本地 OCR 时改在后端设 `RETAIN_LOCAL_OCR_COMMAND`（或 `ocr_providers.json`），`--ocr-options` 只放客户端可填的（例如 Paddle 的 `{"transport":"official_cli"}`）。帮助文字 `local requires a configured command` 可以改成「local 的命令在后端配置」 |
+

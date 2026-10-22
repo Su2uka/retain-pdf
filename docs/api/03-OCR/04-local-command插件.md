@@ -73,11 +73,16 @@ backend/config/ocr_providers.json
 }
 ```
 
-`command` 和 `raw_provider` 的读取顺序：
+`command` 和 `raw_provider` 只能服务器定（2026-10-22）。读取顺序：
 
-1. 任务请求或 stage spec 里的 provider options。
-2. `ocr_providers.json` 里的默认值。
-3. 环境变量 `RETAIN_LOCAL_OCR_COMMAND` / `RETAIN_OCR_RAW_PROVIDER`。
+1. `ocr_providers.json` 里这个 provider 的默认值。
+2. 环境变量 `RETAIN_LOCAL_OCR_COMMAND` / `RETAIN_OCR_RAW_PROVIDER`。
+
+任务请求里的 `ocr.options.command` / `raw_provider` 不认：建任务时直接 400
+（`ocr.options.command is server-owned; …`）；以前存进任务请求的，重跑时去掉；stage spec 里就算带着，
+流水线也不拿它执行。以前的第 1 条"任务请求或 stage spec 里的 provider options"意味着能调 `POST /jobs`
+的就能让服务器跑任意命令，已经去掉。`GET /api/v1/providers/ocr` 里这两个选项是 `client_settable: false`、
+`default: null`。
 
 ## 命令调用契约
 

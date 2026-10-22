@@ -237,6 +237,11 @@ Reader 宿主接入 job/artifact、Markdown、区域、页面元数据和实时�
 不会返回凭据值。`translation.api_key` 仍是兼容输入，但不能和 `credential_ref`
 同时提交，也不应作为新客户端的持久化方案。
 
+`ocr.options` 只放客户端可填的提供方选项。只能服务器定的——本地 / 命令型 OCR 要执行的 `command`、
+原始结果的转换器名 `raw_provider`、`ocr_providers.json` 里带 `env` 的——带了返回 400
+`ocr.options.<键> is server-owned; …`（2026-10-22，书的 `/translate`、`/ocr` 和重试的 `overrides` 同样）。
+`GET /api/v1/providers/ocr` 里每个选项的 `client_settable` 说明它属于哪类。老任务请求里存着的，重跑、阶段重试复制时去掉。
+
 凭据管理接口为：
 
 - `GET|POST /api/v1/credentials`
@@ -851,7 +856,8 @@ CSV 表头支持英文和中文别名：
 
 ## 11. Provider 校验
 
-- `GET /api/v1/providers/ocr`
+- `GET /api/v1/providers/ocr`（OCR 提供方清单，不分页；契约 `contracts/ocr-providers.v1.schema.json`。选项带 `client_settable`，
+  `false` 的只能服务器定、`default` 恒为 `null`）
 - `POST /api/v1/providers/mineru/validate-token`
 - `POST /api/v1/providers/paddle/validate-token`
 - `POST /api/v1/providers/deepseek/validate-token`
