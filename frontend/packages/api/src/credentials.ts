@@ -13,7 +13,6 @@ export type CredentialMetadata = {
   revision: number;
   created_at: string;
   updated_at: string;
-  secret?: string;
 };
 
 export type CredentialListView = {
@@ -78,8 +77,9 @@ async function credentialRequest<T>(
   return unwrapEnvelope<T>(envelope);
 }
 
-export function listCredentials(apiPrefix?: string, { includeValues = false } = {}): Promise<CredentialListView> {
-  return credentialRequest(`${buildApiEndpoint(apiPrefix, "credentials")}${includeValues ? "?include_values=true" : ""}`, { cache: "no-store" });
+// 后端不返回明文，带任何查询参数都回 400（以前的 include_values 已删）。
+export function listCredentials(apiPrefix?: string): Promise<CredentialListView> {
+  return credentialRequest(buildApiEndpoint(apiPrefix, "credentials"), { cache: "no-store" });
 }
 
 export function createCredential(

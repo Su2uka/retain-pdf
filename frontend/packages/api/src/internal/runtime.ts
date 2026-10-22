@@ -86,7 +86,7 @@ export function frontendApiKey(): string {
 // preflighted request，多一轮 OPTIONS 往返；拉二进制产物（PDF / 缩略图）的 GET
 // 也会带上语义错误的 JSON 类型。实测主页一次加载有 30 条 GET 中招。
 //
-// 当前后端是 CorsLayer::permissive() 所以不会失败，但前面一旦加严格反代／WAF
+// 单机后端会照预检请求回显允许的方法和请求头，所以不会失败；但前面一旦加严格反代／WAF
 // （不允许 OPTIONS 或不 allow content-type），所有 GET 会直接挂。
 //
 // 有 body 的请求自行显式传入即可——本包 13 个带 body 的调用点里 12 个本来就
