@@ -28,17 +28,28 @@ export function useStickToBottom(
     node.scrollHeight - node.scrollTop - node.clientHeight <= BOTTOM_THRESHOLD_PX
   ), []);
 
+  // 滚动容器不一定在挂载时就在：主页问答没有消息时渲染的是欢迎页，对话区出现后才有容器。
+  // 所以每次渲染都对一下 ref 指向的节点，换了就重新挂监听；只在挂载时挂一次的话，
+  // 新会话里监听永远挂不上，用户上滑也会被下一个增量拽回底部。
+  const attachedRef = useRef<{ node: HTMLElement; detach: () => void } | null>(null);
   useEffect(() => {
     const node = containerRef.current;
-    if (!node) return undefined;
+    if (attachedRef.current?.node === node) return;
+    attachedRef.current?.detach();
+    attachedRef.current = null;
+    if (!node) return;
     const onScroll = () => {
       pinnedRef.current = isNearBottom(node);
     };
     node.addEventListener("scroll", onScroll, { passive: true });
     // 初始状态按当前位置判定，而不是假设贴底——切回已有会话时内容可能已经很长。
     pinnedRef.current = isNearBottom(node);
-    return () => node.removeEventListener("scroll", onScroll);
-  }, [containerRef, isNearBottom]);
+    attachedRef.current = { node, detach: () => node.removeEventListener("scroll", onScroll) };
+  });
+  useEffect(() => () => {
+    attachedRef.current?.detach();
+    attachedRef.current = null;
+  }, []);
 
   useEffect(() => {
     const node = containerRef.current;
