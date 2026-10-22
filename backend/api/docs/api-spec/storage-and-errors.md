@@ -196,6 +196,10 @@ Rust API layer stores:
 - job workspaces in `DATA_ROOT/jobs/<job_id>/`
 - document-operation workspaces in `DATA_ROOT/operations/<operation_id>/`
 - the credential vault in the protected `DATA_ROOT/secrets/` subtree
+- database backups in `DATA_ROOT/backups/db/` (`<kind>-<UTC stamp>-v<schema>.db.gz`,
+  created `0600`; since 2026-10-22 the WebDAV password is deleted from the
+  `VACUUM INTO` snapshot before compression, and a restore keeps the live
+  `sync_state`, see `docs/api/10-备份/01-数据库备份.md`)
 
 Current standard job workspace layout:
 
@@ -209,6 +213,22 @@ Current standard job workspace layout:
 Legacy jobs using `originPDF/jsonPDF/transPDF/typstPDF` or absolute-path artifact storage are no longer supported by detail and download endpoints and must be rerun.
 
 ## Implementation Notes
+
+- Database restore, manual/automatic backup, and a sync cycle run in a
+  detached `tokio::spawn` task that owns the service lock, the "sync paused"
+  guard, and the `running` flag (reset by a drop guard); the HTTP handler only
+  awaits the result, so a disconnected client cannot release the lock while
+  the blocking work is still running (2026-10-22). A restore checks the backup
+  before writing the `before-restore` safety backup, prepares the unpacked copy
+  (schema upgrade, sync bookkeeping reset, stale pid clearing) in one
+  transaction, re-checks `restore_blockers` and then swaps the copy in with a
+  single SQLite online-backup step, so any earlier failure leaves the live
+  database untouched. The outcome of the latest restore is kept in memory as
+  `GET /backups` `last_restore`.
+- `GET /backups`, `GET`/`PUT /sync` read and write SQLite on a blocking worker;
+  `PUT /sync` validates the whole input before one transactional write.
+  `POST /sync/test` uses a probe-only WebDAV client (10 s per request, no
+  retry, plain PUT for the probe file) with a 60 s overall deadline.
 
 - Rust API should not parse or manipulate PDF internals
 - Rust only orchestrates jobs and exposes resources
