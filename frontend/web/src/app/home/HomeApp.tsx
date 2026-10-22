@@ -260,6 +260,16 @@ function HomeShell() {
     document.addEventListener(HOME_TASK_CENTER_OPEN_EVENT, open);
     return () => document.removeEventListener(HOME_TASK_CENTER_OPEN_EVENT, open);
   }, []);
+  // 任务中心开着时切顶栏 tab：URL 和顶栏都换了，舞台也要跟着换，不能还停在任务中心。
+  useEffect(() => {
+    setTasksOpen(false);
+  }, [activeTab]);
+  // 图书馆列表一卸载（切 tab、开任务中心），它的批量模式就没了；不清掉的话回来时底部栏还藏着，
+  // 上传、搜索、设置、任务中心的入口全看不见。
+  const libraryMounted = isLibraryTab && !tasksOpen;
+  useEffect(() => {
+    if (!libraryMounted) setBatchModeActive(false);
+  }, [libraryMounted]);
 
   // 合集/AI tab：视图挂载即可尝试恢复 panel 滚动（图书馆由 RecentJobsLibrary 在有列表后恢复）
   useHomeReturnRestore(isCategoriesTab || isAskTab);

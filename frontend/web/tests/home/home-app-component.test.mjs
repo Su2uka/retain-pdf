@@ -407,6 +407,19 @@ test("CollectionDialog：切到另一个合集时先清掉上一个的勾选，�
   harness.cleanup();
 });
 
+test("HomeApp：任务中心开着时切顶栏 tab，舞台跟着换", async () => {
+  const harness = await mountCollectionDialogHarness("home-root-tasks-tab", {});
+  dom.window.document.dispatchEvent(new dom.window.Event("retainpdf:open-task-center"));
+  await waitFor(() => byId(dom, "task-center-back-btn") !== null, "任务中心打开");
+
+  clickWithMouseDown(dom, byId(dom, "library-top-tab-categories"));
+  await waitFor(() => byId(dom, "categories-view") !== null, "切到合集后显示合集视图");
+  assert.equal(byId(dom, "task-center-back-btn"), null, "切 tab 后任务中心应关闭");
+  clickWithMouseDown(dom, byId(dom, "library-top-tab-library"));
+  await waitFor(() => byId(dom, "library-view") !== null, "切回图书馆");
+  harness.cleanup();
+});
+
 test("HomeApp：3b 回调桥接口定型(蓝图 §4)", () => {
   const services = createServices();
   // mountJobRuntimeFeature / status-detail / credentials 接线所需的回调名

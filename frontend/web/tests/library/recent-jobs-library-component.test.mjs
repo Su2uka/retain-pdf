@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { wait, waitFor } from "../helpers/async.mjs";
-import { byId, click, makeDom } from "../helpers/dom.mjs";
+import { byId, click, clickWithMouseDown, makeDom } from "../helpers/dom.mjs";
 import { bootHomeApp } from "../helpers/home-app.mjs";
 
 // RecentJobsLibrary / RecentJobCard(Phase 3b recent-jobs 域)组件级测试。
@@ -157,6 +157,28 @@ test("RecentJobsLibrary：批量删除使用应用确认弹窗，支持取消与
   await waitFor(() => Array.isArray(deletedIds), "确认后调用批量删除");
   assert.deepEqual(deletedIds, ["doc-1"]);
   await waitFor(() => !byId(dom, "batch-delete-confirm-dialog"), "删除完成后关闭确认弹窗");
+
+  root.unmount();
+  services.dispose();
+  host.remove();
+});
+
+test("RecentJobsLibrary：批量模式下切走再切回图书馆，底部栏要回来", async () => {
+  const dom = makeDom("?mock=parallel");
+  const { services, root, host } = await bootHomeApp(dom, { readyId: "library-view" });
+  services.library.recentJobsStore.actions.setItems([makeItem(1, { document_id: "doc-1" })]);
+  const bottomBarHidden = () => dom.window.document.querySelector(".library-bottom-bar")?.classList.contains("is-hidden");
+
+  const batchButton = await waitFor(() => dom.window.document.querySelector('button[aria-label="批量操作"]'), "批量按钮出现");
+  click(dom, batchButton);
+  await waitFor(() => bottomBarHidden() === true, "批量模式下底部栏让位给批量工具栏");
+
+  clickWithMouseDown(dom, byId(dom, "library-top-tab-categories"));
+  await waitFor(() => byId(dom, "categories-view") !== null, "切到合集");
+  clickWithMouseDown(dom, byId(dom, "library-top-tab-library"));
+  await waitFor(() => byId(dom, "library-view") !== null, "切回图书馆");
+  await wait(0);
+  assert.equal(bottomBarHidden(), false, "回来时批量模式已经没了，底部栏不该还藏着（上传、搜索、设置入口都在上面）");
 
   root.unmount();
   services.dispose();
