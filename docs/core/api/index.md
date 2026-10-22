@@ -857,13 +857,14 @@ CSV 表头支持英文和中文别名：
 - `POST /api/v1/providers/deepseek/validate-token`
 - `POST /api/v1/providers/deepseek/balance`
 
-推荐返回状态：
+请求体、各家 `status` 的全部取值、地址检查、超时和重定向见 [Provider 校验接口](../rust_api/08-Provider%20校验接口.md)。要点（2026-10-22）：
 
-- `valid`
-- `unauthorized`
-- `expired`
-- `network_error`
-- `provider_error`
+- 请求体里不认识的字段 400；
+- 界面看 `data.ok`，`status` 各家取值不同（MinerU 多一个 `expired`，翻译接口多 `rate_limited`、`model_unavailable`、
+  `insufficient_balance`、`invalid_input`），三家都可能是 `redirected`（服务商回了 3xx，校验不跟随）；
+- 超时统一 `RUST_API_PROVIDER_PROBE_TIMEOUT_SECS`（默认 20 秒，比前端等的 30 秒短），不重试；
+- 单机模式能校验本机和内网的模型服务，多用户照旧拦；
+- `provider_message`、`operator_hint` 最多 500 字。
 
 ## 12. AI 问答、会话与文档操作
 

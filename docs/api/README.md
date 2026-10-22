@@ -42,6 +42,8 @@
 - [Translation Debug API](08-调试诊断/02-translation-debug.md)
 - [多设备同步](09-同步/01-多设备同步.md)
 - [数据库备份](10-备份/01-数据库备份.md)
+- [模型用量](11-用量/01-模型用量.md)：`GET /usage`、一本书、一个任务的 token 用量，契约 `token-usage.v1`
+- [服务商密钥校验](../core/rust_api/08-Provider%20校验接口.md)：MinerU、Paddle、翻译接口的检测和 DeepSeek 余额，各家 `status` 取值
 
 ## 当前 API 分区
 
