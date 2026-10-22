@@ -79,6 +79,10 @@ export interface TranslationInput {
     glossary_overridden_entry_count?: number;
     glossary_entries?: GlossaryEntryInput[];
     /**
+     * 服务器写：建任务时用户真正内联的条目（规范化、去重后），客户端发了也会被覆盖。glossary_entries 是和术语表合并后的快照；重跑、阶段重试先换回这一份再按现在的表解析。空的时候不出现。2026-10-22 加。
+     */
+    glossary_inline_entries?: GlossaryEntryInput[];
+    /**
      * TRANSLATION_CONTEXT_MODES
      */
     context_mode?: "needed" | "all" | "off";

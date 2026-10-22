@@ -38,6 +38,42 @@ impl Db {
         Ok(())
     }
 
+    /// 改一张已有的术语表，不插入（PUT 和 DELETE 撞上时不会把删掉的表写回来）。
+    /// 给了 `expected_updated_at` 就只在库里的 `updated_at` 等于它时才改。
+    /// 没有这一行、或者 `updated_at` 对不上，返回 `false`，调用方再读一次分清是哪种。
+    pub fn update_glossary(
+        &self,
+        glossary: &GlossaryRecord,
+        expected_updated_at: Option<&str>,
+    ) -> Result<bool> {
+        let conn = self.connect()?;
+        let changed = conn.execute(
+            r#"
+            UPDATE glossaries SET
+                name=?2,
+                description=?3,
+                source_lang=?4,
+                target_lang=?5,
+                enabled=?6,
+                entries_json=?7,
+                updated_at=?8
+            WHERE glossary_id=?1 AND (?9 IS NULL OR updated_at=?9)
+            "#,
+            params![
+                glossary.glossary_id,
+                glossary.name,
+                glossary.description,
+                glossary.source_lang,
+                glossary.target_lang,
+                if glossary.enabled { 1 } else { 0 },
+                serde_json::to_string(&glossary.entries)?,
+                glossary.updated_at,
+                expected_updated_at,
+            ],
+        )?;
+        Ok(changed > 0)
+    }
+
     pub fn get_glossary(&self, glossary_id: &str) -> Result<GlossaryRecord> {
         let conn = self.connect()?;
         let glossary = conn

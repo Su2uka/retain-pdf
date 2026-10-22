@@ -2,6 +2,7 @@ use retainpdf_api_base::error::AppError;
 use crate::views::{ActionBlockReason, RetryStageKind};
 use retainpdf_core::models::domain::{CreateJobInput, JobSnapshot, WorkflowKind};
 use retainpdf_core::models::request::JobSourceInput;
+use crate::actions::rerun_glossary::restore_inline_glossary_entries;
 
 pub(super) fn build_retry_request(
     source_job: &JobSnapshot,
@@ -55,6 +56,7 @@ pub(super) fn build_retry_request(
         RetryStageKind::Refine => unreachable!("refine is rejected above"),
     }
     request.runtime.job_id.clear();
+    restore_inline_glossary_entries(source_job, &mut request);
     Ok(request)
 }
 

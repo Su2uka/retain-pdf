@@ -4,6 +4,7 @@ mod reasons;
 mod render_engine;
 mod rerender_keeps_pdf;
 mod rerun;
+mod rerun_glossary;
 mod resume;
 mod retry_refine;
 mod retry_stage;

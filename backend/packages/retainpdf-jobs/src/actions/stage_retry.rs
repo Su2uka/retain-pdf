@@ -19,6 +19,7 @@ use crate::actions::stage_retry_refine::{
     validate_refine_request,
 };
 use crate::actions::stage_retry_request::build_retry_request;
+use crate::actions::rerun_glossary::require_source_glossary;
 use crate::actions::stage_retry_view::{build_retry_stage_submission_view, build_stage_actions_view};
 
 impl<'a> JobsFacade<'a> {
@@ -164,6 +165,7 @@ impl<'a> JobsFacade<'a> {
 
         let mut request_input = request_input;
         apply_retry_overrides(&mut request_input, &request.overrides)?;
+        require_source_glossary(self.command.db, &source_job, &request_input)?;
         request_input.translation.accepted_ambiguous_request_risk =
             request.ambiguous_request_policy == AmbiguousRequestPolicy::AcceptDuplicateRisk;
         let workflow = request_input.workflow.clone();

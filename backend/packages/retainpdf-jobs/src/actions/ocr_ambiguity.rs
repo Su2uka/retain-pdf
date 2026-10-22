@@ -12,6 +12,7 @@ use crate::lifecycle::creation::{submit_job, NewJob};
 use retainpdf_api_base::job_loading::load_job_or_404;
 use crate::facade::JobsFacade;
 use crate::actions::stage_retry_request::build_retry_request;
+use crate::actions::rerun_glossary::require_source_glossary;
 use crate::actions::stage_retry_view::build_retry_stage_submission_view;
 
 #[cfg(test)]
@@ -80,6 +81,7 @@ impl<'a> JobsFacade<'a> {
                 }
                 let receipt = build_bound_receipt(&source_dispatch, &request)?;
                 let request_input = build_retry_request(&source_job, &RetryStageKind::Ocr)?;
+                require_source_glossary(self.command.db, &source_job, &request_input)?;
                 let workflow = request_input.workflow.clone();
                 let job = submit_job(
                     &self.command.submit,

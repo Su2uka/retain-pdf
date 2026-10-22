@@ -1761,11 +1761,14 @@ dependencies = [
 name = "retainpdf-glossaries"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "csv",
  "fastrand",
+ "regex-syntax",
  "retainpdf-api-base",
  "retainpdf-core",
  "retainpdf-data",
+ "rusqlite",
  "serde",
 ]
 
