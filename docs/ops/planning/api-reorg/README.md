@@ -36,7 +36,6 @@ Rust API 接口太多、太散，"牵一发动全身"。这里按日期记录整
 | 2026-10-22 | [设置与平台接口审计](./20261022-设置与平台接口审计.md) | 服务商、凭据、用量、术语表、备份、同步、上传、健康检查、模型执行器内部接口共 34 个，37 条（高 4、中 16、低 17）；建任务能指定本地 OCR 执行的命令，凭据列表能回全部密钥原文，恢复备份的请求断开后锁先放，重跑时术语快照被当成内联术语再并一次；术语表重跑语义、PUT 抹字段、去重键、没调用方的接口删留、单机 CORS 等用户定 |
 | 2026-10-22 | [设置与平台接口删留](./20261022-设置与平台接口删留.md) | 用户定：重跑用现在的术语表（另存内联条目，表删了 409）；PUT 缺省字段保留原值、前端带回 `context`、`enabled=false` 建任务 400；删 `glossaries/import` 和模型执行器的 `capability`，`/providers/ocr`、凭据留着；单机 CORS 收紧，先查来源 |
 | 2026-10-22 | [OCR 提供方选项分客户端和服务器](./20261022-OCR提供方选项分客户端和服务器.md) | 建任务请求不许带只能服务器定的 OCR 选项（`command`、`raw_provider`、配置里带 `env` 的），带了 400 `ocr.options.<键> is server-owned`；重跑、阶段重试复制请求时剔掉老任务存着的；stage spec 只写服务器的值，Python 也不认 spec 里的命令；`/providers/ocr` 选项加 `client_settable`、只能服务器定的 `default` 给 `null`，补契约 `ocr-providers.v1` |
-
 | 2026-10-22 | [单机来源和主机校验](./20261022-单机来源和主机校验.md) | 单机 CORS 只回给回环页面、同主机只差端口的页面、`RUST_API_ALLOWED_ORIGINS`，不在名单里不回头不拒；助手终端握手带 Origin 不在名单 403，AI 服务的终端带 Origin 一律拒；监听回环时 `Host` 只认 `localhost`、IP 字面量、`RUST_API_ALLOWED_HOSTS`（403，不豁免 `/health`），非回环配了名单才查；桌面壳 `file://` 由前端改写 Origin |
 | 2026-10-22 | [备份恢复和同步脱离请求](./20261022-备份恢复和同步脱离请求.md) | 恢复、备份、立即同步整段放进 `tokio::spawn`，请求断开不再提前放锁、`running` 不卡；`GET /backups` 加 `last_restore`；恢复先检查再存恢复前备份，在副本上做完再一步换库、换库前再查任务；备份不带 WebDAV 密码、文件 0600；`sync/test` 短超时不重试；`PUT /sync` 先校验后写、不认识的字段 400；409 带 reason，坏备份/新版本备份 400 改 409；「恢复中」标记没做 |
 | 2026-10-17 | [任务原文登记成书](./20261017-任务原文登记成书.md) | 从 source_url 建的任务也把原文登记成书（OCR 拿到原文时、任务结束时、启动时），有原文的任务都有书编号，按任务取原文的旧地址可以退役 |
@@ -65,6 +64,7 @@ Rust API 接口太多、太散，"牵一发动全身"。这里按日期记录整
 | 2026-10-22 | [删书架旧地址](./20261022-删书架旧地址.md) | 前端改调以后删 `GET /library/books`、`DELETE /library/books/:job_id`（都 404）和合集工作区的 GET（405）；书库包的书架列表、书架投影、`LibraryBookListView`、`LibraryDeleteQuery` 一起删；契约 `library-books.v1` 删书架端点和 `LibraryBook*View`、`ListLibraryBooksQuery`、`ArtifactDisplayItemView`，留任务列表类型和 `LibraryDeleteResultView`；调用方核对和用量 |
 | 2026-10-22 | [凭据不回明文与内部接口](./20261022-凭据不回明文与内部接口.md) | `GET /credentials?include_values=true` 删掉（400），视图去掉 `secret`；凭据接口进阻塞线程、409 带 `reason`、查询拒绝不认识的参数、`PUT` 换 `kind` 400；模型执行器内部接口报错走信封、先验令牌再解析请求体，删 `capability`；`/ready` 503 的信封 `code` 改 `50300`，`/health` 读不出计数给 `null`，补字段和免密钥接口的说明 |
 | 2026-10-22 | [服务商探测与用量](./20261022-服务商探测与用量.md) | MinerU 校验在错误链里找服务商回复和传输错误（以前全是 `provider_error`）；四个校验接口共用 `RUST_API_PROVIDER_PROBE_TIMEOUT_SECS`（默认 20 秒）、不重试、不跟随重定向（新 `status` `redirected`）；请求体不认识的字段 400；`MineruTokenValidationView` 改名 `ProviderProbeView`、`provider_message` 截 500 字、各家 `status` 写进文档，契约留到后面；单机放开回环和私网（链路本地照拦），多用户不变；私网拦截保护什么；`/usage` 怪时间戳不再 500，全量扫盘只记录 |
+| 2026-10-22 | [术语表重跑与整份替换](./20261022-术语表重跑与整份替换.md) | 重跑用现在的表加当时的内联条目（任务请求另存 `glossary_inline_entries`，表删了 409 `glossary_missing`）；PUT 没给的字段保留原值、只 UPDATE、可带 `expected_updated_at`（409 `glossary_changed`，AI `term-set` 重读重试）；去重键（原词，上下文）、`duplicate_count`；CSV 行号、TSV、防公式注入、BOM；删 `import`；建任务引用不存在、停用的表 400 |
 
 已经确定的：
 

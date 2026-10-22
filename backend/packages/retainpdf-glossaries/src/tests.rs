@@ -1,5 +1,8 @@
 use super::*;
+use super::entries::require_glossary_for_rerun;
 use super::views::{glossary_to_csv_export, GlossaryUpsertInput, ListGlossariesQuery};
+use super::csv::parse_glossary_csv;
+use super::views::GlossaryCsvParseInput;
 use retainpdf_core::models::domain::{now_iso, GlossaryRecord};
 use retainpdf_core::models::request::{CreateJobInput, GlossaryEntryInput};
 use retainpdf_data::db::Db;
@@ -43,8 +46,8 @@ fn normalize_glossary_entries_dedupes_and_trims() {
             target: "DNA".to_string(),
             note: "override".to_string(),
             level: "canonical".to_string(),
-            match_mode: "regex".to_string(),
-            context: String::new(),
+            match_mode: "case_insensitive".to_string(),
+            context: "Biology".to_string(),
         },
     ])
     .expect("normalize entries");
@@ -53,7 +56,7 @@ fn normalize_glossary_entries_dedupes_and_trims() {
     assert_eq!(entries[0].source, "dna");
     assert_eq!(entries[0].target, "DNA");
     assert_eq!(entries[0].level, "canonical");
-    assert_eq!(entries[0].match_mode, "regex");
+    assert_eq!(entries[0].match_mode, "case_insensitive");
 }
 
 #[test]
@@ -129,7 +132,7 @@ fn glossary_csv_export_escapes_cells() {
 
     assert!(export
         .csv_text
-        .starts_with("source,target,note,level,match_mode,context\n"));
+        .starts_with("\u{feff}source,target,note,level,match_mode,context\n"));
     assert!(export.csv_text.contains("\"density, of states\""));
     assert!(export.csv_text.contains("\"态\"\"密度\""));
 }
@@ -154,11 +157,12 @@ fn resolve_task_glossary_request_merges_resource_and_inline_entries() {
         &GlossaryUpsertInput {
             glossary_id: String::new(),
             name: "chemistry".to_string(),
-            description: "chemistry terms".to_string(),
-            source_lang: "en".to_string(),
-            target_lang: "zh-CN".to_string(),
-            enabled: true,
+            description: Some("chemistry terms".to_string()),
+            source_lang: Some("en".to_string()),
+            target_lang: Some("zh-CN".to_string()),
+            enabled: Some(true),
             entries: vec![entry("DNA", "脱氧核糖核酸"), entry("abstract", "摘要")],
+            expected_updated_at: None,
         },
     )
     .expect("create glossary");
@@ -183,11 +187,12 @@ fn glossary_crud_round_trip() {
         &GlossaryUpsertInput {
             glossary_id: String::new(),
             name: "semiconductor".to_string(),
-            description: "physics glossary".to_string(),
-            source_lang: "en".to_string(),
-            target_lang: "zh-CN".to_string(),
-            enabled: true,
+            description: Some("physics glossary".to_string()),
+            source_lang: Some("en".to_string()),
+            target_lang: Some("zh-CN".to_string()),
+            enabled: Some(true),
             entries: vec![entry("band gap", "带隙")],
+            expected_updated_at: None,
         },
     )
     .expect("create glossary");
@@ -207,11 +212,12 @@ fn glossary_crud_round_trip() {
         &GlossaryUpsertInput {
             glossary_id: String::new(),
             name: "physics".to_string(),
-            description: "updated".to_string(),
-            source_lang: "en".to_string(),
-            target_lang: "zh-CN".to_string(),
-            enabled: false,
+            description: Some("updated".to_string()),
+            source_lang: Some("en".to_string()),
+            target_lang: Some("zh-CN".to_string()),
+            enabled: Some(false),
             entries: vec![entry("band gap", "带隙"), entry("exciton", "激子")],
+            expected_updated_at: None,
         },
     )
     .expect("update glossary");
@@ -223,44 +229,6 @@ fn glossary_crud_round_trip() {
     let err = load_glossary_or_404(&db, &created.glossary_id)
         .expect_err("deleted glossary");
     assert!(err.to_string().contains("not found"));
-}
-
-#[test]
-fn import_glossary_payload_can_update_existing_record() {
-    let db = test_db();
-    let created = create_glossary(
-        &db,
-        &GlossaryUpsertInput {
-            glossary_id: String::new(),
-            name: "initial".to_string(),
-            description: String::new(),
-            source_lang: "en".to_string(),
-            target_lang: "zh-CN".to_string(),
-            enabled: true,
-            entries: vec![entry("band gap", "带隙")],
-        },
-    )
-    .expect("create glossary");
-
-    let updated = update_glossary(
-        &db,
-        &created.glossary_id,
-        &GlossaryUpsertInput {
-            glossary_id: created.glossary_id.clone(),
-            name: "imported".to_string(),
-            description: "imported glossary".to_string(),
-            source_lang: "en".to_string(),
-            target_lang: "zh-CN".to_string(),
-            enabled: false,
-            entries: vec![entry("exciton", "激子")],
-        },
-    )
-    .expect("import update");
-
-    assert_eq!(updated.glossary_id, created.glossary_id);
-    assert_eq!(updated.name, "imported");
-    assert!(!updated.enabled);
-    assert_eq!(updated.entries[0].source, "exciton");
 }
 
 #[test]
@@ -315,11 +283,12 @@ fn resolve_task_glossary_request_rejects_merged_entries_over_limit() {
         &GlossaryUpsertInput {
             glossary_id: String::new(),
             name: "large".to_string(),
-            description: String::new(),
-            source_lang: "en".to_string(),
-            target_lang: "zh-CN".to_string(),
-            enabled: true,
+            description: Some(String::new()),
+            source_lang: Some("en".to_string()),
+            target_lang: Some("zh-CN".to_string()),
+            enabled: Some(true),
             entries: resource_entries,
+            expected_updated_at: None,
         },
     )
     .expect("create glossary");
@@ -332,4 +301,348 @@ fn resolve_task_glossary_request_rejects_merged_entries_over_limit() {
     assert!(err
         .to_string()
         .contains("merged glossary entry count exceeds"));
+}
+
+fn full_entry(source: &str, target: &str, match_mode: &str, context: &str) -> GlossaryEntryInput {
+    GlossaryEntryInput {
+        source: source.to_string(),
+        target: target.to_string(),
+        note: String::new(),
+        level: "canonical".to_string(),
+        match_mode: match_mode.to_string(),
+        context: context.to_string(),
+    }
+}
+
+fn upsert(name: &str, entries: Vec<GlossaryEntryInput>) -> GlossaryUpsertInput {
+    GlossaryUpsertInput {
+        name: name.to_string(),
+        entries,
+        ..GlossaryUpsertInput::default()
+    }
+}
+
+#[test]
+fn exact_terms_differing_in_case_are_two_entries() {
+    let entries = normalize_glossary_entries(&[
+        full_entry("US", "美国", "exact", ""),
+        full_entry("us", "微秒", "exact", ""),
+    ])
+    .expect("normalize");
+    assert_eq!(entries.len(), 2);
+}
+
+#[test]
+fn same_term_with_different_context_is_two_entries() {
+    let entries = normalize_glossary_entries(&[
+        full_entry("bond", "键", "case_insensitive", "chemistry"),
+        full_entry("Bond", "债券", "case_insensitive", "finance"),
+        full_entry("BOND", "化学键", "case_insensitive", "Chemistry"),
+    ])
+    .expect("normalize");
+    assert_eq!(entries.len(), 2);
+    assert_eq!(entries[0].target, "化学键");
+    assert_eq!(entries[1].target, "债券");
+}
+
+#[test]
+fn case_insensitive_terms_dedupe_beyond_ascii() {
+    let entries = normalize_glossary_entries(&[
+        full_entry("Äther", "以太", "case_insensitive", ""),
+        full_entry("äther", "乙醚", "case_insensitive", ""),
+    ])
+    .expect("normalize");
+    assert_eq!(entries.len(), 1);
+    assert_eq!(entries[0].target, "乙醚");
+}
+
+#[test]
+fn inline_overrides_use_the_same_key() {
+    let merged = merge_glossary_entries(
+        &[full_entry("US", "美国", "exact", ""), full_entry("bond", "键", "case_insensitive", "chemistry")],
+        &[full_entry("us", "微秒", "exact", ""), full_entry("BOND", "化学键", "case_insensitive", "CHEMISTRY")],
+    );
+    assert_eq!(merged.len(), 3);
+    assert_eq!(merged[1].target, "化学键");
+}
+
+#[test]
+fn parse_csv_reports_duplicate_count() {
+    let parsed = parse_glossary_csv(&GlossaryCsvParseInput {
+        csv_text: "source,target,match_mode\nDNA,脱氧核糖核酸,case_insensitive\ndna,DNA,case_insensitive\nRNA,核糖核酸,exact\n"
+            .to_string(),
+    })
+    .expect("parse");
+    assert_eq!(parsed.entries.len(), 2);
+    assert_eq!(parsed.duplicate_count, 1);
+}
+
+#[test]
+fn parse_csv_errors_carry_the_row_number() {
+    let err = parse_glossary_csv_text("source,target\nDFT,密度泛函理论\nonly-source,\n")
+        .expect_err("missing target");
+    assert!(err.to_string().contains("row 3:"), "{err}");
+}
+
+#[test]
+fn parse_csv_reads_tab_separated_text() {
+    let entries = parse_glossary_csv_text("原词\t译文\t备注\nband gap\t带隙\t固体\nexciton\t激子\t\n")
+        .expect("parse tsv");
+    assert_eq!(entries.len(), 2);
+    assert_eq!(entries[0].source, "band gap");
+    assert_eq!(entries[0].note, "固体");
+}
+
+#[test]
+fn parse_csv_skips_rows_only_when_all_four_cells_are_empty() {
+    // 只有上下文的一行：JSON 那边 400，CSV 以前悄悄跳过；现在两边一样。
+    let err = parse_glossary_csv_text("source,target,context\nDFT,密度泛函理论,\n,,physics\n")
+        .expect_err("context-only row");
+    assert!(err.to_string().contains("row 3:"), "{err}");
+    let entries = parse_glossary_csv_text("source,target,context\nDFT,密度泛函理论,\n,,\n\n").expect("blank rows");
+    assert_eq!(entries.len(), 1);
+}
+
+#[test]
+fn csv_export_guards_formula_cells_and_round_trips() {
+    let entries = vec![
+        full_entry("-OH", "羟基", "exact", ""),
+        full_entry("+1", "正一价", "exact", ""),
+        full_entry("=SUM(A1)", "@求和", "exact", "a, \"b\""),
+        full_entry("'quoted", "引号", "exact", ""),
+        full_entry("band gap", "带隙", "case_insensitive", ""),
+    ];
+    let record = GlossaryRecord {
+        glossary_id: "glossary-formula".to_string(),
+        name: "a/b\\c".to_string(),
+        description: String::new(),
+        source_lang: String::new(),
+        target_lang: String::new(),
+        enabled: true,
+        entries: entries.clone(),
+        created_at: now_iso(),
+        updated_at: now_iso(),
+    };
+    let export = glossary_to_csv_export(&record);
+    assert_eq!(export.file_name, "a_b_c.csv");
+    assert!(export.csv_text.contains("\n'-OH,"), "{}", export.csv_text);
+    assert!(export.csv_text.contains("\n'+1,"));
+    assert!(export.csv_text.contains("\n'=SUM(A1),'@求和,"));
+    assert!(export.csv_text.contains("\n'quoted,"), "a leading quote not followed by a trigger is left alone");
+    let round_trip = parse_glossary_csv_text(&export.csv_text).expect("parse export");
+    assert_eq!(round_trip, entries);
+}
+
+#[test]
+fn json_entries_reject_unknown_level_and_match_mode() {
+    let mut bad_level = full_entry("DFT", "密度泛函理论", "exact", "");
+    bad_level.level = "canonicl".to_string();
+    let err = normalize_glossary_entries(&[bad_level]).expect_err("unknown level");
+    assert!(err.to_string().contains("DFT") && err.to_string().contains("canonicl"), "{err}");
+
+    let mut bad_mode = full_entry("DFT", "密度泛函理论", "exact", "");
+    bad_mode.match_mode = "fuzzy".to_string();
+    let err = normalize_glossary_entries(&[bad_mode]).expect_err("unknown match_mode");
+    assert!(err.to_string().contains("fuzzy"), "{err}");
+
+    // CSV 仍然宽松：不认识的落到默认值。
+    let entries = parse_glossary_csv_text("source,target,level,match_mode\nDFT,密度泛函理论,canonicl,fuzzy\n")
+        .expect("csv stays lenient");
+    assert_eq!(entries[0].level, "preferred");
+    assert_eq!(entries[0].match_mode, "exact");
+}
+
+#[test]
+fn regex_entries_must_compile_but_python_only_syntax_is_allowed() {
+    let err = normalize_glossary_entries(&[full_entry("band (gap", "带隙", "regex", "")])
+        .expect_err("broken regex");
+    assert!(err.to_string().contains("band (gap"), "{err}");
+    normalize_glossary_entries(&[full_entry(r"(?<![A-Za-z])ion(?!ic)", "离子", "regex", "")])
+        .expect("look-around is Python syntax, accepted");
+    normalize_glossary_entries(&[full_entry(r"\b(DFT|HF)\b", "方法", "regex", "")]).expect("plain regex");
+}
+
+#[test]
+fn context_is_capped_at_500_characters() {
+    let err = normalize_glossary_entries(&[full_entry("DFT", "密度泛函理论", "exact", &"x".repeat(501))])
+        .expect_err("context too long");
+    assert!(err.to_string().contains("context exceeds 500"), "{err}");
+    normalize_glossary_entries(&[full_entry("DFT", "密度泛函理论", "exact", &"x".repeat(500))]).expect("500 ok");
+}
+
+#[test]
+fn update_keeps_top_level_fields_the_request_left_out() {
+    let db = test_db();
+    let created = create_glossary(
+        &db,
+        &GlossaryUpsertInput {
+            description: Some("agent notes".to_string()),
+            source_lang: Some("en".to_string()),
+            target_lang: Some("zh-CN".to_string()),
+            enabled: Some(false),
+            ..upsert("physics", vec![entry("band gap", "带隙")])
+        },
+    )
+    .expect("create");
+    let updated = update_glossary(&db, &created.glossary_id, &upsert("physics 2", vec![entry("exciton", "激子")]))
+        .expect("update");
+    assert_eq!(updated.name, "physics 2");
+    assert_eq!(updated.description, "agent notes");
+    assert_eq!(updated.source_lang, "en");
+    assert_eq!(updated.target_lang, "zh-CN");
+    assert!(!updated.enabled);
+    assert_eq!(updated.entries.len(), 1);
+    assert!(updated.updated_at > created.updated_at, "{} > {}", updated.updated_at, created.updated_at);
+
+    let cleared = update_glossary(
+        &db,
+        &created.glossary_id,
+        &GlossaryUpsertInput { description: Some(String::new()), enabled: Some(true), ..upsert("physics 2", vec![]) },
+    )
+    .expect("explicit values still apply");
+    assert_eq!(cleared.description, "");
+    assert!(cleared.enabled);
+}
+
+#[test]
+fn update_with_a_stale_expected_updated_at_is_409() {
+    let db = test_db();
+    let created = create_glossary(&db, &upsert("physics", vec![entry("band gap", "带隙")])).expect("create");
+    let first = update_glossary(
+        &db,
+        &created.glossary_id,
+        &GlossaryUpsertInput {
+            expected_updated_at: Some(created.updated_at.clone()),
+            ..upsert("physics", vec![entry("exciton", "激子")])
+        },
+    )
+    .expect("fresh expected_updated_at");
+    // 同一毫秒里再保存一次，时间戳也得变，否则拿旧值的人分不出来。
+    assert_ne!(first.updated_at, created.updated_at);
+
+    let err = update_glossary(
+        &db,
+        &created.glossary_id,
+        &GlossaryUpsertInput {
+            expected_updated_at: Some(created.updated_at.clone()),
+            ..upsert("physics", vec![entry("phonon", "声子")])
+        },
+    )
+    .expect_err("stale expected_updated_at");
+    assert_eq!(status_of(&err), 409);
+    assert!(err.to_string().contains("changed"), "{err}");
+    let current = load_glossary_or_404(&db, &created.glossary_id).expect("still there");
+    assert_eq!(current.entries[0].source, "exciton");
+}
+
+#[test]
+fn update_does_not_resurrect_a_deleted_glossary() {
+    let db = test_db();
+    let created = create_glossary(&db, &upsert("physics", vec![entry("band gap", "带隙")])).expect("create");
+    db.delete_glossary(&created.glossary_id).expect("delete");
+    let err = update_glossary(&db, &created.glossary_id, &upsert("physics", vec![]))
+        .expect_err("deleted glossary");
+    assert_eq!(status_of(&err), 404);
+    assert!(db.get_glossary(&created.glossary_id).is_err());
+    // 读完之后才被删（PUT 和 DELETE 撞上）：库层 UPDATE 不插入。
+    let record = GlossaryRecord { glossary_id: created.glossary_id.clone(), ..created.clone() };
+    assert!(!db.update_glossary(&record, None).expect("update"));
+    assert!(db.get_glossary(&created.glossary_id).is_err());
+}
+
+#[test]
+fn empty_query_does_not_filter() {
+    let db = test_db();
+    create_glossary(&db, &upsert("physics", vec![])).expect("create");
+    let items = filter_glossaries(
+        list_glossaries(&db, None).expect("list"),
+        &ListGlossariesQuery { q: Some("  ".to_string()), ..ListGlossariesQuery::default() },
+    );
+    assert_eq!(items.len(), 1);
+}
+
+#[test]
+fn resolve_task_glossary_request_rejects_missing_and_disabled_glossaries_with_400() {
+    let db = test_db();
+    let mut input = CreateJobInput::default();
+    input.translation.glossary_id = "glossary-nope".to_string();
+    let err = resolve_task_glossary_request(&db, &input).expect_err("missing glossary");
+    assert_eq!(status_of(&err), 400);
+    assert!(err.to_string().contains("translation.glossary_id not found"), "{err}");
+
+    let disabled = create_glossary(
+        &db,
+        &GlossaryUpsertInput { enabled: Some(false), ..upsert("off", vec![entry("DNA", "DNA")]) },
+    )
+    .expect("create");
+    input.translation.glossary_id = disabled.glossary_id;
+    let err = resolve_task_glossary_request(&db, &input).expect_err("disabled glossary");
+    assert_eq!(status_of(&err), 400);
+    assert!(err.to_string().contains("disabled"), "{err}");
+}
+
+#[test]
+fn resolve_task_glossary_request_stores_the_inline_entries_apart_from_the_snapshot() {
+    let db = test_db();
+    let glossary = create_glossary(&db, &upsert("chem", vec![entry("DNA", "脱氧核糖核酸")])).expect("create");
+    let mut input = CreateJobInput::default();
+    input.translation.glossary_id = glossary.glossary_id;
+    input.translation.glossary_entries = vec![entry("band gap", "带隙")];
+    let resolved = resolve_task_glossary_request(&db, &input).expect("resolve");
+    assert_eq!(resolved.translation.glossary_entries.len(), 2);
+    assert_eq!(resolved.translation.glossary_inline_entries.len(), 1);
+    assert_eq!(resolved.translation.glossary_inline_entries[0].source, "band gap");
+    assert_eq!(resolved.translation.glossary_inline_entry_count, 1);
+}
+
+#[test]
+fn rerun_requires_the_glossary_to_still_exist() {
+    let db = test_db();
+    let err = require_glossary_for_rerun(&db, "glossary-gone").expect_err("missing");
+    assert_eq!(status_of(&err), 409);
+    let glossary = create_glossary(&db, &upsert("chem", vec![])).expect("create");
+    require_glossary_for_rerun(&db, &glossary.glossary_id).expect("present");
+}
+
+#[test]
+fn a_corrupt_entries_column_is_an_error_not_an_empty_glossary() {
+    let db = test_db();
+    let glossary = create_glossary(&db, &upsert("chem", vec![entry("DNA", "DNA")])).expect("create");
+    rusqlite::Connection::open(db.path())
+        .expect("connect")
+        .execute(
+            "UPDATE glossaries SET entries_json = '{broken' WHERE glossary_id = ?1",
+            [&glossary.glossary_id],
+        )
+        .expect("corrupt");
+    let err = load_glossary_or_404(&db, &glossary.glossary_id).expect_err("corrupt row");
+    assert_eq!(status_of(&err), 500);
+}
+
+fn status_of(err: &retainpdf_api_base::error::AppError) -> u16 {
+    use retainpdf_api_base::error::AppError;
+    match err {
+        AppError::BadRequest(_) => 400,
+        AppError::NotFound(_) => 404,
+        AppError::Conflict(_) => 409,
+        AppError::Reasoned { status, .. } => status.as_u16(),
+        AppError::Internal(_) => 500,
+        other => panic!("unexpected error kind: {other:?}"),
+    }
+}
+
+#[test]
+fn tables_saved_under_older_rules_still_resolve_for_new_jobs() {
+    let db = test_db();
+    let glossary = create_glossary(&db, &upsert("legacy", vec![])).expect("create");
+    // 2026-10-22 以前保存时不查正则、不限上下文长度。
+    let legacy = GlossaryRecord {
+        entries: vec![full_entry("band (gap", "带隙", "regex", ""), full_entry("DNA", "DNA", "exact", &"x".repeat(600))],
+        ..glossary.clone()
+    };
+    assert!(db.update_glossary(&legacy, None).expect("write legacy entries"));
+    let mut input = CreateJobInput::default();
+    input.translation.glossary_id = glossary.glossary_id;
+    let resolved = resolve_task_glossary_request(&db, &input).expect("old tables keep working");
+    assert_eq!(resolved.translation.glossary_entries.len(), 2);
 }

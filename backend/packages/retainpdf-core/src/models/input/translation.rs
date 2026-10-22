@@ -122,6 +122,12 @@ pub struct TranslationInput {
     pub glossary_overridden_entry_count: i64,
     #[serde(default)]
     pub glossary_entries: Vec<GlossaryEntryInput>,
+    /// 用户建任务时真正内联的条目（规范化、去重后），由建任务时的术语解析写入；客户端发了也会被覆盖。
+    /// `glossary_entries` 是和术语表合并后的快照，重跑、阶段重试先换回这一份再按现在的表重新解析。
+    /// 2026-10-22 以前的任务没有这个字段（见 `JobRecord::glossary_inline_entries_for_rerun`）。
+    /// 空的时候不写出来。
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub glossary_inline_entries: Vec<GlossaryEntryInput>,
     #[serde(default = "default_translation_context_mode")]
     pub context_mode: String,
     #[serde(default = "default_translation_glossary_mode")]
@@ -201,6 +207,7 @@ impl Default for TranslationInput {
             glossary_inline_entry_count: 0,
             glossary_overridden_entry_count: 0,
             glossary_entries: Vec::new(),
+            glossary_inline_entries: Vec::new(),
             context_mode: default_translation_context_mode(),
             glossary_mode: default_translation_glossary_mode(),
             memory_mode: default_translation_memory_mode(),

@@ -448,7 +448,9 @@ Glossary v1 contract:
 
 - `translation.glossary_id`: optional named glossary resource ID
 - `translation.glossary_entries`: optional inline glossary array; each item is `{source, target, note}`
-- if both are provided, the backend loads the named glossary first and then overlays inline entries by normalized `source`
+- if both are provided, the backend loads the named glossary first and then overlays inline entries by the (source, context) key (sources lowercased only for `case_insensitive`; since 2026-10-22)
+- a missing or disabled `translation.glossary_id` is 400 (since 2026-10-22; a missing one used to be 404)
+- the stored job request keeps the merged snapshot in `glossary_entries` and the user's inline entries in `glossary_inline_entries` (server-written, omitted when empty); reruns that create a new job re-resolve against the current glossary with those inline entries, 409 `glossary_missing` / `glossary_disabled` when the source job's glossary is gone / disabled. See `docs/api/04-翻译/03-术语表.md`
 - inline entries override resource entries with the same `source`
 - glossary usage is prompt/guidance only in v1; the pipeline does not force a post-translation find/replace pass
 - frontend should parse Excel itself and send JSON entries, or send CSV text to the helper parse endpoint below; backend does not add Excel parsing

@@ -4,22 +4,32 @@
 use retainpdf_core::models::domain::GlossaryRecord;
 use retainpdf_core::models::request::GlossaryEntryInput;
 use serde::{Deserialize, Serialize};
-#[derive(Debug, Serialize, Deserialize, Clone)]
+
+use super::csv::{CSV_FORMULA_GUARD, CSV_FORMULA_TRIGGERS};
+/// 新建（POST）和整份保存（PUT）术语表的请求体。
+///
+/// `name`、`entries` 必填、整份替换。`description`、`source_lang`、`target_lang`、`enabled` 请求里没出现
+/// （或是 `null`）时：新建用默认值（空串、`true`），PUT 保留原值（2026-10-22 起；以前会被清空、`enabled`
+/// 重置成 `true`）。`expected_updated_at` 只对 PUT 有用：给了就只在库里的 `updated_at` 还是它时才保存，
+/// 否则 409 `glossary_changed`。
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 #[serde(deny_unknown_fields)]
 pub struct GlossaryUpsertInput {
+    /// 不用：以前 `POST /glossaries/import` 按它区分新建、覆盖（2026-10-22 删了）。留着是为了带它的老请求不 400。
     #[serde(default)]
     pub glossary_id: String,
     pub name: String,
     #[serde(default)]
-    pub description: String,
+    pub description: Option<String>,
     #[serde(default)]
-    pub source_lang: String,
+    pub source_lang: Option<String>,
     #[serde(default)]
-    pub target_lang: String,
-    #[serde(default = "default_glossary_enabled")]
-    pub enabled: bool,
+    pub target_lang: Option<String>,
     #[serde(default)]
+    pub enabled: Option<bool>,
     pub entries: Vec<GlossaryEntryInput>,
+    #[serde(default)]
+    pub expected_updated_at: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -64,6 +74,8 @@ pub struct GlossaryListView {
 pub struct GlossaryCsvParseView {
     pub entry_count: usize,
     pub entries: Vec<GlossaryEntryInput>,
+    /// 去重时丢掉的行数（同一条以最后一行为准）。2026-10-22 加。
+    pub duplicate_count: usize,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -103,45 +115,48 @@ pub fn glossary_to_detail(record: &GlossaryRecord) -> GlossaryDetailView {
     }
 }
 
+/// 导出成 CSV：开头带 UTF-8 BOM（中文 Windows 的 Excel 双击打开不乱码）；以 `= + - @`、制表符、回车开头的
+/// 单元格前加 `'`（防公式注入），`parse-csv` 读回时去掉，导出再导入能还原。
 pub fn glossary_to_csv_export(record: &GlossaryRecord) -> GlossaryCsvExportView {
-    let mut csv_text = String::from("source,target,note,level,match_mode,context\n");
+    let mut csv_text = String::from("\u{feff}source,target,note,level,match_mode,context\n");
     for entry in &record.entries {
-        csv_text.push_str(&escape_csv_cell(&entry.source));
-        csv_text.push(',');
-        csv_text.push_str(&escape_csv_cell(&entry.target));
-        csv_text.push(',');
-        csv_text.push_str(&escape_csv_cell(&entry.note));
-        csv_text.push(',');
-        csv_text.push_str(&escape_csv_cell(&entry.level));
-        csv_text.push(',');
-        csv_text.push_str(&escape_csv_cell(&entry.match_mode));
-        csv_text.push(',');
-        csv_text.push_str(&escape_csv_cell(&entry.context));
+        let cells = [
+            &entry.source,
+            &entry.target,
+            &entry.note,
+            &entry.level,
+            &entry.match_mode,
+            &entry.context,
+        ];
+        let line: Vec<String> = cells.iter().map(|cell| escape_csv_cell(cell)).collect();
+        csv_text.push_str(&line.join(","));
         csv_text.push('\n');
     }
     GlossaryCsvExportView {
         glossary_id: record.glossary_id.clone(),
         name: record.name.clone(),
         csv_text,
-        file_name: format!("{}.csv", record.name.replace('/', "_")),
+        file_name: format!("{}.csv", record.name.replace(['/', '\\'], "_")),
     }
 }
 
 fn escape_csv_cell(value: &str) -> String {
-    if value.contains(',') || value.contains('"') || value.contains('\n') || value.contains('\r') {
-        let escaped = value.replace('"', "\"\"");
-        format!("\"{escaped}\"")
+    let guarded = if value.starts_with(CSV_FORMULA_TRIGGERS) {
+        format!("{CSV_FORMULA_GUARD}{value}")
     } else {
         value.to_string()
+    };
+    if guarded.contains(',') || guarded.contains('"') || guarded.contains('\n') || guarded.contains('\r') {
+        let escaped = guarded.replace('"', "\"\"");
+        format!("\"{escaped}\"")
+    } else {
+        guarded
     }
 }
 
-fn default_glossary_enabled() -> bool {
-    true
-}
-
-/// `GET /api/v1/glossaries` 的筛选条件。
-#[derive(Debug, Deserialize, Clone)]
+/// `GET /api/v1/glossaries` 的筛选条件。不认识的参数 400；`q` 是空串（或全是空白）时不过滤。
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(deny_unknown_fields)]
 pub struct ListGlossariesQuery {
     #[serde(default)]
     pub enabled: Option<bool>,

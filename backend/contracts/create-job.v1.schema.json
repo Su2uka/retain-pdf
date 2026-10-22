@@ -148,6 +148,11 @@
           "type": "array",
           "items": { "$ref": "#/definitions/GlossaryEntryInput" }
         },
+        "glossary_inline_entries": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/GlossaryEntryInput" },
+          "description": "服务器写：建任务时用户真正内联的条目（规范化、去重后），客户端发了也会被覆盖。glossary_entries 是和术语表合并后的快照；重跑、阶段重试先换回这一份再按现在的表解析。空的时候不出现。2026-10-22 加。"
+        },
         "context_mode": {
           "type": "string",
           "enum": ["needed", "all", "off"],

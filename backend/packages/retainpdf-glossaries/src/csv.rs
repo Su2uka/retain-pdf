@@ -3,20 +3,47 @@ use super::views::GlossaryCsvParseInput;
 use retainpdf_core::models::request::GlossaryEntryInput;
 
 use super::entries::{
-    normalize_glossary_entries, normalize_glossary_level, normalize_glossary_match_mode,
-    sanitize_csv_cell,
+    finish_glossary_entries, normalize_glossary_entry, normalize_glossary_level,
+    normalize_glossary_match_mode, sanitize_csv_cell,
 };
 
-pub(crate) fn parse_glossary_csv(
-    input: &GlossaryCsvParseInput,
-) -> Result<Vec<GlossaryEntryInput>, AppError> {
-    parse_glossary_csv_text(&input.csv_text)
+/// 导出时为防公式注入在单元格前加的 `'`，以及会触发它的开头字符（Excel、WPS 把这些开头当公式）。
+pub(super) const CSV_FORMULA_GUARD: char = '\'';
+pub(super) const CSV_FORMULA_TRIGGERS: &[char] = &['=', '+', '-', '@', '\t', '\r'];
+
+pub(crate) struct ParsedGlossaryCsv {
+    pub(crate) entries: Vec<GlossaryEntryInput>,
+    pub(crate) duplicate_count: usize,
 }
 
+pub(crate) fn parse_glossary_csv(input: &GlossaryCsvParseInput) -> Result<ParsedGlossaryCsv, AppError> {
+    parse_glossary_csv_counted(&input.csv_text)
+}
+
+#[cfg(test)]
 pub(crate) fn parse_glossary_csv_text(csv_text: &str) -> Result<Vec<GlossaryEntryInput>, AppError> {
+    parse_glossary_csv_counted(csv_text).map(|parsed| parsed.entries)
+}
+
+/// 首行有制表符、没有逗号就按 TSV 读（从 Excel 直接复制出来的是制表符分隔）。
+fn detect_delimiter(csv_text: &str) -> u8 {
+    let first_line = csv_text
+        .lines()
+        .map(|line| line.trim_start_matches('\u{feff}'))
+        .find(|line| !line.trim().is_empty())
+        .unwrap_or_default();
+    if first_line.contains('\t') && !first_line.contains(',') {
+        b'\t'
+    } else {
+        b','
+    }
+}
+
+fn parse_glossary_csv_counted(csv_text: &str) -> Result<ParsedGlossaryCsv, AppError> {
     let mut reader = csv::ReaderBuilder::new()
         .has_headers(false)
         .flexible(true)
+        .delimiter(detect_delimiter(csv_text))
         .from_reader(csv_text.as_bytes());
     let mut rows = Vec::new();
     for record in reader.records() {
@@ -25,7 +52,7 @@ pub(crate) fn parse_glossary_csv_text(csv_text: &str) -> Result<Vec<GlossaryEntr
         rows.push(record);
     }
     if rows.is_empty() {
-        return Ok(Vec::new());
+        return Ok(ParsedGlossaryCsv { entries: Vec::new(), duplicate_count: 0 });
     }
 
     let header_map = detect_csv_header(&rows[0]);
@@ -35,19 +62,41 @@ pub(crate) fn parse_glossary_csv_text(csv_text: &str) -> Result<Vec<GlossaryEntr
         &rows
     };
     let mut entries = Vec::new();
-    for row in data_rows {
-        let entry = parse_csv_row(row, header_map.as_ref())?;
-        if let Some(entry) = entry {
-            entries.push(entry);
+    for (index, row) in data_rows.iter().enumerate() {
+        // 行号是文本里的行（从 1 数，含表头），带引号的多行单元格按开头那一行算。
+        let line = row
+            .position()
+            .map(|position| position.line())
+            .unwrap_or((index + 1 + usize::from(header_map.is_some())) as u64);
+        let entry = parse_csv_row(row, header_map.as_ref());
+        let level = entry.level.clone();
+        let match_mode = entry.match_mode.clone();
+        match normalize_glossary_entry(&entry, level, match_mode) {
+            Ok(Some(entry)) => entries.push(entry),
+            Ok(None) => {}
+            Err(message) => return Err(AppError::bad_request(format!("row {line}: {message}"))),
         }
     }
-    normalize_glossary_entries(&entries)
+    let (entries, duplicate_count) = finish_glossary_entries(entries)?;
+    Ok(ParsedGlossaryCsv { entries, duplicate_count })
+}
+
+/// 一个单元格：去掉空白、BOM，再去掉导出时防公式注入加的 `'`（只在它后面跟着会触发公式的字符时）。
+fn read_csv_cell(value: &str) -> String {
+    let cell = sanitize_csv_cell(value);
+    let mut chars = cell.chars();
+    if chars.next() == Some(CSV_FORMULA_GUARD)
+        && chars.next().is_some_and(|ch| CSV_FORMULA_TRIGGERS.contains(&ch))
+    {
+        return cell[CSV_FORMULA_GUARD.len_utf8()..].to_string();
+    }
+    cell
 }
 
 fn parse_csv_row(
     row: &csv::StringRecord,
     header_map: Option<&GlossaryCsvHeader>,
-) -> Result<Option<GlossaryEntryInput>, AppError> {
+) -> GlossaryEntryInput {
     let (source_idx, target_idx, note_idx, level_idx, match_mode_idx, context_idx) = header_map
         .map(|header| {
             (
@@ -59,36 +108,34 @@ fn parse_csv_row(
                 header.context_idx,
             )
         })
+        // 没有表头时的默认列序：原词,译文,备注（2026-10-22 定不改，前端改占位符）。
         .unwrap_or((0, 1, Some(2), None, None, None));
-    let source = sanitize_csv_cell(row.get(source_idx).unwrap_or_default());
-    let target = sanitize_csv_cell(row.get(target_idx).unwrap_or_default());
+    let source = read_csv_cell(row.get(source_idx).unwrap_or_default());
+    let target = read_csv_cell(row.get(target_idx).unwrap_or_default());
     let note = note_idx
         .and_then(|index| row.get(index))
-        .map(sanitize_csv_cell)
+        .map(read_csv_cell)
         .unwrap_or_default();
     let level = level_idx
         .and_then(|index| row.get(index))
-        .map(normalize_glossary_level)
+        .map(|value| normalize_glossary_level(&read_csv_cell(value)))
         .unwrap_or_else(|| "preferred".to_string());
     let match_mode = match_mode_idx
         .and_then(|index| row.get(index))
-        .map(normalize_glossary_match_mode)
+        .map(|value| normalize_glossary_match_mode(&read_csv_cell(value)))
         .unwrap_or_else(|| "exact".to_string());
     let context = context_idx
         .and_then(|index| row.get(index))
-        .map(sanitize_csv_cell)
+        .map(read_csv_cell)
         .unwrap_or_default();
-    if source.is_empty() && target.is_empty() && note.is_empty() {
-        return Ok(None);
-    }
-    Ok(Some(GlossaryEntryInput {
+    GlossaryEntryInput {
         source,
         target,
         note,
         level,
         match_mode,
         context,
-    }))
+    }
 }
 
 #[derive(Debug, Clone, Copy)]

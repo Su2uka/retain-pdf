@@ -4,6 +4,7 @@ pub(crate) mod cancel;
 mod cancel_submission;
 pub(crate) mod ocr_ambiguity;
 mod rerun;
+mod rerun_glossary;
 pub(crate) mod resume_plan;
 pub(crate) mod stage_plan;
 mod stage_retry;

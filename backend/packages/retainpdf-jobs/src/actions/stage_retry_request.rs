@@ -3,6 +3,7 @@ use crate::views::{ActionBlockReason, RetryStageKind};
 use retainpdf_core::models::domain::{CreateJobInput, JobSnapshot, WorkflowKind};
 use retainpdf_core::models::request::JobSourceInput;
 use retainpdf_data::ocr_provider::strip_server_owned_ocr_options;
+use crate::actions::rerun_glossary::restore_inline_glossary_entries;
 
 pub(super) fn build_retry_request(
     source_job: &JobSnapshot,
@@ -59,6 +60,7 @@ pub(super) fn build_retry_request(
     // 老任务的请求里可能存着只能服务器定的 OCR 选项（2026-10-22 之前建任务不拦）：复制时去掉，
     // 重试不因此 400，也不再带下去。overrides 里再带就 400（stage_retry_overrides）。
     strip_server_owned_ocr_options(&mut request.ocr);
+    restore_inline_glossary_entries(source_job, &mut request);
     Ok(request)
 }
 

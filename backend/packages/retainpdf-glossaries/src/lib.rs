@@ -26,10 +26,9 @@ mod tests;
 // 门面。
 pub use api::{
     create_glossary_view, delete_glossary_view, export_glossary_csv_view, get_glossary_view,
-    import_glossary_view, list_glossaries_view, parse_glossary_csv_view, update_glossary_view,
-    GlossaryApiDeps,
+    list_glossaries_view, parse_glossary_csv_view, update_glossary_view, GlossaryApiDeps,
 };
-pub use entries::resolve_task_glossary_request;
+pub use entries::{require_glossary_for_rerun, resolve_task_glossary_request};
 pub use views::{
     glossary_to_csv_export, glossary_to_detail, glossary_to_summary, GlossaryCsvExportView,
     GlossaryCsvParseInput, GlossaryCsvParseView, GlossaryDetailView, GlossaryListView,

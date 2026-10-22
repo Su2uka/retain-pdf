@@ -88,6 +88,7 @@ export const CREATE_JOB_SECTION_FIELDS: Readonly<
     "execution_connection",
     "glossary_entries",
     "glossary_id",
+    "glossary_inline_entries",
     "glossary_inline_entry_count",
     "glossary_mode",
     "glossary_name",

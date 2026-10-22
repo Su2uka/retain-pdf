@@ -297,49 +297,24 @@ class TranslationCommandRunner:
     def _term_set(self, params: dict[str, Any]) -> dict[str, Any]:
         source = params["source"]
         target = params["target"]
-        glossary, created = self._job_glossary()
-        entries = [
-            dict(entry) for entry in glossary.get("entries") or [] if isinstance(entry, dict)
-        ]
-        key = source.casefold()
-        replaced = False
-        previous_target = None
-        for entry in entries:
-            if str(entry.get("source") or "").strip().casefold() == key:
-                previous_target = entry.get("target")
-                entry["source"] = source
-                entry["target"] = target
-                entry["level"] = "canonical"
-                replaced = True
-        if not replaced:
-            entries.append(
-                {
-                    "source": source,
-                    "target": target,
-                    "note": "终端 agent 用 term-set 写入",
-                    "level": "canonical",
-                    "match_mode": "case_insensitive",
-                    "context": "",
-                }
-            )
-        body = {
-            "name": glossary.get("name") or f"{JOB_GLOSSARY_NAME_PREFIX}{self._job_id}",
-            "description": glossary.get("description") or "",
-            "source_lang": glossary.get("source_lang") or "",
-            "target_lang": glossary.get("target_lang") or "",
-            "enabled": bool(glossary.get("enabled", True)),
-            "entries": [_entry_input(entry) for entry in entries],
-        }
-        glossary_id = str(glossary.get("glossary_id") or "")
-        if glossary_id:
-            write = self._call(
-                "glossary.write",
-                ("glossary", "update", "--glossary-id", glossary_id),
-                body,
-            )
-        else:
-            write = self._call("glossary.write", ("glossary", "create"), body)
-        if not write.ok:
+        # 读整张表、改一条、整份写回。写的时候带上读到的 updated_at：这期间别处（界面、另一个终端）
+        # 改过这张表，后端回 409 glossary_changed，重读一次再改，不把别人刚加的词冲掉。
+        for attempt in range(2):
+            glossary, created = self._job_glossary()
+            body, previous_target = _term_set_body(glossary, self._job_id, source, target)
+            glossary_id = str(glossary.get("glossary_id") or "")
+            if glossary_id:
+                write = self._call(
+                    "glossary.write",
+                    ("glossary", "update", "--glossary-id", glossary_id),
+                    body,
+                )
+            else:
+                write = self._call("glossary.write", ("glossary", "create"), body)
+            if write.ok:
+                break
+            if attempt == 0 and write.http_status == 409 and _error_reason(write) == "glossary_changed":
+                continue
             raise TranslationCommandError("术语没有写进术语表", write)
         written = write.data if isinstance(write.data, dict) else {}
         affected, consistent, scanned = self._scan_affected(source, target)
@@ -514,6 +489,8 @@ _CONFLICT_HINTS = {
     "request_journal_corrupt": "翻译请求日志损坏，重试不了，需要用户处理。",
     "model_executor_unsupported": "这个任务绑定了模型执行器，不支持这种重试。",
     "translations_not_owned": "这个任务用的是别的任务的译文，请到源任务上精修。",
+    "glossary_missing": "这本书当时用的术语表已经删了，请用户改选术语表（或不用术语表）后再重新翻译。",
+    "glossary_disabled": "这本书当时用的术语表已经停用，请用户启用它或改选术语表后再重新翻译。",
 }
 
 
@@ -687,6 +664,46 @@ def _revision_view(record: dict[str, Any]) -> dict[str, Any]:
         "previous_text": record.get("previous_text"),
         "new_text": record.get("new_text"),
     }
+
+
+def _term_set_body(
+    glossary: dict[str, Any], job_id: str, source: str, target: str
+) -> tuple[dict[str, Any], Any]:
+    """term-set 要写回的整张表，以及这个词原来的译法（没有是 None）。"""
+    entries = [dict(entry) for entry in glossary.get("entries") or [] if isinstance(entry, dict)]
+    key = source.casefold()
+    replaced = False
+    previous_target = None
+    for entry in entries:
+        if str(entry.get("source") or "").strip().casefold() == key:
+            previous_target = entry.get("target")
+            entry["source"] = source
+            entry["target"] = target
+            entry["level"] = "canonical"
+            replaced = True
+    if not replaced:
+        entries.append(
+            {
+                "source": source,
+                "target": target,
+                "note": "终端 agent 用 term-set 写入",
+                "level": "canonical",
+                "match_mode": "case_insensitive",
+                "context": "",
+            }
+        )
+    body: dict[str, Any] = {
+        "name": glossary.get("name") or f"{JOB_GLOSSARY_NAME_PREFIX}{job_id}",
+        "description": glossary.get("description") or "",
+        "source_lang": glossary.get("source_lang") or "",
+        "target_lang": glossary.get("target_lang") or "",
+        "enabled": bool(glossary.get("enabled", True)),
+        "entries": [_entry_input(entry) for entry in entries],
+    }
+    updated_at = str(glossary.get("updated_at") or "")
+    if glossary.get("glossary_id") and updated_at:
+        body["expected_updated_at"] = updated_at
+    return body, previous_target
 
 
 def _entry_input(entry: dict[str, Any]) -> dict[str, str]:

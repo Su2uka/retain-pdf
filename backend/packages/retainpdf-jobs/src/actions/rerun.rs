@@ -12,6 +12,7 @@ use crate::facade::JobsFacade;
 use crate::actions::ocr_ambiguity::ambiguous_ocr_dispatch;
 use crate::actions::stage_retry_overrides::{apply_retry_overrides, discard_ocr_secret_sources};
 use retainpdf_data::ocr_provider::strip_server_owned_ocr_options;
+use crate::actions::rerun_glossary::{require_source_glossary, restore_inline_glossary_entries};
 
 impl<'a> JobsFacade<'a> {
     /// `overrides` 只会带换过的模型 key（路由层已校验）：续跑出新任务时替换原任务的旧凭据，
@@ -79,6 +80,7 @@ impl<'a> JobsFacade<'a> {
         }
         let mut request = build_rerun_request(&source_job, self.command.control.data_root)?;
         apply_retry_overrides(&mut request, overrides)?;
+        require_source_glossary(self.command.db, &source_job, &request)?;
         let workflow = request.workflow.clone();
         // 归属（jobs.document_id + 书卡）沿 artifact_job_id 继承。
         let job = submit_job(&self.command.submit, NewJob::new(request))?;
@@ -259,5 +261,6 @@ fn build_rerun_request(
     // 老任务的请求里可能存着只能服务器定的 OCR 选项（2026-10-22 之前建任务不拦）：复制时去掉，
     // 重跑不因此 400，也不再带下去。
     strip_server_owned_ocr_options(&mut request.ocr);
+    restore_inline_glossary_entries(source_job, &mut request);
     Ok(request)
 }

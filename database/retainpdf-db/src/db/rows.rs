@@ -158,7 +158,9 @@ pub(super) fn row_to_glossary_record(row: &Row<'_>) -> rusqlite::Result<Glossary
         source_lang: row.get(3)?,
         target_lang: row.get(4)?,
         enabled: row.get::<_, i64>(5)? != 0,
-        entries: serde_json::from_str(&entries_json).unwrap_or_default(),
+        // 读坏了报错（接口 500），不当成空表：用户看到 0 条再保存一次就真没了。
+        entries: serde_json::from_str(&entries_json)
+            .map_err(|error| json_column_decode_error(6, "entries_json", error))?,
         created_at: row.get(7)?,
         updated_at: row.get(8)?,
     })

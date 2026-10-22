@@ -810,8 +810,10 @@ PDF 元数据：
 - `GET /api/v1/glossaries/{glossary_id}`
 - `PUT /api/v1/glossaries/{glossary_id}`
 - `DELETE /api/v1/glossaries/{glossary_id}`
-- `POST /api/v1/glossaries/import`
 - `GET /api/v1/glossaries/{glossary_id}/export.csv`
+
+`POST /api/v1/glossaries/import` 2026-10-22 删了。规则、上限、重跑时怎么用术语表见
+[术语表](../../api/04-翻译/03-术语表.md)。
 
 术语表用于前端做“自定义词汇表”：
 
@@ -840,12 +842,14 @@ PDF 元数据：
   - `preserve`：强制保留，不翻译。
   - `canonical`：强制使用固定译法。
   - `preferred`：提示模型优先这样翻译，不保证强制命中。
+  - JSON 接口里空串是 `preferred`，不认识的值 `400`；CSV 里没有这一列或不认识的值是 `preferred`。
 - `match_mode`：
-  - `exact`：默认精确匹配。
-  - `case_insensitive`：忽略大小写。
-  - `regex`：正则匹配。
-- `context`：可选，只在附近上下文包含该词时生效。
+  - `exact`：精确匹配，区分大小写。JSON 接口、CSV 里空串都是它。
+  - `case_insensitive`：忽略大小写。管理界面新加的行默认是这个（前端填的）。
+  - `regex`：正则匹配，原词要能编译（编译不过 `400`）。
+- `context`：可选，只在附近上下文包含该词时生效，最多 500 字。
 - `note`：备注，只给前端和 prompt 说明用。
+- 同一条：（原词，上下文），`case_insensitive` 的原词按小写比，其余区分大小写；后面的为准。
 
 创建术语表：
 
@@ -881,7 +885,9 @@ POST /api/v1/glossaries
 PUT /api/v1/glossaries/{glossary_id}
 ```
 
-请求体同创建接口。后端按整个 `entries` 数组替换。
+请求体同创建接口。后端按整个 `entries` 数组替换；`description`、`source_lang`、`target_lang`、`enabled`
+没给时保留原值（2026-10-22 起）。可带 `expected_updated_at`（详情里的 `updated_at`），表被别处改过时
+`409 glossary_changed`。表不在是 `404`，不会重新建出来。
 
 CSV 解析：
 
@@ -904,7 +910,12 @@ CSV 表头支持英文和中文别名：
 - 备注：`note/comment/备注/说明`
 - 上下文：`context/上下文/语境`
 
-任务提交时可通过 `translation.glossary_id` 引用命名术语表，也可通过 `translation.glossary_entries` 传 inline 条目。
+没有表头时列序是 `原词,译文,备注`（第 4 列以后不读）。首行有制表符、没有逗号时按制表符分隔读。
+报错带行号（`row 3: …`）。返回 `entries`、`entry_count` 和 `duplicate_count`（去重丢掉的行数）。
+
+任务提交时可通过 `translation.glossary_id` 引用命名术语表（不存在或停用 `400`），也可通过
+`translation.glossary_entries` 传 inline 条目。重跑、阶段重试出新任务时用现在的表加当时的 inline 条目，
+表已删 `409 glossary_missing`。
 
 ## 11. Provider 校验
 

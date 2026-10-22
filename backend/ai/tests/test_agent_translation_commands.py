@@ -446,6 +446,7 @@ def test_retry_conflict_hint_follows_the_backend_reason():
         ("artifacts_missing", "缺少需要的产物"),
         ("ambiguous_translation_request", "不确定"),
         ("ambiguous_ocr_dispatch", "不确定"),
+        ("glossary_missing", "术语表已经删了"),
         ("some_future_reason", "some_future_reason"),
     ]:
         fake = FakeCli({("translation", "retry-stage"): _conflict(reason)})
@@ -522,7 +523,9 @@ def test_term_set_updates_the_job_glossary_and_lists_affected_blocks(tmp_path):
         "context": "",
     }
     assert body["entries"][1]["source"] == "mass"
-    assert set(body) == {"name", "description", "source_lang", "target_lang", "enabled", "entries"}
+    assert set(body) == {"name", "description", "source_lang", "target_lang", "enabled", "entries", "expected_updated_at"}
+    # 带上读到的版本：这期间别处改过这张表，后端 409，不会冲掉别人刚加的词。
+    assert body["expected_updated_at"] == "y"
     assert payload["glossary"]["previous_target"] == "力常数"
     assert payload["glossary"]["created"] is False
     # 原文有这个词、译文没用新译法：p001-b001 和 p002-b002。词边界外的、不翻译的块不算。
@@ -580,6 +583,68 @@ def test_term_set_reuses_the_book_glossary_created_earlier(tmp_path):
     )
     _stdout(_run(fake, 'retainpdf-agent translation term-set --source "mass" --target "质量"', job_dir=job_dir))
     assert fake.calls[-1][1] == ("glossary", "update", "--glossary-id", "glossary-book")
+
+
+class SequencedCli(FakeCli):
+    """同一个 argv 前缀按顺序返回不同结果（用完了一直返回最后一个）。"""
+
+    def __init__(self, sequences: dict[tuple[str, ...], list[CliResult]]) -> None:
+        super().__init__({})
+        self.sequences = sequences
+
+    def __call__(self, action, argv, body):
+        self.calls.append((action, argv, body))
+        for key in (tuple(argv), tuple(argv[:2])):
+            if key in self.sequences:
+                queue = self.sequences[key]
+                return queue.pop(0) if len(queue) > 1 else queue[0]
+        return CliResult(False, 404, {"code": 404, "message": "not found"}, "not found")
+
+
+def _glossary_changed() -> CliResult:
+    body = {
+        "code": 40900,
+        "message": "glossary glossary-1 was changed elsewhere",
+        "error": {"code": "CONFLICT", "http_status": 409, "details": {"reason": "glossary_changed"}},
+    }
+    return CliResult(False, 409, body, "changed")
+
+
+def test_term_set_rereads_and_retries_once_when_the_glossary_changed_meanwhile(tmp_path):
+    job_dir = _job_dir(tmp_path, glossary_id="glossary-1")
+    stale = {"glossary_id": "glossary-1", "name": "力学", "enabled": True, "entries": [], "updated_at": "t1"}
+    fresh = {
+        "glossary_id": "glossary-1",
+        "name": "力学",
+        "enabled": True,
+        "entries": [{"source": "mass", "target": "质量", "level": "canonical", "match_mode": "exact"}],
+        "updated_at": "t2",
+    }
+    fake = SequencedCli(
+        {
+            ("glossary", "get", "--glossary-id", "glossary-1"): [_ok(stale), _ok(fresh)],
+            ("glossary", "update"): [_glossary_changed(), _ok(fresh)],
+        }
+    )
+    _stdout(_run(fake, 'retainpdf-agent translation term-set --source "force constant" --target "劲度系数"', job_dir=job_dir))
+    writes = [call[2] for call in fake.calls if call[0] == "glossary.write"]
+    assert [body["expected_updated_at"] for body in writes] == ["t1", "t2"]
+    # 第二次是在重读到的表上改的：别处刚加的 mass 还在。
+    assert [entry["source"] for entry in writes[1]["entries"]] == ["mass", "force constant"]
+
+
+def test_term_set_gives_up_after_the_second_conflict(tmp_path):
+    job_dir = _job_dir(tmp_path, glossary_id="glossary-1")
+    detail = {"glossary_id": "glossary-1", "name": "力学", "enabled": True, "entries": [], "updated_at": "t1"}
+    fake = SequencedCli(
+        {
+            ("glossary", "get", "--glossary-id", "glossary-1"): [_ok(detail)],
+            ("glossary", "update"): [_glossary_changed()],
+        }
+    )
+    response = _run(fake, 'retainpdf-agent translation term-set --source "a" --target "b"', job_dir=job_dir)
+    assert response["exit_code"] == 1
+    assert len([call for call in fake.calls if call[0] == "glossary.write"]) == 2
 
 
 def test_term_set_stops_when_the_glossary_write_fails(tmp_path):

@@ -141,6 +141,8 @@ mod contract_tests {
     fn create_job_fixture() -> CreateJobInput {
         let mut input = CreateJobInput::default();
         input.translation.execution_connection = Some(model_connection_fixture());
+        // 空的时候不写出来，同样要显式填上。
+        input.translation.glossary_inline_entries = vec![glossary_entry_fixture()];
         input
     }
 
@@ -197,6 +199,11 @@ mod contract_tests {
                 .contains("execution_connection"),
             "fixture 没让 translation.execution_connection 出现在序列化结果里 —— \
              字段集合比对会漏掉它"
+        );
+        assert!(
+            serde_field_names(&input.translation, "TranslationInput")
+                .contains("glossary_inline_entries"),
+            "fixture 没让 translation.glossary_inline_entries 出现在序列化结果里"
         );
     }
 
