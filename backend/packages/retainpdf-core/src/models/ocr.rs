@@ -109,6 +109,14 @@ pub struct OcrProviderOptionSpec {
     pub choices: Vec<String>,
     #[serde(default)]
     pub required: bool,
+    /// 建任务时请求能不能在 `ocr.options` 里带它。`false` 的（本地 OCR 要执行的命令、原始结果的
+    /// 转换器名、配置里带 `env` 的）只能服务器定：请求带了 400，`GET /providers/ocr` 也不给它的默认值。
+    #[serde(default = "default_client_settable")]
+    pub client_settable: bool,
+}
+
+fn default_client_settable() -> bool {
+    true
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]

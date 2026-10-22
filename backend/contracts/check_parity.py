@@ -18,6 +18,7 @@ CONTRACT_NAMES = (
     "jobs-control.v1.schema.json",
     "library-books.v1.schema.json",
     "library-documents.v1.schema.json",
+    "ocr-providers.v1.schema.json",
     "pipeline-stdout.v1.schema.json",
     "public-document-operation.v1.schema.json",
     "refine-report.v1.schema.json",

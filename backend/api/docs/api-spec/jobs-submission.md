@@ -299,6 +299,18 @@ validated for that path.
 OCR provider options:
 
 - `ocr.options` is the canonical JSON object for provider-specific non-secret options.
+- Server-owned options are rejected (since 2026-10-22): `command` and
+  `raw_provider` for every provider, plus any option whose entry in
+  `ocr_providers.json` declares `env` (unless it also declares
+  `"client_settable": true`). A request carrying one returns 400
+  `ocr.options.<key> is server-owned; configure it on the server …`. This applies
+  to `POST /api/v1/jobs`, `POST /api/v1/documents/:id/translate|ocr`, and retry
+  `overrides.ocr.options`. Reruns and stage retries copy the source job's request
+  and drop these keys first (jobs created before the check may still store them),
+  so an old job never fails a rerun because of them. The stage spec only ever
+  carries the server-configured values, and the Python pipeline ignores
+  `command`/`raw_provider` in the spec and reads them from the provider config or
+  `RETAIN_LOCAL_OCR_COMMAND` / `RETAIN_OCR_RAW_PROVIDER`.
 - Paddle `ocr.options.transport` accepts `official_http` (default) or `official_cli`.
 - `official_cli` uses the externally installed official `paddleocr api` client and is only accepted by OCR-only jobs (`workflow=ocr`). It is a Markdown/coarse document extraction path; its result does not provide the `bbox`/`prunedResult` contract required by translation and render, so `book` and `translate` requests must use `official_http`.
 - Selecting `official_cli` does not install PaddleOCR or add it to the server base image. A missing executable is reported as a provider worker failure.
@@ -315,7 +327,11 @@ OCR provider options:
   exposes the resolved secret to the command as `RETAIN_OCR_CREDENTIAL` and,
   when configured, the provider-specific environment variable.
 
-`GET /api/v1/providers/ocr` response example:
+`GET /api/v1/providers/ocr` response example (schema:
+`contracts/ocr-providers.v1.schema.json`; not paginated). Every option carries
+`client_settable` (added 2026-10-22); options with `client_settable: false`
+(for example `local.command`, `local.raw_provider`) are listed with
+`"default": null` so the operator's configured command line is not disclosed:
 
 ```json
 {
@@ -338,14 +354,20 @@ OCR provider options:
         "transport": {
           "type": "string",
           "default": "official_http",
-          "choices": ["official_http", "official_cli"]
+          "aliases": {},
+          "choices": ["official_http", "official_cli"],
+          "required": false,
+          "client_settable": true
         },
         "paddle_model": {
           "type": "string",
           "default": "PaddleOCR-VL-1.6",
           "aliases": {
             "paddleocr-vl": "PaddleOCR-VL-1.6"
-          }
+          },
+          "choices": [],
+          "required": false,
+          "client_settable": true
         }
       },
       "capabilities": {

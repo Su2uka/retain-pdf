@@ -446,7 +446,7 @@ GET /api/v1/providers/ocr
 - `display_name`：展示名
 - `provider_kind`：`remote`、`local_command` 或 `remote_command`
 - `credential`：凭据字段和环境变量约定；本地 provider 可以是 `null`
-- `options`：provider 参数定义，包括 `type/default/env/aliases/choices/required`
+- `options`：provider 参数定义，包括 `type/default/env/aliases/choices/required/client_settable`；`client_settable: false` 的只能服务器定，`default` 恒为 `null`
 - `capabilities`：是否支持 URL、本地文件、轮询、bundle、公式/表格开关
 - `artifact_layout`：provider 原始产物的稳定落盘位置
 
@@ -526,10 +526,13 @@ GET /api/v1/providers/ocr
 }
 ```
 
-Python provider registry 会动态发现 `kind=local_command|remote_command` 的 provider，并用同一个 command driver 执行。`command/raw_provider` 的读取顺序是：
+Python provider registry 会动态发现 `kind=local_command|remote_command` 的 provider，并用同一个 command driver 执行。`command/raw_provider` 只能服务器定（2026-10-22），读取顺序是：
 
-1. stage spec 或运行参数里的 provider options
+1. `ocr_providers.json` 里这个 provider 的 `options.command.default` / `options.raw_provider.default`（内置的 `local` 也一样，每次现读）
 2. `RETAIN_LOCAL_OCR_COMMAND` / `RETAIN_OCR_RAW_PROVIDER`
+
+stage spec 的 `ocr.options` 来自任务请求，`provider_pipeline._args_from_spec` 用 `client_ocr_options` 去掉其中只能服务器定的键
+（`command`、`raw_provider`、配置里带 `env` 的），不拿它们执行。Rust 那边建任务时已经 400、写 spec 时也不让请求覆盖，这里是兜底。
 
 command provider 会收到这些稳定环境变量：
 

@@ -169,7 +169,9 @@ async fn ocr_only_submission_reaches_reader_and_document_outputs() {
                     serde_json::json!({
                         "workflow": "ocr",
                         "source": { "upload_id": upload_id },
-                        "ocr": { "provider": "local", "options": { "command": "fake-local-ocr" } },
+                        // 本地 OCR 的命令只能服务器定（2026-10-22），请求带 options.command 会 400；
+                        // 这里的假 worker 本来也不跑命令。
+                        "ocr": { "provider": "local" },
                         "runtime": { "timeout_seconds": 10 }
                     })
                     .to_string(),

@@ -12,10 +12,12 @@ pub const PADDLE_OFFICIAL_CLI_TRANSPORT: &str = "official_cli";
 
 #[allow(unused_imports)]
 pub use catalog::{
-    ensure_provider_diagnostics, is_supported_provider, provider_artifact_layout,
-    provider_capabilities, provider_definition, provider_display_name, provider_model_version,
+    ensure_provider_diagnostics, is_server_owned_ocr_option, is_supported_provider,
+    provider_artifact_layout, provider_capabilities, provider_client_definitions,
+    provider_definition, provider_display_name, provider_model_version,
     provider_public_definitions, provider_token, provider_token_env_name,
-    provider_token_field_name, supported_provider_keys,
+    provider_token_field_name, server_owned_ocr_options, strip_server_owned_ocr_options,
+    supported_provider_keys, SERVER_OWNED_OCR_OPTION_KEYS,
 };
 pub use provider_config::{
     configured_provider_credential_env, normalize_paddle_model_name, paddle_default_model,

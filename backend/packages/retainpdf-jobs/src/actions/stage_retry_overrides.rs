@@ -3,6 +3,8 @@ use serde_json::Value;
 use retainpdf_api_base::error::AppError;
 use retainpdf_core::models::domain::{CreateJobInput, ResolvedJobSpec, RENDER_ENGINES};
 
+use crate::lifecycle::validation::validate_client_ocr_options;
+
 /// 重试 overrides 可以改 render.engine（例如同一任务换 rpr 引擎重渲染对比），
 /// 但非法值要和创建任务一样 400，不能写进 spec 再让 Python 静默回退。
 fn validate_render_engine_override(engine: &str) -> Result<(), AppError> {
@@ -27,7 +29,8 @@ pub(super) fn apply_retry_overrides(
             input.ocr = serde_json::from_value(patched)
                 .map_err(|err| AppError::bad_request(format!("invalid ocr overrides: {err}")))?;
             apply_ocr_secret_source_switch(&mut input.ocr, switch);
-            Ok(())
+            // 复制源请求时已经去掉老任务存着的，这里还有就是 overrides 带进来的。
+            validate_client_ocr_options(&input.ocr)
         },
         |patch| {
             let switch = translation_secret_source_switch(&patch);
@@ -77,7 +80,9 @@ pub(super) fn apply_retry_overrides_to_resolved_spec(
             spec.ocr = serde_json::from_value(patched)
                 .map_err(|err| AppError::bad_request(format!("invalid ocr overrides: {err}")))?;
             apply_ocr_secret_source_switch(&mut spec.ocr, switch);
-            Ok(())
+            // 原地重渲染、精修不经建任务校验：prepare_in_place_render_job 已经去掉老任务存着的，
+            // 这里还有就是 overrides 带进来的。
+            validate_client_ocr_options(&spec.ocr)
         },
         |patch| {
             let switch = translation_secret_source_switch(&patch);

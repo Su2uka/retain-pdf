@@ -758,6 +758,62 @@ fn submit_job_refuses_existing_or_malformed_job_ids() {
     submit_input(&deps, &input).expect("不带编号：服务器生成");
 }
 
+/// 审计 A2（2026-10-22）：`ocr.options` 里只能服务器定的选项（本地 OCR 要执行的命令、原始结果的
+/// 转换器名、配置里带 `env` 的）出现在请求里就 400，`POST /jobs` 和书的两个入口都一样，什么都不落库。
+/// 以前它们原样盖在配置默认值上，流水线拿 `command` 去执行。
+#[test]
+fn every_entry_rejects_server_owned_ocr_options() {
+    let state = test_state("server-owned-ocr-options");
+    let facade =
+        crate::app::build_jobs_facade_with_launcher(&state, JobRuntimeLauncher::new(Arc::new(|_| {})));
+    let upload = seed_upload(&state, "upload-server-owned");
+    let cases = [
+        (WorkflowKind::Ocr, "local", "command", "ocr.options.command is server-owned"),
+        (WorkflowKind::Ocr, "local", "raw_provider", "ocr.options.raw_provider is server-owned"),
+        // 和提供方无关：哪个提供方的请求带 command 都拒。
+        (WorkflowKind::Ocr, "paddle", "command", "ocr.options.command is server-owned"),
+        (WorkflowKind::Book, "local", "command", "ocr.options.command is server-owned"),
+        (WorkflowKind::Book, "mineru", "raw_provider", "ocr.options.raw_provider is server-owned"),
+    ];
+    for (workflow, provider, key, expected) in cases {
+        let mut input = base_translation_input(workflow.clone());
+        input.source.upload_id = upload.upload_id.clone();
+        input.ocr.provider = provider.to_string();
+        input.ocr.paddle_token = "paddle-token".to_string();
+        input
+            .ocr
+            .options
+            .insert(key.to_string(), serde_json::json!("sh -c 'touch /tmp/pwned'"));
+        for (entry, result) in [
+            ("POST /jobs", facade.create_submission("http://retain.test", &input)),
+            (
+                "documents",
+                facade.create_document_submission("http://retain.test", &input, "doc-x"),
+            ),
+        ] {
+            let err = result.expect_err(&format!("{entry} {workflow:?} {provider} {key} 必须 400"));
+            assert!(
+                matches!(&err, AppError::BadRequest(message) if message.starts_with(expected)),
+                "{entry} {workflow:?} {provider} {key}: {err:?}"
+            );
+        }
+    }
+    assert!(state.db.list_jobs(100, 0, None, None).unwrap().is_empty(), "被拒的请求不落库");
+
+    // 客户端可填的选项照旧通过。
+    let mut input = base_translation_input(WorkflowKind::Ocr);
+    input.source.upload_id = upload.upload_id.clone();
+    input.ocr.provider = "paddle".to_string();
+    input.ocr.paddle_token = "paddle-token".to_string();
+    input
+        .ocr
+        .options
+        .insert("transport".to_string(), serde_json::json!("official_cli"));
+    facade
+        .create_submission("http://retain.test", &input)
+        .expect("transport 是客户端可填的");
+}
+
 // 按页额度、平台设置接在建任务上的测试，共用上面的 `test_state`、`submit_context`。
 mod page_quota;
 mod platform;

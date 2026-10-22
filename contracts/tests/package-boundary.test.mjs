@@ -10,6 +10,7 @@ const generatedJobStatus = readFileSync(resolve("src/job-status.ts"), "utf8");
 const generatedJobEvents = readFileSync(resolve("src/job-events.ts"), "utf8");
 const generatedLibraryBooks = readFileSync(resolve("src/library-books.ts"), "utf8");
 const generatedLibraryDocuments = readFileSync(resolve("src/library-documents.ts"), "utf8");
+const generatedOcrProviders = readFileSync(resolve("src/ocr-providers.ts"), "utf8");
 const generatedReaderData = readFileSync(resolve("src/reader-data.ts"), "utf8");
 const RAW_SCHEMA_EXPORTS = [
   "./ai-ask.v1.schema.json",
@@ -22,6 +23,7 @@ const RAW_SCHEMA_EXPORTS = [
   "./jobs-control.v1.schema.json",
   "./library-books.v1.schema.json",
   "./library-documents.v1.schema.json",
+  "./ocr-providers.v1.schema.json",
   "./pipeline-stdout.v1.schema.json",
   "./public-document-operation.v1.schema.json",
   "./reader-data.v1.schema.json",
@@ -42,6 +44,7 @@ test("package exposes only explicit DTO and raw schema subpaths", () => {
       "./job-events",
       "./library-books",
       "./library-documents",
+      "./ocr-providers",
       "./reader-data",
       "./token-usage",
       "./translation-revisions",
@@ -158,6 +161,22 @@ test("generated library-documents DTO entry exposes the book, collection and sea
   assert.match(generatedLibraryDocuments, /documents: DocumentRecord\[\];/);
   assert.match(generatedLibraryDocuments, /hits: BlockSearchHit\[\];/);
   assert.doesNotMatch(generatedLibraryDocuments, /\[k: string\]: unknown/);
+});
+
+// OCR 提供方清单 GET /providers/ocr（2026-10-22）：选项带 client_settable，只能服务器定的不给默认值。
+test("generated ocr-providers DTO entry exposes the provider list types", () => {
+  for (const typeName of [
+    "OcrProviderListView",
+    "OcrProviderPublicDefinition",
+    "OcrProviderCredentialSpec",
+    "OcrProviderOptionSpec",
+    "OcrProviderCapabilities",
+    "OcrProviderArtifactLayout",
+  ]) {
+    assert.match(generatedOcrProviders, new RegExp(`export (?:interface|type) ${typeName}\\b`));
+  }
+  assert.match(generatedOcrProviders, /export type OcrProviderListView = OcrProviderPublicDefinition\[\];/);
+  assert.match(generatedOcrProviders, /client_settable: boolean;/);
 });
 
 // 书架批量删除 2026-10-19 前就删了；书架列表、单本、删除旧地址 2026-10-22 删了。契约里不再留它们的类型。

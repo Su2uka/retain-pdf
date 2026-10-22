@@ -36,6 +36,10 @@
 }
 ```
 
+`command`、`raw_provider` 只能服务器定：只认这份配置的默认值和环境变量，任务请求的 `ocr.options` 里带了 400
+（`ocr.options.command is server-owned; …`，2026-10-22，见 [local-command 插件](./04-local-command插件.md)）。
+配置里带 `env` 的选项默认也只能服务器定；要让客户端能填，在选项里写 `"client_settable": true`（对 `command`、`raw_provider` 无效）。
+
 ## 凭据
 
 配置型 command provider 的凭据可来自：

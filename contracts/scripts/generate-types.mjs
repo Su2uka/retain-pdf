@@ -38,6 +38,11 @@ const TARGETS = [
     rootName: "LibraryDocumentsSchema",
   },
   {
+    input: "ocr-providers.v1.schema.json",
+    output: "src/ocr-providers.ts",
+    rootName: "OcrProvidersSchema",
+  },
+  {
     input: "reader-data.v1.schema.json",
     output: "src/reader-data.ts",
     rootName: "ReaderDataSchema",

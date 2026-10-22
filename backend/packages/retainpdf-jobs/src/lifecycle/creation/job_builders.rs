@@ -7,7 +7,7 @@ use super::prepare::{
     prepare_full_pipeline_input, prepare_ocr_input, prepare_render_input,
     prepare_translate_only_input,
 };
-use crate::lifecycle::validation::validate_runtime_limits;
+use crate::lifecycle::validation::{validate_client_ocr_options, validate_runtime_limits};
 use crate::deps::SnapshotBuildDeps;
 
 pub fn build_translation_job_snapshot(
@@ -17,6 +17,7 @@ pub fn build_translation_job_snapshot(
     // 三条翻译/渲染路径的公共入口：runtime 参数在这里统一校验，
     // 而不是散落在各自的 prepare_* 里（见 validate_runtime_limits 的注释）。
     validate_runtime_limits(input)?;
+    validate_client_ocr_options(&input.ocr)?;
     match input.workflow {
         // submit_job 把 workflow=ocr 分给 build_ocr_job_snapshot，走不到这里；
         // 对外入口对 ocr 的提示在各自的入口里（见 submission.rs）。
@@ -98,6 +99,7 @@ pub fn build_ocr_job_snapshot(
     upload: Option<&UploadRecord>,
 ) -> Result<JobSnapshot, AppError> {
     validate_runtime_limits(input)?;
+    validate_client_ocr_options(&input.ocr)?;
     let prepared = prepare_ocr_input(ctx, input, upload)?;
     build_job_snapshot(
         &ctx.config,
