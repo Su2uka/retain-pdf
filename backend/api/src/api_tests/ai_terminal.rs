@@ -218,3 +218,87 @@ async fn frames_flow_in_both_directions_through_the_proxy() {
     upstream_task.abort();
     proxy_task.abort();
 }
+
+// ---------------------------------------------------------------- 来源
+
+fn terminal_request(origin: Option<&str>) -> Request<Body> {
+    let mut builder = Request::builder()
+        .uri("/api/v1/ai/terminal?api_key=test-key")
+        .header(axum::http::header::HOST, "127.0.0.1:41000");
+    if let Some(origin) = origin {
+        builder = builder.header(axum::http::header::ORIGIN, origin);
+    }
+    builder.body(Body::empty()).unwrap()
+}
+
+#[tokio::test]
+async fn a_foreign_origin_cannot_open_the_terminal_even_with_the_key() {
+    // 浏览器不对 WebSocket 做 CORS：任意网页带着公开的 dev-local-key 都能握手。
+    // 只能在握手时看 Origin。`file://`（Electron 退回本地页面、双击打开的本地 HTML，
+    // WebSocket 握手带的就是它）和 `null` 也不放行。
+    let app = crate::app::build_app(test_state("ai-terminal-evil-origin"));
+    for origin in ["https://evil.example", "file://", "null"] {
+        let response = app.clone().oneshot(terminal_request(Some(origin))).await.unwrap();
+        assert_eq!(response.status(), StatusCode::FORBIDDEN, "{origin}");
+        let body = crate::api_tests::jobs_common::read_json(response).await;
+        assert_eq!(body["error"]["code"], "FORBIDDEN", "{body}");
+        assert!(!body.to_string().contains("test-key"), "错误里不能带 key: {body}");
+    }
+}
+
+#[tokio::test]
+async fn loopback_origins_and_origin_less_clients_still_reach_the_handshake() {
+    // 没有 upgrade 头，handler 回 400（「要 websocket 升级」）—— 说明来源和 key 都过了。
+    let app = crate::app::build_app(test_state("ai-terminal-ok-origin"));
+    for origin in [Some("http://127.0.0.1:40001"), Some("http://localhost:5173"), None] {
+        let response = app.clone().oneshot(terminal_request(origin)).await.unwrap();
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST, "{origin:?}");
+    }
+}
+
+#[tokio::test]
+async fn a_real_handshake_from_a_foreign_origin_is_refused_before_upgrading() {
+    use tokio_tungstenite::tungstenite::client::IntoClientRequest;
+    use tokio_tungstenite::tungstenite::Error as WsError;
+
+    let (upstream_base, upstream_task) = start_fake_upstream().await;
+    let mut state = test_state("ai-terminal-real-origin");
+    state.ai_gateway = std::sync::Arc::new(
+        crate::services::ai::AiGateway::new(
+            &crate::config::AiProxyConfig::default(),
+            upstream_base,
+            || crate::runtime::ai_supervisor::AI_STATUS_HEALTHY,
+        )
+        .unwrap(),
+    );
+    let app = crate::app::build_app(state);
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let proxy_addr = listener.local_addr().unwrap();
+    let proxy_task = tokio::spawn(async move {
+        let _ = axum::serve(listener, app).await;
+    });
+    let url = format!("ws://{proxy_addr}/api/v1/ai/terminal?api_key=test-key&session=s");
+
+    let mut evil = url.as_str().into_client_request().unwrap();
+    evil.headers_mut()
+        .insert("origin", "https://evil.example".parse().unwrap());
+    match tokio_tungstenite::connect_async(evil).await {
+        Err(WsError::Http(response)) => assert_eq!(response.status(), StatusCode::FORBIDDEN),
+        other => panic!("恶意来源不该握手成功: {:?}", other.map(|_| ())),
+    }
+
+    let mut ours = url.as_str().into_client_request().unwrap();
+    ours.headers_mut()
+        .insert("origin", format!("http://127.0.0.1:{}", proxy_addr.port() + 1).parse().unwrap());
+    let (mut socket, _) = tokio_tungstenite::connect_async(ours).await.expect("本机页面照旧能连");
+    use futures_util::StreamExt;
+    let first = tokio::time::timeout(Duration::from_secs(5), socket.next())
+        .await
+        .expect("首帧超时")
+        .unwrap()
+        .unwrap();
+    assert!(first.to_string().contains("\"ready\""), "{first:?}");
+
+    upstream_task.abort();
+    proxy_task.abort();
+}

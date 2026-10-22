@@ -72,6 +72,28 @@
 不就绪时信封是 `code: 50300`、`message: "not ready"`，带 `error`（`SERVICE_UNAVAILABLE`，`details.reasons` 和 `data.reasons`
 一样），`data` 照旧给全；2026-10-22 以前 503 时信封仍是 `code: 0`、`message: "ok"`。
 
+### 1.1 单机模式的来源和主机
+
+2026-10-22 起，单机模式不再对任何来源都回 CORS 头（以前是 `CorsLayer::permissive()`）。规则（方案见
+[单机来源和主机校验](../../ops/planning/api-reorg/20261022-单机来源和主机校验.md)）：
+
+- **CORS 只回给三类来源**：回环页面（`localhost`、`127.0.0.0/8`、`[::1]`，端口、http/https 不限）；
+  主机和请求的 `Host`（或反向代理写的 `X-Forwarded-Host`）相同、只是端口不同的页面（局域网 / 公网 IP、
+  域名分两个端口访问开发栈）；`RUST_API_ALLOWED_ORIGINS` 列出的来源。`null`、`file://` 不放行。
+  来源不在名单里只是**不回 CORS 头**，请求照常处理（同源代理会把页面的 `Origin` 原样转发过来）。
+  方法、请求头照预检回显（`X-API-Key`、`Content-Type`、`Range`……），响应头全部暴露
+  （`Access-Control-Expose-Headers: *`），不回 `Access-Control-Allow-Credentials`。
+- **助手终端 WebSocket**（`/api/v1/ai/terminal`）：浏览器不对 WebSocket 做 CORS，所以握手时带了
+  `Origin` 且不在上面同一份名单里就 `403`（`error.code = "FORBIDDEN"`，`message` 为
+  `request origin is not allowed`）；不带 `Origin` 的命令行客户端照旧只看 key。AI 服务自己的
+  `/v1/fx/terminal` 带 `Origin` 一律拒（浏览器从不直连它）。
+- **`Host` 校验（防 DNS rebinding）**：后端监听回环地址时，`Host` 必须是 `localhost`、IP 字面量或
+  `RUST_API_ALLOWED_HOSTS` 里的主机名，否则所有地址（含 `/health`、第二个端口）都回 `403`
+  （`message` 为 `request host is not allowed`）。监听非回环地址时只有配了 `RUST_API_ALLOWED_HOSTS`
+  才查。不带 `Host` 的请求（HTTP/1.0 直连）不查。
+
+多用户模式不受这些影响：跨域照旧只认 `RETAIN_ALLOWED_ORIGINS` 并带凭据，不查 `Host`。
+
 ## 2. 推荐前端接入路径
 
 图书馆页面（2026-10-19 起，见 [书架冻结与删任务新地址](../../ops/planning/api-reorg/20261019-书架冻结与删任务新地址.md)）：
@@ -637,11 +659,13 @@ Content-Length: 65536
 Content-Type: application/pdf
 ```
 
-跨域读取时，后端会暴露：
+跨域读取时（来源在 [1.1](#11-单机模式的来源和主机) 的名单里），后端暴露全部响应头，包括：
 
 - `Accept-Ranges`
 - `Content-Range`
 - `Content-Length`
+- `Content-Disposition`
+- `ETag`
 - `X-Job-Id`
 
 页级预览：

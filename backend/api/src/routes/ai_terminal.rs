@@ -12,6 +12,12 @@
 //!
 //! 只在这一条路由上接受 —— 放宽全局鉴权会把 key 写进每一条访问日志和
 //! Referer，代价远大于收益。
+//!
+//! ## 为什么还要查 Origin
+//!
+//! 浏览器不对 WebSocket 做 CORS，单机的默认 key 又是公开的：不查的话任意网页都能连上来
+//! 执行命令。带 `Origin` 且不在名单里（`OriginPolicyConfig::allows_origin`，和 CORS 同一份）
+//! 就 403；不带 `Origin` 的是命令行客户端，照旧只看 key。
 
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::extract::State;
@@ -23,7 +29,7 @@ use tokio_tungstenite::tungstenite::Message as UpstreamMessage;
 
 use crate::app::AppState;
 use crate::error::AppError;
-use crate::routes::common::{build_ai_terminal_route_deps, ApiQuery};
+use crate::routes::common::{build_ai_terminal_route_deps, request_origin_is_allowed, ApiQuery};
 use axum::response::IntoResponse;
 
 /// ai_service 那一侧的路径。rust_api 只换地址，不改协议 —— 帧原样转发。
@@ -110,6 +116,18 @@ pub async fn terminal_proxy(
     upgrade: Option<WebSocketUpgrade>,
 ) -> Response {
     let deps = build_ai_terminal_route_deps(&state);
+    // 浏览器不对 WebSocket 做 CORS：任意网页都能带着公开的默认 key 来握手，所以这里看 Origin，
+    // 和 CORS 用同一份名单。没有 Origin 的是命令行客户端，照旧只看 key。日志里不记 key。
+    if let Some(origin) = headers.get(axum::http::header::ORIGIN) {
+        if !request_origin_is_allowed(deps.origin_policy, &headers, origin) {
+            tracing::warn!(
+                target: "ai_terminal",
+                origin = %String::from_utf8_lossy(origin.as_bytes()),
+                "refused terminal handshake from a foreign origin"
+            );
+            return AppError::forbidden("request origin is not allowed").into_response();
+        }
+    }
     let header_key = headers.get("x-api-key").and_then(|value| value.to_str().ok());
     if !terminal_key_is_valid(deps.api_keys, header_key, &query.api_key) {
         // 升级前就拒：不要先握手成功再关，那样前端拿到的是「连上了又断」，

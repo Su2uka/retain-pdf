@@ -166,6 +166,13 @@ http://127.0.0.1:40001
   后端普通上传大小限制，`0` 表示不限制；当前交付包建议写成 `209715200`。
 - `RUST_API_UPLOAD_MAX_PAGES`
   后端普通上传页数限制，`0` 表示不限制；当前交付包建议写成 `300`。
+- `RUST_API_ALLOWED_ORIGINS`（默认不写）
+  额外放行跨域的网页来源，逗号分隔，写全 `https://pdf.example.com`。标准部署走 web 容器同源代理，
+  用域名访问也不用配；只有页面挂在别的主机、直接跨域调后端时才要写。
+- `RUST_API_ALLOWED_HOSTS`（默认不写）
+  允许的 `Host` 主机名，逗号分隔，例如 `pdf.example.com`。容器里后端监听 `0.0.0.0`，不写就不校验 `Host`，
+  用域名访问照常；写了就只认这些主机名、`localhost` 和 IP 字面量（防 DNS rebinding），注意把 NGINX
+  转发过来的域名都写上。规则见 `docs/core/api/index.md` 的「1.1 单机模式的来源和主机」。
 
 ## 说明
 

@@ -87,6 +87,31 @@ def test_a_bad_key_cannot_open_a_terminal(
             websocket.receive_json()
 
 
+@pytest.mark.parametrize(
+    "origin",
+    ["https://evil.example", "http://127.0.0.1:40001", "file://", "null"],
+)
+def test_a_browser_handshake_cannot_open_a_terminal_even_with_the_key(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, origin: str
+) -> None:
+    """浏览器不对 WebSocket 做 CORS：带 Origin 的握手（浏览器一定带）直连本服务一律拒。
+
+    连回环来源也拒：前端从不直连本服务，走的是 rust_api 的 `/api/v1/ai/terminal`。
+    """
+    client = _client(tmp_path, monkeypatch)
+    with pytest.raises(Exception):  # noqa: B017,PT011 - starlette 关闭连接的异常类型
+        with client.websocket_connect(
+            f"/v1/fx/terminal?api_key={API_KEY}", headers={"Origin": origin}
+        ) as websocket:
+            websocket.receive_json()
+
+
+def test_origin_less_handshakes_are_judged_by_the_key_alone() -> None:
+    assert fx_terminal_routes.handshake_is_not_from_a_browser(None) is True
+    assert fx_terminal_routes.handshake_is_not_from_a_browser("") is False
+    assert fx_terminal_routes.handshake_is_not_from_a_browser("http://localhost") is False
+
+
 # ---------------------------------------------------------------- 开关
 
 

@@ -129,5 +129,6 @@ pub(crate) fn test_app_config(root: &Path) -> crate::config::AppConfig {
         reader_llm: crate::config::ReaderLlmConfig::default(),
         rag: crate::config::RagConfig::default(),
         accounts: Default::default(),
+        origin_policy: Default::default(),
     }
 }

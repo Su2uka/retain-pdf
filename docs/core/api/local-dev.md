@@ -56,7 +56,15 @@ Docker 中 `ops/deployment/docker/delivery/docker/auth.local.json` 的 `api_keys
 
 - `RUST_API_ROOT`：Rust API 根目录。
 - `RUST_API_PROJECT_ROOT`：项目根目录。
-- `RUST_API_BIND_HOST`：监听 IP 地址，默认 `127.0.0.1`。
+- `RUST_API_BIND_HOST`：监听 IP 地址，默认 `127.0.0.1`。监听回环地址时会校验 `Host`（见下面两条）。
+- `RUST_API_ALLOWED_ORIGINS`：单机模式额外放行的网页来源，逗号分隔，写全 `scheme://host[:port]`，
+  例如 `https://pdf.example.com,http://10.0.0.2:8080`；不支持通配，`null`、`file://` 会被丢掉。
+  回环页面、和 API 同主机只是端口不同的页面不用写。只在页面和 API 不同主机时要配；
+  它管 CORS 和助手终端 WebSocket 的握手。多用户模式用的是 `RETAIN_ALLOWED_ORIGINS`，两个互不影响。
+- `RUST_API_ALLOWED_HOSTS`：单机模式额外放行的 `Host` 主机名（不带端口也行，带了会忽略），逗号分隔。
+  `localhost` 和 IP 字面量总是放行。后端监听回环地址、前面又有反向代理把域名放进 `Host`
+  （例如 nginx `proxy_set_header Host $host` 转发到 `127.0.0.1:41000`）时必须配；监听非回环地址时配了才校验。
+  规则见 [API 总入口 1.1](index.md#11-单机模式的来源和主机)。
 - `RUST_API_PORT`：完整 API 端口，默认 `41000`。
 - `RUST_API_SIMPLE_PORT`：第二个端口（只有 `/health`、`/ready`），默认 `42000`。
 - `RUST_API_DATA_ROOT`：运行时数据根目录。

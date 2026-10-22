@@ -768,3 +768,43 @@ API / jobsd 重启时，翻译阶段运行中的任务以前一律自动续跑�
   [凭据规范](../../../backend/api/docs/api-spec/credentials.md#when-credentials-imported-by-job-creation-are-removed)）。
   要不要在设置页加"清除服务端保存的密钥"（`GET /credentials` 列出、`DELETE /credentials/{credential_ref}` 删），由前端定。
 - 凭据 `409` 现在可以按 `error.details.reason` 分支，`credentials.ts:75` 读顶层 `code` 的写法照旧能用。
+
+## 单机模式收紧 CORS、终端握手查 Origin、回环监听时查 Host（fix/single-mode-origin-checks）
+
+2026-10-22。审计第三节 6，用户定"收紧"。规则见 [API 总入口 1.1](../api/index.md#11-单机模式的来源和主机)，
+方案见 [单机来源和主机校验](../../ops/planning/api-reorg/20261022-单机来源和主机校验.md)。
+
+### 变了什么
+
+| 地方 | 以前 | 现在 |
+|---|---|---|
+| 单机 CORS | `CorsLayer::permissive()`：任何来源都回 `Access-Control-Allow-Origin: *` | 只回给回环页面（`localhost`、`127.0.0.0/8`、`[::1]`，端口不限）、和 API 同主机只是端口不同的页面、`RUST_API_ALLOWED_ORIGINS` 列出的来源；回的是来源本身（不是 `*`），`Vary: origin`。别的来源不回 CORS 头，但请求照常处理（不 403）。`null`、`file://` 不放行 |
+| 预检 | 全放行 | 方法、请求头照预检回显（`X-API-Key`、`Content-Type`、`Range` 都能过） |
+| 跨源可读的响应头 | 全部（`*`） | 不变，仍是全部（`Content-Disposition`、`Content-Range`、`ETag`、`Accept-Ranges`、`Content-Length`……）；不回 `Allow-Credentials`，单机前端本来就不带 credentials |
+| 助手终端 `ws(s)://…/api/v1/ai/terminal` | 只看 key | 握手带 `Origin` 且不在上面那份名单里就 HTTP `403`（`error.code = "FORBIDDEN"`）；不带 `Origin` 的（命令行）照旧只看 key |
+| AI 服务 `/v1/fx/terminal`（41100） | 只看 key | 带 `Origin` 一律拒（浏览器从不直连它，前端走上面那条） |
+| `Host` | 不查 | 后端监听回环地址时（开发栈默认 key、桌面版），`Host` 不是 `localhost`、IP 字面量或 `RUST_API_ALLOWED_HOSTS` 里的主机名就 `403 request host is not allowed`（含 `/health`）。监听非回环地址（Docker、换了 key 的开发栈）只在配了名单时查 |
+
+### 核对过的调用方（不用改）
+
+- 开发栈：页面 `http://127.0.0.1:40001` / `http://localhost:40001` → API `:41000`，回环来源；局域网 / 公网 IP、域名分两个端口
+  访问时页面和 API 同主机只差端口，都放行。`serve_same_origin.py` 同源转发，后端收到 `Host: 127.0.0.1:41000`、页面的 `Origin`
+  原样转发——不在名单里也只是不回 CORS 头，浏览器看来同源，不受影响；它不转发 WebSocket，终端照旧直连 `apiBase`。
+- 桌面壳网关：页面 `http://127.0.0.1:<网关端口>`，`/api/*` 转发时删掉 `Host`，Node 补成 `127.0.0.1:<后端端口>`；终端 WebSocket
+  直连 `apiBase`（`http://127.0.0.1:<后端端口>`），`Origin` 是 `http://127.0.0.1:<网关端口>`，回环，放行。就绪探测、复用探测都打
+  `http://127.0.0.1:<端口>/health`。
+- Docker：web 容器 NGINX 同源代理，`Host $http_host` 原样转发，后端监听 `0.0.0.0` 不查 `Host`；容器健康检查打
+  `http://127.0.0.1:41000/ready`、`http://127.0.0.1/health`。
+- AI 服务、`retainpdf-agent`、CLI 默认 `apiBase`、`dev.sh` / `dev_stack.py` 的探测都用 `127.0.0.1`，IP 字面量放行。
+
+### 桌面壳退回 `file://`：前端已在 fix/desktop-gateway-origin 做完
+
+网关起不来时桌面壳退回 `file://` 页面。实测（Electron 44.4.3）：这时 `fetch` 不带 `Origin`、也不发预检，走"没有 `Origin` 只看 key"，
+不受影响；但终端 WebSocket 握手带 `Origin: file://`，后端不放行（`file://`、`null` 都不放：浏览器里双击打开的本地 HTML 也是这个来源）。
+前端已在 `fix/desktop-gateway-origin` 改好：网关端口用尽时退到端口 0；退回 `file://` 时用 `session.webRequest.onBeforeSendHeaders`
+把发往本机 `apiBase` 的 `Origin` 改成 `http://127.0.0.1`。
+
+### 其它
+
+- `frontend/packages/api/src/internal/runtime.ts` 第 89 行注释说"当前后端是 `CorsLayer::permissive()`"，已经不对了，前端顺手改掉即可，
+  不影响行为。

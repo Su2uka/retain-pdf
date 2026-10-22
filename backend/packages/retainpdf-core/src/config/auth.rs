@@ -41,14 +41,8 @@ impl AuthRuntimeConfig {
     }
 
     pub fn validate_bind_host(&self, host: &str) -> Result<()> {
-        let address: IpAddr = host.parse().context("bind host must be an IP address")?;
-        let loopback = match address {
-            IpAddr::V4(address) => address.is_loopback(),
-            IpAddr::V6(address) => address
-                .to_ipv4_mapped()
-                .map_or_else(|| address.is_loopback(), |address| address.is_loopback()),
-        };
-        if !loopback && self.api_keys.contains("dev-local-key") {
+        let _: IpAddr = host.parse().context("bind host must be an IP address")?;
+        if !super::origin_policy::bind_host_is_loopback(host) && self.api_keys.contains("dev-local-key") {
             bail!("the default development API key is not allowed for non-loopback listening");
         }
         Ok(())

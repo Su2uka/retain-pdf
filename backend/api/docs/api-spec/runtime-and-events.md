@@ -189,6 +189,18 @@ Notes:
 - request body `translation.api_key` is the temporary inline downstream-model
   credential; new translation calls should use `translation.credential_ref`
 - browsers may issue `OPTIONS` preflight for CORS; these are allowed through middleware
+- single mode (since 2026-10-22) answers CORS only for loopback origins
+  (`localhost`, `127.0.0.0/8`, `[::1]`, any port), origins whose host equals the
+  request `Host` / `X-Forwarded-Host` (port may differ), and
+  `RUST_API_ALLOWED_ORIGINS`; other origins get no CORS headers but are not
+  rejected. Methods and request headers are mirrored, all response headers are
+  exposed, no credentials. The assistant terminal WebSocket
+  (`/api/v1/ai/terminal`) returns `403` when an `Origin` header is present and
+  not on that list. When listening on a loopback address, a `Host` that is not
+  `localhost`, an IP literal or listed in `RUST_API_ALLOWED_HOSTS` gets `403
+  request host is not allowed` (DNS rebinding); on a non-loopback address the
+  `Host` check only applies when `RUST_API_ALLOWED_HOSTS` is set. See
+  `docs/core/api/index.md` section 1.1.
 - if `auth.local.json` exists, it overrides key and concurrency settings from env
 
 ## Config Precedence

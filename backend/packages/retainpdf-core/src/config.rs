@@ -13,6 +13,7 @@ pub mod env_vars;
 mod job_runner;
 mod jobs_service;
 pub mod limits;
+mod origin_policy;
 mod paths;
 mod provider;
 pub mod provider_config;
@@ -29,6 +30,7 @@ pub use cleanup::CleanupConfig;
 pub use db::DbConfig;
 pub use job_runner::{JobRunnerConfig, JOB_WORKER_THREAD_STACK_BYTES};
 pub use jobs_service::{JobsRuntimeMode, JobsServiceConfig};
+pub use origin_policy::{bind_host_is_loopback, OriginPolicyConfig};
 use paths::{create_runtime_dirs, RuntimePathsConfig};
 pub use provider::{
     DeepSeekRuntimeConfig, MineruRuntimeConfig, PaddleRuntimeConfig, ProviderLimitsConfig,
@@ -134,6 +136,8 @@ pub struct AppConfig {
     pub reader_llm: ReaderLlmConfig,
     pub rag: RagConfig,
     pub accounts: AccountsConfig,
+    /// 单机模式放行哪些网页来源、哪些 `Host`（`RUST_API_ALLOWED_ORIGINS`、`RUST_API_ALLOWED_HOSTS`）。
+    pub origin_policy: OriginPolicyConfig,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -180,6 +184,11 @@ struct AppConfigParts {
 }
 
 impl AppConfig {
+    /// 后端是不是只监听回环地址（决定要不要默认校验 `Host`）。
+    pub fn listens_on_loopback(&self) -> bool {
+        bind_host_is_loopback(&self.bind_host)
+    }
+
     pub fn worker_command_runtime(&self) -> WorkerCommandRuntimeConfig<'_> {
         WorkerCommandRuntimeConfig {
             python_bin: &self.python_bin,
@@ -304,6 +313,7 @@ impl AppConfig {
             reader_llm: ReaderLlmConfig::from_env(),
             rag: RagConfig::from_env(),
             accounts: AccountsConfig::from_env()?,
+            origin_policy: OriginPolicyConfig::from_env(),
         })
     }
 }
