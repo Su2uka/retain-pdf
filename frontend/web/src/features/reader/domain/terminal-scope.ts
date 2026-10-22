@@ -83,12 +83,14 @@ export async function loadCollectionOptions(
  * "能不能切"和"不能的话怎么说"，一个可空字符串就够，少一层解构。
  */
 export async function ensureCollectionWorkspace(
-  fetchJson: (path: string) => Promise<unknown>,
+  fetchJson: (path: string, init?: { method?: string }) => Promise<unknown>,
   collectionId: string,
 ): Promise<string | null> {
   try {
+    // 物化会重建磁盘上的目录，所以是 POST（2026-10-19 前是 GET，旧写法后端标了旧地址）。
     const payload = await fetchJson(
       `/api/v1/collections/${encodeURIComponent(collectionId)}/agent-workspace`,
+      { method: "POST" },
     );
     const data = (payload as { data?: { books?: unknown } } | null)?.data;
     const books = Array.isArray(data?.books) ? data.books : null;
@@ -98,6 +100,8 @@ export async function ensureCollectionWorkspace(
     if (books.length === 0) return "这个文件夹里还没有翻译好的书";
     return null;
   } catch (error) {
+    // 文件夹在列表拿到之后被删了：后端 404（以前是 200 + 空清单）。
+    if ((error as { status?: unknown } | null)?.status === 404) return "这个文件夹已经不存在了";
     return String(error).slice(0, 80);
   }
 }
