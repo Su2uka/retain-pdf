@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { CollectionRecord, CollectionsController } from "@/features/collections/index.js";
 import type {
@@ -30,6 +30,12 @@ export function useRecentJobsBatchSelection({
   const [batchBusy, setBatchBusy] = useState(false);
   const [pendingDeleteIds, setPendingDeleteIds] = useState<string[] | null>(null);
   const [collections, setCollections] = useState<CollectionRecord[]>([]);
+
+  // 列表一卸载（切 tab、开任务中心）批量模式就没了，要报回去；不然 HomeApp 回来时底部栏还藏着，
+  // 上传、搜索、设置、任务中心的入口全看不见。
+  const onBatchModeChangeRef = useRef(onBatchModeChange);
+  onBatchModeChangeRef.current = onBatchModeChange;
+  useEffect(() => () => onBatchModeChangeRef.current?.(false), []);
 
   function setBatchMode(next: boolean) {
     setBatchModeState(next);
