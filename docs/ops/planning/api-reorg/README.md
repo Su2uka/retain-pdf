@@ -66,6 +66,7 @@ Rust API 接口太多、太散，"牵一发动全身"。这里按日期记录整
 | 2026-10-22 | [服务商探测与用量](./20261022-服务商探测与用量.md) | MinerU 校验在错误链里找服务商回复和传输错误（以前全是 `provider_error`）；四个校验接口共用 `RUST_API_PROVIDER_PROBE_TIMEOUT_SECS`（默认 20 秒）、不重试、不跟随重定向（新 `status` `redirected`）；请求体不认识的字段 400；`MineruTokenValidationView` 改名 `ProviderProbeView`、`provider_message` 截 500 字、各家 `status` 写进文档，契约留到后面；单机放开回环和私网（链路本地照拦），多用户不变；私网拦截保护什么；`/usage` 怪时间戳不再 500，全量扫盘只记录 |
 | 2026-10-22 | [术语表重跑与整份替换](./20261022-术语表重跑与整份替换.md) | 重跑用现在的表加当时的内联条目（任务请求另存 `glossary_inline_entries`，表删了 409 `glossary_missing`）；PUT 没给的字段保留原值、只 UPDATE、可带 `expected_updated_at`（409 `glossary_changed`，AI `term-set` 重读重试）；去重键（原词，上下文）、`duplicate_count`；CSV 行号、TSV、防公式注入、BOM；删 `import`；建任务引用不存在、停用的表 400 |
 | 2026-10-22 | [契约端点加函数名和传输方式](./20261022-契约端点加函数名和传输方式.md) | 端点表加 `client_name`（前端生成的函数名）、`transport`（`json`/`sse`/`binary`/`websocket`/`raw_json`），`library-documents.v1` 17 条写上前端的名单，`agent-calculation.v1` 的 `response_body` 并进 `transport`；lint 管端点键白名单、取值、小驼峰、跨契约不重名；rust_api `route_manifest` 对登记表比契约的方法加地址（排除 jobs-control、比 `proxy_path`、参数写法归一、去掉查询串），现有 60 条全对得上 |
+| 2026-10-22 | [契约第 1a 期补函数名](./20261022-契约第1a期补函数名.md) | 前端第 1 期清单 1a：`job-status`、`create-job`、`library-books`、`job-data`、`job-events`、`reader-data`、`token-usage` 已有的 16 条端点补 `client_name`（`transport: json`）；`GET /jobs` 两处登记只在 `job-status` 起名，`library-books` 那条留着导出类型；修 `job-status` 过时的 `ts_consumer`；`progress/pages/:page` 写明从 0 开始 |
 
 已经确定的：
 

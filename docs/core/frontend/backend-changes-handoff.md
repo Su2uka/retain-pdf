@@ -935,3 +935,23 @@ API / jobsd 重启时，翻译阶段运行中的任务以前一律自动续跑�
 - 生成的函数名以契约为准。要改名、要给别的契约的端点起名，告诉后端改契约（lint 会拦重名）。
 - 查询参数、请求体的定义都是 `additionalProperties: false`，后端对不认识的字段回 400。
 - 第 1 期要补进契约的接口，列清单给后端（方案第 5 节）。
+
+## 第 1a 期：已有端点补 `client_name`（contracts/client-names-phase1a）
+
+2026-10-22。决定和名单见 [契约第 1a 期补函数名](../../ops/planning/api-reorg/20261022-契约第1a期补函数名.md)。接口行为、生成的 TS 类型都没变。
+
+1. 前端清单 1a 的 16 条全部照名单写上 `client_name`，`transport: "json"`：`listJobs`、`getJob`（job-status）、`createJob`（create-job）、
+   `deleteJob`（library-books）、`listJobDatasets`、`getJobDataset`（job-data）、`listJobEvents`（job-events.v2）、`listJobFiles`、
+   `getLiveLayout`、`getLivePage`、`getReaderMarkdown`、`getReaderMetadata`、`getReaderRegions`（reader-data）、`getUsageSummary`、
+   `getDocumentUsage`、`getJobUsage`（token-usage）。
+2. `GET /api/v1/jobs` 在 `library-books.v1` 的那条留着、不起名（删了它，`JobListView`、`ListJobsQuery` 就不再从
+   `@retainpdf/contracts/library-books` 导出）。生成器按 `client_name` 取端点，不会生成两遍。
+3. `progress/pages/:page` 从 0 开始，和返回的 `page_idx` 一致。
+4. `getJobDataset` 的 `query` 以前是一段说明文字，生成器会报错；现在是 `JobDatasetQuery`（`@retainpdf/contracts/job-data`）：
+   `fields`、`group_by`、`sort`、`offset`、`limit` 具名，其余键是等值筛选（索引签名 `string | number | boolean | undefined`），
+   `{ group_by: "reader_item_id", limit: 1000 }` 可以直接传。
+
+| 做什么 | 在哪 |
+|---|---|
+| 把手写的任务、阅读器、用量请求换成生成的函数 | `frontend/packages/api/src/` 里 jobs、reader、usage 相关文件 |
+| （可选）类型改从 `@retainpdf/contracts/job-status` 引 `JobListView`、`ListJobsQuery`，之后后端可以删 `library-books.v1` 那条重复的 `GET /jobs` | `frontend/` 下引 `@retainpdf/contracts/library-books` 的地方 |

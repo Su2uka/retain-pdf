@@ -8,6 +8,8 @@
     {
       "method": "POST",
       "path": "/api/v1/jobs",
+      "client_name": "createJob",
+      "transport": "json",
       "input": "CreateJobInput",
       "rust_view": "routes/jobs.rs :: create_job",
       "ts_consumer": "frontend/web/src/features/ingest/domain/workflow/payload.ts"

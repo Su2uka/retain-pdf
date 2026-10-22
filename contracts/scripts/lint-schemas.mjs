@@ -78,6 +78,14 @@ function lintEndpoints(fileName, schema, clientNames) {
       const seen = clientNames.get(name);
       assert.equal(seen, undefined, `${where} client_name "${name}" is already used by ${seen}`);
       clientNames.set(name, `${where} (${endpoint.method} ${endpoint.path})`);
+      // 生成器按名字取 definitions 里的类型；写成说明文字的 query/input/output 会让它报错退出。
+      for (const slot of ["query", "input", "output"]) {
+        if (endpoint[slot] === undefined) continue;
+        assert.ok(
+          typeof endpoint[slot] === "string" && Object.hasOwn(schema.definitions || {}, endpoint[slot]),
+          `${where} ${slot} must name a definition when client_name is set: ${endpoint[slot]}`,
+        );
+      }
     }
   }
 }
