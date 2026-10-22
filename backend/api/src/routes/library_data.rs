@@ -1,5 +1,4 @@
 //! 图书馆数据层的最小 API:documents / 全文检索。
-//! 前端图书馆改版前,现有 /api/v1/library/books 投影接口保持不动。
 //!
 //! All handlers go through library_api (PR2–PR4).
 

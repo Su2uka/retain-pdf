@@ -88,7 +88,7 @@ pub fn list_jobs_filtered(db: &Db, query: &ListJobsQuery) -> Result<JobsPage, Ap
 }
 
 /// `?q=` 在任务上搜的文本：编号、阶段、阶段说明、错误、来源地址、来源文件名，转成 ASCII 小写。
-/// 书库（`/library/books?q=`）和任务列表（`/jobs?q=`）共用这一份；任务列表另外还搜所属文档的标题。
+/// 任务列表（`/jobs?q=`）用（书架 `/library/books?q=` 以前也用，2026-10-22 删了）；任务列表另外还搜所属文档的标题。
 pub fn job_search_text(job: &JobSnapshot, upload_filename: Option<&str>) -> String {
     let source_filename = upload_filename
         .map(str::trim)

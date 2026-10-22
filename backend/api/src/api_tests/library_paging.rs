@@ -1,6 +1,6 @@
 //! 书库列表的分页规矩和不认识的字段（2026-10-22）：`GET /documents`、`/search`、
 //! `/documents/:id/metadata-suggestions`、`/documents/:id/jobs` 回显 `limit`、给 `has_more`，
-//! `limit` 越界 400；书和合集的请求体、查询参数不认识的字段 400（冻结的书架删除不收紧）。
+//! `limit` 越界 400；书和合集的请求体、查询参数不认识的字段 400。
 
 use std::fs;
 
@@ -317,8 +317,4 @@ async fn library_request_bodies_and_delete_query_reject_unknown_fields() {
     let (status, payload) = send(&state, "DELETE", &format!("/api/v1/documents/{document_id}?forse=true"), None).await;
     assert_bad_request(status, &payload, "unknown field `forse`", "delete document typo");
     assert!(state.db.get_document(&document_id).is_ok());
-
-    // 冻结的书架删除不收紧：同样拼错照旧被忽略（这里任务不存在，所以是 404 而不是 400）。
-    let (status, payload) = send(&state, "DELETE", "/api/v1/library/books/job-missing?forse=true", None).await;
-    assert_eq!(status, StatusCode::NOT_FOUND, "{payload}");
 }

@@ -448,3 +448,8 @@ Response:
 `has_more` says whether another page follows (computed by fetching one extra row). `q` (case-insensitive substring over
 `job_id`, the document title, the upload file name / source URL, `stage`, `stage_detail` and `error`) and `job_ids`
 (comma-separated whitelist) filter before pagination. See `docs/api/01-任务/03-任务列表.md`.
+
+Book cards and folders read live job state through `job_ids` (at most 500 ids per request; the frontend batches).
+The frozen shelf `GET /api/v1/library/books` that used to serve them, and its delete alias
+`DELETE /api/v1/library/books/:job_id`, were removed on 2026-10-22 and now return `404`; delete a job with
+`DELETE /api/v1/jobs/:job_id`.

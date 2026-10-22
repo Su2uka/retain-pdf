@@ -8,13 +8,7 @@
  * Endpoint input, query, and output DTOs published by library-books.v1.schema.json.
  */
 export type LibraryBooksSchema =
-  | JobListView
-  | LibraryBookDetailView
-  | LibraryBookListView
-  | LibraryDeleteQuery
-  | LibraryDeleteResultView
-  | ListJobsQuery
-  | ListLibraryBooksQuery;
+  JobListView | LibraryDeleteQuery | LibraryDeleteResultView | ListJobsQuery;
 /**
  * crate::models::common::WorkflowKind
  */
@@ -159,67 +153,6 @@ export interface JobListInvocationSummaryView {
   stage_spec_count: number;
   unknown_count: number;
 }
-/**
- * 已废弃：GET /api/v1/library/books/:job_id 2026-10-19 删了，Rust 侧不再产出。前端去掉引用后删除本定义（见 endpoints 里那条 removed 的说明）。
- */
-export interface LibraryBookDetailView {
-  id: string;
-  job_id: string;
-  title: string;
-  authors?: string | null;
-  source_file_name?: string | null;
-  page_count?: number | null;
-  source_language?: string | null;
-  target_language?: string | null;
-  file_size_bytes?: number | null;
-  status: JobStatusKind;
-  stage?: string | null;
-  progress: JobProgressView;
-  cover_url: string | null;
-  thumbnail_url: string | null;
-  artifacts: ArtifactDisplayItemView[];
-}
-export interface ArtifactDisplayItemView {
-  key: string;
-  label: string;
-  ready: boolean;
-  kind: string;
-  file_name?: string | null;
-  size_bytes?: number | null;
-  download_url?: string | null;
-}
-export interface LibraryBookListView {
-  items: LibraryBookListItemView[];
-}
-/**
- * job_types.rs :: LibraryBookListItemView — 书架卡片。job_id 是主键（كر очередь: id 冗余为 job_id 别名），display_name 回退为 title/source_file_name。
- */
-export interface LibraryBookListItemView {
-  /**
-   * book id (= job_id 去 ocr 后缀的归一化)
-   */
-  id: string;
-  job_id: string;
-  title: string;
-  display_name: string;
-  source_file_name?: string | null;
-  authors?: string | null;
-  page_count?: number | null;
-  status: JobStatusKind;
-  /**
-   * 当前阶段 raw stage，null=未开始
-   */
-  stage?: string | null;
-  stage_detail?: string | null;
-  progress: JobProgressView;
-  cover_url?: string | null;
-  thumbnail_url?: string | null;
-  output_pdf_ready: boolean;
-  markdown_ready: boolean;
-  bundle_ready: boolean;
-  created_at: string;
-  updated_at: string;
-}
 export interface LibraryDeleteQuery {
   force?: boolean;
 }
@@ -236,17 +169,5 @@ export interface ListJobsQuery {
   workflow?: WorkflowKind;
   provider?: string;
   q?: string;
-  job_ids?: string;
-}
-/**
- * 冻结（2026-10-19）：书架列表的查询参数，不再改。只列了前端发的四个；Rust 实际用的是任务列表的 ListJobsQuery，还认 status、workflow、provider、include_live_stage，不认识的参数忽略；limit 没传时 Rust 默认 20，下面的 default 40 是前端 fetchLibraryBookList 的默认值。新代码用 GET /api/v1/jobs 的 ListJobsQuery。
- */
-export interface ListLibraryBooksQuery {
-  limit?: number;
-  offset?: number;
-  q?: string;
-  /**
-   * 逗号分隔 job_id 白名单，对应 ListJobsQuery.job_ids
-   */
   job_ids?: string;
 }

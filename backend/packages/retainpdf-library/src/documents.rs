@@ -13,8 +13,7 @@ use crate::views::{
 use retainpdf_core::models::domain::UploadRecord;
 use retainpdf_jobs::cleanup_deleted_job_credentials;
 
-use super::books::job_deletion;
-use retainpdf_jobs::{ensure_deletable, ensure_no_dependents, find_job, remove_path_if_exists};
+use retainpdf_jobs::{ensure_deletable, ensure_no_dependents, find_job, remove_path_if_exists, JobDeletion};
 use retainpdf_data::db::Db;
 use super::LibraryDeps;
 
@@ -128,7 +127,7 @@ pub fn get_document(
     Ok(with_document_media_urls(document, base_url))
 }
 
-/// 强制删除前要先取消的任务编号(名下全部任务 + 各自的 `-ocr` 子任务)，见 `book_delete_job_ids`。
+/// 强制删除前要先取消的任务编号(名下全部任务 + 各自的 `-ocr` 子任务)（和 `DELETE /jobs/:job_id` 的 `JobDeletion::job_ids` 同一个意思）。
 pub fn document_delete_job_ids(db: &Db, document_id: &str) -> Result<Vec<String>, AppError> {
     db.get_document(document_id)
         .map_err(|error| AppError::from_lookup(error, format!("document not found: {document_id}")))?;
@@ -144,7 +143,7 @@ pub fn document_delete_job_ids(db: &Db, document_id: &str) -> Result<Vec<String>
 
 /// 彻底删除一篇文档:文档行 + 名下所有 job(含 -ocr 子 job)+ upload(s) +
 /// 磁盘文件。沿用馆藏删除的收藏保护——被收藏引用则 409(force 不绕过,
-/// 与 delete_library_book 一致;force 仅绕过"运行中 job 不可删")。
+/// 与 `DELETE /jobs/:job_id` 一致;force 仅绕过"运行中 job 不可删")。
 ///
 /// "只入库不翻译"进来的文档没有 book job,也能经此彻底删除(是它唯一的
 /// 删除入口)。
@@ -243,4 +242,9 @@ pub fn patch_document(
         )
         .map_err(|error| AppError::from_lookup(error, format!("document not found: {document_id}")))?;
     Ok(with_document_media_urls(document, base_url))
+}
+
+/// 书库里删任务目录经任务包的 [`JobDeletion`]（书架删除 2026-10-22 删了以后，只剩整本删除在用）。
+fn job_deletion<'a>(deps: &LibraryDeps<'a>) -> JobDeletion<'a> {
+    JobDeletion::new(deps.db, deps.data_root, deps.output_root, deps.downloads_dir)
 }

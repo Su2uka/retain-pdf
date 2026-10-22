@@ -54,7 +54,6 @@ const SIGNED_WITHOUT_OWNED_PARAM: &[(&str, &str)] = &[
     ("/api/v1/glossaries/import", "导入成新术语表，记 owner_id"),
     ("/api/v1/glossaries/parse-csv", "只解析请求里的 CSV，不读不写存储"),
     ("/api/v1/jobs", "列表按 owner_filter 过滤；新建时 upload_id 由中间件核归属，任务继承上传的归属"),
-    ("/api/v1/library/books", "列表按 owner_filter 过滤"),
     ("/api/v1/providers/ocr", "只读 OCR 服务商清单，不含用户数据"),
     ("/api/v1/search", "按 owner_filter 过滤"),
     ("/api/v1/uploads", "上传记当前用户为 owner"),

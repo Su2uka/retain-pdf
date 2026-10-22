@@ -9,6 +9,37 @@
 
 ---
 
+## 删书架旧地址：书架列表、书架删除、合集工作区的 GET 删了（refactor/drop-library-shelf-old-routes）
+
+2026-10-22。前端 `refactor/library-shelf-to-jobs`、`fix/collection-workspace-post` 等分支进了 main（16d13071）以后删的，
+做法、留了什么、用量数据见 [删书架旧地址](../../ops/planning/api-reorg/20261022-删书架旧地址.md)。
+
+### 变了什么
+
+| 地址 | 以前 | 现在 | 前端改用 |
+|---|---|---|---|
+| `GET /api/v1/library/books`（带不带 `job_ids` 都一样） | 书架列表（冻结） | `404` | `GET /api/v1/jobs?job_ids=…&limit=…`（`limit` 1..=500，分批） |
+| `DELETE /api/v1/library/books/{job_id}` | 旧地址，OCR 任务 404 | `404`，删不掉任务 | `DELETE /api/v1/jobs/{job_id}` |
+| `GET /api/v1/library/books/{job_id}` | 2026-10-19 删了，`405` | `404`（这个路径上一个方法都不剩了） | `GET /api/v1/jobs/{job_id}` |
+| `GET /api/v1/collections/{collection_id}/agent-workspace` | 旧地址，行为和 POST 一样 | `405`（同一路径还有 POST），不物化、不碰磁盘 | 同一路径 `POST` |
+
+契约 `contracts/library-books.v1.schema.json`（文件名、`$id` 不变）删了 `LibraryBookListView`、`LibraryBookListItemView`、
+`LibraryBookDetailView`、`ListLibraryBooksQuery`、只给单本详情用的 `ArtifactDisplayItemView`（任务详情的同名类型在
+`job-status` 契约里，不受影响），和三条书架端点。留着的：`JobListView`、`JobListItemView`、`JobFailureBriefView`、
+`JobProgressView` 这些任务列表类型，`LibraryDeleteResultView`（`@retainpdf/api` 的 `deleteJob` 用）、`LibraryDeleteQuery`、
+`ListJobsQuery`。`@retainpdf/contracts/library-books` 的生成类型跟着少了这几个。
+
+### 前端要做什么
+
+不用改：后端删之前核对过，`frontend/`（含 `dist` 构建产物）、`backend/ai`、`backend/cli`、桌面脚本里都没有调这三个地址的代码，
+`frontend/packages/api/src/types.ts` 只从 `library-books` 导出 `LibraryDeleteResultView`；前端契约测试读的
+`JobListItemView`、`JobFailureBriefView`、`JobProgressView`、`JobStageSnapshotView`、两个枚举都还在。
+
+可选（只是注释里的说法，不影响运行）：`frontend/packages/api/src/jobs.ts:127`、`frontend/web/scripts/frontend-homepage-smoke.py:24`、
+`frontend/packages/api/README.md:13` 里「书架冻结 / no longer called」可以改成「已删」。
+
+---
+
 
 ## 0000000000. 书库标签残留清掉、`/assets` 两个接口删掉
 
@@ -48,10 +79,10 @@ PATCH 的请求体（`PatchDocumentInput`）加 `deny_unknown_fields`：再发 `
    返回和书架删除一样（`deleted`、`job_id`、`removed_paths`、`removed_child_jobs`），409 / `job_has_dependents` / `force`
    的规则也一样；不同的只有：**OCR 任务也能删**（书架删除把它挡成 404），以及单删 OCR 子任务 `P-ocr` 而父任务 `P` 还在时
    409 + `job_has_dependents`。
-2. `DELETE /api/v1/library/books/{job_id}` 变成旧地址（接口目录里标了），行为不变。
+2. `DELETE /api/v1/library/books/{job_id}` 变成旧地址（接口目录里标了），行为不变。（2026-10-22 删了，见最上面一节。）
 3. `GET /api/v1/library/books/{job_id}` 删了（前端、AI、CLI 都没调过）。同一地址还有 DELETE，所以 GET 返回 405。
-4. `GET /api/v1/library/books` 冻结：不再加字段，前端改完下面第 1 条以后删。
-5. 契约 `library-books.v1` 里 `LibraryBookDetailView` 定义暂留（标了废弃），因为前端还引用它（见下面第 4 条）。
+4. `GET /api/v1/library/books` 冻结：不再加字段，前端改完下面第 1 条以后删。（2026-10-22 删了。）
+5. 契约 `library-books.v1` 里 `LibraryBookDetailView` 定义暂留（标了废弃），因为前端还引用它（见下面第 4 条）。（2026-10-22 删了。）
 
 ### 前端要改的
 
@@ -77,6 +108,9 @@ PATCH 的请求体（`PatchDocumentInput`）加 `deny_unknown_fields`：再发 `
    `frontend/web/tests/contracts/library-books-contract.test.mjs:66` 那条「LibraryBookDetailView 字段存在于契约」的测试，删掉。
    删完告诉后端，后端再从 `contracts/library-books.v1.schema.json` 删这个定义和那条标了 `removed` 的端点。
 5. 上面 1、3 都改完、不再调 `GET library/books` 以后告诉后端，后端删书架列表和 `DELETE library/books/{id}` 旧地址。
+
+**已完成**：前端 1–4 都改完进了 main（16d13071），后端 2026-10-22 删了书架列表、`DELETE library/books/{id}` 旧地址、
+`LibraryBookDetailView` 和那条端点（`refactor/drop-library-shelf-old-routes`，见最上面一节）。
 ## 00000000. 合集工作区改用 POST；合集不存在从 200 变 404，编号不合格 400
 
 分支 `fix/collection-workspace-path`（2026-10-19）。对应书库接口审计 A6，决定见
@@ -86,6 +120,7 @@ PATCH 的请求体（`PatchDocumentInput`）加 `deny_unknown_fields`：再发 `
 
 1. 新地址 `POST /api/v1/collections/{collection_id}/agent-workspace`（请求体不用带东西），返回和以前的 GET 一样的清单
    `{ schema, collection_id, books[], skipped[] }`。同一路径的 `GET` 还能用、行为一样，标成旧地址，前端改完后删掉。
+   （**已完成**：前端改用 POST，GET 2026-10-22 删了，现在 `405`。）
 2. 合集不存在：以前 `200` + 空清单（还在磁盘上建出空目录），现在 `404 collection not found: …`。
 3. 编号不是建合集时生成的形状（`col-` + 14 位数字 + `-` + 6 位小写十六进制）：`400 invalid collection_id: …`。
    前端用的都是 `/collections` 列表里拿到的编号，正常走不到。
@@ -100,7 +135,7 @@ PATCH 的请求体（`PatchDocumentInput`）加 `deny_unknown_fields`：再发 `
   新写法同一路径改成 `POST`。`fetchJson` 现在只发 GET（定义在 `frontend/web/src/features/reader/ui/terminal-chrome.tsx`，
   `fetch(new URL(path, baseUrl), { headers: { "X-API-Key": apiKey } })`；第 150 行把它传给 `ensureCollectionWorkspace`），
   要给它加一个方法参数，或者另传一个发 `method: "POST"` 的函数。
-  对应测试 `frontend/web/tests/reader/terminal-scope.test.mjs` 跟着改。
+  对应测试 `frontend/web/tests/reader/terminal-scope.test.mjs` 跟着改。（**已完成**，前端已经发 POST。）
 - 404 不用专门处理：`fetchJson` 遇到非 OK 抛 `HTTP 404`，`ensureCollectionWorkspace` 已经把它当失败原因显示、不切范围。
   如果想给出中文提示，可以对 404 说「这个文件夹已经不存在了」。
 - `skipped[]` 的 `reason` 文字变了（只给 agent 和人看，前端没有按它判断），不用改。
@@ -163,7 +198,7 @@ PATCH 的请求体（`PatchDocumentInput`）加 `deny_unknown_fields`：再发 `
 ### 前端要做什么
 
 **不用改代码**（前端没有传 `force`；删书走的是 `DELETE /documents/{id}`，不会撞到 `job_has_dependents`）。
-如果以后用 `DELETE /library/books/{job_id}` 删单个任务：遇到 `reason === "job_has_dependents"` 提示「先删除依赖它的任务（message 里有编号）」，
+如果以后用删单个任务的接口（现在是 `DELETE /jobs/{job_id}`；书架的 `DELETE /library/books/{job_id}` 2026-10-22 删了）：遇到 `reason === "job_has_dependents"` 提示「先删除依赖它的任务（message 里有编号）」，
 不要自动加 `force`。
 
 ---
@@ -630,7 +665,7 @@ API / jobsd 重启时，翻译阶段运行中的任务以前一律自动续跑�
 5. 不认识的字段一律 400：`GET /documents`、`/search`、元数据建议列表、书的任务列表的查询参数；`PATCH /documents/{id}`、
    `POST /collections`、`PATCH /collections/{id}`（`parent_id` 也 400）、`POST /collections/{id}/documents` 的请求体；
    `DELETE /documents/{id}` 的查询参数。查询串的 message 是 ``unknown field `x`, expected ... in the query string``。
-   书架（`/library/books`）冻结，不收紧。
+   书架（`/library/books`）冻结，不收紧（2026-10-22 整个删了）。
 
 ### 前端要做什么
 

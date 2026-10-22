@@ -55,11 +55,11 @@
 - 书名下任务的活态（状态、进度、阶段）用 `GET /api/v1/jobs?job_ids=a,b&limit=n&include_live_stage=true`，
   见 [任务列表](../../api/01-任务/03-任务列表.md)；它不排除 OCR 任务；
 - 删单个任务用 `DELETE /api/v1/jobs/{job_id}`，见 [删除任务](../../api/01-任务/05-删除任务.md)；
-- 书架 `/api/v1/library/books` **冻结**：不再加字段，列表等前端改调 `GET /jobs?job_ids=` 以后删；
-  `GET /api/v1/library/books/{job_id}` 没有调用方，2026-10-19 已删；`DELETE /api/v1/library/books/{job_id}` 是
-  `DELETE /api/v1/jobs/{job_id}` 的旧地址。
+- 书架 `/api/v1/library/books` **已删**：`GET /api/v1/library/books/{job_id}` 2026-10-19 删，列表
+  `GET /api/v1/library/books` 和删除的旧地址 `DELETE /api/v1/library/books/{job_id}` 2026-10-22 删（前端已改调
+  上面两条），现在都返回 `404`，见 [删书架旧地址](../../ops/planning/api-reorg/20261022-删书架旧地址.md)。
 
-封面和缩略图用 `/documents/{document_id}/files/cover.jpg`、`thumbnail.jpg`（原 `/library/books/{job_id}/cover`、`/thumbnail` 已于 2026-10-18 删除，书架返回的 `cover_url`、`thumbnail_url` 已是新地址；查不到书编号时为 `null`）。
+封面和缩略图用 `/documents/{document_id}/files/cover.jpg`、`thumbnail.jpg`（原 `/library/books/{job_id}/cover`、`/thumbnail` 已于 2026-10-18 删除；任务列表、详情里的 `cover_url`、`thumbnail_url` 已是新地址，查不到书编号时为 `null`）。
 
 所有文件下载统一走 `/jobs/{job_id}/files/…`（任务产出的文件）和 `/documents/{document_id}/files/…`
 （书本身的原文、封面、缩略图、原文页），见 [下载总览](../../api/07-产物下载/01-下载总览.md)。
@@ -80,64 +80,25 @@ Reader 宿主接入 job/artifact、Markdown、区域、页面元数据和实时�
 
 ## 3. 图书馆接口
 
-### 书架（冻结）
+### 书架（已删）
 
 `/api/v1/library/books` 是旧的一套：每一项其实是一个任务（`id` 和 `job_id` 都是任务编号，没有 `document_id`），
-而且排除 OCR 任务。2026-10-19 起冻结，不再加字段；新代码用 `/documents` 和 `GET /jobs?job_ids=`（见上一节）。
-契约是 [`library-books.v1.schema.json`](../../../contracts/library-books.v1.schema.json)（2026-10-22 删了已不存在的
-`batch-delete` 条目和它的两个类型）。
+而且排除 OCR 任务。2026-10-19 冻结、删了单本详情，2026-10-22 列表和删除旧地址也删了，两个路径上不剩任何方法，
+请求一律 `404`。用 `/documents` 和 `GET /jobs?job_ids=`（见上一节）。
 
-列表：
+以前读书架的字段换到任务列表：标题读 `display_name`，阶段和进度读 `stage_snapshot`（`stage`、`stage_detail`、
+`progress`），`has_more` 告诉有没有下一页；`job_ids` 每次最多 500 个（`limit` 只收 1..=500，前端分批）。
 
-`GET /api/v1/library/books?limit=20&offset=0&q=physics`
-
-查询参数：
-
-- `limit` / `offset`：分页（静默夹到上限；带 `job_ids` 时不按 `limit` 截断）。
-- `q`：可选，全库搜索书名、源文件名、job_id、源 URL 和状态文本。
-- `job_ids`：可选，逗号分隔的任务编号白名单。
-
-返回 `data.items[]`：
-
-```json
-{
-  "id": "job-id",
-  "job_id": "job-id",
-  "title": "book title",
-  "display_name": "book title",
-  "source_file_name": "source.pdf",
-  "authors": null,
-  "page_count": 533,
-  "status": "succeeded",
-  "stage": "finished",
-  "stage_detail": "done",
-  "progress": {
-    "current": 533,
-    "total": 533,
-    "percent": 100.0
-  },
-  "cover_url": "/api/v1/documents/<document_id>/files/cover.jpg",
-  "thumbnail_url": "/api/v1/documents/<document_id>/files/thumbnail.jpg",
-  "output_pdf_ready": true,
-  "markdown_ready": true,
-  "bundle_ready": true,
-  "created_at": "2026-05-16T00:00:00Z",
-  "updated_at": "2026-05-16T00:10:00Z"
-}
-```
-
-换成 `GET /jobs?job_ids=` 时：标题读 `display_name`，阶段和进度读 `stage_snapshot`（`stage`、`stage_detail`、
-`progress`），`has_more` 告诉有没有下一页。
-
-详情 `GET /api/v1/library/books/{job_id}`：没有调用方，2026-10-19 删了（同一地址还有 DELETE，所以 GET 返回 `405`）。
-要一个任务的详情用 `GET /api/v1/jobs/{job_id}`。
+契约 [`library-books.v1.schema.json`](../../../contracts/library-books.v1.schema.json) 文件名和 `$id` 沿用，现在只描述
+任务列表和删任务的返回（`LibraryDeleteResultView`）；书架的 `LibraryBookListView`、`LibraryBookDetailView` 等定义
+2026-10-22 一起删了。
 
 ### 删除一个任务
 
 - `DELETE /api/v1/jobs/{job_id}`
 - `DELETE /api/v1/jobs/{job_id}?force=true`
 
-旧地址 `DELETE /api/v1/library/books/{job_id}` 行为不变（工作流是 OCR 的任务照旧 404）。批量删除在前端逐个调用
+旧地址 `DELETE /api/v1/library/books/{job_id}` 2026-10-22 删了（现在 `404`，删不掉任务）。批量删除在前端逐个调用
 （`POST /api/v1/library/books/delete` 三周零调用，已删）。完整说明见 [删除任务](../../api/01-任务/05-删除任务.md)。
 
 删除行为：
@@ -185,7 +146,7 @@ Reader 宿主接入 job/artifact、Markdown、区域、页面元数据和实时�
 - `/documents/{id}/jobs` 的 `has_more` 改成多取一条判断，`total` 照旧。
 - 这几个接口和书、合集的请求体（`PATCH /documents/{id}`、`POST|PATCH /collections`、
   `POST /collections/{id}/documents`）、`DELETE /documents/{id}` 的查询参数，不认识的字段一律 400。
-  `PATCH /collections/{id}` 只认 `name`、`sort_order`，`parent_id` 400。冻结的书架（`/library/books`）不收紧。
+  `PATCH /collections/{id}` 只认 `name`、`sort_order`，`parent_id` 400。
 
 书、合集、全文检索、阅读入口（`/documents/{id}/reading`）、翻译覆盖（`/documents/{id}/translation-coverage`）、
 书的文件清单（`/documents/{id}/files`）、元数据建议的请求和返回，2026-10-22 起有契约
@@ -756,7 +717,7 @@ PDF 元数据：
 - `PATCH|DELETE /api/v1/collections/{collection_id}`
 - `POST /api/v1/collections/{collection_id}/documents`
 - `DELETE /api/v1/collections/{collection_id}/documents/{document_id}`
-- `POST /api/v1/collections/{collection_id}/agent-workspace`（物化合集的 Agent 工作区；旧地址是同一路径的 `GET`，见下）
+- `POST /api/v1/collections/{collection_id}/agent-workspace`（物化合集的 Agent 工作区，见下）
 - `GET /api/v1/fonts`
 - `POST /api/v1/fonts/upload`
 
@@ -771,7 +732,7 @@ PDF 元数据：
 - `books[]` 只放有可读译文的书（阅读入口 `/documents/{id}/reading` 指的那个任务或合并目录）；还没有可读译文的书、
   超过一次 200 本上限的书都在 `skipped[]`，`reason` 分别是 `还没有可读的译文`、`超过一次最多纳入 200 本的上限`。
 - 删合集（`DELETE /api/v1/collections/{collection_id}`）成功后清掉 `<data_root>/collections/<id>/`；清不掉只记日志，删除照样成功。
-- 旧地址：同一路径的 `GET`，行为相同（2026-10-19 前就是它，GET 会改磁盘，换成 POST；前端改完后删掉）。
+- 同一路径的 `GET` 是 2026-10-19 前的写法（GET 会改磁盘，换成了 POST），前端改用 POST 以后 2026-10-22 删了，现在 `405`，不碰磁盘。
 
 ## 9. OCR-only 接口
 
@@ -957,7 +918,7 @@ simple app 通常监听 `42000`，现在只有 `GET /health` 和 `GET /ready`，
 每个接口具体开放给谁，写在后端的接口登记表里，[接口目录](../../api/00-接口目录.md)的“谁能用”一列是准的（`public` / `signed` / `admin` / `closed`，没登记的接口当关闭）；下面按资源概述。
 
 - **开放给网站账号的资源**只有：`account`、`auth`、`collections`、`documents`、`fonts`、`glossaries`、
-  `jobs`、`library`、`search`、`uploads`、`usage`（都在 `/api/v1/` 下），以及 `GET /api/v1/providers/ocr`。
+  `jobs`、`search`、`uploads`、`usage`（都在 `/api/v1/` 下；书架 `library` 2026-10-22 删了），以及 `GET /api/v1/providers/ocr`。
   不在这里面的接口对网站账号**一律关闭**（回 404，看起来就是没有这个接口），新加的接口也默认关闭。
 - **只给管理员**（普通账号 403）：`credentials`、`sync`、`backups`、`admin`、其余 `providers`、
   `POST /api/v1/fonts/upload`。

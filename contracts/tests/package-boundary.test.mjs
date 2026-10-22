@@ -111,12 +111,10 @@ test("generated DTO entries expose the stable consumer type names", () => {
     assert.match(generatedJobEvents, new RegExp(`export (?:interface|type) ${typeName}\\b`));
   }
   for (const typeName of [
-    "ArtifactDisplayItemView",
+    "JobFailureBriefView",
     "JobListItemView",
     "JobListView",
-    "LibraryBookDetailView",
-    "LibraryBookListItemView",
-    "LibraryBookListView",
+    "LibraryDeleteResultView",
   ]) {
     assert.match(generatedLibraryBooks, new RegExp(`export (?:interface|type) ${typeName}\\b`));
   }
@@ -162,9 +160,11 @@ test("generated library-documents DTO entry exposes the book, collection and sea
   assert.doesNotMatch(generatedLibraryDocuments, /\[k: string\]: unknown/);
 });
 
-// 书架批量删除 2026-10-19 前就删了，契约里不再留它的类型。
-test("library-books no longer publishes the removed batch-delete DTOs", () => {
+// 书架批量删除 2026-10-19 前就删了；书架列表、单本、删除旧地址 2026-10-22 删了。契约里不再留它们的类型。
+test("library-books no longer publishes the removed shelf DTOs", () => {
   assert.doesNotMatch(generatedLibraryBooks, /LibraryBatchDelete/);
+  assert.doesNotMatch(generatedLibraryBooks, /LibraryBook(?:List|ListItem|Detail)View|ListLibraryBooksQuery/);
+  assert.doesNotMatch(generatedLibraryBooks, /ArtifactDisplayItemView/);
 });
 
 test("generated job DTOs keep request and event records structurally typed", () => {

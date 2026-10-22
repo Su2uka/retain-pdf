@@ -64,8 +64,8 @@ pub async fn get_job(
     Ok(ok_json(view))
 }
 
-/// 删一个任务（任何工作流，OCR 任务也行）和它的 `-ocr` 子任务，书留着。书架删除
-/// `DELETE /library/books/:job_id` 是它的旧地址。
+/// 删一个任务（任何工作流，OCR 任务也行）和它的 `-ocr` 子任务，书留着。书架删除的旧地址
+/// `DELETE /library/books/:job_id` 2026-10-22 删了。
 pub async fn delete_job(
     State(state): State<AppState>,
     ApiPath(job_id): ApiPath<String>,

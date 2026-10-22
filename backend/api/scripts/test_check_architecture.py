@@ -55,15 +55,8 @@ mod tests { fn fixture() { let runtime: ProcessRuntimeDeps; } }
     def test_shared_artifact_display_cannot_reintroduce_business_cycles(self):
         self.assertEqual([], self.check_sources({
             "services/jobs/presentation/detail_projection.rs": "use crate::services::files::artifacts::build_artifacts_display;",
-            "services/library/book_projection.rs": "use crate::services::files::artifacts::build_artifacts_display; use crate::services::jobs::job_readiness;",
             "packages/retainpdf-files/src/artifacts/presentation.rs": "use retainpdf_core::models::api::{ArtifactLinksView, ArtifactDisplayItemView};",
-            "services/jobs/event_feed/batch_tests.rs": "use crate::services::library::book_projection;",
         }, checks.check_shared_artifact_presentation))
-        for path in ("services/jobs/presentation/detail_projection.rs", "services/jobs/query/nested.rs"):
-            self.assertTrue(self.check_sources(
-                {path: "use crate::services::{book_projection::build_artifacts_display};"},
-                checks.check_shared_artifact_presentation,
-            ))
         for source in (
             "use crate::services::jobs;", "use crate::services::{library};", "fn build(db: &Db) {}",
             "std::fs::read(path);", "use retainpdf_data::ocr_provider;", "use retainpdf_core::storage_paths;",
@@ -74,15 +67,10 @@ mod tests { fn fixture() { let runtime: ProcessRuntimeDeps; } }
                 {"packages/retainpdf-files/src/artifacts/presentation/nested.rs": source},
                 checks.check_shared_artifact_presentation,
             ))
-        self.assertTrue(self.check_sources(
-            {"services/library/book_projection/artifacts.rs": ""},
-            checks.check_shared_artifact_presentation,
-        ))
 
     def test_shared_artifact_guard_ignores_comments_and_literals(self):
         self.assertEqual([], self.check_sources({
             "packages/retainpdf-files/src/artifacts/presentation.rs": '// no jobs or Db access\nconst LABEL: &str = "library";',
-            "services/jobs/query.rs": 'const NOTE: &str = r#"book_projection"#;',
         }, checks.check_shared_artifact_presentation))
 
     def test_jobs_dependencies_allow_explicit_query_resources(self):
@@ -887,16 +875,16 @@ class JobsAndLibraryRuleTests(unittest.TestCase):
 
     def test_stage_view_consumers_use_the_shared_builder(self):
         self.assertEqual([], self.check_sources(
-            {"services/library/book_projection/live.rs": "BookLiveProjection build_job_stage_view(job)"},
+            {"services/jobs/presentation/listing.rs": "JobListItemView build_job_stage_view(job)"},
             checks.check_stage_view_projection_boundary,
         ))
         self.assertReports({"services/jobs/presentation/listing.rs": "JobListItemView progress_current"},
                            checks.check_stage_view_projection_boundary, "must use services::jobs::progress::stage_view")
-        self.assertReports({"services/library/book_projection/live.rs": "BookLiveProjection build_job_stage_view( progress_total"},
+        self.assertReports({"services/jobs/presentation/listing.rs": "JobListItemView build_job_stage_view( progress_total"},
                            checks.check_stage_view_projection_boundary, "found 'progress_total'")
 
     def test_presentation_asks_job_readiness(self):
-        for path in ("services/jobs/presentation/x.rs", "services/library/book_projection/x.rs"):
+        for path in ("services/jobs/presentation/x.rs",):
             with self.subTest(path=path):
                 self.assertReports({path: "readiness(job, resolve_output_pdf, resolve_markdown_path)"},
                                    checks.check_job_readiness_boundary, "must use services::jobs::job_readiness")
