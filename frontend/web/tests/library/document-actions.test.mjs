@@ -108,6 +108,39 @@ test("任务动作：cancel 按 workflow 路由；retry 带 document_id 并 prom
   assert.deepEqual(retryCalls[1], ["promote", "doc-1", "job-new"]);
 });
 
+test("从断点继续：回执 promote 到详情 payload，详情跟上新任务而不是停在旧的失败任务", async () => {
+  const { createDialogStore } = await import("../../src/platform/store/dialog-store.js");
+  const { promoteDocumentToJob } = await import("../../src/features/library/domain/documents/promote.js");
+  const bookDetailStore = createDialogStore(null);
+  bookDetailStore.open({ document_id: "doc-1", job_id: "job-old", status: "failed", workflow: "book", title: "标题" });
+  const attached = [];
+  const resumed = [];
+  const actions = createDocumentJobActions({
+    bookDetailStore,
+    promoteDocumentToJob: (documentId, result, sourceJobId) => promoteDocumentToJob({
+      bookDetailStore,
+      attachJobProgress: (jobId) => attached.push(jobId),
+      documentId,
+      result,
+      sourceJobId,
+    }),
+    resumeJobApi: async (id, prefix) => {
+      resumed.push([id, prefix]);
+      return { job_id: "job-new", status: "queued" };
+    },
+  });
+
+  const receipt = await actions.resumeJob("job-old");
+  assert.equal(receipt.job_id, "job-new");
+  assert.equal(resumed[0][0], "job-old");
+  const payload = bookDetailStore.getState().payload;
+  assert.equal(payload.job_id, "job-new", "详情 payload 换成新任务");
+  assert.equal(payload.status, "queued", "不再是旧任务的 failed");
+  assert.equal(payload.document_id, "doc-1");
+  assert.deepEqual(attached, ["job-new"], "静默接上新任务的进度");
+  assert.equal(await actions.resumeJob("doc:synthetic"), null);
+});
+
 test("重新翻译：只覆盖详情页真能改的字段，不碰原任务的术语表/自定义规则", () => {
   // 语义分工：「重试」用原任务配置，「重新翻译」用当前配置。但详情页没有术语表
   // 选择器、也没有自定义规则输入框——buildTranslateConfig 复用的是上传弹窗的

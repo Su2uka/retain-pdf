@@ -222,7 +222,10 @@ export function DetailApp({
     }
     const jobId = state.job?.job_id;
     if (!jobId) {
-      throw new Error("缺少 job_id，无法加载事件流。");
+      // 先写进弹窗状态再抛：handleOpenEvents 吞掉错误，不写的话弹窗一直停在「尚未加载」。
+      const message = "缺少 job_id，无法加载事件流。";
+      setEventsStatus(message);
+      throw new Error(message);
     }
     if (!state.eventsLoadingPromise) {
       setEventsStatus("正在加载全部事件...");

@@ -148,7 +148,11 @@ test("藏起来的不参与 Tab 键，也不被读屏念", () => {
 test("作用域条和提示 chip 作用在当前这条上", () => {
   // 作用在别条上的话，你切到 A 改范围，实际改的是 B —— 而两边都不会提示。
   assert.match(PANEL, /scope=\{activeTab\.scope\}/);
-  assert.match(PANEL, /setTabScope\(state, state\.activeId, scope\)/);
+  // 物化要几秒：结果写回点击时的那条（作用域条带着 tabId 回调），不是写回物化完那一刻的
+  // state.activeId —— 那样在 A 点了、物化中切到 B，改的就成了 B。
+  assert.match(PANEL, /tabId=\{activeTab\.id\}/);
+  assert.match(PANEL, /setTabScope\(state, tabId, scope\)/);
+  assert.doesNotMatch(PANEL, /setTabScope\(state, state\.activeId, scope\)/);
   assert.match(PANEL, /focusTerminal=\{focusActive\}/);
 });
 

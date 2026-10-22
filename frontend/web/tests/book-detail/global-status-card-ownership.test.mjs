@@ -69,3 +69,45 @@ test("查看实时译文：全局卡片的任务属于本书（如刚提交的�
   assert.deepEqual(opened, ["job-this-book-retry"]);
   root.unmount(); host.remove();
 });
+
+test("进度卡：全局卡片在播另一本书的任务时，不显示它的进度，取消按钮也不能点", async () => {
+  const dom = makeDom();
+  const { root, host } = await mountProgressPanel(dom, {
+    cardSnapshot: {
+      jobId: "job-other-book",
+      status: "running",
+      label: "处理中",
+      value: "另一本书正在翻译",
+      detail: "另一本书 第 7/20 页",
+    },
+    props: {
+      item: RUNNING_ITEM,
+      documentJobIds: ["job-this-book"],
+      onOpenLiveReader: () => {},
+    },
+  });
+  const progress = host.querySelector("#book-detail-translate-progress");
+  assert.equal(progress.dataset.jobId, "job-this-book", "进度区挂的是本书的任务");
+  const card = await waitFor(() => host.querySelector("#book-detail-job-status-card"), "状态卡就位");
+  assert.doesNotMatch(card.textContent, /另一本书/, "不显示另一本书的进度");
+  const cancel = card.querySelector('button[aria-label="取消任务"]');
+  assert.ok(cancel, "取消按钮在");
+  assert.equal(cancel.disabled, true, "取消会打到全局卡片在跟的另一本书，必须禁用");
+  root.unmount(); host.remove();
+});
+
+test("进度卡：全局卡片的任务属于本书时，取消按钮照常可点", async () => {
+  const dom = makeDom();
+  const { root, host } = await mountProgressPanel(dom, {
+    cardSnapshot: { jobId: "job-this-book", status: "running", label: "处理中", value: "本书正在翻译" },
+    props: {
+      item: RUNNING_ITEM,
+      documentJobIds: ["job-this-book"],
+      onOpenLiveReader: () => {},
+    },
+  });
+  const card = await waitFor(() => host.querySelector("#book-detail-job-status-card"), "状态卡就位");
+  const cancel = card.querySelector('button[aria-label="取消任务"]');
+  assert.equal(cancel.disabled, false);
+  root.unmount(); host.remove();
+});

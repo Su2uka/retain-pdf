@@ -219,6 +219,15 @@ test("DetailApp:缺少 job_id 时提示且不发起请求", async () => {
   );
   assert.equal(overviewCalls, 0);
 
+  // 这时点开事件流，弹窗要说清楚为什么加载不了，而不是一直停在「尚未加载」
+  click(dom, byId(dom, "detail-open-events-btn"));
+  await waitFor(() => byId(dom, "detail-events-modal") !== null, "事件流弹窗打开");
+  await waitFor(
+    () => byId(dom, "detail-events-status")?.textContent === "缺少 job_id，无法加载事件流。",
+    "弹窗显示缺少 job_id 的原因",
+    3_000,
+  );
+
   root.unmount();
   host.remove();
 });

@@ -100,21 +100,27 @@ export function TerminalTabBar({
  * 一模一样 —— 给一个点了只会说"没有文件夹"的控件，比没有更糟。
  */
 export function TerminalScopeBar({
+  tabId,
   scope,
   jobId,
   baseUrl,
   apiKey,
   onChange,
 }: {
+  /** 这条作用域条当前对着的终端标签。切标签时是同一个组件换 tabId 重渲染。 */
+  tabId: string;
   scope: TerminalScope;
   jobId: string;
   baseUrl: string;
   apiKey: string;
-  onChange: (scope: TerminalScope) => void;
+  onChange: (tabId: string, scope: TerminalScope) => void;
 }) {
   const [options, setOptions] = useState<CollectionOption[]>([]);
-  const [failure, setFailure] = useState("");
-  const [busy, setBusy] = useState(false);
+  // 物化要几秒，期间用户可能切到别的标签。忙碌和报错都记在发起的那条标签上，
+  // 结果也只写回那条——写回「当时的当前标签」会把别的终端换了作用域。
+  const [failure, setFailure] = useState<{ tabId: string; text: string } | null>(null);
+  const [busyTabId, setBusyTabId] = useState("");
+  const busy = busyTabId === tabId;
 
   const fetchJson = useCallback(
     async (path: string, init: { method?: string } = {}) => {
@@ -142,23 +148,24 @@ export function TerminalScopeBar({
 
   const select = useCallback(
     async (option: CollectionOption | null) => {
-      setFailure("");
+      const target = tabId;
+      setFailure(null);
       if (!option) {
-        onChange({ kind: "job", jobId });
+        onChange(target, { kind: "job", jobId });
         return;
       }
       // 必须先物化再切 —— 不然终端会落进一个过期或不存在的工作区,而那个失败
       // 是静默的（Python 侧退回私有目录,表现是 books/ 空着）。
-      setBusy(true);
+      setBusyTabId(target);
       const reason = await ensureCollectionWorkspace(fetchJson, option.collectionId);
-      setBusy(false);
+      setBusyTabId((current) => (current === target ? "" : current));
       if (reason) {
-        setFailure(reason);
+        setFailure({ tabId: target, text: reason });
         return;
       }
-      onChange({ kind: "collection", ...option });
+      onChange(target, { kind: "collection", ...option });
     },
-    [fetchJson, jobId, onChange],
+    [fetchJson, jobId, onChange, tabId],
   );
 
   if (options.length === 0) return null;
@@ -191,7 +198,7 @@ export function TerminalScopeBar({
           </button>
         );
       })}
-      {failure ? <span className="reader-terminal-scope-note">{failure}</span> : null}
+      {failure?.tabId === tabId ? <span className="reader-terminal-scope-note">{failure.text}</span> : null}
     </div>
   );
 }

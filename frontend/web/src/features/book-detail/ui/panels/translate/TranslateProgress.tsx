@@ -108,18 +108,21 @@ export function BookTranslateProgressPanel({
     return <span id="book-detail-translate-progress" className="sr-only" data-state="succeeded" />;
   }
 
-  // fallback：优先跟 statusCard 正在播的 job（含重试新 id），避免用旧 item 盖回完成态
-  const liveFallback = cardJobId && cardJobId !== jobId
+  // 全局卡片可能在播另一本书的任务；只有它属于本书（如刚提交的重试）才跟它。
+  const ownCardJobId = cardJobId && documentJobIds.includes(cardJobId) ? cardJobId : "";
+  // fallback：优先跟 statusCard 正在播的本书 job（含重试新 id），避免用旧 item 盖回完成态。
+  // 卡片在播别的书时照旧用本书的 item，merge 会把那份快照隔离掉，不显示别的书的进度。
+  const liveFallback = ownCardJobId && ownCardJobId !== jobId
     ? {
         document_id: item.document_id,
         title: item.title,
         display_name: item.display_name,
-        source_filename: item.source_filename,
+        source_file_name: item.source_file_name,
         page_count: item.page_count,
         cover_url: item.cover_url,
         thumbnail_url: item.thumbnail_url,
-        job_id: cardJobId,
-        active_job_id: cardJobId,
+        job_id: ownCardJobId,
+        active_job_id: ownCardJobId,
         library_only: false,
         status: cardStatus || item.status,
       }
@@ -132,7 +135,7 @@ export function BookTranslateProgressPanel({
     <div
       id="book-detail-translate-progress"
       className="book-translate-progress"
-      data-job-id={cardJobId || jobId}
+      data-job-id={ownCardJobId || jobId}
       data-state={itemStatus === "succeeded" && !cardPollingActive ? "succeeded" : "ready"}
       data-item-status={itemStatus || ""}
       data-library-only={libraryOnly ? "true" : "false"}
@@ -142,8 +145,7 @@ export function BookTranslateProgressPanel({
         <button
           type="button"
           className="home-book-live-translation-entry w-full rounded-lg bg-foreground px-4 py-2.5 text-sm font-medium text-background hover:opacity-90"
-          // 全局卡片可能在播另一本书的任务；只有它属于本书（如刚提交的重试）才跟它。
-          onClick={() => onOpenLiveReader(cardJobId && documentJobIds.includes(cardJobId) ? cardJobId : jobId)}
+          onClick={() => onOpenLiveReader(ownCardJobId || jobId)}
           aria-label="在阅读器中查看实时译文"
         >
           <span className="home-book-live-translation-entry-icon" aria-hidden="true">
