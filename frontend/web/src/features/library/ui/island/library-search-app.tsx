@@ -30,7 +30,8 @@ function SearchHit({ hit, onOpenReader }: { hit: LibrarySearchHit; onOpenReader:
     <button
       type="button"
       className="lib-search-hit"
-      onClick={() => onOpenReader(hit)}
+      // 契约的 BlockSearchHit 是 interface，没有索引签名；展开成对象字面量才能当锚点传。
+      onClick={() => onOpenReader({ ...hit })}
       title={`第 ${Number(hit.page_idx) + 1} 页 · ${hit.block_id}`}
     >
       <Snippet text={hit.source_snippet} />

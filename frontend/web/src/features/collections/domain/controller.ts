@@ -13,14 +13,8 @@ import { shapeDocumentsWithBooks } from "@/features/library/index.js";
 import type { LibraryCardItem } from "@/features/library/index.js";
 import type { DocumentRecord } from "@/platform/api/index.js";
 
-/** 合集记录。领域真值在本功能内，装配层从 @/features/collections 引用。 */
-export type CollectionRecord = {
-  collection_id: string;
-  name?: string;
-  document_count?: number;
-  parent_id?: string | null;
-  sort_order?: number;
-};
+/** 合集记录，形状以契约 library-documents.v1 为准；装配层从 @/features/collections 引用。 */
+export type { CollectionRecord } from "@retainpdf/contracts/library-documents";
 
 // 合集域的唯一装配面（领域名统一为 collections，历史别名 categories）。
 // 这是一个纯 React 时代新建的域,没有旧世界 controller.js 可复用,所以不套其余域那套 mountXFeature()/viewPort 壳子——
