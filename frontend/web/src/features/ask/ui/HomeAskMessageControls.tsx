@@ -4,6 +4,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, ChevronLeft, ChevronRight, Copy, Pencil, RotateCcw } from "lucide-react";
+import { copyText } from "@/platform/utils/clipboard.js";
 import type { HomeAskBranchNav } from "../domain/home-ask-branches.js";
 
 /**
@@ -49,15 +50,18 @@ export function MessageActions({
   onSwitchBranch?: (messageId: string) => void;
 }) {
   const [copied, setCopied] = useState(false);
+  const copiedTimerRef = useRef(0);
+  useEffect(() => () => window.clearTimeout(copiedTimerRef.current), []);
   const copy = useCallback(() => {
     const text = `${content || ""}`.trim();
     if (!text) return;
-    // 剪贴板在非安全上下文或被拒权限时会 reject。复制失败不该让整条消息崩掉,
-    // 也不该假装成功——按钮不变成对勾就是没复制上。
-    void navigator.clipboard?.writeText(text).then(
+    // 走平台的 copyText：局域网 http 下没有 navigator.clipboard，它会退到 execCommand。
+    // 复制失败不该让整条消息崩掉，也不该假装成功——按钮不变成对勾就是没复制上。
+    void copyText(text).then(
       () => {
         setCopied(true);
-        window.setTimeout(() => setCopied(false), 1600);
+        window.clearTimeout(copiedTimerRef.current);
+        copiedTimerRef.current = window.setTimeout(() => setCopied(false), 1600);
       },
       () => {},
     );

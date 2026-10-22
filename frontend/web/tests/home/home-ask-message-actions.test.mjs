@@ -30,6 +30,8 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
 const clipboardWrites = [];
 let clipboardFails = false;
+// 真浏览器里 http://localhost 是安全上下文，平台的 copyText 才走 navigator.clipboard；jsdom 默认不是。
+Object.defineProperty(dom.window, "isSecureContext", { value: true, configurable: true });
 Object.defineProperty(dom.window.navigator, "clipboard", {
   value: {
     writeText: (text) => {
