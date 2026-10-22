@@ -1,9 +1,11 @@
 //! 列表接口的 `limit` 默认值和上限。都是常量，不读环境变量：以前有一组读
 //! `RUST_API_MAX_*_LIMIT` 的函数，没有任何调用方，已删（2026-10-19）。要改上限就改这里。
 //!
-//! 越界怎么办按接口分：`/api/v1/jobs` 一族（任务列表、书的任务、译文、质量条目、数据、事件）
-//! `limit` 超出 1..=上限一律返回 400（规矩见 `docs/api/00-约定/`）；`/documents`、
-//! `/library/books`、`/conversations`、`/search` 暂时还是静默夹到上限。
+//! 越界怎么办按接口分：`/api/v1/jobs` 一族（任务列表、书的任务、译文、质量条目、数据、事件）和
+//! 书库的 `/documents`、`/search`、`/documents/:id/metadata-suggestions`（2026-10-22 起）`limit`
+//! 超出 1..=上限一律返回 400（规矩见 `docs/api/00-约定/03-分页.md`，校验在
+//! `retainpdf_api_base::paging::checked_limit`）；`/conversations`、`/documents/:id/agent-versions`
+//! 暂时还是静默夹到上限，书架 `/library/books` 冻结、不再改。
 
 /// Default `limit` for paginated lists when the query param is absent.
 /// Centralized default — `serde(default = "default_limit")` in `models` delegates here.

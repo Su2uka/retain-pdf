@@ -95,6 +95,23 @@ Response data:
 The suggestion and its evidence hash are persisted before it is returned, so
 the frontend can recover it with `GET` after refresh or connection loss.
 
+## List suggestions
+
+`GET /api/v1/documents/{document_id}/metadata-suggestions?limit=20` returns the
+newest suggestions first (`created_at DESC, suggestion_id DESC`):
+
+```json
+{ "suggestions": [ ... ], "limit": 20, "has_more": false }
+```
+
+- `limit` defaults to `20`; outside `1..=100` it is rejected with `400`
+  (`limit must be 1..=100`). Before 2026-10-22 it was silently clamped.
+- `limit` and `has_more` were added on 2026-10-22; `has_more` is computed by
+  reading one extra row. There is no `offset`: raise `limit` to see more.
+- Unknown query parameters (including `offset`) are rejected with `400`
+  (``unknown field `offset`, expected `limit` in the query string``). The
+  frontend sends only `limit=20`.
+
 ## Apply a suggestion
 
 Request:

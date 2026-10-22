@@ -160,7 +160,8 @@ fn query_documents(
     offset: u32,
 ) -> Result<Vec<DocumentRecord>> {
     let sql = format!(
-        "SELECT {DOCUMENT_COLUMNS} FROM documents d {} ORDER BY d.added_at DESC LIMIT ?{} OFFSET ?{}",
+        // 第二键 document_id：同一秒入库（批量上传）的书跨页不重复、不漏。
+        "SELECT {DOCUMENT_COLUMNS} FROM documents d {} ORDER BY d.added_at DESC, d.document_id DESC LIMIT ?{} OFFSET ?{}",
         filter.where_sql,
         filter.args.len() + 1,
         filter.args.len() + 2

@@ -4,6 +4,7 @@ use std::path::PathBuf;
 
 use retainpdf_core::config::limits::MAX_DOCUMENT_LIMIT;
 use retainpdf_api_base::error::AppError;
+use retainpdf_api_base::paging::checked_limit;
 use retainpdf_core::models::api::{to_absolute_url, DocumentRecord};
 use retainpdf_files::document_file_path;
 use crate::views::{
@@ -71,6 +72,8 @@ pub fn list_documents(
     base_url: &str,
     owner: Option<&str>,
 ) -> Result<DocumentListView, AppError> {
+    // 带 `job_id` 时也先校验 `limit`：越界一律 400，不看走哪条路。
+    let limit = checked_limit(query.limit, MAX_DOCUMENT_LIMIT)?;
     if let Some(job_id) = query
         .job_id
         .as_deref()
@@ -93,10 +96,11 @@ pub fn list_documents(
             .map(|doc| with_document_media_urls(doc, base_url))
             .collect::<Vec<_>>();
         let total = documents.len() as u64;
-        return Ok(DocumentListView { documents, total });
+        // 按任务查：最多一条，不分页；`limit`、`offset` 照请求回显，`has_more` 恒为 false。
+        return Ok(DocumentListView { documents, total, limit, offset: query.offset, has_more: false });
     }
     let (documents, total) = deps.db.list_documents_with_total(
-        query.limit.clamp(1, MAX_DOCUMENT_LIMIT),
+        limit,
         query.offset,
         query.reading_status.as_deref(),
         query.collection_id.as_deref(),
@@ -106,8 +110,10 @@ pub fn list_documents(
     let documents = documents
         .into_iter()
         .map(|doc| with_document_media_urls(doc, base_url))
-        .collect();
-    Ok(DocumentListView { documents, total })
+        .collect::<Vec<_>>();
+    // 页和 total 读自同一个快照，不会跳过行，直接算。
+    let has_more = u64::from(query.offset).saturating_add(documents.len() as u64) < total;
+    Ok(DocumentListView { documents, total, limit, offset: query.offset, has_more })
 }
 
 pub fn get_document(

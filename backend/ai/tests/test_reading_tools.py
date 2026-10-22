@@ -215,3 +215,22 @@ def test_list_documents_tool_has_no_tag_filter_or_tags_field():
     client = RustApiClient(Settings(), client=httpx.Client(transport=httpx.MockTransport(handler)))
     client.list_documents(reading_status="reading", limit=5)
     assert seen == [{"limit": "5", "reading_status": "reading"}]
+
+
+def test_list_documents_tool_keeps_limit_within_its_declared_range():
+    """书库列表 2026-10-22 起 `limit` 越界返回 400、不再替调用方夹；工具声明 1..=200，自己夹住。"""
+
+    class RecordingRust(FakeRust):
+        def __init__(self) -> None:
+            super().__init__()
+            self.limits: list[int] = []
+
+        def list_documents(self, *, reading_status="", limit=50):
+            self.limits.append(limit)
+            return []
+
+    rust = RecordingRust()
+    registry = build_default_registry(Settings(), rust)
+    for arguments in ({}, {"limit": 0}, {"limit": 5}, {"limit": 1000}, {"limit": -3}):
+        registry.invoke("list_documents", arguments)
+    assert rust.limits == [50, 50, 5, 200, 1]

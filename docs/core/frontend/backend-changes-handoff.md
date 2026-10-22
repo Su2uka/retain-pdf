@@ -615,3 +615,31 @@ API / jobsd 重启时，翻译阶段运行中的任务以前一律自动续跑�
   （`merged-` 后面 64 位十六进制），调 `fetchDocumentReading(apiPrefix, documentId)`（`frontend/packages/api/src/documents.ts:213`），
   拿到新的 `job_id` 就按它重新打开阅读器（和 `ReaderNavigation.tsx` 里 `buildReaderPageUrl(jobId, anchor)` 一样），拿不到（`null`）退回按书读原文。
   `session-load-plan.ts` 里可以照 `isStaleDocumentJobFailure` 加一个纯函数 `isExpiredMergedReading({ status, reason, sessionJobId })` 方便测。
+
+## 书库列表分页、不认识的字段 400（fix/library-paging-and-unknown-fields）
+
+2026-10-22。决定和调用方核对见 [书库列表分页与未知字段](../../ops/planning/api-reorg/20261022-书库列表分页与未知字段.md)。
+
+### 变了什么
+
+1. `GET /documents` 多了 `limit`、`offset`、`has_more`（带 `job_id` 时也有，`has_more` 恒为 false）；`GET /search`、
+   `GET /documents/{id}/metadata-suggestions` 多了 `limit`、`has_more`。旧字段不变。
+2. 这三个列表 `limit` 越界改成 400（以前静默夹）：`/documents` 1..=500，`/search`、元数据建议 1..=100。
+3. `/documents` 排序加第二键 `document_id DESC`，同一秒入库的书翻页不再重复或漏掉。
+4. `GET /documents/{id}/jobs` 的 `has_more` 改成多取一条判断；`total` 不变。
+5. 不认识的字段一律 400：`GET /documents`、`/search`、元数据建议列表、书的任务列表的查询参数；`PATCH /documents/{id}`、
+   `POST /collections`、`PATCH /collections/{id}`（`parent_id` 也 400）、`POST /collections/{id}/documents` 的请求体；
+   `DELETE /documents/{id}` 的查询参数。查询串的 message 是 ``unknown field `x`, expected ... in the query string``。
+   书架（`/library/books`）冻结，不收紧。
+
+### 前端要做什么
+
+不用改：前端现在发的参数（main、`refactor/library-shelf-to-jobs`、`fix/collection-workspace-post` 都看过）没有一个会被新 400 打到，
+最大的 `limit=500`（合集页）正好是上限。可选：
+
+| 文件 | 现在 | 可以改成 |
+|---|---|---|
+| `frontend/web/src/features/library/domain/documents/document-library-source.ts` | `hasMore = offset + documents.length < total` | 读 `payload.has_more`（结果一样） |
+| `frontend/web/src/features/library/domain/documents/job-actions.ts:81` | `fetchDocumentJobs(API_PREFIX, id)` 固定 `limit=50, offset=0`，超过 50 个任务只显示前 50 个 | 按 `has_more` 翻页 |
+| `frontend/packages/api/src/documents.ts` | `DocumentListView` 已有 `limit`、`offset` | 加 `has_more: boolean`；`fetchDocumentMetadataSuggestions` 只取 `suggestions`，不用改 |
+

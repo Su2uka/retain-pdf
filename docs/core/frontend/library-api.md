@@ -19,11 +19,12 @@
 ### 1. 文档列表 / 详情 / 编辑
 
 ```
-GET  /api/v1/documents?limit=50&offset=0&reading_status=reading&collection_id=xxx
+GET  /api/v1/documents?limit=50&offset=0&reading_status=reading&collection_id=xxx&q=xxx
 GET  /api/v1/documents?job_id=xxx          ← 任意 job_id(含历史 run)直查所属文档,勿再扫列表反查 active_job_id
-     → data.documents[]: { document_id, title, source_filename, page_count, bytes,
-                           active_job_id, reading_status, added_at,
-                           last_opened_at, updated_at, authors_json, year, doi }
+     → data: { documents[], total, limit, offset, has_more }
+       documents[]: { document_id, title, source_filename, page_count, bytes,
+                      active_job_id, reading_status, added_at,
+                      last_opened_at, updated_at, authors_json, year, doi }
 
 GET  /api/v1/documents/:document_id
 
@@ -33,7 +34,23 @@ PATCH /api/v1/documents/:document_id
 
 - `reading_status` 只接受 `unread | reading | done`,其他值返回 400;
 - `active_job_id` 是该文档当前生效的处理 run——**打开阅读器就用它**;
-- 列表按 `added_at` 倒序,`limit` 上限 500。
+- 列表按 `added_at` 倒序、同一秒的按 `document_id` 倒序,`limit` 默认 50、范围 1..=500,越界 400(2026-10-22 前静默夹)。
+- `limit`、`offset`、`has_more` 2026-10-22 起回显;有没有下一页看 `has_more`,不用再拿 `offset + 条数 < total` 算(两者结果一样)。
+- 带 `job_id` 时其余参数都不起作用,最多返回 1 条,`has_more` 恒为 `false`。
+- 只认上面这些查询参数,不认识的 400(例如已删的 `tag`)。PATCH 只认 `title`、`reading_status`,别的字段 400。
+- `DELETE /api/v1/documents/:document_id?force=true`:只认 `force`,拼错 400(以前当成不强删)。
+
+书上的两个列表(2026-10-22 起同样回显 `limit`、给 `has_more`,不认识的查询参数 400):
+
+```
+GET /api/v1/documents/:document_id/jobs?limit=50&offset=0
+    → data: { items[], invocation_summary, total, limit, offset, has_more }   ← limit 1..=500,默认 20
+GET /api/v1/documents/:document_id/metadata-suggestions?limit=20
+    → data: { suggestions[], limit, has_more }                                ← limit 1..=100,默认 20,没有 offset
+```
+
+- 书的任务列表的 `has_more` 改成多取一条判断(以前用 `total` 算,库里有读不出来的任务行时最后一页会误报还有);
+  `total` 照旧是 `COUNT(*)`。一本书超过 50 个任务时,按 `has_more` 翻页才能看全。
 
 ### 2. 收藏
 
@@ -68,14 +85,16 @@ DELETE /api/v1/favorites/:favorite_id
 ### 3. 全文检索(中英文都可)
 
 ```
-GET /api/v1/search?q=光学光谱&limit=20
-    → data.hits[]: { document_id, job_id, page_idx, block_id,
-                     source_snippet, translated_snippet }
+GET /api/v1/search?q=光学光谱&limit=20[&document_id=xxx]
+    → data: { query, hits[], limit, has_more }
+      hits[]: { document_id, job_id, page_idx, block_id,
+                source_snippet, translated_snippet }
 ```
 
 - snippet 里命中词用 `[` `]` 包裹,前端可替换成高亮标签;
 - 任意长度的 `q` 都能查(≥3 字符走 FTS5 全文索引,更短自动回退模糊匹配);
-- `limit` 上限 100。
+- `limit` 默认 20、范围 1..=100,越界 400(2026-10-22 前静默夹);`has_more` 表示命中不止这些(没有 `offset`,要更多就加大 `limit`);
+- 只认 `q`、`limit`、`document_id`,不认识的参数 400。
 
 ### 4. AI 问答与 PDF Agent
 
@@ -156,13 +175,14 @@ GET    /api/v1/ai/conversations/:id/operations
 ### 7. 分类(合集):建文件夹给 PDF 分组
 
 > `collections`/`collection_documents` 表随图书馆数据层一起建好,一直没接
-> 路由;现在补上。v1 只做扁平文件夹(不支持嵌套,`parent_id` 传了也接受,
-> 但前端目前不需要用)。
+> 路由;现在补上。v1 只做扁平文件夹:建的时候可以带 `parent_id`(前端不发),
+> 改的时候不能改上级——`PATCH` 传 `parent_id` 2026-10-22 起返回 400(以前 200 但不生效)。
+> 合集的请求体不认识的字段一律 400。
 
 ```
 POST   /api/v1/collections                body: { name, parent_id? }
 GET    /api/v1/collections                → `data.collections[]`（按 sort_order 排序，含 document_count）
-PATCH  /api/v1/collections/:id             body: { name?, sort_order? }
+PATCH  /api/v1/collections/:id             body: { name?, sort_order? }   ← 只认这两个
 DELETE /api/v1/collections/:id             ← 只删文件夹本身,文档不受影响
 
 POST   /api/v1/collections/:id/documents              body: { document_ids: [...] }

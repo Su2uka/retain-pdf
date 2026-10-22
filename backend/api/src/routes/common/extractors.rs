@@ -127,7 +127,15 @@ fn safe_json_rejection(rejection: JsonRejection) -> AppError {
     }
 }
 
-fn safe_query_rejection(_rejection: QueryRejection) -> AppError {
+/// 查询串里不认识的参数（`deny_unknown_fields`）：和请求体一样回字段名，不带值。其余解析错误
+/// （类型不对、缺参数）照旧是固定文案，不把 serde 原文回给调用方。
+fn safe_query_rejection(rejection: QueryRejection) -> AppError {
+    if let QueryRejection::FailedToDeserializeQueryString(error) = &rejection {
+        let text = error.body_text();
+        if let Some(start) = text.find("unknown field ") {
+            return AppError::bad_request(format!("{} in the query string", &text[start..]));
+        }
+    }
     AppError::bad_request("invalid query parameters")
 }
 
