@@ -124,7 +124,7 @@ export async function fetchJobList(
 export const JOB_LIST_MAX_LIMIT = 500;
 
 // 按编号批量取任务的活态（列表项，阶段在 stage_snapshot 里）。名单超过 500 个就分批，结果按批次顺序拼起来；
-// 后端没有的编号不出现在 items 里。书架列表 GET /library/books 冻结后，文档卡片和文件夹都走这里。
+// 后端没有的编号不出现在 items 里。书架列表 GET /library/books 已删（2026-10-22），文档卡片和文件夹都走这里。
 export async function fetchJobsByIds(
   apiPrefix: string = API_PREFIX,
   jobIds: string[] = [],

@@ -10,7 +10,7 @@ Typed API clients using generated wire DTOs from `@retainpdf/contracts`.
 Build: `npm --prefix frontend/packages/api run build` → `dist/`
 Usage: `import { fetchJobsByIds } from "@retainpdf/api/jobs"`
 
-The frozen shelf API (`library/books`) is no longer called; `contracts/library-books` is only used for the delete result shape `LibraryDeleteResultView`.
+The shelf API (`library/books`) was removed from the backend on 2026-10-22; `contracts/library-books` is only used for the delete result shape `LibraryDeleteResultView`.
 
 Browser-aware runtime configuration helpers are public at `@retainpdf/api/runtime`.
 The old `@retainpdf/api/internal/runtime` entry remains available only as a

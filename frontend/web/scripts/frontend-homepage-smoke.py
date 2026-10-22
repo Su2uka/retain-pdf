@@ -22,7 +22,7 @@ DEFAULT_URL = "http://127.0.0.1:40001/?v=homepage-smoke"
 #
 # 书架是 document-first：先 fetchDocumentList 拿文档，再 fetchJobsByIds
 #（GET /api/v1/jobs?job_ids=…）给有任务的文档叠加活态。书架列表 /api/v1/library/books
-# 已冻结，前端不再调。带 `?` 是为了只认 list 请求，把 /api/v1/documents/<id>/thumbnail
+# 后端已删（2026-10-22）。带 `?` 是为了只认 list 请求，把 /api/v1/documents/<id>/thumbnail
 # 这类逐卡片的附属请求排除在外（一次冷启动有上百个，命中它们等于白断言）。
 LIBRARY_LIST_URL_MARKERS = ("/api/v1/documents?", "/api/v1/jobs?")
 
