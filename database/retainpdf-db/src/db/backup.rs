@@ -13,9 +13,18 @@
 //!
 //! # 恢复
 //!
-//! [`Db::restore_backup`] 先解压、检查完整性和版本(比本机程序新的不恢复),再用 SQLite
-//! 的在线备份接口把内容整体写进正在用的数据库:一次写事务完成,别的连接和进程下一次读到
-//! 的就是恢复后的内容,不用重启,也不会读到一半新一半旧。然后补上缺的结构升级。
+//! 分两步(2026-10-22 起):[`Db::check_backup`] 先解压、检查完整性和版本(比本机程序新的
+//! 不恢复),不动正在用的库——调用方在这之后才存「恢复前」备份,坏备份不会挤掉真正的恢复前
+//! 备份;[`Db::restore_checked`] 在解开的临时副本上做完换库后要做的事(补结构升级、重置同步
+//! 记账并写回恢复前的同步设置、清 pid),换库前再查一次有没有在跑的任务,最后用 SQLite 的
+//! 在线备份接口把副本整体写进正在用的数据库:一次写事务完成,别的连接和进程下一次读到的
+//! 就是恢复后的内容,不用重启,也不会读到一半新一半旧。换库是最后一步,之前任何一步失败,
+//! 正在用的库都不变。[`Db::restore_backup`] 是两步连着做。
+//!
+//! # 备份里没有的东西
+//!
+//! WebDAV 密码不进备份(`VACUUM INTO` 出的副本上先删掉再压缩):恢复时本来就保留恢复前的
+//! 同步设置,备份里那份用不上,备份目录被拷走时也不会带出去。备份文件只给本机用户读写(0600)。
 //!
 //! 只恢复数据库,数据目录里的文件(原文、译文、成品)不动:备份之后新加的书文件还在,
 //! 只是数据库里没有它;开着同步时会再从同步文件夹收回来。
@@ -83,6 +92,8 @@ pub enum RestoreRefusal {
     Damaged(String),
     /// 来自更新版本的程序,本机认不全它的结构。
     Newer { backup: i64, supported: i64 },
+    /// 换库前又查到有任务在跑等(给用户看的说明)。
+    Blocked(Vec<String>),
 }
 
 impl std::fmt::Display for RestoreRefusal {
@@ -94,6 +105,7 @@ impl std::fmt::Display for RestoreRefusal {
                 f,
                 "这份备份来自更新版本的程序（数据库版本 {backup}，本机只认到 {supported}），请先升级再恢复"
             ),
+            Self::Blocked(blockers) => write!(f, "{}，等它们结束后再恢复", blockers.join("，")),
         }
     }
 }
@@ -117,6 +129,38 @@ fn temp_name(dir: &Path, ext: &str) -> PathBuf {
     dir.join(format!(".tmp-{:016x}{ext}", fastrand::u64(..)))
 }
 
+/// 新建一个只给本机用户读写的文件(备份里是整个书库)。
+fn create_private(path: &Path) -> std::io::Result<fs::File> {
+    let mut options = fs::OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+    options.open(path)
+}
+
+/// 不进备份的同步设置(恢复时保留恢复前的同步设置,备份里的用不上)。
+const SECRET_SYNC_KEYS: &[&str] = &["webdav_password"];
+
+/// 在 `VACUUM INTO` 出的副本上删掉密码。`secure_delete` 把删掉的内容清零,文件里不留原文。
+fn strip_secrets(snapshot: &Path) -> Result<()> {
+    let conn = Connection::open_with_flags(snapshot, OpenFlags::SQLITE_OPEN_READ_WRITE)?;
+    conn.execute_batch("PRAGMA journal_mode=DELETE; PRAGMA secure_delete=ON;")?;
+    let has_sync_state: bool = conn.query_row(
+        "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'sync_state')",
+        [],
+        |row| row.get(0),
+    )?;
+    if has_sync_state {
+        for key in SECRET_SYNC_KEYS {
+            conn.execute("DELETE FROM sync_state WHERE key = ?1", [key])?;
+        }
+    }
+    Ok(())
+}
+
 /// 把 `conn` 所在的数据库存成一份备份。
 fn write_backup(conn: &Connection, dir: &Path, kind: &str) -> Result<BackupInfo> {
     fs::create_dir_all(dir).with_context(|| format!("failed to create {}", dir.display()))?;
@@ -126,10 +170,13 @@ fn write_backup(conn: &Connection, dir: &Path, kind: &str) -> Result<BackupInfo>
     let snapshot = temp_name(dir, ".db");
     let packed = temp_name(dir, SUFFIX);
     let result = (|| -> Result<u64> {
+        // 先建成 0600 的空文件(`VACUUM INTO` 接受空文件),副本从一开始就不给别人读。
+        drop(create_private(&snapshot)?);
         conn.execute("VACUUM INTO ?1", [snapshot.to_string_lossy().as_ref()])
             .context("VACUUM INTO failed")?;
+        strip_secrets(&snapshot).context("failed to strip secrets from the backup")?;
         let mut input = BufReader::new(fs::File::open(&snapshot)?);
-        let file = fs::File::create(&packed)?;
+        let file = create_private(&packed)?;
         let mut encoder = GzEncoder::new(BufWriter::new(file), flate2::Compression::default());
         std::io::copy(&mut input, &mut encoder)?;
         let file = encoder.finish()?.into_inner().map_err(|e| e.into_error())?;
@@ -139,6 +186,7 @@ fn write_backup(conn: &Connection, dir: &Path, kind: &str) -> Result<BackupInfo>
         Ok(bytes)
     })();
     let _ = fs::remove_file(&snapshot);
+    let _ = fs::remove_file(snapshot.with_extension("db-journal"));
     let _ = fs::remove_file(&packed);
     let bytes = result?;
     // 改名后的时刻按文件名里记的为准(精度到毫秒)。
@@ -268,43 +316,27 @@ impl Db {
 
     /// 恢复前要先停下来的事(给用户看);空表示可以恢复。
     pub fn restore_blockers(&self) -> Result<Vec<String>> {
-        let conn = self.connect()?;
-        let count = |sql: &str| -> Result<i64> { Ok(conn.query_row(sql, [], |row| row.get(0))?) };
-        let mut out = Vec::new();
-        let jobs = count("SELECT COUNT(*) FROM jobs WHERE status_json IN ('\"queued\"', '\"running\"')")?;
-        if jobs > 0 {
-            out.push(format!("有 {jobs} 个任务在排队或运行"));
-        }
-        let operations = count(
-            "SELECT COUNT(*) FROM document_operations WHERE status IN ('queued', 'running', 'validating')",
-        )?;
-        if operations > 0 {
-            out.push(format!("AI 正在改 {operations} 份文档"));
-        }
-        let calculations = count("SELECT COUNT(*) FROM agent_calculation_runs WHERE status = 'running'")?;
-        if calculations > 0 {
-            out.push(format!("AI 有 {calculations} 个计算没算完"));
-        }
-        Ok(out)
+        blockers_on(&self.connect()?)
     }
 
-    /// 用一份备份替换当前数据库的内容(见模块说明)。调用方负责先存一份恢复前的备份、
-    /// 确认没有在跑的任务,并在这期间停住同步。
+    /// 用一份备份替换当前数据库的内容:[`Db::check_backup`] + [`Db::restore_checked`]。调用方
+    /// 负责在两步之间先存一份恢复前的备份,并在这期间停住同步。
     pub fn restore_backup(&self, id: &str) -> Result<std::result::Result<(), RestoreRefusal>> {
-        let Some(path) = self.backup_path(id) else {
+        match self.check_backup(id)? {
+            Ok(checked) => self.restore_checked(checked),
+            Err(refusal) => Ok(Err(refusal)),
+        }
+    }
+
+    /// 解开一份备份,检查完整性和版本。不动正在用的库;能恢复时返回解开的副本。
+    pub fn check_backup(&self, id: &str) -> Result<std::result::Result<CheckedBackup, RestoreRefusal>> {
+        let Some(packed) = self.backup_path(id) else {
             return Ok(Err(RestoreRefusal::NotFound));
         };
-        let dir = self.backups_dir();
-        let unpacked = temp_name(&dir, ".db");
-        let result = self.restore_unpacked(&path, &unpacked);
-        let _ = fs::remove_file(&unpacked);
-        result
-    }
-
-    fn restore_unpacked(&self, packed: &Path, unpacked: &Path) -> Result<std::result::Result<(), RestoreRefusal>> {
+        let checked = CheckedBackup { id: id.to_string(), unpacked: temp_name(&self.backups_dir(), ".db") };
         let unpack = (|| -> std::io::Result<()> {
-            let mut decoder = GzDecoder::new(BufReader::new(fs::File::open(packed)?));
-            let mut out = BufWriter::new(fs::File::create(unpacked)?);
+            let mut decoder = GzDecoder::new(BufReader::new(fs::File::open(&packed)?));
+            let mut out = BufWriter::new(create_private(&checked.unpacked)?);
             std::io::copy(&mut decoder, &mut out)?;
             out.flush()
         })();
@@ -312,7 +344,7 @@ impl Db {
             return Ok(Err(RestoreRefusal::Damaged(error.to_string())));
         }
         // 解开的是临时副本:可写打开(全文索引的完整性检查要写)。
-        let source = match Connection::open_with_flags(unpacked, OpenFlags::SQLITE_OPEN_READ_WRITE) {
+        let source = match Connection::open_with_flags(&checked.unpacked, OpenFlags::SQLITE_OPEN_READ_WRITE) {
             Ok(conn) => conn,
             Err(error) => return Ok(Err(RestoreRefusal::Damaged(error.to_string()))),
         };
@@ -328,13 +360,35 @@ impl Db {
         if version > supported {
             return Ok(Err(RestoreRefusal::Newer { backup: version, supported }));
         }
+        drop(source);
+        Ok(Ok(checked))
+    }
 
+    /// 把检查过的备份换进正在用的库(见模块说明):先在副本上补结构、重置同步记账、清 pid,
+    /// 换库前再查一次有没有在跑的任务(有就 [`RestoreRefusal::Blocked`],什么都不改),最后
+    /// 一步换进去。返回 `Err` 时正在用的库没有变。
+    pub fn restore_checked(&self, checked: CheckedBackup) -> Result<std::result::Result<(), RestoreRefusal>> {
+        let mut source = Connection::open_with_flags(&checked.unpacked, OpenFlags::SQLITE_OPEN_READ_WRITE)?;
+        source.execute_batch("PRAGMA foreign_keys=ON;")?;
+        // 旧备份的结构补到最新(不再另存升级前备份:恢复前那份已经有了)。
+        Db::apply_schema(&source)?;
         let mut target = self.connect()?;
         let previous_sync_state: Vec<(String, String)> = {
             let mut stmt = target.prepare("SELECT key, value FROM sync_state")?;
             let rows = stmt.query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?;
             rows.collect::<std::result::Result<_, _>>()?
         };
+        {
+            let tx = source.transaction()?;
+            sync_after_restore(&tx, &previous_sync_state)?;
+            clear_restored_job_pids(&tx)?;
+            tx.commit()?;
+        }
+        // 从调用方查过到现在(等同步停下、存恢复前备份)可能又有任务进来了:换库前再查一次。
+        let blockers = blockers_on(&target)?;
+        if !blockers.is_empty() {
+            return Ok(Err(RestoreRefusal::Blocked(blockers)));
+        }
         {
             let backup = Backup::new(&source, &mut target)?;
             // 一步拷完:整个替换在目标库的一次写事务里完成。别的连接正在写时等一等。
@@ -355,17 +409,58 @@ impl Db {
             }
         }
         drop(source);
-        target.execute_batch("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;")?;
-        // 旧备份的结构补到最新(不再另存升级前备份:恢复前那份已经有了)。
-        {
-            let mut ready = self.schema_ready.lock().expect("db schema_ready mutex poisoned");
-            Db::apply_schema(&target)?;
-            *ready = true;
+        drop(checked);
+        // 副本已经是 WAL、结构最新;这里只是保险,失败也不影响恢复结果。
+        if let Err(error) = target.execute_batch("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;") {
+            eprintln!("warning: after restoring a backup: {error:#}");
         }
-        sync_after_restore(&target, &previous_sync_state)?;
-        clear_restored_job_pids(&target)?;
+        *self.schema_ready.lock().expect("db schema_ready mutex poisoned") = true;
         Ok(Ok(()))
     }
+}
+
+/// [`Db::check_backup`] 检查过、能恢复的一份备份:解开的临时副本。用完(恢复了或放弃了)删掉。
+pub struct CheckedBackup {
+    id: String,
+    unpacked: PathBuf,
+}
+
+impl CheckedBackup {
+    pub fn id(&self) -> &str {
+        &self.id
+    }
+}
+
+impl Drop for CheckedBackup {
+    fn drop(&mut self) {
+        let _ = fs::remove_file(&self.unpacked);
+        for suffix in ["-journal", "-wal", "-shm"] {
+            let mut name = self.unpacked.clone().into_os_string();
+            name.push(suffix);
+            let _ = fs::remove_file(PathBuf::from(name));
+        }
+    }
+}
+
+/// 恢复前要先停下来的事(给用户看);空表示可以恢复。
+fn blockers_on(conn: &Connection) -> Result<Vec<String>> {
+    let count = |sql: &str| -> Result<i64> { Ok(conn.query_row(sql, [], |row| row.get(0))?) };
+    let mut out = Vec::new();
+    let jobs = count("SELECT COUNT(*) FROM jobs WHERE status_json IN ('\"queued\"', '\"running\"')")?;
+    if jobs > 0 {
+        out.push(format!("有 {jobs} 个任务在排队或运行"));
+    }
+    let operations = count(
+        "SELECT COUNT(*) FROM document_operations WHERE status IN ('queued', 'running', 'validating')",
+    )?;
+    if operations > 0 {
+        out.push(format!("AI 正在改 {operations} 份文档"));
+    }
+    let calculations = count("SELECT COUNT(*) FROM agent_calculation_runs WHERE status = 'running'")?;
+    if calculations > 0 {
+        out.push(format!("AI 有 {calculations} 个计算没算完"));
+    }
+    Ok(out)
 }
 
 /// 备份里排队/运行中的任务带着备份那一刻的 worker pid。恢复之后这些 pid 一律不属于当前
@@ -524,6 +619,97 @@ mod tests {
         assert_eq!(pid("run"), None, "恢复出来的 running 任务不能带着备份里的 pid");
         assert_eq!(pid("wait"), None, "恢复出来的 queued 任务不能带着备份里的 pid");
         assert_eq!(pid("done"), Some(4242), "终态任务的 pid 只是历史记录，不动");
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    fn unpack(db: &Db, id: &str) -> Vec<u8> {
+        let path = db.backups_dir().join(format!("{id}{SUFFIX}"));
+        let mut raw = Vec::new();
+        std::io::Read::read_to_end(&mut GzDecoder::new(fs::File::open(path).unwrap()), &mut raw).unwrap();
+        raw
+    }
+
+    /// 回归（审计 C4）：WebDAV 密码明文存在 sync_state 里，以前每份备份都带着它。备份里
+    /// 不能有密码，文件只给本机用户读；恢复保留恢复前的同步设置，密码照旧在。
+    #[test]
+    fn backups_leave_the_webdav_password_out_and_are_private_to_the_owner() {
+        let (root, db) = temp_db();
+        db.sync_state_set("webdav_password", "top-secret-pass-77").unwrap();
+        db.sync_state_set("webdav_url", "http://nas:5005/dav").unwrap();
+        let backup = db.create_backup(KIND_MANUAL).unwrap();
+        let raw = unpack(&db, &backup.id);
+        assert!(
+            !raw.windows(b"top-secret-pass-77".len()).any(|w| w == b"top-secret-pass-77"),
+            "备份解开后不能查到 WebDAV 密码"
+        );
+        assert!(raw.windows(b"nas:5005".len()).any(|w| w == b"nas:5005"), "别的同步设置照常在备份里");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mode = fs::metadata(db.backups_dir().join(format!("{}{SUFFIX}", backup.id))).unwrap().permissions().mode();
+            assert_eq!(mode & 0o777, 0o600, "备份文件只给本机用户读写");
+        }
+        assert_eq!(db.restore_backup(&backup.id).unwrap(), Ok(()));
+        assert_eq!(db.sync_state_get("webdav_password").unwrap().as_deref(), Some("top-secret-pass-77"));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    /// 回归（审计 C3）：换库之后的几步（结构升级、同步记账、清 pid）以前在换好的正在用的库上
+    /// 一步步做，中途失败接口回 500 而库已经换了。现在在解开的副本上做完再一步换进去：
+    /// 任何一步失败，正在用的库不变。
+    #[test]
+    fn a_restore_that_fails_while_preparing_the_copy_leaves_the_live_database_alone() {
+        let (root, db) = temp_db();
+        let conn = db.connect().unwrap();
+        set_title(&db, "before");
+        conn.execute(
+            "INSERT INTO jobs(job_id, workflow, status_json, created_at, updated_at, pid, command_json, request_json, log_tail_json)
+             VALUES('j1', '\"book\"', '\"running\"', 't', 't', 4242, '[]', '{}', '[]')",
+            [],
+        )
+        .unwrap();
+        // 备份里有一个清 pid 时会失败的触发器。
+        conn.execute_batch(
+            "CREATE TRIGGER boom BEFORE UPDATE OF pid ON jobs BEGIN SELECT RAISE(ABORT, 'boom'); END;",
+        )
+        .unwrap();
+        let backup = db.create_backup(KIND_MANUAL).unwrap();
+        conn.execute_batch(
+            "DROP TRIGGER boom; UPDATE jobs SET status_json = '\"failed\"', pid = NULL;",
+        )
+        .unwrap();
+        drop(conn);
+        set_title(&db, "after");
+        assert!(db.restore_backup(&backup.id).is_err());
+        assert_eq!(title(&db).as_deref(), Some("after"), "失败时正在用的库不能已经换了");
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    /// 回归（审计 C2）：「有没有任务在跑」以前只在恢复开头查一次。换库前在同一个阻塞线程里
+    /// 再查一次：这时有任务在跑就不换。
+    #[test]
+    fn work_that_started_after_the_check_still_blocks_the_swap() {
+        let (root, db) = temp_db();
+        set_title(&db, "before");
+        let backup = db.create_backup(KIND_MANUAL).unwrap();
+        set_title(&db, "after");
+        let checked = db.check_backup(&backup.id).unwrap().unwrap();
+        db.connect()
+            .unwrap()
+            .execute(
+                "INSERT INTO jobs(job_id, workflow, status_json, created_at, updated_at, command_json, request_json, log_tail_json)
+                 VALUES('j1', '\"book\"', '\"queued\"', 't', 't', '[]', '{}', '[]')",
+                [],
+            )
+            .unwrap();
+        assert!(matches!(db.restore_checked(checked).unwrap(), Err(RestoreRefusal::Blocked(_))));
+        assert_eq!(title(&db).as_deref(), Some("after"));
+        let leftovers: Vec<_> = fs::read_dir(db.backups_dir())
+            .unwrap()
+            .flatten()
+            .filter(|e| e.file_name().to_string_lossy().starts_with(".tmp-"))
+            .collect();
+        assert!(leftovers.is_empty(), "解开的副本用完要删掉：{leftovers:?}");
         fs::remove_dir_all(root).unwrap();
     }
 
