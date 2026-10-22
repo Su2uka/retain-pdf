@@ -955,3 +955,45 @@ API / jobsd 重启时，翻译阶段运行中的任务以前一律自动续跑�
 |---|---|
 | 把手写的任务、阅读器、用量请求换成生成的函数 | `frontend/packages/api/src/` 里 jobs、reader、usage 相关文件 |
 | （可选）类型改从 `@retainpdf/contracts/job-status` 引 `JobListView`、`ListJobsQuery`，之后后端可以删 `library-books.v1` 那条重复的 `GET /jobs` | `frontend/` 下引 `@retainpdf/contracts/library-books` 的地方 |
+
+## 第 1b 期：任务操作与报告（contracts/phase1b-job-actions-reports）
+
+2026-10-22。决定见 [契约第 1b 期任务操作与报告](../../ops/planning/api-reorg/20261022-契约第1b期任务操作与报告.md)。接口行为没变，只是补了契约。
+同一期的译文条目、书的翻译 / OCR / 任务列表在另一个分支。
+
+1. 两份新契约，从新子路径导入：
+
+   | 导入 | 端点（`client_name`） | 主要类型 |
+   |---|---|---|
+   | `@retainpdf/contracts/job-actions` | `listJobActions`（`GET actions`）、`cancelJob`（`POST actions/cancel`）、`resolveOcrAmbiguity`、`getResumePlan`（`GET actions/resume`）、`resumeJob`（`POST actions/resume`）、`retryJobStage` | `StageActionsView`、`StageRetryActionView`、`LastRefineView`、`JobResumePlanView`、`JobSubmissionView`、`RetryStageRequest`、`RetryStageSubmissionView`、`ResumeJobInput`、`OcrAmbiguityResolutionRequest`、`OcrAmbiguityResolutionView`、`ActionBlockReason` |
+   | `@retainpdf/contracts/job-reports` | `getFailureReport`（`GET reports/failure`）、`getQualityReport`（`GET reports/quality`）、`listQualityItems`（`GET reports/quality/items`）、`getTranslationReport`（`GET reports/translation`） | `JobDiagnosticsView`、`OcrAmbiguityView`、`QualitySummaryView`、`QualityItemsQuery`、`QualityItemsView`、`QualityItem`、`TranslationDiagnosticsView` |
+
+   原始 schema 是 `@retainpdf/contracts/job-actions.v1.schema.json`、`job-reports.v1.schema.json`。
+
+2. 错误码（各端点的 `note` 里有全文）：
+   - 操作被拒一律 409，`error.details.reason` 是 `ActionBlockReason` 的值，按它分支、不要解析文字：
+     取消 `job_not_active`；续跑 `job_active`、`artifacts_missing`、`model_executor_unsupported`、`ambiguous_ocr_dispatch`、
+     `request_journal_corrupt`、`ambiguous_translation_request`、`stale_resolution`；重试再加 `translations_not_owned`；
+     OCR 歧义处理 `job_active`、`no_ocr_dispatch`、`stale_resolution`、`ocr_dispatch_unsupported`。
+   - 请求写错 400（不认识的字段、`retry-stage` 的 stage / `create_new_job` / `refine` 组合不对、`quality/items` 的 `kind`、`limit` 不对）。
+   - `reports/translation` 报告还没生成：404，`error.details.reason=not_ready`。其余报告接口报告缺了照样 200，那一段是 null / 空清单。
+   - 多用户模式下续跑、重试、OCR 歧义处理建新任务时页数额度不够：402，`error.code=PAGE_QUOTA_EXCEEDED`。
+
+3. 和手写类型对不上、换成生成的类型时要注意的（`frontend/packages/api/src/`）：
+
+   | 文件 | 现在手写的 | 契约里的 |
+   |---|---|---|
+   | `jobs-actions.ts` | `JobStageRetryActionView` 的 `reason`、`disabled_reason`、`will_reuse`、`will_rerun`、`danger` 可选，`action` 里的字段可选 | 都必有；`action` 不能重试时是 `null`；多了 `disabled_code`（`ActionBlockReason \| null`）；`action.body` 是 `RetryStageRequest` |
+   | `jobs-actions.ts` | `LastRefineView` 的 `mode`、`escalated_count`、`escalated` 可选 | 都必有（老报告没有时是空串 / 0 / 空数组） |
+   | `jobs-actions.ts` | `JobDiagnosticsView` 只写了 `failure_code`、`ocr_ambiguity`，其余 `[key: string]: unknown` | 全部字段；`render_diagnostics`、`translation_request_recovery` 没有时整个键不出现 |
+   | `jobs-actions.ts` | `fetchResumePlan`、`resumeJob`、`cancelJob`、`retryJobStage` 返回 `any` | `JobResumePlanView`、`JobSubmissionView`、`JobSubmissionView`、`RetryStageSubmissionView` |
+   | `jobs-actions.ts` | `resumeJob` 的 body 是 `Record<string, unknown>` | `ResumeJobInput`：只有 `overrides.translation` 的四个 key 字段，别的 400 |
+   | `quality.ts` | `QualitySummaryView.layout.min_scale`、`min_final_font_size` 是 `number`；`refine.qa_before`、`qa_after` 不可空 | `number \| null`；`QaSnapshot \| null` |
+   | `quality.ts` | `QualityItem.page` 是 `number`，`translation_item_id`、`reason` 可选 | `page` 是 `number \| null`；`translation_item_id`、`reason` 必有；按类出现的 `scale` 等可为 `null`；多了 `attempts` |
+   | `quality.ts` | `QualityItemsView` 没有 `has_more` | 有 `has_more` |
+   | `translation-debug.ts` | `fetchTranslationDiagnostics` 返回 `any` | `TranslationDiagnosticsView`（`summary` 是流水线的诊断文件，`{[k]: JsonValue}`，契约不展开） |
+
+4. 调用方现在发的参数都在契约里：`cancelJob` 发 `{}`（后端不读请求体）；`resumeJob` 默认发 `{}`；`retryJobStage` 只发
+   `stage`、`mode`、`create_new_job`、`overrides`、`ambiguous_request_policy`、`refine`；`resolveOcrAmbiguity` 发
+   `resolution`、`resolution_revision` 和回执字段；`fetchQualityItems` 发 `kind`、`offset`、`limit`、可选 `page`、`severity`。
+

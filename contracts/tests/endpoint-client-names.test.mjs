@@ -31,9 +31,20 @@ test("library-documents.v1 endpoints all carry the phase-0 client names over the
   ]);
 });
 
+// 第 1a 期补名字的 7 份契约。之后几期在别的契约里起的名字各有自己的 test。
+const PHASE_1A_CONTRACTS = new Set([
+  "create-job.v1.schema.json",
+  "job-data.v1.schema.json",
+  "job-events.v2.schema.json",
+  "job-status.v1.schema.json",
+  "library-books.v1.schema.json",
+  "reader-data.v1.schema.json",
+  "token-usage.v1.schema.json",
+]);
+
 test("phase-1a endpoints carry the client names from the frontend list over the json transport", () => {
   const named = [];
-  for (const fileName of readdirSync(resolve(".")).filter((name) => name.endsWith(".schema.json") && name !== "library-documents.v1.schema.json")) {
+  for (const fileName of readdirSync(resolve(".")).filter((name) => PHASE_1A_CONTRACTS.has(name))) {
     for (const { method, path, client_name, transport } of read(fileName).endpoints || []) {
       if (client_name !== undefined) named.push([fileName, method, path, client_name, transport]);
     }
@@ -70,4 +81,26 @@ test("the old response_body key is merged into transport", () => {
   }
   const artifact = read("agent-calculation.v1.schema.json").endpoints.find((endpoint) => endpoint.path.endsWith("/artifacts/:artifact_id"));
   assert.equal(artifact.transport, "binary");
+});
+
+// 第 1b 期：任务操作（job-actions.v1）和任务报告（job-reports.v1）两份新契约，每条端点都有名字。
+test("phase-1b job actions and reports endpoints carry the client names from the frontend list", () => {
+  const table = (fileName) => read(fileName).endpoints.map(({ method, path, client_name, transport, input, query, output }) => [
+    method, path, client_name, transport, input, query, output,
+  ]);
+  assert.deepEqual(table("job-actions.v1.schema.json"), [
+    ["GET", "/api/v1/jobs/:job_id/actions", "listJobActions", "json", undefined, undefined, "StageActionsView"],
+    // 取消不读请求体。
+    ["POST", "/api/v1/jobs/:job_id/actions/cancel", "cancelJob", "json", undefined, undefined, "JobSubmissionView"],
+    ["POST", "/api/v1/jobs/:job_id/actions/resolve-ocr-ambiguity", "resolveOcrAmbiguity", "json", "OcrAmbiguityResolutionRequest", undefined, "OcrAmbiguityResolutionView"],
+    ["GET", "/api/v1/jobs/:job_id/actions/resume", "getResumePlan", "json", undefined, undefined, "JobResumePlanView"],
+    ["POST", "/api/v1/jobs/:job_id/actions/resume", "resumeJob", "json", "ResumeJobInput", undefined, "JobSubmissionView"],
+    ["POST", "/api/v1/jobs/:job_id/actions/retry-stage", "retryJobStage", "json", "RetryStageRequest", undefined, "RetryStageSubmissionView"],
+  ]);
+  assert.deepEqual(table("job-reports.v1.schema.json"), [
+    ["GET", "/api/v1/jobs/:job_id/reports/failure", "getFailureReport", "json", undefined, undefined, "JobDiagnosticsView"],
+    ["GET", "/api/v1/jobs/:job_id/reports/quality", "getQualityReport", "json", undefined, undefined, "QualitySummaryView"],
+    ["GET", "/api/v1/jobs/:job_id/reports/quality/items", "listQualityItems", "json", undefined, "QualityItemsQuery", "QualityItemsView"],
+    ["GET", "/api/v1/jobs/:job_id/reports/translation", "getTranslationReport", "json", undefined, undefined, "TranslationDiagnosticsView"],
+  ]);
 });

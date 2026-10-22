@@ -16,6 +16,8 @@
 | `ocr-providers.v1.schema.json` | OCR 提供方清单 `GET /api/v1/providers/ocr`（不分页）：凭据字段、选项（带 `client_settable`，只能服务器定的不给默认值）、能力、产物布局 | `@retainpdf/contracts/ocr-providers`（前端现在用写死的 `frontend/web/src/platform/config/providers.ts`，要不要换由前端定） | `backend/packages/retainpdf-core/src/models/ocr.rs`、`backend/packages/retainpdf-data/src/ocr_provider/catalog.rs`（`provider_client_definitions`）；`backend/api/src/api_tests/providers.rs` 钉键集合 |
 | `job-status.v1.schema.json` | 任务详情、脱敏请求参数与阶段进度 | `@retainpdf/api`、`frontend/packages/domain`、`frontend/web`、`frontend/web-react` | `backend/api` public view models |
 | `job-events.v2.schema.json` | 普通/OCR 事件游标分页、稳定事件身份 | `@retainpdf/api`、`frontend/web` | `backend/api` event feed |
+| `job-actions.v1.schema.json` | 任务操作 `/api/v1/jobs/:job_id/actions`（能做哪些操作）、`actions/cancel`、`actions/resume`（GET 续跑计划、POST 续跑）、`actions/retry-stage`、`actions/resolve-ocr-ambiguity`；409 的 `error.details.reason` 取值 `ActionBlockReason` | `@retainpdf/contracts/job-actions`（前端以后换掉 `frontend/packages/api/src/jobs-actions.ts` 里手写的类型） | `backend/packages/retainpdf-jobs/src/views/job_types.rs`、`views/common.rs`（`JobSubmissionView`）、`backend/api/src/routes/jobs/actions.rs`（续跑请求体）；`backend/api/src/api_tests/job_actions_reports_contract.rs` 钉键集合 |
+| `job-reports.v1.schema.json` | 任务报告 `reports/failure`（失败原因、OCR 歧义）、`reports/quality`（质量体检卡）、`reports/quality/items`（逐条清单）、`reports/translation`（翻译诊断） | `@retainpdf/contracts/job-reports`（前端以后换掉 `quality.ts`、`jobs-actions.ts` 里手写的类型） | `backend/packages/retainpdf-jobs/src/views/job_types.rs`、`reports/quality/mod.rs`、`views/translation.rs`；同上测试钉键集合 |
 | `jobs-control.v1.schema.json` | shell↔jobsd 控制面 | `backend/api/src/api_tests/jobs_control_contract.rs` | `backend/jobs/src/contract_lock.rs` |
 | `pipeline-stdout.v1.schema.json` | Python stdout 协议 | `backend/packages/retainpdf-runner/src/job_runner/stdout_parser/contract_lock.rs` | `backend/pipeline` worker 与对应 contract test |
 | `public-document-operation.v1.schema.json` | 浏览器安全的 PDF operation 查询、分页与 CAS action | `frontend/packages/api`、Reader/网页宿主 | `backend/packages/retainpdf-ai/src/public_document_operations.rs` |
@@ -46,6 +48,7 @@ endpoint 和它自己的 definition。全部接口见 `docs/api/00-接口目录.
 
 现在 `library-documents.v1` 的 17 条都有 `client_name`；第 1a 期（2026-10-22）给 `job-status`、`create-job`、`library-books`、`job-data`、`job-events`、`reader-data`、`token-usage` 的 16 条补上了（`GET /api/v1/jobs` 在 `library-books.v1` 也登记了一次，名字只写在 `job-status.v1`）；`agent-calculation.v1` 的计算产物下载是 `binary`
 （2026-10-22 以前写的是 `response_body: "binary"`，已并进 `transport`），`reader-data.v1` 的 `progress/stream` 是 `sse`。
+第 1b 期（2026-10-22）新建 `job-actions.v1`（6 条）、`job-reports.v1`（4 条），每条都有 `client_name`。
 `scripts/lint-schemas.mjs` 查端点的键（有白名单，拼错的键直接红）、`method`、`transport` 的取值、`client_name` 的格式和重名；带 `client_name` 的端点，`query`/`input`/`output` 必须是本契约 definitions 里的名字（生成器按名字取类型，写说明文字会让它报错）。
 
 **和接口登记表一致**：rust_api 的 `route_manifest` 测试（`contract_endpoints_are_registered`）读 `backend/contracts/*.schema.json`
@@ -58,7 +61,7 @@ endpoint 和它自己的 definition。全部接口见 `docs/api/00-接口目录.
 
 ## npm 包
 
-本目录发布为 `@retainpdf/contracts`。Wire DTO 从 `@retainpdf/contracts/job-status`、`@retainpdf/contracts/job-events`、`@retainpdf/contracts/library-books`、`@retainpdf/contracts/library-documents`、`@retainpdf/contracts/ocr-providers`、`@retainpdf/contracts/reader-data` 与 `@retainpdf/contracts/translation-revisions` 导出；原始 schema 以文件名子路径显式导出。包没有根 DTO 入口、wildcard export 或 runtime dependency。
+本目录发布为 `@retainpdf/contracts`。Wire DTO 从 `@retainpdf/contracts/job-status`、`@retainpdf/contracts/job-events`、`@retainpdf/contracts/job-actions`、`@retainpdf/contracts/job-reports`、`@retainpdf/contracts/library-books`、`@retainpdf/contracts/library-documents`、`@retainpdf/contracts/ocr-providers`、`@retainpdf/contracts/reader-data` 与 `@retainpdf/contracts/translation-revisions` 导出；原始 schema 以文件名子路径显式导出。包没有根 DTO 入口、wildcard export 或 runtime dependency。
 
 `@retainpdf/contracts/create-job-fields` 是唯一导出**运行期值**的子路径：`CREATE_JOB_TOP_LEVEL_FIELDS` 与 `CREATE_JOB_SECTION_FIELDS` 是 `create-job.v1.schema.json` 里各 definition 的 `properties` 键。TS 类型在运行期不存在，而 `frontend/web` 的 mock 要模拟后端的 `deny_unknown_fields`（多一个键 => 400），需要的正是一份运行期能读的白名单——以前那份是手抄在 mock 里的第二真相源。生成器只为 `additionalProperties: false` 的 definition 发这张表：定义本身允许额外字段却发一张封闭清单，就是对下游撒谎。
 
@@ -73,4 +76,4 @@ npm --prefix contracts test
 npm --prefix contracts run build
 ```
 
-`src/job-status.ts`、`src/job-events.ts`、`src/library-books.ts`、`src/library-documents.ts`、`src/ocr-providers.ts`、`src/reader-data.ts` 与 `src/translation-revisions.ts` 由固定版本的 `json-schema-to-typescript` 生成并入库，禁止手改。`src/create-job.ts` 与 `src/create-job-fields.ts` 同理。`generate:check` 阻止生成漂移；测试还会锁定 `job-status` 与 `library-books` 重复 Job definitions 的结构一致性。`frontend/packages/domain` 保留的是归一化模型，不应替代 wire DTO。
+`src/job-status.ts`、`src/job-events.ts`、`src/job-actions.ts`、`src/job-reports.ts`、`src/library-books.ts`、`src/library-documents.ts`、`src/ocr-providers.ts`、`src/reader-data.ts` 与 `src/translation-revisions.ts` 由固定版本的 `json-schema-to-typescript` 生成并入库，禁止手改。`src/create-job.ts` 与 `src/create-job-fields.ts` 同理。`generate:check` 阻止生成漂移；测试还会锁定 `job-status` 与 `library-books` 重复 Job definitions 的结构一致性，以及 `job-actions`、`job-reports` 抄自 `job-status` 和两者共用的定义的结构一致性（`tests/job-shared-definitions-parity.test.mjs`）。`frontend/packages/domain` 保留的是归一化模型，不应替代 wire DTO。
