@@ -132,3 +132,54 @@ def test_salvage_keeps_only_the_corrected_translation():
 def test_nothing_after_the_correction_means_retranslate_not_partial_accept():
     output = "这是一段足够长的中文草稿译文，汉字数量超过了部分接受的门槛。\n\nWait — I need to correct my reply."
     assert _salvage(ECHO_SOURCE, output) is None
+
+
+# ---------------------------------------------------------------- 拿不准时的自问自答
+
+# 真实输出（claude-haiku-5-5，没开思考，20261013090853-726861 p070-b014）：原文只是一个小标题，
+# 模型把「要不要翻、怎么翻」的推敲整段写进了回答，最后一行才是它的决定。
+NAK_SOURCE = "Nak Schedule 2"
+NAK_OUTPUT = (
+    'Translation: "Nak Schedule 2" as a heading. "Nak" is a term from PCI Express (NAK, negative acknowledgment). '
+    'Keep "NAK" as-is? The source says "Nak Schedule 2" — keep original casing and proper naming, translate as a '
+    'heading: "Nak 调度 2"? Better to keep "Nak Schedule 2" since it\'s an identifier-like heading; possibly '
+    '"NAK 调度 2". I\'ll use "Nak Schedule 2" with the term preserved, which is conservative.\n\n'
+    "Nak Schedule 2"
+)
+
+
+@pytest.mark.parametrize(
+    "musing",
+    [
+        'Keep "NAK" as-is?',
+        "The source says",
+        'Better to keep "Nak Schedule 2"',
+        "I'll use",
+        "translate as a heading",
+    ],
+)
+def test_deliberation_phrases_are_detected(musing):
+    assert self_correction_leak("调度表", f"调度表 2。{musing} 调度表 2。")
+
+
+def test_real_deliberation_is_detected_and_salvaged_to_the_final_line():
+    assert self_correction_leak(NAK_SOURCE, NAK_OUTPUT)
+    assert text_after_self_correction(NAK_SOURCE, NAK_OUTPUT) == "Nak Schedule 2"
+    entry = _salvage(NAK_SOURCE, NAK_OUTPUT)["p005-b013"]
+    # 模型最后的决定是保留原文：照它的决定保留，不把推敲过程排进 PDF。
+    assert entry["decision"] == "keep_origin"
+    assert entry["translation_diagnostics"]["degradation_reason"] == "self_correction_salvaged"
+
+
+@pytest.mark.parametrize(
+    ("source", "translated"),
+    [
+        # 原文里本来就有这些话（引文、对话）：照译出来的不算
+        ('"I\'ll use the red one," she said.', '她说："I\'ll use the red one."'),
+        ("The source says nothing about it.", "来源（The source says nothing）对此只字未提。"),
+        # 中文里的「保留」「采用」是正常译文
+        ("We keep the notation as-is.", "我们保留原有记号不变。"),
+    ],
+)
+def test_ordinary_text_with_similar_words_passes(source, translated):
+    assert self_correction_leak(source, translated) == ""

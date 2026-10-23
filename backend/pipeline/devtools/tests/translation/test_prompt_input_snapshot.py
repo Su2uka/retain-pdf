@@ -38,11 +38,15 @@ _BUILDERS = [build_single_item_fallback_messages, lambda item: build_messages([i
 # 合并成一份分节的提示（「半句照翻」原来写了 3 遍），并新增三条有数据支撑的规则：交叉引用
 # 对照（31 本书里 Equation 译「式」360 次、「方程」83 次、「公式」15 次）、中文全角标点、
 # 有通行译名的术语一律译出。公式指引去掉了 mitex 专属的说法（默认渲染已是自研引擎）。
+#
+# 第四次重录：逐段请求（route 0，两组）改了排法——前后文挪到原文前面并用起止标记括起来，
+# 作答要求放最后一行（原来夹在中间，模型读完一串「后文上下文：……」后自己补了个「译文：」）。
+# direct_typst 的整批请求（route 1）只换了格式示例里占位的那行；placeholder 的整批请求走 JSON，一字未动。
 _DIGESTS = {
-    False: ["15fe855e02edb5c644061c000df928eb4b7e747c6223dad7de9714fc151fc75a",
+    False: ["84cc32bb5d212f354d3cf051c1084cbee08f6899d559794a66d2c4903dd1f8fe",
             "e0ff9a772d08d6301c011abcc41d8da089f67345018b17f9da500422dd7bee51"],
-    True: ["9863f6136519f08980a4be18c17f4cf1810f5fb7f6286a2df0eda68a4d47d52b",
-           "78167b019b49725e9a30206e228e2640f352bd01bb0c93ecf4aba0f47efefa99"],
+    True: ["60a91bc52d5f721b439d5894140c4f6d8d2b962315d1152777acc78d08bab1a8",
+           "76bcc838cc8ac22aaa308c130aee266b2b4f9771785f3471958f8639b90f73e0"],
 }
 
 

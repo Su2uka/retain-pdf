@@ -33,6 +33,15 @@ _CORRECTION_PHRASE_RE = re.compile(
     r"|the\s+correct\s+(?:output|translation|answer|reply)\s+is"
     r"|my\s+(?:previous|earlier|last)\s+(?:reply|answer|response|translation|output)"
     r"|(?:not|instead\s+of)\s+the\s+source\s+(?:text\s+)?repeated"
+    # 拿不准时的自问自答（没开思考的小模型会把犹豫写进回答）。真实例子（claude-haiku-5-5，
+    # 20261013090853-726861 p070-b014，原文只是小标题 "Nak Schedule 2"）：
+    #   Translation: "Nak Schedule 2" as a heading. … Keep "NAK" as-is? The source says "Nak Schedule 2" — …
+    #   Better to keep "Nak Schedule 2" since it's an identifier-like heading; … I'll use "Nak Schedule 2" …
+    r"|i(?:'ll|’ll|\s+will)\s+(?:use|keep|go\s+with|translate|render|output|leave)\b"
+    r"|keep\s+(?:[\"“'‘][^\"”'’\n]{1,60}[\"”'’]|it|this|that|them)\s+as[- ]is\b"
+    r"|(?:better|best|safer)\s+to\s+(?:keep|leave|translate|use|preserve)\b"
+    r"|the\s+source\s+(?:text\s+)?says\b"
+    r"|translate\s+(?:it\s+|this\s+)?as\s+an?\s+(?:heading|title|label)\b"
     r")",
     re.I,
 )

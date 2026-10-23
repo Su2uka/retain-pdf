@@ -55,5 +55,9 @@ def test_shared_layout_resolves_probes_and_unchanged_baseline():
     # 2026-10-15:续接组不再让模型按原分界逐框返回(d132915d,删了 build_group_member_messages),
     # 整段交给模型、程序切回各框,走逐段请求。逐例审阅:只有 4 个 */group 用例变,且只变 messages
     # (system 的输出协议、user 换成逐段提示词);engine_identity 与成员不变,其余 24 个一字未动。
+    # 2026-10-23:逐段提示词改成「前后文 → 原文 → 最后一行作答要求」(防模型自己补「译文：」小节头),
+    # 批量格式里的「译文」占位换成「（这一段的译文正文，开头不加任何标签）」。逐例审阅:17 个用例只变 user 消息——
+    # 15 个逐段/续接组用例删了开头两行说明、前后文挪到原文前面用起止标记括起来、末尾加一行作答要求,
+    # 2 个 */batch 只变那一行占位;system 消息、engine_identity 与成员不变,其余 11 个一字未动。
     baseline = HERE / "fixtures/refactor_baseline.json"
-    assert hashlib.sha256(baseline.read_bytes()).hexdigest() == "f2c8aa9b202124f4b925ae26aaf27fdbcd1a5b538a25a8512a14bfd26b20a0cf"
+    assert hashlib.sha256(baseline.read_bytes()).hexdigest() == "3c6e248d779bf048ae6464344fd007dd1e0c7116d939f5dfe1c590ef688a28d4"
