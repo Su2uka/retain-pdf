@@ -1,8 +1,12 @@
 // jobs-actions — pure (no mock)
-import { apiFetch } from "./internal/runtime.js";
-import { buildApiHeaders, unwrapEnvelope } from "./internal/runtime.js";
-import { attachErrorDetails, buildJobDetailEndpoint, submitJson, type HttpError } from "./http.js";
+// 请求走生成的函数（契约 job-actions.v1、job-reports.v1、library-books.v1），这里只管参数整理和报错。
+// 提交类（取消、续跑、重试阶段、OCR 歧义）的报错和以前 submitJson 一样（submitFailure）。
 import { stripOcrSuffix } from "./utils/strip-ocr.js";
+import * as actions from "./generated/job-actions.js";
+import * as reports from "./generated/job-reports.js";
+import * as libraryBooks from "./generated/library-books.js";
+import { failWith, failWithDetails, orOnStatus, submitFailure } from "./request.js";
+import type { OcrAmbiguityResolutionView, ResumeJobInput, RetryStageRequest } from "@retainpdf/contracts/job-actions";
 import type { LibraryDeleteResultView } from "@retainpdf/contracts/library-books";
 
 export type OcrAmbiguityResolutionKind = "bind_existing_receipt" | "accept_duplicate_risk";
@@ -42,19 +46,8 @@ export interface JobDiagnosticsView {
   [key: string]: unknown;
 }
 
-export interface OcrAmbiguityResolutionView {
-  resolution: OcrAmbiguityResolutionKind;
-  provider: string;
-  operation: string;
-  submission: {
-    job_id: string;
-    source_job_id: string;
-    status: string;
-    workflow: string;
-    rerun_from_stage: string;
-    [key: string]: unknown;
-  };
-}
+/** 解决 OCR 歧义后的结果，形状以契约 job-actions.v1 为准。 */
+export type { OcrAmbiguityResolutionView } from "@retainpdf/contracts/job-actions";
 
 // refine：在已有译文上挑错 + 定点修改，原地执行、不重翻，完成后自动重渲染一次。
 export type JobRetryStage = "ocr" | "translation" | "render" | "refine";
@@ -103,26 +96,24 @@ export interface JobStageActionsView {
 }
 
 export async function fetchJobDiagnostics(jobId: string, apiPrefix?: string): Promise<JobDiagnosticsView | null> {
-  const resp = await apiFetch(`${buildJobDetailEndpoint(jobId, apiPrefix)}/reports/failure`, { headers: buildApiHeaders() });
-  if (!resp.ok) {
-    if (resp.status === 404) return null;
-    throw new Error(`读取失败诊断失败，请稍后重试。(${resp.status})`);
-  }
-  return unwrapEnvelope(await resp.json());
+  return orOnStatus(
+    reports.getFailureReport(apiPrefix, { job_id: jobId }, { onError: failWith("读取失败诊断失败，请稍后重试。") }),
+    404,
+    null,
+  );
 }
 
 export async function fetchResumePlan(jobId: string, apiPrefix?: string): Promise<any> {
-  const resp = await apiFetch(`${buildJobDetailEndpoint(jobId, apiPrefix)}/actions/resume`, { headers: buildApiHeaders() });
-  if (!resp.ok) {
-    if (resp.status === 404) return null;
-    throw new Error(`读取恢复计划失败，请稍后重试。(${resp.status})`);
-  }
-  return unwrapEnvelope(await resp.json());
+  return orOnStatus(
+    actions.getResumePlan(apiPrefix, { job_id: jobId }, { onError: failWith("读取恢复计划失败，请稍后重试。") }),
+    404,
+    null,
+  );
 }
 
 /** body 可带 `{ overrides: { translation: { api_key | credential_ref } } }`：续跑出来的新任务用这把 key。 */
 export async function resumeJob(jobId: string, apiPrefix?: string, body: Record<string, unknown> = {}): Promise<any> {
-  return submitJson(`${buildJobDetailEndpoint(jobId, apiPrefix)}/actions/resume`, body);
+  return actions.resumeJob(apiPrefix, { job_id: jobId, body: body as ResumeJobInput }, { onError: submitFailure() });
 }
 
 /**
@@ -136,24 +127,16 @@ export async function deleteJob(
 ): Promise<LibraryDeleteResultView> {
   const normalizedJobId = stripOcrSuffix(`${jobId || ""}`);
   if (!normalizedJobId) throw new Error("删除失败: 缺少 job_id");
-  const params = force ? "?force=true" : "";
-  const resp = await apiFetch(`${buildJobDetailEndpoint(normalizedJobId, apiPrefix)}${params}`, {
-    method: "DELETE",
-    headers: buildApiHeaders(),
-  });
-  if (!resp.ok) {
-    const envelope = await resp.json().catch(() => null) as { message?: unknown; error?: unknown } | null;
-    const message = typeof envelope?.message === "string" ? envelope.message : "删除任务失败，请稍后重试。";
-    const error = new Error(`${message}(${resp.status})`) as HttpError;
-    error.status = resp.status;
-    // 409 的 error.details.reason 区分“任务还在跑”（job_active）和“别的任务还在用它的产物”（job_has_dependents）。
-    throw attachErrorDetails(error, envelope);
-  }
-  return unwrapEnvelope<LibraryDeleteResultView>(await resp.json());
+  // 409 的 error.details.reason 区分“任务还在跑”（job_active）和“别的任务还在用它的产物”（job_has_dependents）。
+  return libraryBooks.deleteJob(
+    apiPrefix,
+    { job_id: normalizedJobId, query: { force: force || undefined } },
+    { onError: failWithDetails("删除任务失败，请稍后重试。") },
+  );
 }
 
 export async function cancelJob(jobId: string, apiPrefix?: string): Promise<any> {
-  return submitJson(`${buildJobDetailEndpoint(jobId, apiPrefix)}/actions/cancel`, {});
+  return actions.cancelJob(apiPrefix, { job_id: jobId }, { onError: submitFailure() });
 }
 
 /** OCR 任务的取消和其它任务同一个地址（后端按任务类型分支）；保留这个名字给老调用方。 */
@@ -166,19 +149,15 @@ export async function resolveOcrAmbiguity(
   apiPrefix: string | undefined,
   request: OcrAmbiguityResolutionRequest,
 ): Promise<OcrAmbiguityResolutionView> {
-  return submitJson(
-    `${buildJobDetailEndpoint(jobId, apiPrefix)}/actions/resolve-ocr-ambiguity`,
-    request,
-  );
+  return actions.resolveOcrAmbiguity(apiPrefix, { job_id: jobId, body: request }, { onError: submitFailure() });
 }
 
 export async function fetchJobStageActions(jobId: string, apiPrefix?: string): Promise<JobStageActionsView | null> {
-  const resp = await apiFetch(`${buildJobDetailEndpoint(jobId, apiPrefix)}/actions`, { headers: buildApiHeaders() });
-  if (!resp.ok) {
-    if (resp.status === 404) return null;
-    throw new Error(`读取阶段操作失败，请稍后重试。(${resp.status})`);
-  }
-  return unwrapEnvelope<JobStageActionsView>(await resp.json());
+  return orOnStatus(
+    actions.listJobActions(apiPrefix, { job_id: jobId }, { onError: failWith("读取阶段操作失败，请稍后重试。") }),
+    404,
+    null,
+  );
 }
 
 /** retry-stage 请求体认的字段（后端 RetryStageRequest）。后端会对不认识的字段报 400。 */
@@ -195,7 +174,12 @@ export async function retryJobStage(jobId: string, apiPrefix: string | undefined
   for (const field of RETRY_STAGE_BODY_FIELDS) {
     if (payload?.[field] !== undefined) body[field] = payload[field];
   }
-  const result: any = await submitJson(`${buildJobDetailEndpoint(jobId, apiPrefix)}/actions/retry-stage`, body);
+  const result: any = await actions.retryJobStage(
+    apiPrefix,
+    // 字段来自调用方的 payload，只挑了后端认的那几个；类型不对后端回 400。
+    { job_id: jobId, body: body as unknown as RetryStageRequest },
+    { onError: submitFailure() },
+  );
   const bookMeta: any = payload && typeof payload === "object" ? payload : {};
   const nextJobId = `${result?.job_id || result?.id || jobId}`.trim();
   return {

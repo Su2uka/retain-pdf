@@ -330,5 +330,11 @@ test("job cancellation and OCR ambiguity recovery use canonical endpoint clients
   assert.match(apiActions, /export async function cancelJob/);
   assert.match(apiActions, /export async function cancelOcrJob/);
   assert.match(apiActions, /export async function resolveOcrAmbiguity/);
-  assert.match(apiActions, /\/actions\/resolve-ocr-ambiguity/);
+  // 地址在契约 job-actions.v1 生成的函数里，手写层调它。
+  assert.match(apiActions, /actions\.resolveOcrAmbiguity\(/);
+  const generatedActions = readFileSync(
+    join(PROJECT_ROOT, "../../frontend/packages/api/src/generated/job-actions.ts"),
+    "utf8",
+  );
+  assert.match(generatedActions, /\/actions\/resolve-ocr-ambiguity/);
 });

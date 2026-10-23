@@ -1,5 +1,8 @@
 // jobs-submit — pure
-import { buildApiEndpoint, buildJobsEndpoint, submitJson, submitUploadRequest } from "./http.js";
+import { buildApiEndpoint, submitUploadRequest, summarizeJobRequestContext } from "./http.js";
+import * as generated from "./generated/create-job.js";
+import { submitFailure } from "./request.js";
+import type { CreateJobInput } from "@retainpdf/contracts/create-job";
 
 function isObject(value: unknown): boolean {
   return !!value && typeof value === "object" && !Array.isArray(value);
@@ -48,8 +51,15 @@ export async function submitJobRequest(apiPrefix: string, payload: unknown): Pro
     const source = (isObject(p.source) ? p.source : {}) as Record<string, unknown>;
     const uploadId = `${source.upload_id || ""}`.trim() || await uploadDirectFile(apiPrefix, p);
     if (!uploadId) throw new Error("提交失败: 请先上传文件再开始 OCR。");
-    return submitJson(buildJobsEndpoint(apiPrefix), ocrJobJson(p, uploadId));
+    return createJob(apiPrefix, ocrJobJson(p, uploadId));
   }
   assertGroupedJobPayload(payload);
-  return submitJson(buildJobsEndpoint(apiPrefix), payload);
+  return createJob(apiPrefix, payload as Record<string, unknown>);
+}
+
+// 报错和以前 submitJson 一样：页数额度不够给 PageQuotaError，其余带上 workflow、OCR 服务商、上传编号。
+function createJob(apiPrefix: string, body: Record<string, unknown>): Promise<any> {
+  return generated.createJob(apiPrefix, { body: body as unknown as CreateJobInput }, {
+    onError: submitFailure(summarizeJobRequestContext(body)),
+  });
 }

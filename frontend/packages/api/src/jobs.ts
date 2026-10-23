@@ -1,18 +1,13 @@
 // Jobs API — standalone, wraps job-status.v1
 // No frontend/web deps; browser-aware (reads window.__FRONT_RUNTIME_CONFIG__ for apiBase / X-API-Key if present).
 
-import { apiFetch } from "./internal/runtime.js";
-import { API_PREFIX, buildApiHeaders, buildApiUrl, unwrapEnvelope } from "./internal/runtime.js";
-import { attachErrorDetails, type HttpError } from "./http.js";
-import type { JobDetailView, JobListView } from "@retainpdf/contracts/job-status";
-
 // OCR 任务也走 /jobs（后端已统一），建任务也是（见 jobs-submit.ts），前端不再用 /ocr/jobs。
-function buildJobsEndpoint(apiPrefix: string | undefined): string {
-  return buildApiUrl(apiPrefix, "jobs");
-}
-function buildJobDetailEndpoint(jobId: string, apiPrefix: string | undefined): string {
-  return `${buildJobsEndpoint(apiPrefix)}/${encodeURIComponent(jobId)}`;
-}
+// 请求走生成的函数（契约 job-status.v1 的端点表），这里只管参数整理和给用户看的报错。
+import { API_PREFIX } from "./internal/runtime.js";
+import { attachErrorDetails, type HttpError } from "./http.js";
+import * as generated from "./generated/job-status.js";
+import { failWith } from "./request.js";
+import type { JobDetailView, JobListView, ListJobsQuery } from "@retainpdf/contracts/job-status";
 
 export type FetchJobPayloadOptions = { apiPrefix?: string };
 
@@ -65,16 +60,12 @@ export async function fetchJobPayload(a: string, b?: string | FetchJobPayloadOpt
   const normalizedJobId = `${jobId || ""}`.trim();
   if (!normalizedJobId) throw new Error("读取任务失败: 缺少 job_id");
   // 通用地址同时覆盖翻译与 OCR 任务，不再 404 后退到 /ocr/jobs/ 别名。
-  const resp = await apiFetch(buildJobDetailEndpoint(normalizedJobId, apiPrefix), { headers: buildApiHeaders() });
-  if (!resp.ok) {
-    if (resp.status === 404) {
+  return generated.getJob(apiPrefix, { job_id: normalizedJobId }, {
+    onError: (status, payload) => (status === 404
       // 合并阅读的虚拟任务被清理了，404 带 reason=merged_reading_expired；阅读器靠它重新问阅读入口。
-      const envelope = await resp.json().catch(() => null);
-      throw attachErrorDetails(jobRequestError("未找到该任务，请检查 job_id 是否正确。", 404) as HttpError, envelope);
-    }
-    throw jobRequestError(`读取任务失败，请稍后重试。(${resp.status})`, resp.status);
-  }
-  return unwrapEnvelope<JobDetailView>(await resp.json());
+      ? attachErrorDetails(jobRequestError("未找到该任务，请检查 job_id 是否正确。", 404) as HttpError, payload)
+      : jobRequestError(`读取任务失败，请稍后重试。(${status})`, status)),
+  });
 }
 
 export async function fetchJobList(
@@ -102,22 +93,20 @@ export async function fetchJobList(
     jobIds?: string[];
   } = {},
 ): Promise<JobListView> {
-  const params = new URLSearchParams();
-  params.set("limit", `${limit}`);
-  params.set("offset", `${offset}`);
-  if (status) params.set("status", status);
-  if (workflow) params.set("workflow", workflow);
-  if (provider) params.set("provider", provider);
-  if (`${q || ""}`.trim()) params.set("q", `${q || ""}`.trim());
-  if (!includeLiveStage) params.set("include_live_stage", "false");
   const wantedJobIds = jobIds.map((id) => `${id}`.trim()).filter(Boolean);
-  if (wantedJobIds.length) params.set("job_ids", wantedJobIds.join(","));
-  // 只看 OCR 任务：在通用列表上按 workflow 过滤，不再走 /ocr/jobs 列表别名。
-  if (scope === "ocr" && !workflow) params.set("workflow", "ocr");
-  const endpoint = buildJobsEndpoint(apiPrefix);
-  const resp = await apiFetch(`${endpoint}?${params.toString()}`, { headers: buildApiHeaders() });
-  if (!resp.ok) throw new Error(`读取最近任务失败，请稍后重试。(${resp.status})`);
-  return unwrapEnvelope<JobListView>(await resp.json());
+  // include_live_stage 后端认（views/common.rs），契约 ListJobsQuery 还没写，先放进宽一点的类型里带过去。
+  const query: ListJobsQuery & { include_live_stage?: boolean } = {
+    limit,
+    offset,
+    status: (status || undefined) as ListJobsQuery["status"],
+    // 只看 OCR 任务：在通用列表上按 workflow 过滤，不再走 /ocr/jobs 列表别名。
+    workflow: (workflow || (scope === "ocr" ? "ocr" : undefined)) as ListJobsQuery["workflow"],
+    provider: provider || undefined,
+    q: `${q || ""}`.trim() || undefined,
+    include_live_stage: includeLiveStage ? undefined : false,
+    job_ids: wantedJobIds.length ? wantedJobIds.join(",") : undefined,
+  };
+  return generated.listJobs(apiPrefix, { query }, { onError: failWith("读取最近任务失败，请稍后重试。") });
 }
 
 // GET /jobs 的 limit 只收 1..=500，越界 400。
