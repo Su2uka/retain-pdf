@@ -227,16 +227,24 @@ mod tests {
 
     use super::*;
 
+    /// 写一个假 python 脚本，先带 `--warm` 跑一次再交出去。macOS 上刚写出来的脚本第一次执行可能要等
+    /// 很久（看着像系统对新可执行文件的检查）：并发跑测试时 5 秒内脚本第一行都没跑到，先跑过一次就不再等。
+    /// 不预热的话卡死渲染那条会在第一行之前就撞上时限、一个孙进程都没记下（2026-10-22、10-23 合并前
+    /// 检查两次红在这里，计时放宽到 5 秒照样红；预热后 12 份测试程序同时跑也不红）。
+    fn fake_script(path: PathBuf, body: &str) -> PathBuf {
+        std::fs::write(&path, format!("#!/bin/sh\n[ \"$1\" = --warm ] && exit 0\n{body}")).unwrap();
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let warm = std::process::Command::new(&path).arg("--warm").status().unwrap();
+        assert!(warm.success(), "{path:?}");
+        path
+    }
+
     /// 假 python：`python -c <脚本> <源> <输出> …`，按 `$exit` 退出，退出 0 时往输出里写 `new`。
     fn fake_python(dir: &Path, exit_code: i32) -> PathBuf {
-        let path = dir.join(format!("fake-python-{exit_code}.sh"));
-        std::fs::write(
-            &path,
-            format!("#!/bin/sh\nif [ {exit_code} -eq 0 ]; then printf new > \"$4\"; fi\nexit {exit_code}\n"),
+        fake_script(
+            dir.join(format!("fake-python-{exit_code}.sh")),
+            &format!("if [ {exit_code} -eq 0 ]; then printf new > \"$4\"; fi\nexit {exit_code}\n"),
         )
-        .unwrap();
-        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
-        path
     }
 
     fn set_mtime(path: &Path, time: SystemTime) {
@@ -304,17 +312,10 @@ mod tests {
 
     /// 卡死的假 python：起一个 `sleep` 当孙进程，自己等着它。pid 记在 `sleep-<sh 的 pid>.pid`。
     fn hanging_python(dir: &Path) -> PathBuf {
-        let path = dir.join("hanging-python.sh");
-        std::fs::write(
-            &path,
-            format!(
-                "#!/bin/sh\nsleep 20 &\necho $! > \"{}/sleep-$$.pid\"\nwait\n",
-                dir.display()
-            ),
+        fake_script(
+            dir.join("hanging-python.sh"),
+            &format!("sleep 20 &\necho $! > \"{}/sleep-$$.pid\"\nwait\n", dir.display()),
         )
-        .unwrap();
-        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
-        path
     }
 
     /// 记次数的假 python：第 n 次渲染往输出里写 `render-n`。`replace_source_first` 时第一次渲染
@@ -327,16 +328,13 @@ mod tests {
         } else {
             ""
         };
-        std::fs::write(
-            &path,
-            format!(
-                "#!/bin/sh\nn=$(cat \"{count}\" 2>/dev/null || echo 0)\nn=$((n+1))\necho $n > \"{count}\"\n{replace}printf \"render-$n\" > \"$4\"\n",
+        fake_script(
+            path,
+            &format!(
+                "n=$(cat \"{count}\" 2>/dev/null || echo 0)\nn=$((n+1))\necho $n > \"{count}\"\n{replace}printf \"render-$n\" > \"$4\"\n",
                 count = count.display(),
             ),
         )
-        .unwrap();
-        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
-        path
     }
 
     fn sleep_pids(dir: &Path) -> Vec<i32> {
