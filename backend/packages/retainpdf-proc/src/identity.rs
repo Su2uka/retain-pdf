@@ -154,11 +154,16 @@ mod tests {
     fn identity_of_a_different_process_does_not_match() {
         // 「号被复用」：同一个 pid 现在是另一个进程，启动时间不同。
         let pid = std::process::id();
+        // Linux 的启动时间按时钟滴答记（通常 10ms 一格）。测试进程刚起来就派子进程，两个会落在同一格、
+        // 分不出来（CI 上就这样红过），先等几格再派。
+        std::thread::sleep(std::time::Duration::from_millis(50));
         let mut child = std::process::Command::new("sleep")
             .arg("5")
             .spawn()
             .unwrap();
         let other = process_identity(child.id()).expect("child identity");
+        let own = process_identity(pid).expect("current process identity");
+        assert_ne!(own.split_once('@').unwrap().1, other.split_once('@').unwrap().1);
         let forged = format!("{pid}@{}", other.split_once('@').unwrap().1);
         assert_eq!(identity_matches(pid, &forged), Some(false));
         let _ = child.kill();
