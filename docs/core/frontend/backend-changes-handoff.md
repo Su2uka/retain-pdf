@@ -1031,3 +1031,12 @@ API / jobsd 重启时，翻译阶段运行中的任务以前一律自动续跑�
 |---|---|
 | 换成生成的函数，中文报错、404 兜底留成薄包装 | `frontend/packages/api/src/translation-debug.ts`、`documents.ts`（`fetchDocumentJobs`、`translateDocument`、`ocrDocument`） |
 | 手写的 `DocumentJobSubmissionView`、`DocumentJobsView`、`DocumentJobSummary` 换成契约类型 | `frontend/packages/api/src/documents.ts` |
+
+## 任务列表契约补 `include_live_stage`（contracts/list-jobs-include-live-stage）
+
+2026-10-23。决定见 [任务列表契约补 include_live_stage](../../ops/planning/api-reorg/20261023-任务列表契约补include_live_stage.md)。接口行为没变。
+
+- `job-status.v1`、`library-books.v1` 的 `ListJobsQuery` 加了 `include_live_stage?: boolean`：`false` 只读库里的任务摘要，不导入事件历史；
+  省略或 `true` 是完整的实时阶段。
+- 前端要做：重新生成 `frontend/packages/api/src/generated`；最近任务、任务中心调 `listJobs` 时为绕开多余属性检查放的宽类型变量可以去掉，
+  直接传 `{ ..., include_live_stage: false }`。
