@@ -94,8 +94,7 @@ export async function fetchJobList(
   } = {},
 ): Promise<JobListView> {
   const wantedJobIds = jobIds.map((id) => `${id}`.trim()).filter(Boolean);
-  // include_live_stage 后端认（views/common.rs），契约 ListJobsQuery 还没写，先放进宽一点的类型里带过去。
-  const query: ListJobsQuery & { include_live_stage?: boolean } = {
+  const query: ListJobsQuery = {
     limit,
     offset,
     status: (status || undefined) as ListJobsQuery["status"],
