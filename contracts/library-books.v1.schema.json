@@ -2,18 +2,9 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "retainpdf/contracts/library-books/v1",
   "title": "任务列表与删任务契约（Library Books，文件名沿用书架时期）",
-  "description": "书卡、文件夹用的任务列表和删一个任务的返回。名字和 $id 沿用书架时期：书架 /api/v1/library/books（列表、删除旧地址）2026-10-22 删了，它的 LibraryBookListView / LibraryBookDetailView 等定义一起删了。生产者：backend/packages/retainpdf-jobs/src/views/job_types.rs（JobListView / JobListItemView / JobFailureBriefView）、views/common.rs（JobDeleteResultView，本契约里叫 LibraryDeleteResultView；DeleteJobQuery，本契约里叫 LibraryDeleteQuery）；消费者：@retainpdf/contracts/library-books 生成 DTO（@retainpdf/api 的 deleteJob 用 LibraryDeleteResultView）、packages/domain 的 job 归一化模型、frontend/web 的契约测试。所有响应为 {code, message, data} 信封，本契约描述 data 部分。改契约先改本文件，再重新生成 DTO 并让 Rust 与 TS 契约测试变绿。",
+  "description": "删一个任务的返回（DELETE /api/v1/jobs/:job_id）。任务列表 GET /api/v1/jobs 只登记在 job-status.v1（2026-10-23 删了这里重复的一条）；下面 JobListView、JobListItemView、JobFailureBriefView、JobProgressView 等任务列表定义还留着，是前端 frontend/web/tests/contracts 两个测试直接读这份 JSON，等它们改读 job-status.v1 再删，生成的 library-books.ts 已经不导出它们，两边由 contracts/tests/job-definitions-parity.test.mjs 锁成一致。名字和 $id 沿用书架时期：书架 /api/v1/library/books（列表、删除旧地址）2026-10-22 删了，它的 LibraryBookListView / LibraryBookDetailView 等定义一起删了。生产者：backend/packages/retainpdf-jobs/src/views/job_types.rs（JobListView / JobListItemView / JobFailureBriefView）、views/common.rs（JobDeleteResultView，本契约里叫 LibraryDeleteResultView；DeleteJobQuery，本契约里叫 LibraryDeleteQuery）；消费者：@retainpdf/contracts/library-books 生成 DTO（@retainpdf/api 的 deleteJob 用 LibraryDeleteResultView）、packages/domain 的 job 归一化模型、frontend/web 的契约测试。所有响应为 {code, message, data} 信封，本契约描述 data 部分。改契约先改本文件，再重新生成 DTO 并让 Rust 与 TS 契约测试变绿。",
   "base_path": "/api/v1/jobs",
   "endpoints": [
-    {
-      "method": "GET",
-      "path": "/api/v1/jobs",
-      "query": "ListJobsQuery",
-      "output": "JobListView",
-      "rust_view": "JobListView",
-      "ts_consumer": "@retainpdf/contracts/library-books :: JobListView",
-      "note": "和 job-status.v1 登记的是同一个接口，client_name（listJobs）只写在那边。这一条留着，是因为生成的 library-books.ts 只导出端点用到的类型，删了它 JobListView、ListJobsQuery 就不再从 @retainpdf/contracts/library-books 导出。两边的 Job 定义由 contracts/tests/job-definitions-parity.test.mjs 锁成一致。"
-    },
     {
       "method": "DELETE",
       "path": "/api/v1/jobs/:job_id",

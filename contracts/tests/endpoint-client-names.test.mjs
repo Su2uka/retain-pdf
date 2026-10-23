@@ -69,9 +69,9 @@ test("phase-1a endpoints carry the client names from the frontend list over the 
     ["reader-data.v1.schema.json", "GET", "/api/v1/jobs/:job_id/files", "listJobFiles", "json"],
     ["job-status.v1.schema.json", "GET", "/api/v1/jobs", "listJobs", "json"],
   ]);
-  // GET /api/v1/jobs 在 library-books.v1 也登记了（为了导出 JobListView），名字只写在 job-status.v1。
+  // GET /api/v1/jobs 只登记在 job-status.v1；library-books.v1 重复的那条 2026-10-23 删了。
   const duplicate = read("library-books.v1.schema.json").endpoints.find((endpoint) => endpoint.method === "GET" && endpoint.path === "/api/v1/jobs");
-  assert.equal(duplicate.client_name, undefined);
+  assert.equal(duplicate, undefined);
 });
 
 test("phase-1b translation items and document jobs endpoints carry the client names from the frontend list", () => {

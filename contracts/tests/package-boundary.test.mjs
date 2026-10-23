@@ -117,13 +117,13 @@ test("generated DTO entries expose the stable consumer type names", () => {
   ]) {
     assert.match(generatedJobEvents, new RegExp(`export (?:interface|type) ${typeName}\\b`));
   }
-  for (const typeName of [
-    "JobFailureBriefView",
-    "JobListItemView",
-    "JobListView",
-    "LibraryDeleteResultView",
-  ]) {
+  for (const typeName of ["LibraryDeleteQuery", "LibraryDeleteResultView"]) {
     assert.match(generatedLibraryBooks, new RegExp(`export (?:interface|type) ${typeName}\\b`));
+  }
+  // 任务列表的类型只从 job-status 导出（library-books 重复登记的 GET /jobs 2026-10-23 删了）。
+  for (const typeName of ["JobFailureBriefView", "JobListItemView", "JobListView", "ListJobsQuery"]) {
+    assert.match(generatedJobStatus, new RegExp(`export (?:interface|type) ${typeName}\\b`));
+    assert.doesNotMatch(generatedLibraryBooks, new RegExp(`export (?:interface|type) ${typeName}\\b`));
   }
 });
 

@@ -1040,3 +1040,16 @@ API / jobsd 重启时，翻译阶段运行中的任务以前一律自动续跑�
   省略或 `true` 是完整的实时阶段。
 - 前端要做：重新生成 `frontend/packages/api/src/generated`；最近任务、任务中心调 `listJobs` 时为绕开多余属性检查放的宽类型变量可以去掉，
   直接传 `{ ..., include_live_stage: false }`。
+
+## 删 `library-books.v1` 重复登记的任务列表（contracts/library-books-drop-duplicate-list-jobs）
+
+2026-10-23。决定见 [删 library-books 重复的任务列表](../../ops/planning/api-reorg/20261023-删library-books重复的任务列表.md)。接口行为没变。
+
+- `library-books.v1` 只剩 `DELETE /api/v1/jobs/:job_id`（`deleteJob`）。`@retainpdf/contracts/library-books` 只导出 `LibraryDeleteQuery`、
+  `LibraryDeleteResultView`；`JobListView`、`JobListItemView`、`JobFailureBriefView`、`JobProgressView`、`ListJobsQuery` 等从
+  `@retainpdf/contracts/job-status` 取。`src/generated` 不用重新生成（那条本来就没有 `client_name`）。
+- 前端要做：两个测试还读 `contracts/library-books.v1.schema.json` 的任务列表定义，改读 `contracts/job-status.v1.schema.json`：
+  - `frontend/web/tests/contracts/library-books-contract.test.mjs` 的 `CONTRACT_PATH`（读 `JobProgressView`、`JobStatusKind`、`WorkflowKind`、
+    `JobListItemView`、`JobStageSnapshotView`）；
+  - `frontend/web/tests/contracts/job-failure-brief-contract.test.mjs` 的 `SCHEMA`（读 `JobFailureBriefView`）。
+- 改完告诉后端，后端再删 `library-books.v1` 里这 14 个任务列表定义。
