@@ -1,7 +1,7 @@
 // jobs-artifacts — pure (no mock)
-import { apiFetch } from "./internal/runtime.js";
-import { API_PREFIX, buildApiHeaders, unwrapEnvelope } from "./internal/runtime.js";
-import { buildJobDetailEndpoint } from "./http.js";
+import { API_PREFIX } from "./internal/runtime.js";
+import * as generated from "./generated/reader-data.js";
+import { failWith, orOnStatus } from "./request.js";
 // /files 的文件名 → 前端各处认的产物键（以前 artifacts-manifest 的 artifact_key）和分组。
 // 详情页、书籍文件页、阅读器都按这个键找文件、起标签、定下载名，所以在这里一次换好，
 // 下游不用知道接口换了。表外的新文件照样列出来，键用文件名。
@@ -56,33 +56,21 @@ export function jobFilesToArtifactManifest(files) {
     return { job_id: files?.job_id, items };
 }
 export async function fetchJobFiles(jobId, apiPrefix = API_PREFIX) {
-    const resp = await apiFetch(`${buildJobDetailEndpoint(jobId, apiPrefix)}/files`, { headers: buildApiHeaders() });
-    if (resp.ok)
-        return unwrapEnvelope(await resp.json());
-    if (resp.status === 404)
-        return null;
-    throw new Error(`读取任务文件失败，请稍后重试。(${resp.status})`);
+    return orOnStatus(generated.listJobFiles(apiPrefix, { job_id: jobId }, { onError: failWith("读取任务文件失败，请稍后重试。") }), 404, null);
 }
 /** 任务的产物清单：读 /jobs/:id/files，换成以前 artifacts-manifest 的形状交给下游。 */
 export async function fetchJobArtifactsManifest(jobId, apiPrefix = API_PREFIX) {
     return jobFilesToArtifactManifest(await fetchJobFiles(jobId, apiPrefix));
 }
-export async function fetchJobMarkdown(jobId, apiPrefix = API_PREFIX) {
-    // /reader/markdown 是旧 /markdown（JSON）的新地址：字段是旧的超集（job_id、content、raw_url、images_base_url…）。
-    const resp = await apiFetch(`${buildJobDetailEndpoint(jobId, apiPrefix)}/reader/markdown`, { headers: buildApiHeaders() });
-    if (!resp.ok) {
-        if (resp.status === 404)
-            return null;
-        throw new Error(`读取 Markdown 失败，请稍后重试。(${resp.status})`);
-    }
-    return unwrapEnvelope(await resp.json());
+// /reader/markdown 是旧 /markdown（JSON）的新地址：字段是旧的超集（job_id、content、raw_url、images_base_url…）。
+// 还没有 Markdown 时后端回 404，当作 null。
+function readerMarkdown(jobId, apiPrefix, message) {
+    return orOnStatus(generated.getReaderMarkdown(apiPrefix, { job_id: jobId }, { onError: failWith(message) }), 404, null);
 }
+export async function fetchJobMarkdown(jobId, apiPrefix = API_PREFIX) {
+    return readerMarkdown(jobId, apiPrefix, "读取 Markdown 失败，请稍后重试。");
+}
+/** 和 fetchJobMarkdown 同一个接口，只是报错文案不同。 */
 export async function fetchJobMarkdownDocument(jobId, apiPrefix = API_PREFIX) {
-    const resp = await apiFetch(`${buildJobDetailEndpoint(jobId, apiPrefix)}/reader/markdown`, { headers: buildApiHeaders() });
-    if (!resp.ok) {
-        if (resp.status === 404)
-            return null;
-        throw new Error(`读取结构化 Markdown 失败，请稍后重试。(${resp.status})`);
-    }
-    return unwrapEnvelope(await resp.json());
+    return readerMarkdown(jobId, apiPrefix, "读取结构化 Markdown 失败，请稍后重试。");
 }

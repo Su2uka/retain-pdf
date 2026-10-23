@@ -1,23 +1,17 @@
-// usage — pure：模型 token 用量（契约 token-usage.v1）。
-import { apiFetch } from "./internal/runtime.js";
-import { buildApiEndpoint, buildApiHeaders, unwrapEnvelope } from "./http.js";
-async function fetchUsage(url, label) {
-    const resp = await apiFetch(url, { headers: buildApiHeaders() });
-    if (!resp.ok) {
-        const error = await resp.json().catch(() => null);
-        throw new Error(error?.message || `读取${label}用量失败，请稍后重试。(${resp.status})`);
-    }
-    return unwrapEnvelope(await resp.json());
+import * as generated from "./generated/token-usage.js";
+import { serverMessageOr } from "./request.js";
+function usageError(label) {
+    return { onError: serverMessageOr(`读取${label}用量失败，请稍后重试。`) };
 }
 /** 一本书的全部任务，加上问这本书时助手花的。 */
 export function fetchDocumentUsage(documentId, apiPrefix) {
-    return fetchUsage(buildApiEndpoint(apiPrefix, `documents/${encodeURIComponent(documentId)}/usage`), "这本书的");
+    return generated.getDocumentUsage(apiPrefix, { document_id: documentId }, usageError("这本书的"));
 }
 /** 全部用量（删除的书不计入）。 */
 export function fetchUsageSummary(apiPrefix) {
-    return fetchUsage(buildApiEndpoint(apiPrefix, "usage"), "");
+    return generated.getUsageSummary(apiPrefix, {}, usageError(""));
 }
 /** 单个任务；任务不存在时后端返回 404。 */
 export function fetchJobUsage(jobId, apiPrefix) {
-    return fetchUsage(buildApiEndpoint(apiPrefix, `jobs/${encodeURIComponent(jobId)}/reports/usage`), "这个任务的");
+    return generated.getJobUsage(apiPrefix, { job_id: jobId }, usageError("这个任务的"));
 }
