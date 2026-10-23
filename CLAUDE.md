@@ -35,7 +35,7 @@ python3 backend/pipeline/devtools/check_pipeline_architecture.py
 backend/.venv/bin/python backend/pipeline/devtools/extract_pipeline_requirements.py --services-root backend --check
 python3 .github/scripts/sync_backend_python_requirements.py --repo-root . --services-root backend --check
 backend/.venv/bin/python -m pytest -q .github/scripts/tests   # 文档相对链接、交付和 CI 约定；改了文档也要跑
-cargo test -p retainpdf-api -p retainpdf-api-base -p retainpdf-accounts -p retainpdf-ai -p retainpdf-files -p retainpdf-glossaries -p retainpdf-ingest -p retainpdf-jobs -p retainpdf-library -p retainpdf-platform -p retainpdf-providers -p retainpdf-runner -p retainpdf-db -p retainpdf-data -p retainpdf-core -p retainpdf-config
+cargo test --workspace   # 和 CI 一样跑全部 Rust 包；以前列的 16 个包漏了 retainpdf-proc、retainpdf-runnerd、retainpdf-cli
 ```
 
 - 改了翻译包 `backend/translation/`（或它的 worker 外壳 `backend/pipeline/retainpdf_pipeline/translate/`）：再跑
