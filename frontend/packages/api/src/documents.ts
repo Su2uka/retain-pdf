@@ -1,7 +1,5 @@
 // documents — pure
-import { apiFetch } from "./internal/runtime.js";
-import { buildApiHeaders, unwrapEnvelope } from "./internal/runtime.js";
-import { buildApiEndpoint, pageQuotaErrorFromPayload } from "./http.js";
+import { pageQuotaErrorFromPayload } from "./http.js";
 import * as generated from "./generated/library-documents.js";
 import { failWith, failWithServerMessage } from "./request.js";
 
@@ -10,6 +8,7 @@ import type {
   CoverageJobView,
   CoverageSegment,
   CreateDocumentMetadataSuggestionInput,
+  CreateJobInput,
   DocumentDeleteResultView,
   DocumentListView,
   DocumentMetadataEvidenceView,
@@ -50,6 +49,8 @@ export type DocumentListQuery = {
   q?: string;
 };
 
+// 书籍详情用的这几个任务类型比契约宽（带索引签名、字段都可选），和契约的 JobListItemView、JobSubmissionView
+// 互相赋不过去。接口返回在 translateDocument、ocrDocument、fetchDocumentJobs 里转成它们；书籍详情改用契约类型以后删掉。
 export type DocumentJobSummary = Record<string, any> & {
   job_id?: string;
   workflow?: string;
@@ -265,18 +266,12 @@ export async function translateDocument(
   documentId: string,
   payload: Record<string, unknown> = {},
 ): Promise<DocumentJobSubmissionView> {
-  const normalized = `${documentId || ""}`.trim();
-  if (!normalized) throw new Error("缺少 document_id。");
-  const resp = await apiFetch(buildApiEndpoint(apiPrefix, `documents/${encodeURIComponent(normalized)}/translate`), {
-    method: "POST",
-    headers: { ...buildApiHeaders(), "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  if (!resp.ok) {
-    const envelope: any = await resp.json().catch(() => null);
-    throw pageQuotaErrorFromPayload(resp.status, envelope) ?? documentRequestError("发起翻译失败，请稍后重试。", resp.status, envelope);
-  }
-  return unwrapEnvelope<DocumentJobSubmissionView>(await resp.json());
+  // 402 页数额度不够给 PageQuotaError；复用 OCR 出错时的 reason、can_fallback_to_ocr 由 documentRequestError 挂上。
+  return generated.translateDocument(
+    apiPrefix,
+    { document_id: requireId(documentId, "document_id"), body: payload as unknown as CreateJobInput },
+    { onError: (status, envelope) => pageQuotaErrorFromPayload(status, envelope) ?? documentRequestError("发起翻译失败，请稍后重试。", status, envelope) },
+  ) as unknown as Promise<DocumentJobSubmissionView>;
 }
 
 export async function ocrDocument(
@@ -284,18 +279,11 @@ export async function ocrDocument(
   documentId: string,
   payload: Record<string, unknown> = {},
 ): Promise<any> {
-  const normalized = `${documentId || ""}`.trim();
-  if (!normalized) throw new Error("缺少 document_id。");
-  const resp = await apiFetch(buildApiEndpoint(apiPrefix, `documents/${encodeURIComponent(normalized)}/ocr`), {
-    method: "POST",
-    headers: { ...buildApiHeaders(), "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  if (!resp.ok) {
-    const envelope: any = await resp.json().catch(() => null);
-    throw pageQuotaErrorFromPayload(resp.status, envelope) ?? new Error(`${envelope?.message || "发起 OCR 失败，请稍后重试。"}(${resp.status})`);
-  }
-  return unwrapEnvelope(await resp.json());
+  return generated.ocrDocument(
+    apiPrefix,
+    { document_id: requireId(documentId, "document_id"), body: payload as unknown as CreateJobInput },
+    { onError: (status, envelope) => pageQuotaErrorFromPayload(status, envelope) ?? failWithServerMessage("发起 OCR 失败，请稍后重试。")(status, envelope) },
+  );
 }
 
 export async function submitDocument(
@@ -315,17 +303,13 @@ export async function fetchDocumentJobs(
   documentId: string,
   { limit = 50, offset = 0 }: DocumentJobsQuery = {},
 ): Promise<DocumentJobsView> {
-  const normalized = `${documentId || ""}`.trim();
+  const normalized = trimmed(documentId);
   if (!normalized) return { items: [] };
-  const params = new URLSearchParams();
-  params.set("limit", `${limit}`);
-  params.set("offset", `${offset}`);
-  const resp = await apiFetch(
-    `${buildApiEndpoint(apiPrefix, `documents/${encodeURIComponent(normalized)}/jobs`)}?${params.toString()}`,
-    { headers: buildApiHeaders() },
-  );
-  if (!resp.ok) throw new Error(`读取文档任务失败，请稍后重试。(${resp.status})`);
-  const payload = unwrapEnvelope<DocumentJobsView>(await resp.json());
+  const payload = await generated.listDocumentJobs(
+    apiPrefix,
+    { document_id: normalized, query: { limit, offset } },
+    { onError: failWith("读取文档任务失败，请稍后重试。") },
+  ) as unknown as DocumentJobsView;
   return {
     ...payload,
     items: Array.isArray(payload?.items) ? payload.items : [],

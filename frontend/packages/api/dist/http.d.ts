@@ -5,6 +5,8 @@ export { API_PREFIX } from "./internal/runtime.js";
 export declare function buildApiEndpoint(apiPrefix: string | undefined, relativePath?: string): string;
 export declare function buildJobsEndpoint(apiPrefix: string | undefined): string;
 export declare function buildJobDetailEndpoint(jobId: string, apiPrefix: string | undefined): string;
+/** 建任务失败时附在报错后面的请求摘要（workflow、OCR 服务商、上传编号）。 */
+export declare function summarizeJobRequestContext(payload: unknown): string;
 export interface HttpError extends Error {
     status?: number;
     url?: string;

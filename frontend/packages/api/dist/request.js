@@ -2,7 +2,7 @@
 // 给用户看的报错文案不在这里定——各领域的手写函数通过 onError 传进来，生成层只负责把失败的
 // 状态码和后端回的错误体交出去。方案见 docs/ops/planning/api-client-codegen/。
 import { apiFetch, buildApiHeaders, buildApiUrl, unwrapEnvelope } from "./internal/runtime.js";
-import { attachErrorDetails } from "./http.js";
+import { attachErrorDetails, pageQuotaErrorFromPayload } from "./http.js";
 /** 查询参数按传入顺序编码：undefined、null、空串不发；数组按后端约定用逗号连接（job_ids=a,b）。 */
 export function encodeQuery(query) {
     if (!query)
@@ -32,23 +32,57 @@ export async function request({ apiPrefix, method, path, query, body, options = 
         init.method = method;
     if (options.signal)
         init.signal = options.signal;
-    const resp = await apiFetch(url, init);
+    const resp = await (options.fetchImpl || apiFetch)(url, init);
     if (!resp.ok) {
         const payload = await resp.json().catch(() => null);
-        if (options.onError)
-            throw options.onError(resp.status, payload);
-        const error = new Error(`${payload?.message || "请求失败，请稍后重试。"}(${resp.status})`);
-        error.status = resp.status;
-        error.url = url;
-        throw attachErrorDetails(error, payload);
+        const error = (options.onError || failWithDetails("请求失败，请稍后重试。"))(resp.status, payload);
+        if (error.url === undefined)
+            error.url = url;
+        throw error;
     }
     return unwrapEnvelope(await resp.json());
 }
+function withStatus(error, status) {
+    return Object.assign(error, { status });
+}
+// 下面几种 onError 造出来的错误都带 status，调用方可以按状态码兜底（见 orOnStatus）。
 /** 只用固定文案加状态码，例如「读取文档库失败，请稍后重试。(500)」。 */
 export function failWith(message) {
-    return (status) => new Error(`${message}(${status})`);
+    return (status) => withStatus(new Error(`${message}(${status})`), status);
 }
 /** 优先用后端回的 message，没有时用固定文案，都加状态码。 */
 export function failWithServerMessage(fallback) {
-    return (status, payload) => new Error(`${payload?.message || fallback}(${status})`);
+    return (status, payload) => withStatus(new Error(`${payload?.message || fallback}(${status})`), status);
+}
+/** 有后端的 message 就原样用（不加状态码），没有时用固定文案加状态码。 */
+export function serverMessageOr(fallback) {
+    return (status, payload) => withStatus(new Error(payload?.message || `${fallback}(${status})`), status);
+}
+/** 同 failWithServerMessage，再挂上后端错误里的 errorCode、reason（409 靠 reason 说明为什么不允许）。 */
+export function failWithDetails(fallback) {
+    return (status, payload) => attachErrorDetails(withStatus(new Error(`${typeof payload?.message === "string" && payload.message ? payload.message : fallback}(${status})`), status), payload);
+}
+/**
+ * 和 submitJson 一样的提交报错：页数额度不够给 PageQuotaError（后端的中文原样显示），
+ * 其余是「提交失败: 状态码 后端 message」加 context，挂上 errorCode、reason。
+ */
+export function submitFailure(context = "") {
+    return (status, payload) => {
+        const quotaError = pageQuotaErrorFromPayload(status, payload);
+        if (quotaError)
+            return quotaError;
+        const detail = payload ? ` ${payload.message || JSON.stringify(payload)}` : "";
+        return attachErrorDetails(withStatus(new Error(`提交失败: ${status}${detail}${context}`), status), payload);
+    };
+}
+/** 失败的状态码是 status 时返回 fallback（例如 404 当作「还没有」），别的错误照抛。 */
+export async function orOnStatus(pending, status, fallback) {
+    try {
+        return await pending;
+    }
+    catch (error) {
+        if (error?.status === status)
+            return fallback;
+        throw error;
+    }
 }

@@ -54,8 +54,10 @@ test("jobs actions:普通取消、OCR 取消同一个端点（后端按类型分
     assert.equal(options.method, "POST");
     assert.equal(options.headers["X-API-Key"], "jobs-actions-key");
   }
-  assert.deepEqual(JSON.parse(calls[0].options.body), {});
-  assert.deepEqual(JSON.parse(calls[1].options.body), {});
+  // 取消不带请求体（契约 job-actions.v1 的 cancelJob 没有 input，后端处理函数也不读请求体）。
+  assert.equal(calls[0].options.body, undefined);
+  assert.equal(calls[1].options.body, undefined);
+  assert.equal(calls[2].options.headers["Content-Type"], "application/json");
   assert.deepEqual(JSON.parse(calls[2].options.body), {
     resolution: "accept_duplicate_risk",
     resolution_revision: 7,

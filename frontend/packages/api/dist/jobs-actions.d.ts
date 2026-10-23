@@ -1,3 +1,4 @@
+import type { OcrAmbiguityResolutionView } from "@retainpdf/contracts/job-actions";
 import type { LibraryDeleteResultView } from "@retainpdf/contracts/library-books";
 export type OcrAmbiguityResolutionKind = "bind_existing_receipt" | "accept_duplicate_risk";
 export interface OcrAmbiguityResolutionRequest {
@@ -27,19 +28,8 @@ export interface JobDiagnosticsView {
     ocr_ambiguity: OcrAmbiguityView | null;
     [key: string]: unknown;
 }
-export interface OcrAmbiguityResolutionView {
-    resolution: OcrAmbiguityResolutionKind;
-    provider: string;
-    operation: string;
-    submission: {
-        job_id: string;
-        source_job_id: string;
-        status: string;
-        workflow: string;
-        rerun_from_stage: string;
-        [key: string]: unknown;
-    };
-}
+/** 解决 OCR 歧义后的结果，形状以契约 job-actions.v1 为准。 */
+export type { OcrAmbiguityResolutionView } from "@retainpdf/contracts/job-actions";
 export type JobRetryStage = "ocr" | "translation" | "render" | "refine";
 /** 上次精修的摘要（只在 stage=refine 上，没精修过时没有）。 */
 export interface LastRefineView {

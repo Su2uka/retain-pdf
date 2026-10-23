@@ -1,7 +1,5 @@
 // documents — pure
-import { apiFetch } from "./internal/runtime.js";
-import { buildApiHeaders, unwrapEnvelope } from "./internal/runtime.js";
-import { buildApiEndpoint, pageQuotaErrorFromPayload } from "./http.js";
+import { pageQuotaErrorFromPayload } from "./http.js";
 import * as generated from "./generated/library-documents.js";
 import { failWith, failWithServerMessage } from "./request.js";
 function documentRequestError(fallback, status, payload) {
@@ -87,34 +85,11 @@ export async function deleteDocument(apiPrefix, documentId, { force = false } = 
     return generated.deleteDocument(apiPrefix, { document_id: requireId(documentId, "document_id"), query: { force: force || undefined } }, { onError: documentError("删除文档失败，请稍后重试。") });
 }
 export async function translateDocument(apiPrefix, documentId, payload = {}) {
-    const normalized = `${documentId || ""}`.trim();
-    if (!normalized)
-        throw new Error("缺少 document_id。");
-    const resp = await apiFetch(buildApiEndpoint(apiPrefix, `documents/${encodeURIComponent(normalized)}/translate`), {
-        method: "POST",
-        headers: { ...buildApiHeaders(), "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-    });
-    if (!resp.ok) {
-        const envelope = await resp.json().catch(() => null);
-        throw pageQuotaErrorFromPayload(resp.status, envelope) ?? documentRequestError("发起翻译失败，请稍后重试。", resp.status, envelope);
-    }
-    return unwrapEnvelope(await resp.json());
+    // 402 页数额度不够给 PageQuotaError；复用 OCR 出错时的 reason、can_fallback_to_ocr 由 documentRequestError 挂上。
+    return generated.translateDocument(apiPrefix, { document_id: requireId(documentId, "document_id"), body: payload }, { onError: (status, envelope) => pageQuotaErrorFromPayload(status, envelope) ?? documentRequestError("发起翻译失败，请稍后重试。", status, envelope) });
 }
 export async function ocrDocument(apiPrefix, documentId, payload = {}) {
-    const normalized = `${documentId || ""}`.trim();
-    if (!normalized)
-        throw new Error("缺少 document_id。");
-    const resp = await apiFetch(buildApiEndpoint(apiPrefix, `documents/${encodeURIComponent(normalized)}/ocr`), {
-        method: "POST",
-        headers: { ...buildApiHeaders(), "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-    });
-    if (!resp.ok) {
-        const envelope = await resp.json().catch(() => null);
-        throw pageQuotaErrorFromPayload(resp.status, envelope) ?? new Error(`${envelope?.message || "发起 OCR 失败，请稍后重试。"}(${resp.status})`);
-    }
-    return unwrapEnvelope(await resp.json());
+    return generated.ocrDocument(apiPrefix, { document_id: requireId(documentId, "document_id"), body: payload }, { onError: (status, envelope) => pageQuotaErrorFromPayload(status, envelope) ?? failWithServerMessage("发起 OCR 失败，请稍后重试。")(status, envelope) });
 }
 export async function submitDocument(apiPrefix, documentId, payload = {}) {
     const workflow = `${payload?.workflow || ""}`.trim().toLowerCase();
@@ -124,16 +99,10 @@ export async function submitDocument(apiPrefix, documentId, payload = {}) {
     return translateDocument(apiPrefix, documentId, payload);
 }
 export async function fetchDocumentJobs(apiPrefix, documentId, { limit = 50, offset = 0 } = {}) {
-    const normalized = `${documentId || ""}`.trim();
+    const normalized = trimmed(documentId);
     if (!normalized)
         return { items: [] };
-    const params = new URLSearchParams();
-    params.set("limit", `${limit}`);
-    params.set("offset", `${offset}`);
-    const resp = await apiFetch(`${buildApiEndpoint(apiPrefix, `documents/${encodeURIComponent(normalized)}/jobs`)}?${params.toString()}`, { headers: buildApiHeaders() });
-    if (!resp.ok)
-        throw new Error(`读取文档任务失败，请稍后重试。(${resp.status})`);
-    const payload = unwrapEnvelope(await resp.json());
+    const payload = await generated.listDocumentJobs(apiPrefix, { document_id: normalized, query: { limit, offset } }, { onError: failWith("读取文档任务失败，请稍后重试。") });
     return {
         ...payload,
         items: Array.isArray(payload?.items) ? payload.items : [],

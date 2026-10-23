@@ -1,7 +1,7 @@
 // 请求函数从契约端点表生成（方案：docs/ops/planning/api-client-codegen/）。这里守三件事：
 //   1. src/generated 和契约一致——改了契约没重新生成就红；
 //   2. 生成层的传输行为：地址和查询串、GET 不带 Content-Type、拆信封、报错带状态码和 reason；
-//   3. 手写的 buildApiEndpoint( 只减不增，新接口走生成的函数。
+//   3. packages/api 里手写发请求的地方只减不增，新接口写进契约再生成。
 import test from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
@@ -114,8 +114,13 @@ test("合集、检索：固定文案的报错，空查询不发请求", async ()
   assert.equal(none.length, 0);
 });
 
-test("手写的 buildApiEndpoint( 只减不增，新接口走生成的函数", () => {
-  const BASELINE = 38;
+// 手写发请求：apiFetch(、submitJson(、fetchImpl(、submitUploadRequest(、XHR。函数定义那一行不算；
+// 生成层走 request.ts 的 (options.fetchImpl || apiFetch)(…)，不在数里。
+const HAND_WRITTEN_REQUEST = /apiFetch\(|submitJson\(|fetchImpl\(|submitUploadRequest\(|new XMLHttpRequest/g;
+
+test("packages/api 里手写发请求的地方只减不增，新接口走生成的函数", () => {
+  // 第 0 期前 66 处，第 1 期换完 36 处（剩下的是设置类、AI、多用户和文件上传）。
+  const BASELINE = 36;
   const srcRoot = resolve(apiPackage, "src");
   let count = 0;
   const walk = (dir) => {
@@ -124,11 +129,14 @@ test("手写的 buildApiEndpoint( 只减不增，新接口走生成的函数", (
       if (entry.isDirectory()) {
         if (entry.name !== "generated") walk(full);
       } else if (entry.name.endsWith(".ts")) {
-        count += (readFileSync(full, "utf8").match(/buildApiEndpoint\(/g) || []).length;
+        for (const line of readFileSync(full, "utf8").split("\n")) {
+          if (/^\s*export (async )?function /.test(line)) continue;
+          count += (line.match(HAND_WRITTEN_REQUEST) || []).length;
+        }
       }
     }
   };
   walk(srcRoot);
-  assert.ok(count <= BASELINE, `buildApiEndpoint( 有 ${count} 处，超过棘轮 ${BASELINE}：新接口请写进契约端点表并重新生成`);
-  assert.equal(count, BASELINE, `buildApiEndpoint( 减到了 ${count} 处，把这里的 BASELINE 拧紧到 ${count}`);
+  assert.ok(count <= BASELINE, `手写发请求有 ${count} 处，超过棘轮 ${BASELINE}：新接口请写进契约端点表并重新生成`);
+  assert.equal(count, BASELINE, `手写发请求减到了 ${count} 处，把这里的 BASELINE 拧紧到 ${count}`);
 });

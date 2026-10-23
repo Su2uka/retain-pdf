@@ -1,5 +1,6 @@
 import { apiFetch } from "./internal/runtime.js";
-import { API_PREFIX, buildApiHeaders, buildApiUrl, unwrapEnvelope, } from "./internal/runtime.js";
+import { API_PREFIX, buildApiHeaders, buildApiUrl, } from "./internal/runtime.js";
+import * as generated from "./generated/reader-data.js";
 export class LiveTranslationApiError extends Error {
     status;
     code;
@@ -32,24 +33,35 @@ async function responseError(response) {
         .slice(0, 240);
     return new LiveTranslationApiError(message, response.status, code);
 }
-async function requestJson(path, options = {}) {
-    const fetchImpl = options.fetchImpl || apiFetch;
-    const response = await fetchImpl(buildApiUrl(options.apiPrefix || API_PREFIX, path), {
-        headers: buildApiHeaders(),
+function requiredJobId(jobId) {
+    const normalized = `${jobId || ""}`.trim();
+    if (!normalized)
+        throw new LiveTranslationApiError("job_id required", 400);
+    return normalized;
+}
+// 版面和单页快照走生成的函数（契约 reader-data.v1）；进度流是 SSE，下面手写。
+function requestOptions(options) {
+    return {
         signal: options.signal,
-    });
-    if (!response.ok)
-        throw await responseError(response);
-    return unwrapEnvelope(await response.json());
+        fetchImpl: options.fetchImpl,
+        onError: (status, payload) => {
+            const code = `${payload?.error?.code || payload?.code || ""}`.trim();
+            const message = `${payload?.message || payload?.error?.message || "Live translation request failed"}`
+                .replace(/\s+/g, " ")
+                .trim()
+                .slice(0, 240);
+            return new LiveTranslationApiError(message, status, code);
+        },
+    };
 }
 export function fetchLiveTranslationLayout(jobId, options = {}) {
-    return requestJson(jobPath(jobId, "progress/layout"), options);
+    return generated.getLiveLayout(options.apiPrefix || API_PREFIX, { job_id: requiredJobId(jobId) }, requestOptions(options));
 }
 export function fetchLiveTranslationPage(jobId, pageIdx, options = {}) {
     if (!Number.isInteger(pageIdx) || pageIdx < 0) {
         throw new LiveTranslationApiError("page_idx must be a non-negative integer", 400);
     }
-    return requestJson(jobPath(jobId, `progress/pages/${pageIdx}`), options);
+    return generated.getLivePage(options.apiPrefix || API_PREFIX, { job_id: requiredJobId(jobId), page: `${pageIdx}` }, requestOptions(options));
 }
 function parseSseFrame(rawFrame) {
     let id = "";

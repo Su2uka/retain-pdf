@@ -29,9 +29,11 @@ function tsTypeFields(source, typeName) {
   return new Set([...block.matchAll(/^\s*([a-zA-Z_][a-zA-Z0-9_]*)\??:/gm)].map((m) => m[1]));
 }
 
+// 生成的 TS 读 job-status.ts：library-books 里重复登记的 GET /jobs 要删，删了以后 library-books.ts 只导出
+// 删任务用到的类型。两份契约的 Job 定义由 contracts/tests/job-definitions-parity 锁成一致。
 const generatedContractsSource = readFileSync(join(
   process.cwd(),
-  "../../contracts/src/library-books.ts",
+  "../../contracts/src/job-status.ts",
 ), "utf8");
 
 test("JobProgressView: TS progress 字段 ⊆ 契约", () => {

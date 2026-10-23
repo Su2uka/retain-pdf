@@ -1,8 +1,6 @@
 // Cursor feed v2. Translation live-events SSE keeps its separate protocol.
-import { apiFetch } from "./internal/runtime.js";
-import { buildApiHeaders, unwrapEnvelope } from "./internal/runtime.js";
-import { buildJobDetailEndpoint } from "./http.js";
 import type { JobEventListView, ListJobEventsQuery } from "@retainpdf/contracts/job-events";
+import * as generated from "./generated/job-events.js";
 
 export type JobEventsQuery = ListJobEventsQuery & { signal?: AbortSignal };
 
@@ -50,21 +48,19 @@ export async function fetchJobEvents(
     || (query.cursor !== undefined && query.start !== undefined)) {
     throw new JobEventsError("事件流使用 start 或 cursor，不支持 offset。", 400, "INVALID_QUERY");
   }
-  const params = new URLSearchParams({ limit: `${query.limit ?? 500}` });
-  if (query.cursor !== undefined) params.set("cursor", query.cursor);
-  else params.set("start", query.start ?? "tail");
-  const endpoint = `${buildJobDetailEndpoint(jobId, apiPrefix)}/progress/events?${params}`;
+  const feedQuery: ListJobEventsQuery = query.cursor !== undefined
+    ? { limit: query.limit ?? 500, cursor: query.cursor }
+    : { limit: query.limit ?? 500, start: query.start ?? "tail" };
   // OCR 任务也走 /jobs/:id/progress/events（后端已统一），不再 404 后退到 /ocr/jobs/ 别名。
-  const response = await apiFetch(endpoint, { headers: buildApiHeaders(), signal: query.signal });
-  if (!response.ok) {
-    const error = await response.json().catch(() => null);
-    throw new JobEventsError(
-      error?.message || `读取事件流失败，请稍后重试。(${response.status})`,
-      response.status,
-      error?.error?.code || "EVENT_REQUEST_FAILED",
-    );
-  }
-  return validateJobEventsPage(unwrapEnvelope(await response.json()));
+  const page = await generated.listJobEvents(apiPrefix, { job_id: jobId, query: feedQuery }, {
+    signal: query.signal,
+    onError: (status, payload) => new JobEventsError(
+      payload?.message || `读取事件流失败，请稍后重试。(${status})`,
+      status,
+      payload?.error?.code || "EVENT_REQUEST_FAILED",
+    ),
+  });
+  return validateJobEventsPage(page);
 }
 
 /** Drain only the fixed batch encoded by a cursor; never chase a moving head. */

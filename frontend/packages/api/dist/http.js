@@ -17,7 +17,8 @@ export function buildJobDetailEndpoint(jobId, apiPrefix) {
 function isObject(value) {
     return !!value && typeof value === "object" && !Array.isArray(value);
 }
-function summarizeJobRequestContext(payload) {
+/** 建任务失败时附在报错后面的请求摘要（workflow、OCR 服务商、上传编号）。 */
+export function summarizeJobRequestContext(payload) {
     if (!isObject(payload))
         return "";
     const p = payload;

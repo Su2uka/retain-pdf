@@ -1,4 +1,4 @@
-import type { JobDataCatalogView, JobDataView } from "@retainpdf/contracts/job-data";
+import type { JobDataCatalogView, JobDatasetQuery, JobDataView } from "@retainpdf/contracts/job-data";
 export type { JobDataCatalogView, JobDataView } from "@retainpdf/contracts/job-data";
 export type JobDataFilterValue = string | number | boolean | ReadonlyArray<string | number>;
 export type JobDataQuery = {
@@ -14,6 +14,8 @@ export type JobDataQuery = {
     /** ≤1000，默认 200。 */
     limit?: number;
 };
+/** 换成接口的查询参数：数组用逗号连接，空值不发，offset、limit 为 0 时不发。 */
+export declare function jobDatasetQuery(query?: JobDataQuery): JobDatasetQuery;
 export declare function jobDataSearchParams(query?: JobDataQuery): URLSearchParams;
 /** 这个任务有哪些数据集、各有哪些字段、能不能筛。 */
 export declare function fetchJobDataCatalog(jobId: string, apiPrefix?: string): Promise<JobDataCatalogView>;
