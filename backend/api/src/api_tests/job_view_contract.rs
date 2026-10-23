@@ -542,3 +542,55 @@ async fn job_delete_result_matches_published_schema() {
         assert_exact_object_keys(&payload["data"], &library_contract, "LibraryDeleteResultView", uri);
     }
 }
+
+/// `GET /jobs` 的查询参数：契约 `ListJobsQuery` 的属性和 Rust 认的字段一一对应（两份契约都核）。
+/// 解构不写 `..`，Rust 加字段时这里编不过，提醒顺手补契约。
+#[test]
+fn list_jobs_query_contract_names_every_accepted_param() {
+    let query: crate::models::api::ListJobsQuery = serde_json::from_value(json!({
+        "include_live_stage": false,
+        "limit": 5,
+        "offset": 1,
+        "status": "running",
+        "workflow": "book",
+        "provider": "deepseek",
+        "q": "paper",
+        "job_ids": "a,b",
+    }))
+    .expect("every contract param parses");
+    let crate::models::api::ListJobsQuery {
+        include_live_stage,
+        limit: _,
+        offset: _,
+        status: _,
+        workflow: _,
+        provider: _,
+        q: _,
+        job_ids: _,
+        owner: _, // 不从查询串读，由路由按当前用户填
+    } = query;
+    assert_eq!(include_live_stage, Some(false));
+
+    let accepted: BTreeSet<String> = [
+        "include_live_stage",
+        "limit",
+        "offset",
+        "status",
+        "workflow",
+        "provider",
+        "q",
+        "job_ids",
+    ]
+    .into_iter()
+    .map(String::from)
+    .collect();
+    for file in ["job-status.v1.schema.json", "library-books.v1.schema.json"] {
+        let contract = contract(file);
+        assert_eq!(schema_keys(&contract, "ListJobsQuery"), accepted, "{file}");
+        assert_eq!(
+            definition(&contract, "ListJobsQuery")["properties"]["include_live_stage"]["type"],
+            json!("boolean"),
+            "{file}"
+        );
+    }
+}

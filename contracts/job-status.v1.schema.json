@@ -2629,6 +2629,10 @@
     "ListJobsQuery": {
       "type": "object",
       "properties": {
+        "include_live_stage": {
+          "type": "boolean",
+          "description": "false 只读库里的任务摘要，不导入事件历史（首屏更快）；省略或 true 是完整的实时阶段。"
+        },
         "limit": {
           "type": "integer"
         },

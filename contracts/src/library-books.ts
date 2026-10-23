@@ -163,6 +163,10 @@ export interface LibraryDeleteResultView {
   removed_child_jobs: string[];
 }
 export interface ListJobsQuery {
+  /**
+   * false 只读库里的任务摘要，不导入事件历史（首屏更快）；省略或 true 是完整的实时阶段。
+   */
+  include_live_stage?: boolean;
   limit?: number;
   offset?: number;
   status?: JobStatusKind;
