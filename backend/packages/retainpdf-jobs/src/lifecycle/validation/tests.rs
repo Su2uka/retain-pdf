@@ -473,3 +473,43 @@ fn render_options_reject_translated_pdf_name_path_separator() {
         .to_string()
         .contains("render.translated_pdf_name must be a file name"));
 }
+
+/// 数字参数有上限（审查 L1）：刚好到上限的放行，多一就 400、报出字段名和上限；默认值都在上限以内。
+#[test]
+fn numeric_job_options_have_upper_bounds() {
+    let defaults = CreateJobInput::default();
+    validate_translation_modes(&defaults).expect("defaults pass");
+    validate_render_options(&defaults).expect("defaults pass");
+    validate_runtime_limits(&defaults).expect("defaults pass");
+
+    type Set = fn(&mut CreateJobInput, i64);
+    type Check = fn(&CreateJobInput) -> Result<(), AppError>;
+    let cases: [(&str, i64, Set, Check); 7] = [
+        ("translation.workers", MAX_TRANSLATION_WORKERS, |i, v| i.translation.workers = v, validate_translation_modes),
+        ("translation.batch_size", MAX_TRANSLATION_BATCH_SIZE, |i, v| i.translation.batch_size = v, validate_translation_modes),
+        (
+            "translation.classify_batch_size",
+            MAX_TRANSLATION_BATCH_SIZE,
+            |i, v| i.translation.classify_batch_size = v,
+            validate_translation_modes,
+        ),
+        ("render.compile_workers", MAX_RENDER_COMPILE_WORKERS, |i, v| i.render.compile_workers = v, validate_render_options),
+        ("render.pdf_compress_dpi", MAX_RENDER_PDF_COMPRESS_DPI, |i, v| i.render.pdf_compress_dpi = v, validate_render_options),
+        ("timeout_seconds", MAX_RUNTIME_TIMEOUT_SECONDS, |i, v| i.runtime.timeout_seconds = v, validate_runtime_limits),
+        (
+            "no_output_timeout_seconds",
+            MAX_RUNTIME_TIMEOUT_SECONDS,
+            |i, v| i.runtime.no_output_timeout_seconds = v,
+            validate_runtime_limits,
+        ),
+    ];
+    for (field, max, set, check) in cases {
+        let mut input = CreateJobInput::default();
+        set(&mut input, max);
+        check(&input).unwrap_or_else(|error| panic!("{field}={max} should pass: {error:?}"));
+        set(&mut input, max + 1);
+        let error = check(&input).expect_err(field);
+        let message = format!("{error:?}");
+        assert!(message.contains(&format!("{field} must be at most {max}")), "{message}");
+    }
+}

@@ -149,6 +149,13 @@ send it`); send it empty or omit it. As a backstop, `submit_job` refuses a new j
 whose id is not `[A-Za-z0-9_-]{1,128}` (`400`) or already exists (`409`). Internal
 paths (retry, rerun, OCR-ambiguity recovery) clear the field and get a fresh id.
 
+Upper bounds (since 2026-10-24; a larger value answers `400` with
+`"<field> must be at most <max>"`): `translation.workers` ≤ 256,
+`translation.batch_size` and `translation.classify_batch_size` ≤ 1000,
+`render.compile_workers` ≤ 64, `render.pdf_compress_dpi` ≤ 1200,
+`runtime.timeout_seconds` and `runtime.no_output_timeout_seconds` ≤ 604800 (one week).
+The lower bounds are unchanged.
+
 Timeout note:
 
 `timeout_seconds` and `no_output_timeout_seconds` are two independent limits and
