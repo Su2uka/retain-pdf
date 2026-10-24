@@ -319,6 +319,7 @@ async fn a_failing_stdout_reader_stops_the_worker_right_away() {
         concat!(
             "import pathlib,sys,time\n",
             "p=pathlib.Path(sys.argv[1])\n",
+            "print('boom: the real reason', flush=True)\n",
             "print('{\"schema\":\"pipeline_stage_observation_v1\",\"schema_version\":1,\"job_id\":\"someone-else\",",
             "\"seq\":1,\"ts\":\"2026-10-24T00:00:00Z\",\"user_stage\":\"translation\",\"stage\":\"translating\",",
             "\"substage\":\"translation_batches\",\"event_type\":\"stage_progress\",\"message\":\"batch 1/2\",",
@@ -352,6 +353,12 @@ async fn a_failing_stdout_reader_stops_the_worker_right_away() {
     assert_eq!(stored.status, JobStatusKind::Failed);
     let error = stored.error.clone().unwrap_or_default();
     assert!(error.contains("job mismatch"), "失败原因要是读取任务的错误: {error}");
+    // 落失败时从库里重读任务：出错前读到、还在节流里没写的行要先补写进去（失败页拿 log_tail 兜底显示报错）。
+    assert!(
+        stored.log_tail.iter().any(|line| line == "boom: the real reason"),
+        "{:?}",
+        stored.log_tail
+    );
     let ticks = || {
         std::fs::read_to_string(&marker)
             .map(|text| text.lines().count())
@@ -360,6 +367,68 @@ async fn a_failing_stdout_reader_stops_the_worker_right_away() {
     let after = ticks();
     tokio::time::sleep(std::time::Duration::from_millis(800)).await;
     assert_eq!(ticks(), after, "worker 进程必须已被终止，不能继续干活");
+}
+
+/// worker 打完最后几行马上以非 0 退出：任务落失败以后 log_tail 里有这几行（往往就是报错原因）。
+#[tokio::test]
+async fn last_lines_before_a_failing_exit_reach_log_tail() {
+    let fx = Fixture::new(1);
+    let mut job = fx.job("fails-fast", JobStatusKind::Queued);
+    job.command = vec![
+        "python3".into(),
+        "-c".into(),
+        "import sys\nfor i in range(50): print('progress', i)\nprint('Traceback: the last line', flush=True)\nsys.exit(3)".into(),
+    ];
+    fx.deps.db.save_job(&job).unwrap();
+    let handle = spawn_job_with_workflow(
+        fx.deps.clone(),
+        job.job_id.clone(),
+        |deps, job| async move {
+            super::super::process_runner::execute_process_job(deps, job, &[]).await
+        },
+    )
+    .unwrap();
+    handle.await.unwrap();
+    let stored = fx.deps.db.get_job("fails-fast").unwrap();
+    assert_eq!(stored.status, JobStatusKind::Failed);
+    assert!(
+        stored.log_tail.iter().any(|line| line == "Traceback: the last line"),
+        "{:?}",
+        stored.log_tail
+    );
+}
+
+/// worker 打完一行就不出声（卡住、在等上游）：这一行也要在合并窗口（500ms）过后进库，
+/// 不能等到下一行或者进程退出。
+#[tokio::test]
+async fn a_quiet_worker_still_gets_its_last_line_persisted() {
+    let fx = Fixture::new(1);
+    let mut job = fx.job("goes-quiet", JobStatusKind::Queued);
+    job.command = vec![
+        "python3".into(),
+        "-c".into(),
+        "import time\nprint('waiting for upstream', flush=True)\ntime.sleep(3)".into(),
+    ];
+    fx.deps.db.save_job(&job).unwrap();
+    let handle = spawn_job_with_workflow(
+        fx.deps.clone(),
+        job.job_id.clone(),
+        |deps, job| async move {
+            super::super::process_runner::execute_process_job(deps, job, &[]).await
+        },
+    )
+    .unwrap();
+    let mut seen = false;
+    for _ in 0..30 {
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        let stored = fx.deps.db.get_job("goes-quiet").unwrap();
+        if stored.log_tail.iter().any(|line| line == "waiting for upstream") {
+            seen = true;
+            break;
+        }
+    }
+    assert!(seen, "worker 不出声 1.5 秒以后，它打的最后一行还没进库");
+    handle.await.unwrap();
 }
 
 /// worker 打出一行不是 UTF-8 的字节，任务照样成功（按替换字符解码），不再让读取任务报错退出。

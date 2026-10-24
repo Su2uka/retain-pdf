@@ -9,6 +9,7 @@ use anyhow::{Context, Result};
 use sha2::{Digest, Sha256};
 use tokio::io::{AsyncBufRead, AsyncBufReadExt, BufReader};
 use tokio::sync::{Mutex, RwLock};
+use tokio::time::timeout;
 
 use crate::db::{PipelineAttemptCursor, PipelineStageObservation, PipelineUnitCommit};
 use crate::job_events::cas_persist_job_with_resources;
@@ -37,12 +38,14 @@ const MAX_CONSECUTIVE_PERSIST_FAILURES: u32 = 3;
 
 /// 读一行，不是 UTF-8 的字节按替换字符解码。`lines()` 碰到一行坏字节直接报错，读取任务就退出了。
 /// 和 `lines()` 一样去掉行尾的 `\n` / `\r\n`。
+///
+/// 可以被打断（[`read_stdout`] 套了超时）：`read_until` 被打断时读了一半的字节留在 `buf` 里，
+/// 下次调用接着往后读，所以只在拿到整行以后才清空 `buf`。
 async fn next_line_lossy<R>(reader: &mut R, buf: &mut Vec<u8>) -> std::io::Result<Option<String>>
 where
     R: AsyncBufRead + Unpin,
 {
-    buf.clear();
-    if reader.read_until(b'\n', buf).await? == 0 {
+    if reader.read_until(b'\n', buf).await? == 0 && buf.is_empty() {
         return Ok(None);
     }
     if buf.ends_with(b"\n") {
@@ -51,7 +54,9 @@ where
             buf.pop();
         }
     }
-    Ok(Some(String::from_utf8_lossy(buf).into_owned()))
+    let line = String::from_utf8_lossy(buf).into_owned();
+    buf.clear();
+    Ok(Some(line))
 }
 
 pub(super) async fn read_stream<R>(reader: R, secrets: Vec<String>) -> Result<String>
@@ -138,91 +143,94 @@ pub(super) async fn read_stdout(
         durable_stage_order(stage_key),
     )?;
     let mut gate = PersistGate::new(&job, Instant::now());
-    // 有读过的行还没落库（被合并掉了）。读到结尾时补写一次。
+    // 读过、但还没写进库的行（被合并掉了，或者刚读到还没走到落库）。
     let mut pending = false;
-    let mut persist_failures = 0;
+    // 被取消、别人落了终态、行没了：不再写这个任务。
     let mut stopped = false;
-    while let Some(raw_line) = next_line_lossy(&mut reader, &mut line_buf).await? {
-        let line = redact_text(&raw_line, &secrets);
-        // 收到任何一行就算"还在动"。放在所有 break 之前:进程有没有活着,
-        // 与这行内容是什么、要不要继续处理它无关。
-        *last_output_at.lock().await = Instant::now();
-        if is_cancel_requested_any(&canceled_jobs, &job.job_id, &extra_cancel_job_ids).await {
-            stopped = true;
-            break;
-        }
-        out.push_str(&line);
-        out.push('\n');
-        apply_job_stdout_line(&mut job, &line);
-        if let Some(observation) = parse_pipeline_stage_observation_line(&line) {
-            apply_durable_stage_observation(
-                persist.db.as_ref(),
-                &mut pipeline_cursor,
-                observation,
-            )?;
-        }
-        if let Some(observation) = parse_pipeline_checkpoint_line(&line) {
-            apply_durable_checkpoint(persist.db.as_ref(), &mut pipeline_cursor, observation)?;
-        }
-        if let Some(artifact) = parse_artifact_published_line(&line) {
-            apply_durable_artifact_commit(persist.db.as_ref(), &mut pipeline_cursor, artifact)?;
-        }
-        if is_cancel_requested_any(&canceled_jobs, &job.job_id, &extra_cancel_job_ids).await {
-            stopped = true;
-            break;
-        }
-        job.updated_at = now_iso();
-        let key = persist_key(&job);
-        let now = Instant::now();
-        if !gate.should_persist(&key, now) {
-            pending = true;
-            continue;
-        }
-        // 逐行进度也走 CAS。上面那次取消检查和这次写之间不是原子的,无条件写会把
-        // 期间落库的终态(通常是取消)盖回 running——和 driver 推进阶段是同一个
-        // lost update,只是这里每读一行就有一次机会。
-        //
-        // CAS 失败说明别人已经给这个任务落了终态,继续读它的 stdout 也没有意义,
-        // 和上面命中取消标记时一样 break 出去。
-        match cas_persist_job_with_resources(
-            persist.db.as_ref(),
-            &persist.data_root,
-            &persist.output_root,
-            &job.snapshot(),
-            &["queued", "running"],
-        ) {
-            Ok(true) => {
-                gate.persisted(key, now);
-                pending = false;
-                persist_failures = 0;
-            }
-            Ok(false) => {
-                // 行被删了（强制删除）和「别人已落终态」不同：后者 worker 由取消路径负责杀，
-                // 前者没有人会来杀它，通知等待方把进程树终止掉。
-                if job_row_is_gone(persist.db.as_ref(), &job.job_id) {
-                    row_gone.store(true, Ordering::SeqCst);
+    let outcome: Result<()> = async {
+        let mut persist_failures = 0;
+        loop {
+            // 有没写的行时，下一行最多等到合并窗口结束：worker 打完最后几行就不出声（卡住、孙进程占着管道）
+            // 时，这几行照样半秒内进库。
+            let next = if pending {
+                let wait = LOG_ONLY_PERSIST_INTERVAL.saturating_sub(gate.at.elapsed());
+                match timeout(wait, next_line_lossy(&mut reader, &mut line_buf)).await {
+                    Ok(next) => next?,
+                    Err(_) => {
+                        match write_progress(&persist, &job, &row_gone, &mut persist_failures)? {
+                            ProgressWrite::Written => {
+                                gate.persisted(persist_key(&job), Instant::now());
+                                pending = false;
+                            }
+                            ProgressWrite::Retry => gate.at = Instant::now(),
+                            ProgressWrite::Stop => {
+                                stopped = true;
+                                return Ok(());
+                            }
+                        }
+                        continue;
+                    }
                 }
+            } else {
+                next_line_lossy(&mut reader, &mut line_buf).await?
+            };
+            let Some(raw_line) = next else {
+                return Ok(());
+            };
+            let line = redact_text(&raw_line, &secrets);
+            // 收到任何一行就算"还在动"。放在所有 break 之前:进程有没有活着,
+            // 与这行内容是什么、要不要继续处理它无关。
+            *last_output_at.lock().await = Instant::now();
+            if is_cancel_requested_any(&canceled_jobs, &job.job_id, &extra_cancel_job_ids).await {
                 stopped = true;
-                break;
+                return Ok(());
             }
-            // 逐行进度只是镜像，写不进去下一行再写；连续几次都不行才放弃（读取任务出错，worker 会被停掉）。
-            Err(error) => {
-                persist_failures += 1;
-                if persist_failures >= MAX_CONSECUTIVE_PERSIST_FAILURES {
-                    return Err(error.context(format!(
-                        "persisting stdout progress for job {} failed {persist_failures} times in a row",
-                        job.job_id
-                    )));
+            out.push_str(&line);
+            out.push('\n');
+            apply_job_stdout_line(&mut job, &line);
+            pending = true;
+            if let Some(observation) = parse_pipeline_stage_observation_line(&line) {
+                apply_durable_stage_observation(
+                    persist.db.as_ref(),
+                    &mut pipeline_cursor,
+                    observation,
+                )?;
+            }
+            if let Some(observation) = parse_pipeline_checkpoint_line(&line) {
+                apply_durable_checkpoint(persist.db.as_ref(), &mut pipeline_cursor, observation)?;
+            }
+            if let Some(artifact) = parse_artifact_published_line(&line) {
+                apply_durable_artifact_commit(persist.db.as_ref(), &mut pipeline_cursor, artifact)?;
+            }
+            if is_cancel_requested_any(&canceled_jobs, &job.job_id, &extra_cancel_job_ids).await {
+                stopped = true;
+                return Ok(());
+            }
+            job.updated_at = now_iso();
+            let key = persist_key(&job);
+            let now = Instant::now();
+            if !gate.should_persist(&key, now) {
+                continue;
+            }
+            // 逐行进度也走 CAS。上面那次取消检查和这次写之间不是原子的,无条件写会把
+            // 期间落库的终态(通常是取消)盖回 running——和 driver 推进阶段是同一个
+            // lost update,只是这里每读一行就有一次机会。
+            match write_progress(&persist, &job, &row_gone, &mut persist_failures)? {
+                ProgressWrite::Written => {
+                    gate.persisted(key, now);
+                    pending = false;
                 }
-                tracing::warn!(
-                    "job={}: 逐行进度落库失败（第 {persist_failures} 次），下一行再试: {error:#}",
-                    job.job_id
-                );
-                pending = true;
+                ProgressWrite::Retry => gate.at = now,
+                ProgressWrite::Stop => {
+                    stopped = true;
+                    return Ok(());
+                }
             }
         }
     }
-    // 读到结尾（worker 关了 stdout），把合并掉的最后几行补写进去；收尾还会再写一次终态，这里写不进去不要紧。
+    .await;
+    // 没写的行补写进去。读到结尾时收尾还会用内存里这份再写一次终态；但读取任务出错退出时，收尾
+    // （`persist_failed_job`）从库里重读任务，不补写的话最后几行——往往就是报错原因——就丢了。
     if pending && !stopped {
         if let Err(error) = cas_persist_job_with_resources(
             persist.db.as_ref(),
@@ -231,10 +239,63 @@ pub(super) async fn read_stdout(
             &job.snapshot(),
             &["queued", "running"],
         ) {
-            tracing::warn!("job={}: stdout 结束时补写进度失败: {error:#}", job.job_id);
+            tracing::warn!("job={}: stdout 读取收尾时补写进度失败: {error:#}", job.job_id);
         }
     }
+    outcome?;
     Ok((out, job))
+}
+
+enum ProgressWrite {
+    Written,
+    /// 这次没写进去，下一行（或下一个窗口）再写。
+    Retry,
+    /// CAS 没写进去：别人已经给这个任务落了终态，或者行被删了。继续读它的 stdout 也没有意义。
+    Stop,
+}
+
+/// 逐行进度落库一次。进度只是镜像，写失败记日志等下次；连续 [`MAX_CONSECUTIVE_PERSIST_FAILURES`] 次
+/// 都不行才返回错误（读取任务出错，worker 会被停掉）。
+fn write_progress(
+    persist: &JobPersistDeps,
+    job: &JobRuntimeState,
+    row_gone: &AtomicBool,
+    failures: &mut u32,
+) -> Result<ProgressWrite> {
+    match cas_persist_job_with_resources(
+        persist.db.as_ref(),
+        &persist.data_root,
+        &persist.output_root,
+        &job.snapshot(),
+        &["queued", "running"],
+    ) {
+        Ok(true) => {
+            *failures = 0;
+            Ok(ProgressWrite::Written)
+        }
+        Ok(false) => {
+            // 行被删了（强制删除）和「别人已落终态」不同：后者 worker 由取消路径负责杀，
+            // 前者没有人会来杀它，通知等待方把进程树终止掉。
+            if job_row_is_gone(persist.db.as_ref(), &job.job_id) {
+                row_gone.store(true, Ordering::SeqCst);
+            }
+            Ok(ProgressWrite::Stop)
+        }
+        Err(error) => {
+            *failures += 1;
+            if *failures >= MAX_CONSECUTIVE_PERSIST_FAILURES {
+                return Err(error.context(format!(
+                    "persisting stdout progress for job {} failed {failures} times in a row",
+                    job.job_id
+                )));
+            }
+            tracing::warn!(
+                "job={}: 逐行进度落库失败（第 {failures} 次），下一次再试: {error:#}",
+                job.job_id
+            );
+            Ok(ProgressWrite::Retry)
+        }
+    }
 }
 
 fn apply_durable_artifact_commit(
