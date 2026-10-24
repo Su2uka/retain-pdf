@@ -1,4 +1,4 @@
-use super::{UploadService, UploadedPdfInput};
+use super::{IncomingFile, IncomingUpload, UploadService, UploadedPdfInput};
 use retainpdf_api_base::error::AppError;
 use retainpdf_accounts::Principal;
 use super::view::{upload_to_response, UploadView};
@@ -17,6 +17,34 @@ impl<'a> UploadApiDeps<'a> {
 /// 读请求体之前先看磁盘放不放得下（只看下限，文件大小这会儿还不知道）。
 pub fn ensure_upload_disk_space(deps: &UploadApiDeps<'_>) -> Result<(), AppError> {
     deps.uploads.ensure_free_space(0).map_err(AppError::from)
+}
+
+/// 开始收一个上传（见 `incoming.rs`）：文件名不是 PDF、磁盘到了下限，这时就拒，不用等收完。
+pub async fn begin_upload(
+    deps: &UploadApiDeps<'_>,
+    filename: &str,
+    max_bytes: std::num::NonZeroU64,
+) -> Result<IncomingUpload, AppError> {
+    deps.uploads
+        .begin_incoming(filename, max_bytes.get())
+        .await
+        .map_err(AppError::from)
+}
+
+/// 收完的上传落库、返回给前端的样子。
+pub async fn store_incoming_upload_view(
+    deps: &UploadApiDeps<'_>,
+    filename: String,
+    file: IncomingFile,
+    developer_mode: bool,
+    owner: Principal,
+) -> Result<UploadView, AppError> {
+    let upload = deps
+        .uploads
+        .store_incoming_for(filename, file, developer_mode, owner)
+        .await
+        .map_err(AppError::from)?;
+    Ok(upload_to_response(&upload))
 }
 
 pub async fn store_upload(
