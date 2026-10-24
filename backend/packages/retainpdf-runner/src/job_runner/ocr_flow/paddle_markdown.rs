@@ -5,10 +5,26 @@ use anyhow::{anyhow, Context, Result};
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
 use futures_util::stream::{self, StreamExt};
+use once_cell::sync::Lazy;
 use regex::{Captures, Regex};
 use reqwest::Client;
 use serde_json::Value;
 use tokio::sync::watch;
+
+// 每张图、每页都要用，编一次留着（以前每次调用都 `Regex::new`，`markdown_image_from_attrs` 每张图编一次）。
+static IMG_SRC: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r#"(?i)<img\b[^>]*\bsrc=["']([^"']+)["']"#).expect("valid img src regex"));
+static IMG_SRC_PARTS: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r#"(?i)(<img\b[^>]*\bsrc=["'])([^"']+)(["'])"#).expect("valid img src regex")
+});
+static CENTERED_IMG_DIV: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r#"(?i)<div\s+style=["']text-align:\s*center;?["']\s*>\s*(<img\b[^>]*>)\s*</div>"#)
+        .expect("valid centered img div regex")
+});
+static IMG_TAG: Lazy<Regex> = Lazy::new(|| Regex::new(r#"(?i)<img\b([^>]*)>"#).expect("valid img tag regex"));
+static HTML_ATTR: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r#"([A-Za-z_:][-A-Za-z0-9_:.]*)\s*=\s*["']([^"']*)["']"#).expect("valid html attr regex")
+});
 
 /// 插图下载并发数。之前 16 张串行约 6s。
 const IMAGE_DOWNLOAD_CONCURRENCY: usize = 4;
@@ -194,8 +210,7 @@ fn paddle_markdown_target_rel_path_for_image_key(
     {
         return PathBuf::from(normalized);
     }
-    let re = Regex::new(r#"(?i)<img\b[^>]*\bsrc=["']([^"']+)["']"#).expect("valid img src regex");
-    for captures in re.captures_iter(markdown_text) {
+    for captures in IMG_SRC.captures_iter(markdown_text) {
         let src = captures[1]
             .trim()
             .trim_start_matches('/')
@@ -231,9 +246,7 @@ fn paddle_markdown_rel_src_path(src: &str, page_index: usize) -> String {
 }
 
 fn rewrite_paddle_markdown_image_srcs(text: &str, page_index: usize) -> String {
-    let re =
-        Regex::new(r#"(?i)(<img\b[^>]*\bsrc=["'])([^"']+)(["'])"#).expect("valid img src regex");
-    re.replace_all(text, |captures: &Captures<'_>| {
+    IMG_SRC_PARTS.replace_all(text, |captures: &Captures<'_>| {
         format!(
             "{}{}{}",
             &captures[1],
@@ -246,15 +259,10 @@ fn rewrite_paddle_markdown_image_srcs(text: &str, page_index: usize) -> String {
 
 fn normalize_paddle_markdown_images(text: &str, page_index: usize) -> String {
     let rewritten = rewrite_paddle_markdown_image_srcs(text, page_index);
-    let centered_div_re = Regex::new(
-        r#"(?i)<div\s+style=["']text-align:\s*center;?["']\s*>\s*(<img\b[^>]*>)\s*</div>"#,
-    )
-    .expect("valid centered img div regex");
-    let without_center_div = centered_div_re.replace_all(&rewritten, |captures: &Captures<'_>| {
+    let without_center_div = CENTERED_IMG_DIV.replace_all(&rewritten, |captures: &Captures<'_>| {
         markdown_image_from_img_tag(&captures[1])
     });
-    let img_re = Regex::new(r#"(?i)<img\b([^>]*)>"#).expect("valid img tag regex");
-    img_re
+    IMG_TAG
         .replace_all(&without_center_div, |captures: &Captures<'_>| {
             markdown_image_from_attrs(&captures[1])
         })
@@ -262,19 +270,16 @@ fn normalize_paddle_markdown_images(text: &str, page_index: usize) -> String {
 }
 
 fn markdown_image_from_img_tag(img_tag: &str) -> String {
-    let img_re = Regex::new(r#"(?i)<img\b([^>]*)>"#).expect("valid img tag regex");
-    let Some(captures) = img_re.captures(img_tag) else {
+    let Some(captures) = IMG_TAG.captures(img_tag) else {
         return img_tag.to_string();
     };
     markdown_image_from_attrs(&captures[1])
 }
 
 fn markdown_image_from_attrs(attrs_text: &str) -> String {
-    let attr_re = Regex::new(r#"([A-Za-z_:][-A-Za-z0-9_:.]*)\s*=\s*["']([^"']*)["']"#)
-        .expect("valid html attr regex");
     let mut src = String::new();
     let mut alt = String::from("Image");
-    for captures in attr_re.captures_iter(attrs_text) {
+    for captures in HTML_ATTR.captures_iter(attrs_text) {
         let key = captures[1].to_ascii_lowercase();
         if key == "src" {
             src = captures[2].trim().to_string();
