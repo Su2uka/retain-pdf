@@ -71,6 +71,7 @@ impl TestDirs {
             bind_host: "127.0.0.1".to_string(),
             port: 41000,
             simple_port: 42000,
+            shutdown_grace_secs: 1,
             upload_max_bytes: 0,
             upload_max_pages: 0,
             // 测试机的磁盘空间不归测试管；要测这条的测试自己设。

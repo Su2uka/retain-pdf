@@ -5,7 +5,15 @@ pub struct ServerRuntimeConfig {
     pub python_bin: String,
     pub bind_host: String,
     pub port: u16,
+    pub shutdown_grace_secs: u64,
 }
+
+/// 收到停机信号以后最多等还没结束的请求多少秒（`RUST_API_SHUTDOWN_GRACE_SECS`）。
+///
+/// 桌面壳和 `docker stop` 都只给 10 秒就 SIGKILL。进程内模式最坏要：这段等待（AI 服务、jobsd 的监督器同时在收尾，
+/// 各自最多 `worker_terminate_grace_secs` 3 秒，被它盖住）+ 停 tokio 运行时 1 秒 + 并行停 worker 3 秒多，
+/// 取 3 秒合计约 7.5 秒。改大要一起看这笔账。
+pub const DEFAULT_SHUTDOWN_GRACE_SECS: u64 = 3;
 
 impl ServerRuntimeConfig {
     pub fn from_env() -> Self {
@@ -19,6 +27,7 @@ impl ServerRuntimeConfig {
             // explicitly (see docker/delivery/docker/app.env).
             bind_host: env_string("RUST_API_BIND_HOST", "127.0.0.1"),
             port: env_u16("RUST_API_PORT", 41000),
+            shutdown_grace_secs: shutdown_grace_secs_from_env(),
         }
     }
 
@@ -27,6 +36,15 @@ impl ServerRuntimeConfig {
             python_bin,
             bind_host: "127.0.0.1".to_string(),
             port,
+            shutdown_grace_secs: shutdown_grace_secs_from_env(),
         }
     }
+}
+
+/// `0` 是收到信号就不等（连接直接断开）。
+fn shutdown_grace_secs_from_env() -> u64 {
+    std::env::var("RUST_API_SHUTDOWN_GRACE_SECS")
+        .ok()
+        .and_then(|value| value.trim().parse::<u64>().ok())
+        .unwrap_or(DEFAULT_SHUTDOWN_GRACE_SECS)
 }

@@ -285,3 +285,50 @@ fn second_in_process_api_on_the_same_data_exits_without_touching_live_workers() 
     worker.terminate();
     fs::remove_dir_all(root).expect("remove API fixture");
 }
+
+/// 进程内模式的后端收到 SIGTERM（桌面版退出、`docker stop`、开发栈停掉）：退出时把还在跑的 worker 停掉，
+/// 任务行留在 running，下次启动由启动对账续跑。以前 worker 在后台接着跑、接着花钱，直到下次启动才被杀。
+///
+/// 反证方式：把 `main.rs` 里的 `stop_owned_workers_after_shutdown(&config)` 去掉，这个测试必须变红。
+#[test]
+fn sigterm_stops_the_running_workers_and_leaves_their_rows_for_the_next_start() {
+    let root = fixture_root();
+    fs::create_dir_all(root.join("data/db")).expect("create data root");
+    let db = jobs_db(&root);
+    db.init().expect("init db");
+
+    let (port, simple_port) = distinct_ports();
+    let mut api = spawn_api(&root, port, simple_port);
+    wait_for_api(&mut api, port);
+
+    // API 起来以后才出现的 running 任务：算它的 worker（它不会再对账它）。
+    let mut worker = spawn_orphan_worker();
+    let worker_pid = worker.child_mut().id();
+    seed_crashed_runtime(&db, worker_pid);
+    db.record_worker_identity(JOB_ID, retainpdf_proc::process_identity(worker_pid).as_deref())
+        .expect("record worker identity");
+
+    let api_pid = api.child_mut().id();
+    let sent = Command::new("kill")
+        .args(["-TERM", &api_pid.to_string()])
+        .status()
+        .expect("send SIGTERM");
+    assert!(sent.success());
+    let deadline = Instant::now() + Duration::from_secs(10);
+    let status = loop {
+        if let Some(status) = api.child_mut().try_wait().expect("poll rust_api") {
+            break status;
+        }
+        assert!(Instant::now() < deadline, "rust_api 收到 SIGTERM 以后没有退出");
+        thread::sleep(Duration::from_millis(20));
+    };
+    assert!(status.success(), "rust_api 应当正常退出：{status}");
+    wait_for_worker_exit(&mut worker);
+
+    let job = db.get_job(JOB_ID).expect("load job");
+    assert_eq!(job.status, JobStatusKind::Running, "退出时不改任务行，留给下次启动");
+    assert_eq!(job.pid, Some(worker_pid));
+
+    worker.terminate();
+    fs::remove_dir_all(root).expect("remove API fixture");
+}

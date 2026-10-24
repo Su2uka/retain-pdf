@@ -120,6 +120,8 @@ pub struct AppConfig {
     pub bind_host: String,
     pub port: u16,
     pub simple_port: u16,
+    /// 收到停机信号以后最多等还没结束的请求（进度流这类长连接）多少秒，到点就断开（`RUST_API_SHUTDOWN_GRACE_SECS`）。
+    pub shutdown_grace_secs: u64,
     pub upload_max_bytes: u64,
     pub upload_max_pages: u32,
     /// 数据目录所在磁盘至少留多少空间（字节）才接新上传、新任务；0 是不查（`RUST_API_MIN_FREE_DISK_MB`）。
@@ -300,6 +302,7 @@ impl AppConfig {
             pipeline_command,
             bind_host: server.bind_host,
             port: server.port,
+            shutdown_grace_secs: server.shutdown_grace_secs,
             simple_port: auth.simple_port,
             upload_max_bytes: upload.upload_max_bytes,
             upload_max_pages: upload.upload_max_pages,

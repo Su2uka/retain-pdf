@@ -19,5 +19,5 @@ pub(crate) mod test_support;
 
 pub use app::{
     build_app, build_simple_app, build_state, run_servers, run_servers_with_shutdown,
-    spawn_servers, AppState, RunningServers,
+    spawn_servers, stop_owned_workers_after_shutdown, AppState, RunningServers,
 };

@@ -15,6 +15,7 @@ pub use jobs::build_jobs_facade_from_state;
 pub(crate) use jobs::build_jobs_facade_with_launcher;
 pub use router::{build_app, build_simple_app};
 pub(crate) use router::registered_endpoints;
+pub use jobs::stop_owned_workers_after_shutdown;
 pub use server::{run_servers, run_servers_with_shutdown, spawn_servers, RunningServers};
 pub use state::{build_state, AppState};
 

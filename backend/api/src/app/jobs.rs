@@ -7,7 +7,8 @@ use crate::db::Db;
 use crate::job_runner::{
     acquire_runtime_owner_lock, adopt_unlinked_job_sources, fail_unlaunched_job, launch_job,
     reconcile_stale_running_jobs, recover_jobs_after_database_restore, requeue_stuck_queued_jobs,
-    spawn_driverless_job_sweeper, spawn_job, ProcessRuntimeDeps, RuntimeOwnerLock,
+    spawn_driverless_job_sweeper, spawn_job, terminate_running_workers_on_shutdown, ProcessRuntimeDeps,
+    RuntimeOwnerLock,
 };
 use crate::services::jobs::{
     build_jobs_facade, CommandJobsDeps, ControlDeps, JobLaunchDeps, JobRuntimeLauncher, JobsFacade,
@@ -25,6 +26,30 @@ pub(super) fn acquire_owned_runtime_lock(config: &AppConfig) -> Result<Option<Ru
         return Ok(None);
     }
     acquire_runtime_owner_lock(&config.jobs_db_path).map(Some)
+}
+
+/// 进程内模式的后端退出时停掉还在跑的 worker（用户 2026-10-24 定，见
+/// `terminate_running_workers_on_shutdown`）。要在 tokio 运行时停掉以后调（`main.rs`）：driver 不再写库。
+///
+/// 停机返回时运行时锁已经放了，这里重新拿一次：拿不到说明新的运行时已经接手（例如马上重开了应用），
+/// 库里 running 任务的 worker 可能是它的，一个都不碰。远端模式不管（worker 归 jobsd）。
+pub fn stop_owned_workers_after_shutdown(config: &AppConfig) {
+    if config.jobs_service.is_remote() {
+        return;
+    }
+    let _lock = match acquire_runtime_owner_lock(&config.jobs_db_path) {
+        Ok(lock) => lock,
+        Err(error) => {
+            tracing::warn!("shutdown: runtime lock is held by another process; leaving its workers alone: {error:#}");
+            return;
+        }
+    };
+    let db = Db::new(config.jobs_db_path.clone(), config.data_root.clone());
+    match terminate_running_workers_on_shutdown(config, &db) {
+        Ok(0) => {}
+        Ok(count) => tracing::info!("shutdown: terminated {count} running worker(s); they resume on next start"),
+        Err(error) => tracing::warn!("shutdown: could not list running workers: {error:#}"),
+    }
 }
 
 pub(super) fn reconcile_owned_runtime(config: &AppConfig, db: &Db) -> Result<usize> {

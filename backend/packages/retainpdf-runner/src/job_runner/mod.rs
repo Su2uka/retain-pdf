@@ -19,6 +19,7 @@ mod runtime_credentials;
 mod runtime_deps;
 mod runtime_owner;
 mod runtime_state;
+mod shutdown_workers;
 mod source_document;
 mod stage_contract;
 mod startup_recovery;
@@ -49,6 +50,7 @@ pub(crate) use runtime_state::{
 pub use stage_contract::{
     translation_artifacts_are_ready, translation_checkpoint_candidate_is_ready,
 };
+pub use shutdown_workers::terminate_running_workers_on_shutdown;
 pub use startup_recovery::reconcile_stale_running_jobs;
 pub use startup_recovery::requeue_stuck_queued_jobs;
 pub use worker_process::{

@@ -67,8 +67,12 @@ async fn serve_with_shutdown(
 
     // 端点使用计数:同样属于运维观测,只在真实服务启动时开,不打扰单测。
     // 计数累加式落盘,重启不清零——要的是跨天的样本。
-    super::route_usage::init(&state.config.data_root);
-    let _usage_handle = spawn_periodic_route_usage_flush();
+    // 计数是进程全局的（谁先 init 归谁），单测进程里起真实服务（停机测试）时不开，
+    // 否则后面所有接口测试的请求都记到那个服务的目录下。
+    let _usage_handle = (!cfg!(test)).then(|| {
+        super::route_usage::init(&state.config.data_root);
+        spawn_periodic_route_usage_flush()
+    });
 
     let sync_service = state.sync.clone();
     let backup_service = state.backup.clone();
@@ -116,6 +120,7 @@ async fn serve_with_shutdown(
     // 数据库每天自动备份一份(间隔见平台包 retainpdf-platform 的 backup)。
     let _backup_handle = backup_service.spawn_loop(shutdown_rx_watch.clone());
 
+    let mut drain_rx = shutdown_rx_watch.clone();
     let jobsd_supervisor_handle =
         crate::runtime::jobsd_supervisor::spawn_jobsd_supervisor(config.clone(), shutdown_rx_watch);
     if jobsd_supervisor_handle.is_some() {
@@ -129,7 +134,27 @@ async fn serve_with_shutdown(
     let simple_server = axum::serve(simple_listener, simple_app)
         .with_graceful_shutdown(async move { shutdown_signal.notified().await });
 
-    let served = tokio::try_join!(full_server, simple_server);
+    // 优雅停机会等每一条还开着的连接：进度流（SSE）只在客户端断开时才结束，页面开着就一直等，
+    // `docker stop` 等满 10 秒直接 SIGKILL，监督的子进程来不及收尾。所以收到信号以后最多再等
+    // `shutdown_grace_secs`，到点就不等了：丢掉 serve 的 future 往下收尾，剩下的连接在进程退出时断开。
+    let grace = std::time::Duration::from_secs(config.shutdown_grace_secs);
+    let drain_deadline = async move {
+        // 发送端没了（不会再有停机信号）就一直等，不能当成收到了信号。
+        if drain_rx.wait_for(|stopping| *stopping).await.is_err() {
+            pending::<()>().await;
+        }
+        tokio::time::sleep(grace).await;
+    };
+    let served = tokio::select! {
+        served = async { tokio::try_join!(full_server, simple_server) } => served,
+        () = drain_deadline => {
+            tracing::warn!(
+                "shutdown: open connections did not finish within {}s (progress streams and the like); closing them",
+                grace.as_secs()
+            );
+            Ok(((), ()))
+        }
+    };
     if let Some(home) = runtime_record {
         let _ = home.clear_backend_runtime(std::process::id());
     }
