@@ -61,3 +61,48 @@ async fn debug_request_logs_keep_the_path_but_not_the_query_string() {
     assert!(logs.contains("/health"), "request span should still name the path: {logs}");
     assert!(!logs.contains("query-secret"), "query string leaked into logs: {logs}");
 }
+
+/// 每个回应都带 `X-Request-ID`：客户端带了像样的就沿用，没带或不像样就生成一个。
+#[tokio::test]
+async fn every_response_carries_a_request_id_and_plain_client_ids_are_kept() {
+    let app = build_app(test_state("request-id"));
+    let request_id = |client: Option<&str>| {
+        let app = app.clone();
+        let client = client.map(str::to_owned);
+        async move {
+            let mut request = Request::builder().uri("/health");
+            if let Some(client) = client {
+                request = request.header("X-Request-ID", client);
+            }
+            let response = app.oneshot(request.body(Body::empty()).unwrap()).await.unwrap();
+            assert_eq!(response.status(), StatusCode::OK);
+            response
+                .headers()
+                .get("x-request-id")
+                .expect("response carries a request id")
+                .to_str()
+                .unwrap()
+                .to_owned()
+        }
+    };
+
+    let generated = request_id(None).await;
+    assert_eq!(generated.len(), 16, "{generated}");
+    assert_ne!(generated, request_id(None).await, "每个请求一个新编号");
+    assert_eq!(request_id(Some("nginx-0f1e2d3c")).await, "nginx-0f1e2d3c");
+    let replaced = request_id(Some(&"x".repeat(200))).await;
+    assert_eq!(replaced.len(), 16, "太长的不沿用：{replaced}");
+    // 没登记的地址（兜底 404）、另一个端口上的应用也带。
+    let response = app
+        .clone()
+        .oneshot(Request::builder().uri("/no-such-route").body(Body::empty()).unwrap())
+        .await
+        .unwrap();
+    assert!(response.headers().contains_key("x-request-id"));
+    let simple = crate::app::build_simple_app(test_state("request-id-simple"));
+    let response = simple
+        .oneshot(Request::builder().uri("/ready").body(Body::empty()).unwrap())
+        .await
+        .unwrap();
+    assert!(response.headers().contains_key("x-request-id"));
+}

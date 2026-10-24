@@ -49,6 +49,18 @@ curl -H "X-API-Key: your-key" \
 常见原因是另一个 worktree 或另一个端口上的开发后端指向了同一个 `data/`。先停掉那个进程，或者给这个实例换一个
 `RUST_API_DATA_ROOT`。锁随进程退出自动释放，不需要手动删锁文件。
 
+## 对上某个请求的后端日志
+
+2026-10-24 起每个回应都带 `X-Request-ID`（浏览器开发者工具的网络面板里能看到）。后端日志里请求期间打的每一行都带着
+`request{method=… path=… request_id=…}`，用编号搜就能找到那个请求；路径不带查询串。
+跑任务的日志带 `job{job_id=…}`。
+
+- 拿到回应头超过 1 秒的请求记一条 info：`slow request`（`status`、`latency_ms`），日志目标是 `retainpdf_api::access`。
+- 每个请求都记一条的完整访问日志默认关着：在默认的 `RUST_LOG`（见 `backend/api/src/main.rs` 的 `DEFAULT_LOG_FILTER`）后面加
+  `,retainpdf_api::access=debug`。
+- 5xx 照旧由 `tower_http` 记 error。
+- 没有 Prometheus 这类指标接口（单机桌面版用不上）；`GET /health` 有运行时、磁盘、子服务的状态。
+
 ## 机器上设了 HTTP_PROXY / ALL_PROXY
 
 后端连本机的几个服务都不走系统代理：rust_api 转给 retain-jobsd 的发射、取消、终止，探测 jobsd 和 AI 服务是否活着，
