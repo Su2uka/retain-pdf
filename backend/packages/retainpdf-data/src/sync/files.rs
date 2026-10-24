@@ -98,12 +98,77 @@ fn resolve_stored(data_root: &Path, stored: &str) -> Option<PathBuf> {
         .map(|rest| rest.trim_start_matches('/'))
         .unwrap_or(stored);
     let path = Path::new(stored);
+    if path.components().any(|c| matches!(c, Component::ParentDir)) {
+        return None;
+    }
     let absolute = if path.is_absolute() {
         path.to_path_buf()
     } else {
         data_root.join(path)
     };
     absolute.starts_with(data_root).then_some(absolute)
+}
+
+/// 收到的行里记文件路径的列：(表, 列)。下载、阅读、续跑都按这些列去读文件。
+const PATH_COLUMNS: &[(&str, &str)] = &[
+    ("uploads", "stored_path"),
+    ("job_artifact_entries", "relative_path"),
+    ("agent_calculation_artifacts", "relative_path"),
+    ("document_versions", "artifact_key"),
+];
+
+/// 发出前数据目录下的路径都换成了 `{{data_root}}/…` 或本来就是相对路径；剩下的绝对路径、带 `..` 的路径
+/// 都指向数据目录以外。
+fn portable_path_is_confined(stored: &str) -> bool {
+    let rest = match stored.strip_prefix(DATA_ROOT_TOKEN) {
+        Some(rest) => rest.trim_start_matches('/'),
+        None => stored,
+    };
+    let rest = rest.replace('\\', "/");
+    let bytes = rest.as_bytes();
+    let drive_letter = bytes.len() >= 2 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':';
+    !drive_letter
+        && Path::new(&rest)
+            .components()
+            .all(|c| matches!(c, Component::Normal(_) | Component::CurDir))
+}
+
+fn first_unconfined_string(value: &Value) -> Option<String> {
+    match value {
+        Value::String(text) if text.contains('/') || text.contains('\\') => {
+            (!portable_path_is_confined(text)).then(|| text.clone())
+        }
+        Value::Array(items) => items.iter().find_map(first_unconfined_string),
+        Value::Object(map) => map.values().find_map(first_unconfined_string),
+        _ => None,
+    }
+}
+
+/// 别的设备发来的行（可移植形式）里，有没有指向数据目录以外的文件路径。有就返回"表.列: 路径"。
+/// WebDAV 可能是共享账号：不能让对方写进来的一行把下载接口指到本机任意文件上。
+/// 产物清单 `artifacts.artifacts_json` 里的字段多，凡是带 `/` 的字符串都按路径查（编号、时间、状态里没有 `/`）。
+pub(super) fn path_outside_data_root(rows: &SyncRows) -> Option<String> {
+    for (table, column) in PATH_COLUMNS {
+        for row in rows.get(*table).map(Vec::as_slice).unwrap_or(&[]) {
+            if let Some(stored) = row.get(*column).and_then(Value::as_str) {
+                if !portable_path_is_confined(stored) {
+                    return Some(format!("{table}.{column}: {stored}"));
+                }
+            }
+        }
+    }
+    for row in rows.get("artifacts").map(Vec::as_slice).unwrap_or(&[]) {
+        let Some(raw) = row.get("artifacts_json").and_then(Value::as_str) else {
+            continue;
+        };
+        let Ok(parsed) = serde_json::from_str::<Value>(raw) else {
+            return Some("artifacts.artifacts_json: not JSON".to_string());
+        };
+        if let Some(stored) = first_unconfined_string(&parsed) {
+            return Some(format!("artifacts.artifacts_json: {stored}"));
+        }
+    }
+    None
 }
 
 fn walk(dir: &Path, out: &mut Vec<PathBuf>) -> Result<()> {

@@ -171,6 +171,38 @@ mod tests {
     }
 
     #[test]
+    fn resolve_data_path_refuses_absolute_paths_outside_data_root() {
+        let data_root = Path::new("/tmp/data-root");
+        let inside = resolve_data_path(data_root, "/tmp/data-root/jobs/job-1/rendered/out.pdf")
+            .expect("old absolute rows under the data root still resolve");
+        assert_eq!(inside, data_root.join("jobs/job-1/rendered/out.pdf"));
+        for raw in [
+            "/etc/passwd",
+            "/tmp/data-root/../secret.txt",
+            "/tmp/data-root-other/jobs/x.pdf",
+            "jobs/../../etc/passwd",
+        ] {
+            assert!(resolve_data_path(data_root, raw).is_err(), "{raw}");
+        }
+    }
+
+    #[test]
+    fn resolve_data_path_accepts_the_data_root_through_a_symlink() {
+        let root = std::env::temp_dir().join(format!("rust-api-resolve-link-{}", fastrand::u64(..)));
+        let real = root.join("real");
+        fs::create_dir_all(real.join("jobs")).expect("data dir");
+        fs::write(real.join("jobs/out.pdf"), b"pdf").expect("file");
+        #[cfg(unix)]
+        {
+            let link = root.join("link");
+            std::os::unix::fs::symlink(&real, &link).expect("symlink");
+            let stored = real.join("jobs/out.pdf");
+            assert!(resolve_data_path(&link, &stored.to_string_lossy()).is_ok());
+        }
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
     fn collect_job_artifact_entries_includes_registered_downloadables() {
         let root = std::env::temp_dir().join(format!("rust-api-artifacts-{}", fastrand::u64(..)));
         let data_root = root.join("data");

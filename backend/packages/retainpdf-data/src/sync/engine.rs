@@ -10,7 +10,9 @@ use serde_json::Value;
 use sha2::{Digest, Sha256};
 
 use super::clock::{iso_ms, Hlc};
-use super::files::{checked_relative, entity_files, file_hash, has_content, remove_file};
+use super::files::{
+    checked_relative, entity_files, file_hash, has_content, path_outside_data_root, remove_file,
+};
 use super::folder::{hex, FolderBackend};
 use super::store::{Backend, BlobLocation, DeviceState, Segment, SyncStore};
 use super::{ChangeRecord, SyncFileEntry};
@@ -766,6 +768,10 @@ impl SyncEngine {
             || record.files.iter().any(|f| checked_relative(&f.path).is_err() || !is_sha256(&f.sha256))
             || (!record.deleted && record.rows.is_none())
         {
+            return Ok(Considered::Rejected);
+        }
+        if let Some(reason) = record.rows.as_ref().and_then(path_outside_data_root) {
+            tracing::warn!(kind = %record.kind, key = %record.key, device = %record.device, "sync: change record points outside the data directory ({reason})");
             return Ok(Considered::Rejected);
         }
         hlc.observe(&record.clock);

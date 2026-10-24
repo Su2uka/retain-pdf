@@ -413,6 +413,59 @@ fn half_written_segments_and_malicious_paths_are_not_applied() {
 }
 
 #[test]
+fn rows_pointing_outside_the_data_directory_are_not_applied() {
+    let (base, folder, devices) = setup(&["a", "b"]);
+    let b = &devices[1];
+    b.sync();
+    let device = "00000000000000fe";
+    let changes = folder.join("devices").join(device).join("changes");
+    fs::create_dir_all(&changes).unwrap();
+    // 文件清单是空的、路径列指到数据目录外：以前会照收，下载接口就会把本机这个文件发出去。
+    let lines: Vec<String> = ["/etc/passwd", "{{data_root}}/../outside.txt", "uploads/../../outside.txt"]
+        .iter()
+        .enumerate()
+        .map(|(i, stored)| {
+            serde_json::json!({
+                "kind": "upload", "key": format!("x{i}"), "clock": format!("179000000000{i}-000000-{device}"), "device": device,
+                "rows": {"uploads": [{"upload_id": format!("x{i}"), "filename": "f", "stored_path": stored,
+                    "bytes": 1, "page_count": 1, "uploaded_at": "t", "developer_mode": 0}]},
+                "files": []
+            })
+            .to_string()
+        })
+        .collect();
+    fs::write(changes.join("00000001.jsonl"), format!("{}\n{{\"segment_end\":{}}}\n", lines.join("\n"), lines.len())).unwrap();
+    let report = b.sync();
+    assert_eq!((report.applied, report.rejected), (0, 3), "{report:?}");
+    assert_eq!(b.count("SELECT COUNT(*) FROM uploads"), 0);
+    fs::remove_dir_all(base).unwrap();
+}
+
+#[test]
+fn artifact_manifests_are_checked_for_paths_outside_the_data_directory() {
+    use super::files::path_outside_data_root;
+    let rows = |artifacts: serde_json::Value| -> crate::db::sync::SyncRows {
+        serde_json::from_value(serde_json::json!({
+            "artifacts": [{"job_id": "j", "artifacts_json": artifacts.to_string()}]
+        }))
+        .unwrap()
+    };
+    let fine = rows(serde_json::json!({
+        "job_root": "jobs/j", "output_pdf": "{{data_root}}/jobs/j/rendered/out.pdf",
+        "trace_id": "abc", "previous_finished_at": "2026-10-24T00:00:00Z"
+    }));
+    assert_eq!(path_outside_data_root(&fine), None);
+    for evil in ["/Users/someone/.ssh/id_rsa", "jobs/j/../../../etc/passwd", "C:\\Windows\\win.ini"] {
+        let found = path_outside_data_root(&rows(serde_json::json!({"output_pdf": evil})));
+        assert!(found.is_some(), "{evil}");
+    }
+    let nested = rows(serde_json::json!({
+        "ocr_provider_diagnostics": {"artifacts": {"layout_json": "/etc/hosts"}}
+    }));
+    assert!(path_outside_data_root(&nested).is_some());
+}
+
+#[test]
 fn a_rerendered_job_replaces_its_files_on_the_other_device() {
     let (base, _folder, devices) = setup(&["a", "b"]);
     let (a, b) = (&devices[0], &devices[1]);
