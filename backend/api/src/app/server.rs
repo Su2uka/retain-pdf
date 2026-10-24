@@ -67,8 +67,12 @@ async fn serve_with_shutdown(
 
     // 端点使用计数:同样属于运维观测,只在真实服务启动时开,不打扰单测。
     // 计数累加式落盘,重启不清零——要的是跨天的样本。
-    super::route_usage::init(&state.config.data_root);
-    let _usage_handle = spawn_periodic_route_usage_flush();
+    // 计数是进程全局的（谁先 init 归谁），单测进程里起真实服务（停机测试）时不开，
+    // 否则后面所有接口测试的请求都记到那个服务的目录下。
+    let _usage_handle = (!cfg!(test)).then(|| {
+        super::route_usage::init(&state.config.data_root);
+        spawn_periodic_route_usage_flush()
+    });
 
     let sync_service = state.sync.clone();
     let backup_service = state.backup.clone();
