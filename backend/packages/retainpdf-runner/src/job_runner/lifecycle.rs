@@ -101,10 +101,13 @@ where
             }
         },
     };
+    // driver 里打的日志都带 `job{job_id=…}`。parent 是空的：从请求里发射的 driver 不挂在那个请求的 span 下，
+    // 请求早结束了，任务还要跑很久。
+    let span = tracing::info_span!(parent: None, "job", job_id = %job_id);
     Some(tokio::spawn(with_driver_run(
         job_id.clone(),
         generation,
-        async move {
+        tracing::Instrument::instrument(async move {
             let _guard = match guard {
                 Some(guard) => guard,
                 None => match claim_after_previous_run(&deps, &job_id, generation).await {
@@ -117,7 +120,7 @@ where
                 settle_after_driver_error(&deps, &job_id, &err).await;
                 clear_job_cancel_request(&deps, &job_id).await;
             }
-        },
+        }, span),
     )))
 }
 

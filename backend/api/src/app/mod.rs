@@ -1,6 +1,7 @@
 mod cleanup;
 pub(crate) mod endpoints;
 mod jobs;
+mod request_log;
 mod route_usage;
 mod router;
 mod server;
