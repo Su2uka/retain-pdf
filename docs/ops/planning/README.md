@@ -7,6 +7,7 @@
 - [轻量模型执行器迁移进度](./model-executor-rollout.md)
 - [Rust API 业务目录与边界统一迁移计划](./api-boundary-migration.md)
 - [Rust API 整理记录（2026-10 起）](./api-reorg/README.md)
+- [服务端工程审查（2026-10 起）](./backend-review/README.md)
 - [翻译拆包记录（2026-10 起）](./translation-package/README.md)
 - [前端迁移计划与审计](./frontend-migration/README.md)
 - [前端请求函数生成（2026-10 起）](./api-client-codegen/README.md)

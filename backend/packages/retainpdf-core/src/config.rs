@@ -277,6 +277,9 @@ impl AppConfig {
         } = parts;
 
         auth.validate_bind_host(&server.bind_host)?;
+        if let Some(warning) = auth.placeholder_key_warning(&server.bind_host) {
+            eprintln!("{warning}");
+        }
         let ai_service = AiServiceConfig::from_env(&paths.project_root, &server.python_bin);
         let jobs_service = JobsServiceConfig::from_env();
         let pipeline_command = env_vars::env_optional_string("RUST_API_PIPELINE_COMMAND")

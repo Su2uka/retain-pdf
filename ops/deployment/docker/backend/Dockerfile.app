@@ -301,6 +301,7 @@ COPY backend/translation /app/services/translation
 RUN pip install --no-cache-dir --no-deps /app/services/base /app/services/math /app/services/translation /app/services/pipeline /app/services/ai
 COPY backend/api/auth.local.example.json /app/services/api/auth.local.example.json
 COPY ops/deployment/docker/backend/entrypoint-app.sh /entrypoint.sh
+COPY ops/deployment/docker/backend/api-key.sh /usr/local/lib/retainpdf/api-key.sh
 
 RUN groupadd --gid "${RETAINPDF_GID}" retainpdf \
     && useradd \
@@ -322,7 +323,9 @@ RUN groupadd --gid "${RETAINPDF_GID}" retainpdf \
       /data/runtime-home/.cache \
       /data/runtime-home/.config \
       /tmp/retainpdf \
-    && chown -R retainpdf:retainpdf /data /tmp/retainpdf
+      /run/retainpdf-key \
+    && chown -R retainpdf:retainpdf /data /tmp/retainpdf /run/retainpdf-key \
+    && chmod 0700 /run/retainpdf-key
 
 VOLUME ["/data"]
 

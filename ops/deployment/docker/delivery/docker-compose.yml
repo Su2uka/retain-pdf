@@ -6,11 +6,15 @@ services:
     restart: unless-stopped
     env_file:
       - ./docker/app.env
+    environment:
+      # 占位 key 换成第一次启动随机生成的，存在这个目录，web 容器读同一份。
+      RETAINPDF_SHARED_KEY_DIR: /run/retainpdf-key
     ports:
       - "${HOST_BIND_ADDRESS:-127.0.0.1}:${APP_PORT:-41000}:41000"
       - "${HOST_BIND_ADDRESS:-127.0.0.1}:${APP_SIMPLE_PORT:-42000}:42000"
     volumes:
       - app_data:/data
+      - api_key:/run/retainpdf-key
       - ./docker/auth.local.json:/app/services/api/auth.local.json:ro
     healthcheck:
       # Readiness includes the database and every supervised runtime.  The
@@ -30,6 +34,10 @@ services:
         condition: service_healthy
     env_file:
       - ./docker/web.env
+    environment:
+      RETAINPDF_SHARED_KEY_DIR: /run/retainpdf-key
+    volumes:
+      - api_key:/run/retainpdf-key:ro
     ports:
       - "${HOST_BIND_ADDRESS:-127.0.0.1}:${WEB_PORT:-40001}:80"
     healthcheck:
@@ -41,3 +49,4 @@ services:
 
 volumes:
   app_data:
+  api_key:
