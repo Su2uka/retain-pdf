@@ -154,6 +154,28 @@ pub async fn terminate_child_process_tree(
         .and_then(|status| status.ok())
 }
 
+/// 马上杀掉一个自己 spawn、手里握着同步 `std::process::Child` 的进程树，不给宽限（超时了的生成进程用）。
+/// unix 上按进程组发 SIGKILL，要求 spawn 时自成一组（`process_group(0)` 或 [`configure_child_process`]）；
+/// Windows 上 `taskkill /T /F` 连孙进程一起杀。都不成再退回只杀直接子进程。返回杀没杀成，
+/// 杀成了调用方才能放心 `wait()`。
+pub fn kill_std_child_process_tree(child: &mut std::process::Child) -> bool {
+    #[cfg(unix)]
+    {
+        if let Ok(pid) = i32::try_from(child.id()) {
+            if pid > 1 && unsafe { libc::kill(-pid, libc::SIGKILL) } == 0 {
+                return true;
+            }
+        }
+    }
+    #[cfg(windows)]
+    {
+        if terminate_job_process_tree_windows(child.id()).is_ok() {
+            return true;
+        }
+    }
+    child.kill().is_ok()
+}
+
 /// Synchronous counterpart to [`terminate_job_process_tree`] for callers
 /// that run before/outside the async runtime (e.g. startup state
 /// reconciliation). Sends SIGTERM to the process group, polls for exit with

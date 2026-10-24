@@ -208,18 +208,10 @@ pub fn run_supervised(
     Ok((status, Diagnostics(diagnostics)))
 }
 
-/// 按进程组发 SIGKILL（子进程在 spawn 时自成一组，组号就是它的 pid）；发不出去（比如
-/// 非 unix）再退回只杀直接子进程。返回是否杀成功，杀成功了调用方才能放心 `wait()`。
+/// 连孙进程一起杀（子进程在 spawn 时自成一组）：用进程包的 `kill_std_child_process_tree`，
+/// Windows 上也是整棵树（以前这里自己 `libc::kill`，Windows 只杀直接子进程）。
 fn kill_process_tree(child: &mut std::process::Child) -> bool {
-    #[cfg(unix)]
-    {
-        if let Ok(pid) = libc::pid_t::try_from(child.id()) {
-            if unsafe { libc::kill(-pid, libc::SIGKILL) } == 0 {
-                return true;
-            }
-        }
-    }
-    child.kill().is_ok()
+    retainpdf_proc::kill_std_child_process_tree(child)
 }
 
 /// 子进程 stderr 的临时文件；drop 时删除。

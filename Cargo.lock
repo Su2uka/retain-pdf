@@ -1751,6 +1751,7 @@ dependencies = [
  "retainpdf-api-base",
  "retainpdf-core",
  "retainpdf-data",
+ "retainpdf-proc",
  "serde",
  "serde_json",
  "tokio",

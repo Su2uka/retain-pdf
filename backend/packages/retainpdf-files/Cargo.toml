@@ -8,6 +8,7 @@ description = "文件（出口）：产物清单和打包、派生产物生成�
 retainpdf-api-base = { path = "../retainpdf-api-base" }
 retainpdf-core = { path = "../retainpdf-core" }
 retainpdf-data = { path = "../retainpdf-data" }
+retainpdf-proc = { path = "../retainpdf-proc" }
 fastrand = "2"
 libc = "0.2"
 serde = { version = "1", features = ["derive"] }
