@@ -26,6 +26,7 @@ pub use accounts::{AccountsConfig, DeploymentMode, PlatformModels, LOCAL_USERNAM
 pub use ai_proxy::AiProxyConfig;
 pub use ai_service::AiServiceConfig;
 use auth::AuthRuntimeConfig;
+pub use auth::api_key_matches;
 pub use cleanup::CleanupConfig;
 pub use db::DbConfig;
 pub use job_runner::{JobRunnerConfig, JOB_WORKER_THREAD_STACK_BYTES};

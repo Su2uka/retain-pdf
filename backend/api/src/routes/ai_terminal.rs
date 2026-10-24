@@ -61,9 +61,10 @@ pub(crate) fn terminal_key_is_valid(
     let header_hit = header_key
         .map(str::trim)
         .filter(|value| !value.is_empty())
-        .map(|value| api_keys.contains(value))
+        .map(|value| crate::config::api_key_matches(api_keys, value))
         .unwrap_or(false);
-    header_hit || (!query_key.trim().is_empty() && api_keys.contains(query_key.trim()))
+    header_hit
+        || (!query_key.trim().is_empty() && crate::config::api_key_matches(api_keys, query_key.trim()))
 }
 
 /// 把 ai_service 的 HTTP 基址换成 WebSocket 基址，并拼上查询参数。
