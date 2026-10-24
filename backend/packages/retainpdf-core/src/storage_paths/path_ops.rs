@@ -78,12 +78,36 @@ fn absolutize_for_compare(path: &Path) -> PathBuf {
         .unwrap_or_else(|_| path.to_path_buf())
 }
 
+/// 库里记的路径 -> 磁盘上的路径。相对路径接在数据目录下（不许 `..`）；绝对路径（旧记录）必须落在数据目录里，
+/// 否则报错：同步收进来的、被改过的行不能让下载接口把本机任意文件发出去。
 pub fn resolve_data_path(data_root: &Path, raw: &str) -> Result<PathBuf> {
     let path = PathBuf::from(raw);
     if path.is_absolute() {
+        ensure_inside_data_root(data_root, &path)?;
         return Ok(path);
     }
     Ok(data_root.join(normalize_relative_data_path(&path)?))
+}
+
+fn ensure_inside_data_root(data_root: &Path, path: &Path) -> Result<()> {
+    if path
+        .components()
+        .any(|component| matches!(component, Component::ParentDir))
+    {
+        bail!("parent-relative paths are not allowed: {}", path.display());
+    }
+    if path.starts_with(data_root) {
+        return Ok(());
+    }
+    // 数据目录配成相对路径、或经过符号链接（macOS 的 /tmp -> /private/tmp）时，字面比较对不上，展开再比。
+    if absolutize_for_compare(path).starts_with(absolutize_for_compare(data_root)) {
+        return Ok(());
+    }
+    bail!(
+        "path is outside DATA_ROOT: {} (root={})",
+        path.display(),
+        data_root.display()
+    )
 }
 
 pub fn normalize_job_paths_for_storage(data_root: &Path, job: &mut JobSnapshot) -> Result<()> {
