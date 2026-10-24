@@ -86,7 +86,8 @@ services/jobs -> job_runner -> worker_command / ocr_provider / db facade
 - `process_runner/startup.rs`
   worker 启动、pid 和进程身份持久化（先 `record_worker_identity` 再写 pid）、启动前 cancel 检查。
 - `process_runner/execution.rs`
-  等待进程、收集 stdout/stderr、区分 completed/timed out。
+  等待进程、收集 stdout/stderr、区分 completed/timed out。stdout 读取任务出错退出时（`ReaderFailed`）
+  立即终止 worker 进程树，任务带着那个错误落失败，不再陪 worker 跑到总超时。
 - `process_runner/completion.rs`
   完成态分类、shutdown noise 判定、终态应用。
 - `process_runner/completion_pipeline.rs`
@@ -94,7 +95,11 @@ services/jobs -> job_runner -> worker_command / ocr_provider / db facade
 - `process_runner/timeout_support.rs`
   timeout 失败落态。
 - `process_runner/io_support.rs`
-  stdout/stderr 消费。
+  stdout/stderr 消费。按行读，不是 UTF-8 的字节用替换字符解码。逐行的任务行落库是节流的：状态、阶段、
+  阶段说明、进度、错误、失败、结果、产物变了马上写（派生的事件一条不少），只有 `log_tail` 变的行最快
+  500ms 写一次；有没写的行时等下一行最多等到窗口结束，worker 不出声也照样半秒内进库；读取任务结束（读到结尾或出错）
+  前补写没写的行——出错时收尾从库里重读任务，最后几行往往就是报错原因；落库偶尔失败只记日志，连续 3 次才当作读取任务出错。阶段观测、
+  检查点、产物发布这三类持久化行不节流，出错即读取任务出错。
 - `process_runner/result_support.rs`
   process 结果写回 job。
 - `process_runner/failure_ai_diagnosis.rs`
