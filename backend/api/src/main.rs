@@ -1,16 +1,25 @@
-use retainpdf_api::config::{AppConfig, JOB_WORKER_THREAD_STACK_BYTES};
-use retainpdf_api::run_servers_with_shutdown;
+use std::time::Duration;
 
-/// 手建 runtime 而不是 `#[tokio::main]`,只为显式设定 worker 栈大小。
+use retainpdf_api::config::{AppConfig, JOB_WORKER_THREAD_STACK_BYTES};
+use retainpdf_api::{run_servers_with_shutdown, stop_owned_workers_after_shutdown};
+
+/// 手建 runtime 而不是 `#[tokio::main]`,只为显式设定 worker 栈大小,
+/// 以及退出时先停掉 runtime、再停 worker。
 ///
 /// InProcess 模式下 job 就跑在这个进程的 worker 线程上,与 jobsd 是同一条
 /// 调用链,所以同样需要——见 `JOB_WORKER_THREAD_STACK_BYTES`。
 fn main() -> anyhow::Result<()> {
-    tokio::runtime::Builder::new_multi_thread()
+    init_tracing();
+    let config = AppConfig::from_env()?;
+    let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .thread_stack_size(JOB_WORKER_THREAD_STACK_BYTES)
-        .build()?
-        .block_on(run())
+        .build()?;
+    let served = runtime.block_on(run_servers_with_shutdown(config.clone(), shutdown_signal()));
+    // 先停 runtime：driver、读 stdout 的任务不再跑，下面被终止的 worker 不会被当成失败写进库。
+    runtime.shutdown_timeout(Duration::from_secs(1));
+    stop_owned_workers_after_shutdown(&config);
+    served
 }
 
 /// 默认日志过滤。日志目标是写日志那段代码所在的 crate 名，rust_api 是 main.rs 自己。
@@ -23,15 +32,13 @@ retainpdf_ingest=info,retainpdf_jobs=info,retainpdf_library=info,retainpdf_platf
 retainpdf_providers=info,\
 retainpdf_config=info,retainpdf_core=info,retainpdf_data=info,retainpdf_db=info,retainpdf_runner=info,retainpdf_proc=info";
 
-async fn run() -> anyhow::Result<()> {
+fn init_tracing() {
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
                 .unwrap_or_else(|_| DEFAULT_LOG_FILTER.into()),
         )
         .init();
-
-    run_servers_with_shutdown(AppConfig::from_env()?, shutdown_signal()).await
 }
 
 /// Resolve process termination to the graceful shutdown path so supervised

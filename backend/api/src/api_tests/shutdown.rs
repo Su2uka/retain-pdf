@@ -66,3 +66,39 @@ async fn shutdown_stops_waiting_for_hung_connections_after_the_grace_period() {
     drop(hung);
     let _ = std::fs::remove_dir_all(&dirs.root);
 }
+
+/// 退出时停 worker 之前重新拿运行时锁：锁在别人手里（新的运行时已经接手）时一个都不碰，锁空出来才终止。
+#[cfg(any(target_os = "linux", target_os = "macos"))]
+#[test]
+fn stopping_workers_after_shutdown_leaves_them_alone_while_another_runtime_holds_the_lock() {
+    use std::os::unix::process::CommandExt;
+
+    use crate::models::domain::{CreateJobInput, JobSnapshot, JobStatusKind};
+
+    let dirs = TestDirs::create(&format!("rust-api-shutdown-workers-{}", fastrand::u64(..)));
+    let config = dirs.config();
+    let db = crate::db::Db::new(config.jobs_db_path.clone(), config.data_root.clone());
+    db.init().expect("init db");
+    let mut worker = std::process::Command::new("sleep")
+        .arg("60")
+        .process_group(0)
+        .spawn()
+        .expect("spawn worker");
+    let mut job = JobSnapshot::new("running".to_string(), CreateJobInput::default(), vec![]);
+    job.status = JobStatusKind::Running;
+    job.pid = Some(worker.id());
+    db.save_job(&job).expect("save job");
+    db.record_worker_identity("running", retainpdf_proc::process_identity(worker.id()).as_deref())
+        .expect("record identity");
+
+    let held = crate::job_runner::acquire_runtime_owner_lock(&config.jobs_db_path).expect("hold lock");
+    crate::stop_owned_workers_after_shutdown(&config);
+    std::thread::sleep(Duration::from_millis(200));
+    assert!(worker.try_wait().expect("poll").is_none(), "锁在别人手里时不能碰它的 worker");
+
+    drop(held);
+    crate::stop_owned_workers_after_shutdown(&config);
+    assert!(!worker.wait().expect("reap").success(), "锁空出来以后应该终止");
+    assert_eq!(db.get_job("running").unwrap().status, JobStatusKind::Running, "库不改，留给下次启动");
+    let _ = std::fs::remove_dir_all(&dirs.root);
+}
