@@ -21,6 +21,8 @@ pub struct JobLaunchDeps<'a> {
     pub page_quota: bool,
     /// 数据目录所在磁盘至少留多少空间（字节）才接新任务、原地重跑；0 是不查（`RUST_API_MIN_FREE_DISK_MB`）。
     pub min_free_disk_bytes: u64,
+    /// 排队任务到这么多就不接新任务、不原地重跑（`RUST_API_MAX_QUEUED_JOBS`）；0 是不限。
+    pub max_queued_jobs: u64,
 }
 
 impl<'a> JobLaunchDeps<'a> {
@@ -38,6 +40,7 @@ impl<'a> JobLaunchDeps<'a> {
             platform: None,
             page_quota: false,
             min_free_disk_bytes: 0,
+            max_queued_jobs: 0,
         }
     }
 
@@ -53,6 +56,11 @@ impl<'a> JobLaunchDeps<'a> {
 
     pub fn with_min_free_disk(mut self, bytes: u64) -> Self {
         self.min_free_disk_bytes = bytes;
+        self
+    }
+
+    pub fn with_max_queued_jobs(mut self, max: u64) -> Self {
+        self.max_queued_jobs = max;
         self
     }
 }

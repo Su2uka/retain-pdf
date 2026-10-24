@@ -5,7 +5,8 @@
 //!
 //! 1. 翻译类的新提交补开发栈的默认值（OCR 歧义恢复沿用源任务的设置，不补）；
 //! 2. 多用户模式换成平台的模型和 OCR——在校验和凭据入库之前，网站账号自带的 key 不进服务器的凭据库；
-//! 3. 数据目录所在磁盘剩余空间低于下限就 503（`reason` 是 `insufficient_storage`），再按 workflow 校验参数、建任务；
+//! 3. 数据目录所在磁盘剩余空间低于下限就 503（`reason` 是 `insufficient_storage`），排队任务已经满了就 429
+//!    （`reason` 是 `queue_full`），再按 workflow 校验参数、建任务；
 //! 4. 明文 key 导入凭据库换成引用，加使用锁，锁到落库之后；
 //! 5. 落库（多用户模式按页预扣）、归到书下、发射。
 //!
@@ -138,8 +139,9 @@ pub fn submit_job(deps: &JobSubmitDeps<'_>, new: NewJob<'_>) -> Result<JobSnapsh
     if let Some(source) = deps.launcher.platform {
         apply_platform_models_to_input(&mut input, &source.resolve()?)?;
     }
-    // 建任务目录、落库之前：磁盘快满了就不接新任务（已经在跑的不管）。
+    // 建任务目录、落库之前：磁盘快满了、排队的已经满了就不接新任务（已经在跑的不管）。
     ensure_free_space(deps.launcher.data_root, deps.launcher.min_free_disk_bytes, "create a job")?;
+    ensure_queue_room(&deps.launcher)?;
 
     let job = if ocr_only {
         build_ocr_job_snapshot(&deps.snapshot, &input, None)?
@@ -207,7 +209,31 @@ pub fn relaunch_in_place(
     }
     // 拒绝时什么都没动（见上），所以放在挪旧 PDF、落库之前。
     ensure_free_space(deps.data_root, deps.min_free_disk_bytes, "rerun this job")?;
+    ensure_queue_room(deps)?;
     persist_and_launch(deps, job, None, Some(read_as))
+}
+
+/// 排队满了时 429 的 `error.details.reason`。
+pub const QUEUE_FULL: &str = "queue_full";
+
+/// 排队（还没开跑）的任务已经有 `max_queued_jobs` 个了就 429。数的是库里的 queued 行，进程内和 jobsd 两种模式一样；
+/// 两个请求同时数到差一个满，会一起进去，多出一两个不要紧，这是挡跑飞的脚本，不是精确配额。
+fn ensure_queue_room(deps: &JobLaunchDeps<'_>) -> Result<(), AppError> {
+    if deps.max_queued_jobs == 0 {
+        return Ok(());
+    }
+    let queued = deps.db.count_jobs_with_status(&JobStatusKind::Queued)?;
+    if u64::try_from(queued).unwrap_or(0) >= deps.max_queued_jobs {
+        tracing::warn!(queued, max = deps.max_queued_jobs, "refusing a new job run: the queue is full");
+        return Err(AppError::too_many_requests_because(
+            QUEUE_FULL,
+            format!(
+                "{queued} jobs are already waiting to run (limit {}); try again after some of them start",
+                deps.max_queued_jobs
+            ),
+        ));
+    }
+    Ok(())
 }
 
 fn persist_and_launch(
