@@ -128,7 +128,9 @@ impl Ctx {
 
 impl Backend {
     fn new(runtime: BackendRuntime) -> Result<Self> {
+        // 后端只在本机(backend.json 记的回环地址),不走系统代理。
         let client = reqwest::blocking::Client::builder()
+            .no_proxy()
             .connect_timeout(Duration::from_secs(3))
             .timeout(Duration::from_secs(600))
             .build()?;

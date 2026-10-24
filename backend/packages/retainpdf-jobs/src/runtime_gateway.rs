@@ -37,20 +37,45 @@ const LAUNCH_RETRY_DELAYS: [std::time::Duration; 3] = [
     std::time::Duration::from_millis(3_000),
 ];
 
+/// 连 jobsd 的连接超时。jobsd 只听回环，连不上就是没起来，不用多等。
+const CONNECT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(2);
+/// 一次请求的总超时。launch、cancel 都是受理即返回；jobsd 卡住时不能让取消、强删、发射跟着一直挂着。
+/// terminate 要等 jobsd 把进程树停完，在这上面再加 `worker_terminate_grace_secs`。
+const REQUEST_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
+
 /// 内部 HTTP 客户端：把接缝操作转发给 retain-jobsd。
 #[derive(Clone)]
 pub struct JobsClient {
     client: reqwest::Client,
     base_url: String,
     api_key: String,
+    request_timeout: std::time::Duration,
 }
 
 impl JobsClient {
     pub fn new(config: &JobsServiceConfig, api_key: String) -> Self {
+        Self::with_timeouts(config, api_key, CONNECT_TIMEOUT, REQUEST_TIMEOUT)
+    }
+
+    /// jobsd 只听回环：不走系统代理。用户设了 HTTP_PROXY/ALL_PROXY 而 NO_PROXY 没写 127.0.0.1 时，
+    /// 默认客户端会把这些请求也发给代理。
+    fn with_timeouts(
+        config: &JobsServiceConfig,
+        api_key: String,
+        connect_timeout: std::time::Duration,
+        request_timeout: std::time::Duration,
+    ) -> Self {
+        let client = reqwest::Client::builder()
+            .no_proxy()
+            .connect_timeout(connect_timeout)
+            .timeout(request_timeout)
+            .build()
+            .unwrap_or_else(|error| panic!("build jobsd client: {error}"));
         Self {
-            client: reqwest::Client::new(),
+            client,
             base_url: config.base_url(),
             api_key,
+            request_timeout,
         }
     }
 
@@ -63,7 +88,7 @@ impl JobsClient {
     }
 
     async fn send(&self, method: reqwest::Method, path: &str) -> Result<(), AppError> {
-        let status = self.send_for_status(method, path).await?;
+        let status = self.send_for_status(method, path, self.request_timeout).await?;
         if !status.is_success() {
             return Err(AppError::internal(format!(
                 "任务服务拒绝了请求（{path}）：HTTP {status}"
@@ -76,11 +101,13 @@ impl JobsClient {
         &self,
         method: reqwest::Method,
         path: &str,
+        timeout: std::time::Duration,
     ) -> Result<reqwest::StatusCode, AppError> {
         let url = format!("{}{path}", self.base_url);
         let response = self
             .client
             .request(method, &url)
+            .timeout(timeout)
             .header("X-API-Key", &self.api_key)
             .send()
             .await
@@ -194,7 +221,12 @@ impl JobRuntime {
             // pid 已经不是任何 running 任务的 worker 了（刚退出、号被复用），没有东西要杀，不算失败。
             Self::Remote { client } => {
                 let path = format!("/internal/v1/processes/{pid}/terminate");
-                match client.send_for_status(reqwest::Method::POST, &path).await? {
+                let timeout = client.request_timeout
+                    + std::time::Duration::from_secs(config.worker_terminate_grace_secs);
+                match client
+                    .send_for_status(reqwest::Method::POST, &path, timeout)
+                    .await?
+                {
                     status if status.is_success() => Ok(()),
                     reqwest::StatusCode::NOT_FOUND => {
                         tracing::warn!(
@@ -282,4 +314,86 @@ pub async fn terminate_job_worker(
         return Ok(());
     }
     terminate_runtime_process(runtime, pid, config).await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::Duration;
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tokio::net::TcpListener;
+
+    /// 假 jobsd：每个连接读完请求后等 `delay` 再回 200；`delay` 为 None 就一直不回。
+    async fn fake_jobsd(delay: Option<Duration>) -> JobsServiceConfig {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        tokio::spawn(async move {
+            loop {
+                let (mut socket, _) = listener.accept().await.unwrap();
+                tokio::spawn(async move {
+                    let mut buf = [0u8; 4096];
+                    let _ = socket.read(&mut buf).await;
+                    let Some(delay) = delay else {
+                        std::future::pending::<()>().await;
+                        return;
+                    };
+                    tokio::time::sleep(delay).await;
+                    let _ = socket
+                        .write_all(b"HTTP/1.1 200 OK\r\ncontent-length: 2\r\n\r\n{}")
+                        .await;
+                });
+            }
+        });
+        JobsServiceConfig {
+            mode: retainpdf_core::config::JobsRuntimeMode::Remote,
+            port,
+            ..Default::default()
+        }
+    }
+
+    fn remote(config: &JobsServiceConfig, request_timeout: Duration) -> JobRuntime {
+        JobRuntime::Remote {
+            client: JobsClient::with_timeouts(
+                config,
+                "test-key".into(),
+                Duration::from_millis(500),
+                request_timeout,
+            ),
+        }
+    }
+
+    #[tokio::test]
+    async fn a_hung_jobsd_does_not_hold_the_request_forever() {
+        let config = fake_jobsd(None).await;
+        let JobRuntime::Remote { client } = remote(&config, Duration::from_millis(300)) else {
+            unreachable!()
+        };
+        let result = tokio::time::timeout(
+            Duration::from_secs(3),
+            client.post("/internal/v1/jobs/job-1/cancel"),
+        )
+        .await
+        .expect("request to a hung jobsd must give up on its own");
+        assert!(result.is_err(), "hung jobsd must surface as an error");
+    }
+
+    #[tokio::test]
+    async fn terminate_gets_the_worker_grace_on_top_of_the_request_timeout() {
+        let config = fake_jobsd(Some(Duration::from_millis(900))).await;
+        let runtime = remote(&config, Duration::from_millis(300));
+        let with_grace = JobRunnerConfig {
+            worker_terminate_grace_secs: 1,
+            ..Default::default()
+        };
+        runtime
+            .terminate_process(4242, &with_grace)
+            .await
+            .expect("jobsd answering within the grace is a success");
+
+        let no_grace = JobRunnerConfig {
+            worker_terminate_grace_secs: 0,
+            ..Default::default()
+        };
+        assert!(runtime.terminate_process(4242, &no_grace).await.is_err());
+    }
 }
