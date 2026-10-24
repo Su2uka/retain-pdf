@@ -117,13 +117,13 @@ test("generated DTO entries expose the stable consumer type names", () => {
   ]) {
     assert.match(generatedJobEvents, new RegExp(`export (?:interface|type) ${typeName}\\b`));
   }
-  for (const typeName of [
-    "JobFailureBriefView",
-    "JobListItemView",
-    "JobListView",
-    "LibraryDeleteResultView",
-  ]) {
+  for (const typeName of ["LibraryDeleteQuery", "LibraryDeleteResultView"]) {
     assert.match(generatedLibraryBooks, new RegExp(`export (?:interface|type) ${typeName}\\b`));
+  }
+  // 任务列表的类型只从 job-status 导出（library-books 重复登记的 GET /jobs 2026-10-23 删了）。
+  for (const typeName of ["JobFailureBriefView", "JobListItemView", "JobListView", "ListJobsQuery"]) {
+    assert.match(generatedJobStatus, new RegExp(`export (?:interface|type) ${typeName}\\b`));
+    assert.doesNotMatch(generatedLibraryBooks, new RegExp(`export (?:interface|type) ${typeName}\\b`));
   }
 });
 
@@ -188,6 +188,12 @@ test("library-books no longer publishes the removed shelf DTOs", () => {
   assert.doesNotMatch(generatedLibraryBooks, /LibraryBatchDelete/);
   assert.doesNotMatch(generatedLibraryBooks, /LibraryBook(?:List|ListItem|Detail)View|ListLibraryBooksQuery/);
   assert.doesNotMatch(generatedLibraryBooks, /ArtifactDisplayItemView/);
+});
+
+// 任务列表的定义只在 job-status.v1；library-books.v1 以前抄的 14 个 2026-10-23 删了，不再抄回来。
+test("library-books schema keeps only the delete-job definitions", () => {
+  const libraryBooks = JSON.parse(readFileSync(resolve("library-books.v1.schema.json"), "utf8"));
+  assert.deepEqual(Object.keys(libraryBooks.definitions).sort(), ["LibraryDeleteQuery", "LibraryDeleteResultView"]);
 });
 
 test("generated job DTOs keep request and event records structurally typed", () => {

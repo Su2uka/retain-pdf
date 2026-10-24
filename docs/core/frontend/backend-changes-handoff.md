@@ -276,10 +276,10 @@ message 形如 ``unknown field `x`, expected one of ... in the request body``（
 
 分支 `feat/contract-job-failure-brief`（2026-10-18）。JSON 不变，只是把一直存在、但没人描述过的 `failure` 补进契约。
 
-- 定义：`contracts/library-books.v1.schema.json#/definitions/JobFailureBriefView`；`job-status.v1.schema.json` 里有结构相同的一份（两份由 `contracts/tests/job-definitions-parity.test.mjs` 锁一致）。
+- 定义：`contracts/library-books.v1.schema.json#/definitions/JobFailureBriefView`；`job-status.v1.schema.json` 里有结构相同的一份（两份由 `contracts/tests/job-definitions-parity.test.mjs` 锁一致）。（2026-10-23 `library-books` 那份和这条测试删了，只看 `job-status.v1`。）
 - `JobListItemView.failure` 是**可选**属性（只有失败的任务才有，成功、进行中的整个键不出现，不是 null）。
   `JobFailureBriefView` 的 `category`、`stage`、`retryable`、`summary` 必有；`root_cause`、`suggestion`、`provider` 没有时键也不出现。
-- 生成的 TS 类型已更新：`@retainpdf/contracts/library-books` 和 `/job-status` 都导出 `JobFailureBriefView`，`JobListItemView.failure?: JobFailureBriefView`。
+- 生成的 TS 类型已更新：`@retainpdf/contracts/library-books` 和 `/job-status` 都导出 `JobFailureBriefView`，`JobListItemView.failure?: JobFailureBriefView`。（2026-10-23 起只有 `/job-status` 导出。）
 - 前端要改的：`frontend/web/tests/contracts/job-failure-brief-contract.test.mjs` 现在读 `backend/packages/retainpdf-jobs/src/views/job_types.rs`
   抠字段；改成对照上面这个 definition 的 `properties` / `required`，不再读 Rust 源码（这条由前端会话自己改，后端不动 `frontend/`）。
   `frontend/packages/domain` 里手写的失败简报类型也可以换成生成的 `JobFailureBriefView`。
@@ -1040,3 +1040,19 @@ API / jobsd 重启时，翻译阶段运行中的任务以前一律自动续跑�
   省略或 `true` 是完整的实时阶段。
 - 前端要做：重新生成 `frontend/packages/api/src/generated`；最近任务、任务中心调 `listJobs` 时为绕开多余属性检查放的宽类型变量可以去掉，
   直接传 `{ ..., include_live_stage: false }`。
+
+## 删 `library-books.v1` 重复登记的任务列表（contracts/library-books-drop-duplicate-list-jobs）
+
+2026-10-23。决定见 [删 library-books 重复的任务列表](../../ops/planning/api-reorg/20261023-删library-books重复的任务列表.md)。接口行为没变。
+
+- `library-books.v1` 只剩 `DELETE /api/v1/jobs/:job_id`（`deleteJob`）。`@retainpdf/contracts/library-books` 只导出 `LibraryDeleteQuery`、
+  `LibraryDeleteResultView`；`JobListView`、`JobListItemView`、`JobFailureBriefView`、`JobProgressView`、`ListJobsQuery` 等从
+  `@retainpdf/contracts/job-status` 取。`src/generated` 不用重新生成（那条本来就没有 `client_name`）。
+- 前端要做：两个测试还读 `contracts/library-books.v1.schema.json` 的任务列表定义，改读 `contracts/job-status.v1.schema.json`：
+  - `frontend/web/tests/contracts/library-books-contract.test.mjs` 的 `CONTRACT_PATH`（读 `JobProgressView`、`JobStatusKind`、`WorkflowKind`、
+    `JobListItemView`、`JobStageSnapshotView`）；
+  - `frontend/web/tests/contracts/job-failure-brief-contract.test.mjs` 的 `SCHEMA`（读 `JobFailureBriefView`）。
+- 改完告诉后端，后端再删 `library-books.v1` 里这 14 个任务列表定义。
+- 前端 `test/contracts-read-job-status-schema`（8fa12fba）改好以后，同一个分支删了这 14 个定义：`library-books.v1.schema.json` 的
+  `definitions` 只剩 `LibraryDeleteQuery`、`LibraryDeleteResultView`，`contracts/tests/job-definitions-parity.test.mjs` 删了，
+  `package-boundary` 断言不再抄回来。生成的 TS 没变，前端不用做什么。

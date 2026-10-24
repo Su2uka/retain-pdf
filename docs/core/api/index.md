@@ -136,9 +136,10 @@ Reader 宿主接入 job/artifact、Markdown、区域、页面元数据和实时�
 以前读书架的字段换到任务列表：标题读 `display_name`，阶段和进度读 `stage_snapshot`（`stage`、`stage_detail`、
 `progress`），`has_more` 告诉有没有下一页；`job_ids` 每次最多 500 个（`limit` 只收 1..=500，前端分批）。
 
-契约 [`library-books.v1.schema.json`](../../../contracts/library-books.v1.schema.json) 文件名和 `$id` 沿用，现在只描述
-任务列表和删任务的返回（`LibraryDeleteResultView`）；书架的 `LibraryBookListView`、`LibraryBookDetailView` 等定义
-2026-10-22 一起删了。
+契约 [`library-books.v1.schema.json`](../../../contracts/library-books.v1.schema.json) 文件名和 `$id` 沿用，现在只登记
+删任务（返回 `LibraryDeleteResultView`）；书架的 `LibraryBookListView`、`LibraryBookDetailView` 等定义 2026-10-22 一起删了。
+任务列表只登记在 [`job-status.v1.schema.json`](../../../contracts/job-status.v1.schema.json)（`library-books` 里重复的一条
+和抄过来的任务列表定义 2026-10-23 删了）。
 
 ### 删除一个任务
 
@@ -392,7 +393,7 @@ Reader 宿主接入 job/artifact、Markdown、区域、页面元数据和实时�
 
 失败任务的列表项带精简的 `failure`（`category`、`stage`、`retryable`、`summary`，可选 `root_cause`、`suggestion`、`provider`；
 成功、进行中的任务没有这个键），`GET /api/v1/documents/{document_id}/jobs` 的列表项同此。契约见
-[`library-books.v1.schema.json`](../../../contracts/library-books.v1.schema.json) 的 `#/definitions/JobFailureBriefView`。
+[`job-status.v1.schema.json`](../../../contracts/job-status.v1.schema.json) 的 `#/definitions/JobFailureBriefView`。
 完整错误（含 traceback）仍读详情的 `failure`。
 
 详情重点字段：
