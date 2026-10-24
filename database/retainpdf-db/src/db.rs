@@ -75,8 +75,7 @@ pub use page_quota::{
 pub const LOCAL_OWNER: &str = "local";
 
 use schema::{
-    ensure_events_column, ensure_glossaries_column, ensure_jobs_column,
-    ensure_no_legacy_artifacts_json, ensure_uploads_column, run_versioned_migrations,
+    ensure_legacy_columns, ensure_no_legacy_artifacts_json, run_versioned_migrations,
 };
 
 /// How long a connection will wait for a lock held by another writer before
@@ -209,7 +208,8 @@ impl Db {
             return Ok(());
         }
         // 结构要升级时先存一份备份(只在这个 Db 第一次连上时看一次)。
-        backup::backup_before_upgrade(conn, &self.data_root);
+        let require_backup = retainpdf_core::config::DbConfig::from_env().require_upgrade_backup;
+        backup::backup_before_upgrade(conn, &self.data_root, require_backup)?;
         Self::apply_schema(conn)?;
         *ready = true;
         Ok(())
@@ -313,49 +313,17 @@ impl Db {
             CREATE INDEX IF NOT EXISTS idx_glossaries_updated_at ON glossaries(updated_at DESC);
             "#,
         )?;
-        // New migrations can reference these columns on pre-library databases.
-        // Ensure them before running the migration ladder, not after connect().
-        ensure_jobs_column(conn, "document_id", "TEXT")?;
-        // 运行代次：每次建/重新发射一次运行加一，CAS 写按它认"是不是同一次运行"。
-        ensure_jobs_column(conn, "run_generation", "INTEGER NOT NULL DEFAULT 0")?;
-        // worker 进程身份（`<pid>@<启动时间指纹>`）：杀进程前核对 pid 没被别的进程复用。
-        // 只由 `record_worker_identity` 写；任务行的 upsert 不碰它。
-        ensure_jobs_column(conn, "worker_identity", "TEXT")?;
-        for column in ["stage_detail", "provider", "provider_stage", "event_type"] {
-            ensure_events_column(conn, column, "TEXT")?;
-        }
-        for column in [
-            "progress_current",
-            "progress_total",
-            "retry_count",
-            "elapsed_ms",
-        ] {
-            ensure_events_column(conn, column, "INTEGER")?;
-        }
+        // 早的编号迁移要用到老表后来加的列（pre-library 的库上没有），先补列再跑迁移阶梯。
+        ensure_legacy_columns(conn)?;
         // 图书馆表走版本化迁移,随 schema 保证存在(不依赖 init 被调用)
         run_versioned_migrations(conn)?;
         Ok(())
     }
 
     pub fn init(&self) -> Result<()> {
+        // 老表的列在 connect() 里的 apply_schema 已经补齐（`LEGACY_COLUMNS`）。
         let conn = self.connect()?;
-        ensure_jobs_column(&conn, "runtime_json", "TEXT")?;
-        ensure_jobs_column(&conn, "failure_json", "TEXT")?;
-        ensure_glossaries_column(&conn, "description", "TEXT NOT NULL DEFAULT ''")?;
-        ensure_glossaries_column(&conn, "source_lang", "TEXT NOT NULL DEFAULT ''")?;
-        ensure_glossaries_column(&conn, "target_lang", "TEXT NOT NULL DEFAULT ''")?;
-        ensure_glossaries_column(&conn, "enabled", "INTEGER NOT NULL DEFAULT 1")?;
-        ensure_events_column(&conn, "stage_detail", "TEXT")?;
-        ensure_events_column(&conn, "provider", "TEXT")?;
-        ensure_events_column(&conn, "provider_stage", "TEXT")?;
-        ensure_events_column(&conn, "event_type", "TEXT")?;
-        ensure_events_column(&conn, "progress_current", "INTEGER")?;
-        ensure_events_column(&conn, "progress_total", "INTEGER")?;
-        ensure_events_column(&conn, "retry_count", "INTEGER")?;
-        ensure_events_column(&conn, "elapsed_ms", "INTEGER")?;
         ensure_no_legacy_artifacts_json(&conn)?;
-        ensure_uploads_column(&conn, "content_hash", "TEXT NOT NULL DEFAULT ''")?;
-        ensure_jobs_column(&conn, "document_id", "TEXT")?;
         conn.execute_batch(
             "CREATE INDEX IF NOT EXISTS idx_uploads_content_hash ON uploads(content_hash);",
         )?;
@@ -558,6 +526,101 @@ mod tests {
                 .map(|failure| failure.category.as_str()),
             Some("upstream_timeout")
         );
+    }
+
+    /// 编号迁移以前的老库：四张老表都缺后来加的列（`LEGACY_COLUMNS`）。
+    fn create_pre_library_tables(db_path: &Path) {
+        let conn = Connection::open(db_path).expect("open sqlite");
+        conn.execute_batch(
+            r#"
+            CREATE TABLE uploads (
+                upload_id TEXT PRIMARY KEY, filename TEXT NOT NULL, stored_path TEXT NOT NULL,
+                bytes INTEGER NOT NULL, page_count INTEGER NOT NULL, uploaded_at TEXT NOT NULL,
+                developer_mode INTEGER NOT NULL
+            );
+            CREATE TABLE jobs (
+                job_id TEXT PRIMARY KEY, workflow TEXT NOT NULL, status_json TEXT NOT NULL,
+                created_at TEXT NOT NULL, updated_at TEXT NOT NULL, started_at TEXT, finished_at TEXT,
+                upload_id TEXT, pid INTEGER, command_json TEXT NOT NULL, request_json TEXT NOT NULL,
+                error TEXT, stage TEXT, stage_detail TEXT, progress_current INTEGER,
+                progress_total INTEGER, log_tail_json TEXT NOT NULL, result_json TEXT
+            );
+            CREATE TABLE events (
+                job_id TEXT NOT NULL, seq INTEGER NOT NULL, ts TEXT NOT NULL, level TEXT NOT NULL,
+                stage TEXT, event TEXT NOT NULL, payload_json TEXT, message TEXT NOT NULL,
+                PRIMARY KEY(job_id, seq)
+            );
+            CREATE TABLE glossaries (
+                glossary_id TEXT PRIMARY KEY, name TEXT NOT NULL, entries_json TEXT NOT NULL,
+                created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+            );
+            "#,
+        )
+        .expect("create pre-library tables");
+    }
+
+    fn columns_of(db_path: &Path, table: &str) -> Vec<String> {
+        let conn = Connection::open(db_path).expect("open sqlite");
+        let mut stmt = conn.prepare(&format!("PRAGMA table_info({table})")).unwrap();
+        let rows = stmt.query_map([], |row| row.get::<_, String>(1)).unwrap();
+        rows.map(Result::unwrap).collect()
+    }
+
+    #[test]
+    fn a_pre_library_database_gets_every_later_column_and_runs_the_migrations() {
+        let fs = TestDbFs::new();
+        create_pre_library_tables(&fs.db_path);
+
+        fs.db().init().expect("upgrade old database");
+
+        // 以前一半在 apply_schema 里补、一半只在 init 里补；这里不照抄 LEGACY_COLUMNS，少了哪一列都要红。
+        for (table, expected) in [
+            ("jobs", &["document_id", "run_generation", "worker_identity", "runtime_json", "failure_json"][..]),
+            (
+                "events",
+                &[
+                    "stage_detail", "provider", "provider_stage", "event_type",
+                    "progress_current", "progress_total", "retry_count", "elapsed_ms",
+                ][..],
+            ),
+            ("glossaries", &["description", "source_lang", "target_lang", "enabled"][..]),
+            ("uploads", &["content_hash"][..]),
+        ] {
+            let columns = columns_of(&fs.db_path, table);
+            for column in expected {
+                assert!(columns.iter().any(|c| c == column), "{table}.{column} 没补上：{columns:?}");
+            }
+        }
+        let version: i64 = Connection::open(&fs.db_path)
+            .unwrap()
+            .query_row("PRAGMA user_version", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(version, schema::versioned_migration_count());
+        // 再起一次什么都不用补。
+        fs.db().init().expect("second start");
+    }
+
+    /// rust_api 和 jobsd 同时起来升级同一个老库：以前两边都看到缺列、都去 ALTER，后到的报 duplicate column。
+    #[test]
+    fn processes_upgrading_an_old_database_together_all_start() {
+        for _ in 0..10 {
+            let fs = TestDbFs::new();
+            create_pre_library_tables(&fs.db_path);
+            let barrier = std::sync::Arc::new(std::sync::Barrier::new(4));
+            let handles: Vec<_> = (0..4)
+                .map(|_| {
+                    let db = fs.db();
+                    let barrier = barrier.clone();
+                    std::thread::spawn(move || {
+                        barrier.wait();
+                        db.init().map_err(|error| format!("{error:#}"))
+                    })
+                })
+                .collect();
+            for handle in handles {
+                handle.join().expect("thread").expect("every process starts");
+            }
+        }
     }
 
     #[test]
