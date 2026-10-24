@@ -28,12 +28,16 @@ use std::time::Duration;
 /// jobsd 那边的服务端是 axum/hyper，默认不主动回收空闲连接，眼下没有这个
 /// 竞态；共用这个构造是为了两处配置不再各写各的，也免得将来给 jobsd 加上
 /// 空闲超时时再踩一遍。
+///
+/// 两个子服务都只听回环，所以也**不走系统代理**：用户设了 HTTP_PROXY/ALL_PROXY 而 NO_PROXY
+/// 没写 127.0.0.1 时，默认客户端会把探测发给代理，子服务明明好好的也被判成挂了、反复重启。
 pub(crate) fn build_probe_client(
     connect_timeout: Duration,
     request_timeout: Duration,
     label: &str,
 ) -> reqwest::Client {
     reqwest::Client::builder()
+        .no_proxy()
         .connect_timeout(connect_timeout)
         .timeout(request_timeout)
         .pool_max_idle_per_host(0)
