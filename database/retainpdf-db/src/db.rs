@@ -529,10 +529,14 @@ mod tests {
     }
 
     /// 编号迁移以前的老库：四张老表都缺后来加的列（`LEGACY_COLUMNS`）。
+    ///
+    /// 要是 WAL：真实的库从第一次连上就是（`apply_schema` 头一句），这个模式记在文件里。造成默认的回滚日志模式的话，
+    /// 几个连接同时把它切成 WAL 会直接 `database is locked`（切日志模式不等忙），测的就不是补列的竞争了。
     fn create_pre_library_tables(db_path: &Path) {
         let conn = Connection::open(db_path).expect("open sqlite");
         conn.execute_batch(
             r#"
+            PRAGMA journal_mode=WAL;
             CREATE TABLE uploads (
                 upload_id TEXT PRIMARY KEY, filename TEXT NOT NULL, stored_path TEXT NOT NULL,
                 bytes INTEGER NOT NULL, page_count INTEGER NOT NULL, uploaded_at TEXT NOT NULL,
