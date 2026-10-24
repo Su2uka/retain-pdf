@@ -207,7 +207,8 @@ pub(super) fn backup_before_upgrade(conn: &Connection, data_root: &Path) {
     }
     let dir = backups_dir_for(data_root);
     if let Err(error) = write_backup(conn, &dir, KIND_BEFORE_UPGRADE) {
-        eprintln!("warning: backup before database upgrade failed: {error:#}");
+        // 升级照常往下走（备份目录写不进去不该让程序起不来），但要让人看得到：之后迁移出错就没有回退点。
+        tracing::error!("backup before database upgrade failed (upgrading without a fallback copy): {error:#}");
     }
 }
 
@@ -412,7 +413,7 @@ impl Db {
         drop(checked);
         // 副本已经是 WAL、结构最新;这里只是保险,失败也不影响恢复结果。
         if let Err(error) = target.execute_batch("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;") {
-            eprintln!("warning: after restoring a backup: {error:#}");
+            tracing::warn!("after restoring a backup: {error:#}");
         }
         *self.schema_ready.lock().expect("db schema_ready mutex poisoned") = true;
         Ok(Ok(()))
