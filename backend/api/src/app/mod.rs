@@ -7,7 +7,7 @@ mod server;
 mod state;
 
 pub use cleanup::{
-    log_startup_settings, log_startup_settings_with_interval, run_cleanup_once,
+    log_startup_settings, log_startup_settings_with_interval, run_cleanup_blocking, run_cleanup_once,
     spawn_periodic_cleanup, spawn_periodic_cleanup_with_interval, RetentionSettings,
 };
 pub use jobs::build_jobs_facade_from_state;

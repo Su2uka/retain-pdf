@@ -17,7 +17,11 @@ pub use artifacts::{
     DocumentTitles,
 };
 pub use derived_artifacts::{
-    document_artifacts_dir, job_artifacts_dir_path, DerivedArtifactDeps,
+    document_artifacts_dir, document_page_preview_path, job_artifacts_dir_path,
+    job_page_preview_file_name, DerivedArtifactDeps,
+};
+pub use derived_artifacts::retention::{
+    prune_document_page_previews, prune_job_derived_cache, DerivedCachePruned,
 };
 pub use derived_artifacts::pdf::linearized_pdf_or_original;
 pub use derived_artifacts::preview::{

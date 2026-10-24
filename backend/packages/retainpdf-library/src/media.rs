@@ -13,7 +13,7 @@ use retainpdf_core::models::api::to_absolute_url;
 use retainpdf_jobs::JobFilesQuery;
 use retainpdf_core::models::api::DocumentRecord;
 use retainpdf_files::{
-    document_artifacts_dir, ensure_document_book_image, ensure_page_preview, BookImageKind,
+    document_page_preview_path, ensure_document_book_image, ensure_page_preview, BookImageKind,
     DerivedArtifactDeps, DownloadGeneration,
 };
 use retainpdf_jobs::{Disposition, FileDownload};
@@ -157,9 +157,7 @@ fn locate(db: &Db, data_root: &Path, python_bin: &str, document_id: &str, file: 
             if document.page_count > 0 && *page > document.page_count {
                 return Err(AppError::not_found(format!("no such file: pages/{page}.jpg")));
             }
-            let output = document_artifacts_dir(data_root, document_id)?
-                .join("pages")
-                .join(format!("p{page:04}-w{width_px}-d{dpi}.jpg"));
+            let output = document_page_preview_path(data_root, document_id, *page, *width_px, *dpi)?;
             let path = ensure_page_preview(
                 artifact_deps,
                 &output,

@@ -78,6 +78,18 @@ impl Db {
         Ok(deleted)
     }
 
+    /// 已经结束（成功、失败、取消）的任务编号，给派生缓存的回收用：排队、在跑的任务不回收。
+    pub fn terminal_job_ids(&self) -> Result<Vec<String>> {
+        let succeeded = serde_json::to_string(&JobStatusKind::Succeeded)?;
+        let failed = serde_json::to_string(&JobStatusKind::Failed)?;
+        let canceled = serde_json::to_string(&JobStatusKind::Canceled)?;
+        let conn = self.connect()?;
+        let mut stmt =
+            conn.prepare("SELECT job_id FROM jobs WHERE status_json IN (?1, ?2, ?3) ORDER BY job_id")?;
+        let rows = stmt.query_map(params![succeeded, failed, canceled], |row| row.get(0))?;
+        Ok(rows.collect::<rusqlite::Result<Vec<String>>>()?)
+    }
+
     /// Deletes rows from `uploads` older than `retention_hours` that no row
     /// in `jobs` references AND that back no `documents` row. Returns the
     /// deleted records with `stored_path` resolved to an absolute path, so the

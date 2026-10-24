@@ -31,6 +31,7 @@ mod model_executor;
 mod jobs_control_contract;
 mod job_categories;
 mod delete_safety;
+mod derived_cache_retention;
 mod disk_space;
 mod request_log;
 mod jobs_creation;

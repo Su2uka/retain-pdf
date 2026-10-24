@@ -9,6 +9,9 @@ pub struct CleanupConfig {
     pub events_retention_days: u64,
     /// 没被任务引用的上传保留几小时（`RUST_API_ORPHAN_UPLOAD_RETENTION_HOURS`，默认 48，`0` 不清）。
     pub orphan_upload_retention_hours: u64,
+    /// 终态任务、书的派生缓存（Word、对照 PDF、线性化 PDF、页预览）生成后保留几天
+    /// （`RUST_API_DERIVED_CACHE_RETENTION_DAYS`，默认 `0` 不清）。删了下次请求会重新生成。
+    pub derived_cache_retention_days: u64,
 }
 
 impl CleanupConfig {
@@ -19,6 +22,10 @@ impl CleanupConfig {
             orphan_upload_retention_hours: env_u64_allow_zero(
                 "RUST_API_ORPHAN_UPLOAD_RETENTION_HOURS",
                 48,
+            ),
+            derived_cache_retention_days: env_u64_allow_zero(
+                "RUST_API_DERIVED_CACHE_RETENTION_DAYS",
+                0,
             ),
         }
     }
