@@ -23,11 +23,8 @@ pub fn default_generic_workers() -> i64 {
 }
 
 fn env_workers(name: &str, fallback: i64) -> i64 {
-    std::env::var(name)
-        .ok()
-        .and_then(|value| value.trim().parse::<i64>().ok())
-        .filter(|value| *value > 0)
-        .unwrap_or(fallback)
+    let fallback_u32 = u32::try_from(fallback).unwrap_or(u32::MAX);
+    i64::from(crate::config::env_vars::env_u32(name, fallback_u32))
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]

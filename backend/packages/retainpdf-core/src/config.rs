@@ -230,7 +230,13 @@ impl AppConfig {
         }
     }
 
+    /// 读环境变量组装配置。设了但解析不了的变量（`RUST_API_PORT=abc`、`RUST_API_UPLOAD_MAX_BYTES=200MB`、
+    /// 拼错的开关）一个个列出来，返回错误、不启动——不再悄悄换成默认值。
     pub fn from_env() -> Result<Self> {
+        reject_invalid_env(env_vars::collect_invalid_env(Self::from_env_unchecked))
+    }
+
+    fn from_env_unchecked() -> Result<Self> {
         let paths = RuntimePathsConfig::from_env()?;
         create_runtime_dirs(&paths)?;
         let auth = AuthRuntimeConfig::from_env_or_file(&paths.auth_config_path)?;
@@ -247,6 +253,19 @@ impl AppConfig {
     }
 
     pub fn from_desktop(
+        resource_root: PathBuf,
+        data_root: PathBuf,
+        python_bin: String,
+        port: u16,
+        simple_port: u16,
+        api_key: String,
+    ) -> Result<Self> {
+        reject_invalid_env(env_vars::collect_invalid_env(|| {
+            Self::from_desktop_unchecked(resource_root, data_root, python_bin, port, simple_port, api_key)
+        }))
+    }
+
+    fn from_desktop_unchecked(
         resource_root: PathBuf,
         data_root: PathBuf,
         python_bin: String,
@@ -326,3 +345,53 @@ impl AppConfig {
         })
     }
 }
+
+/// 有解析不了的环境变量就报错，先于配置本身的错误：后者常常就是前者引起的。
+fn reject_invalid_env(
+    (config, invalid): (Result<AppConfig>, Vec<env_vars::InvalidEnvVar>),
+) -> Result<AppConfig> {
+    if invalid.is_empty() {
+        return config;
+    }
+    let lines = invalid
+        .iter()
+        .map(|item| format!("  {item}"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    anyhow::bail!("这些环境变量的值解析不了，没有启动：\n{lines}\n改对或者删掉再启动。")
+}
+
+#[cfg(test)]
+mod invalid_env_tests {
+    use super::*;
+
+    fn desktop_config(root: &Path) -> Result<AppConfig> {
+        AppConfig::from_desktop(
+            root.join("resources"),
+            root.join("data"),
+            "python3".into(),
+            0,
+            1,
+            "invalid-env-test-key".into(),
+        )
+    }
+
+    #[test]
+    fn startup_refuses_values_it_cannot_parse() {
+        let _g = env_vars::env_test_lock();
+        let root = std::env::temp_dir().join(format!("retainpdf-invalid-env-{}", std::process::id()));
+        std::env::set_var("RUST_API_SHUTDOWN_GRACE_SECS", "3s");
+        std::env::set_var("RUST_API_JOBS_MODE", "remtoe");
+        let refused = desktop_config(&root);
+        std::env::remove_var("RUST_API_SHUTDOWN_GRACE_SECS");
+        std::env::remove_var("RUST_API_JOBS_MODE");
+        let message = format!("{:#}", refused.err().expect("bad values must stop startup"));
+        assert!(message.contains("RUST_API_SHUTDOWN_GRACE_SECS=\"3s\""), "{message}");
+        assert!(message.contains("RUST_API_JOBS_MODE=\"remtoe\""), "{message}");
+
+        let config = desktop_config(&root).expect("without the bad values it starts");
+        assert_eq!(config.shutdown_grace_secs, server::DEFAULT_SHUTDOWN_GRACE_SECS);
+        let _ = std::fs::remove_dir_all(&root);
+    }
+}
+

@@ -1,6 +1,6 @@
 use std::num::NonZeroU64;
 
-use super::env_vars::{env_optional_string, env_u32, env_u64};
+use super::env_vars::{env_u32, env_u64, env_u64_allow_zero};
 
 pub const DEFAULT_UPLOAD_MAX_BYTES: u64 = 512 * 1024 * 1024;
 
@@ -89,10 +89,7 @@ impl UploadRuntimeConfig {
 
 /// `RUST_API_MIN_FREE_DISK_MB`：剩余空间低于它就不接新上传、新任务，默认 [`DEFAULT_MIN_FREE_DISK_MIB`]，`0` 关掉检查。
 fn min_free_disk_bytes_from_env() -> u64 {
-    env_optional_string("RUST_API_MIN_FREE_DISK_MB")
-        .and_then(|value| value.parse::<u64>().ok())
-        .unwrap_or(DEFAULT_MIN_FREE_DISK_MIB)
-        .saturating_mul(1024 * 1024)
+    env_u64_allow_zero("RUST_API_MIN_FREE_DISK_MB", DEFAULT_MIN_FREE_DISK_MIB).saturating_mul(1024 * 1024)
 }
 
 #[cfg(test)]

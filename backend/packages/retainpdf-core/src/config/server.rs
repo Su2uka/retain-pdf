@@ -1,4 +1,4 @@
-use super::env_vars::{env_string, env_u16};
+use super::env_vars::{env_string, env_u16, env_u64_allow_zero};
 
 #[derive(Clone, Debug)]
 pub struct ServerRuntimeConfig {
@@ -43,8 +43,5 @@ impl ServerRuntimeConfig {
 
 /// `0` 是收到信号就不等（连接直接断开）。
 fn shutdown_grace_secs_from_env() -> u64 {
-    std::env::var("RUST_API_SHUTDOWN_GRACE_SECS")
-        .ok()
-        .and_then(|value| value.trim().parse::<u64>().ok())
-        .unwrap_or(DEFAULT_SHUTDOWN_GRACE_SECS)
+    env_u64_allow_zero("RUST_API_SHUTDOWN_GRACE_SECS", DEFAULT_SHUTDOWN_GRACE_SECS)
 }

@@ -11,7 +11,7 @@
 use std::path::PathBuf;
 use std::time::Duration;
 
-use super::env_vars::{env_bool, env_string, env_u16, env_u32, env_u64};
+use super::env_vars::{env_bool, env_choice, env_string, env_u16, env_u32, env_u64};
 
 /// 任务运行时跑在哪儿。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -53,15 +53,16 @@ pub struct JobsServiceConfig {
 
 impl JobsServiceConfig {
     pub fn from_env() -> Self {
-        let mode = match std::env::var("RUST_API_JOBS_MODE")
-            .unwrap_or_default()
-            .trim()
-            .to_ascii_lowercase()
-            .as_str()
+        let mode = match env_choice(
+            "RUST_API_JOBS_MODE",
+            &["remote", "in_process", "in-process", "inprocess"],
+            "remote 或 in_process",
+        )
+        .as_deref()
         {
-            "remote" => JobsRuntimeMode::Remote,
-            // 任何其他取值（含未设置、拼错）一律回落进程内：这个开关只应
-            // 在明确要求时改变行为，绝不因笔误把生产拓扑换掉。
+            Some("remote") => JobsRuntimeMode::Remote,
+            // 没设、拼错都是进程内：这个开关只应在明确要求时改变行为，绝不因笔误把生产拓扑换掉。
+            // 拼错的值会被报出来（启动时读到就不启动）。
             _ => JobsRuntimeMode::InProcess,
         };
         let command = std::env::var("RUST_API_JOBSD_COMMAND")
