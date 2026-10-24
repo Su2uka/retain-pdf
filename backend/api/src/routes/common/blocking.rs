@@ -15,7 +15,7 @@ pub async fn run_state_blocking<T: Send + 'static>(
     let work = move || work(&state);
     // 测试用的开发默认模型按线程设（见 `DevDefaultsGuard`），跟着带进阻塞线程。
     #[cfg(test)]
-    let work = crate::services::jobs::carry_dev_defaults_override(work);
+    let work = crate::test_support::blocking::carry_test_overrides(work);
     tokio::task::spawn_blocking(work)
         .await
         .map_err(|_| AppError::internal(format!("{what} task failed")))?
