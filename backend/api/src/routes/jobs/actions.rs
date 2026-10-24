@@ -16,7 +16,7 @@ use crate::AppState;
 
 use crate::routes::common::{
     build_jobs_query_route_deps, build_jobs_route_deps, jobs_facade, ok_json, request_base_url,
-    ApiJson, ApiPath, JobsRouteDeps,
+    run_state_blocking, ApiJson, ApiPath, JobsRouteDeps,
 };
 
 pub async fn get_stage_actions(
@@ -24,7 +24,10 @@ pub async fn get_stage_actions(
     ApiPath(job_id): ApiPath<String>,
     headers: HeaderMap,
 ) -> Result<Json<ApiResponse<StageActionsView>>, AppError> {
-    stage_actions_response(build_jobs_route_deps(&state), &headers, &job_id)
+    run_state_blocking(&state, "job actions", move |state| {
+        stage_actions_response(build_jobs_route_deps(state), &headers, &job_id)
+    })
+    .await
 }
 
 pub async fn resume_job(
@@ -34,7 +37,10 @@ pub async fn resume_job(
     body: Bytes,
 ) -> Result<Json<ApiResponse<JobSubmissionView>>, AppError> {
     let overrides = parse_rerun_overrides(&body)?;
-    resume_job_response(build_jobs_route_deps(&state), &headers, &job_id, &overrides)
+    run_state_blocking(&state, "job resume", move |state| {
+        resume_job_response(build_jobs_route_deps(state), &headers, &job_id, &overrides)
+    })
+    .await
 }
 
 pub async fn rerun_job(
@@ -44,7 +50,10 @@ pub async fn rerun_job(
     body: Bytes,
 ) -> Result<Json<ApiResponse<JobSubmissionView>>, AppError> {
     let overrides = parse_rerun_overrides(&body)?;
-    rerun_job_response(build_jobs_route_deps(&state), &headers, &job_id, &overrides)
+    run_state_blocking(&state, "job rerun", move |state| {
+        rerun_job_response(build_jobs_route_deps(state), &headers, &job_id, &overrides)
+    })
+    .await
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -98,7 +107,10 @@ pub async fn retry_stage(
     headers: HeaderMap,
     ApiJson(request): ApiJson<RetryStageRequest>,
 ) -> Result<Json<ApiResponse<RetryStageSubmissionView>>, AppError> {
-    retry_stage_response(build_jobs_route_deps(&state), &headers, &job_id, request)
+    run_state_blocking(&state, "job stage retry", move |state| {
+        retry_stage_response(build_jobs_route_deps(state), &headers, &job_id, request)
+    })
+    .await
 }
 
 pub async fn resolve_ocr_ambiguity(
@@ -107,15 +119,21 @@ pub async fn resolve_ocr_ambiguity(
     headers: HeaderMap,
     ApiJson(request): ApiJson<OcrAmbiguityResolutionRequest>,
 ) -> Result<Json<ApiResponse<OcrAmbiguityResolutionView>>, AppError> {
-    resolve_ocr_ambiguity_response(build_jobs_route_deps(&state), &headers, &job_id, request)
+    run_state_blocking(&state, "ocr ambiguity resolution", move |state| {
+        resolve_ocr_ambiguity_response(build_jobs_route_deps(state), &headers, &job_id, request)
+    })
+    .await
 }
 
 pub async fn get_resume_plan(
     State(state): State<AppState>,
     ApiPath(job_id): ApiPath<String>,
 ) -> Result<Json<ApiResponse<JobResumePlanView>>, AppError> {
-    let deps = build_jobs_query_route_deps(&state);
-    Ok(ok_json(deps.jobs.resume_plan_view(&job_id)?))
+    run_state_blocking(&state, "job resume plan", move |state| {
+        let deps = build_jobs_query_route_deps(state);
+        Ok(ok_json(deps.jobs.resume_plan_view(&job_id)?))
+    })
+    .await
 }
 
 pub async fn cancel_job(

@@ -9,8 +9,8 @@ use serde::Deserialize;
 use crate::error::AppError;
 use crate::models::api::{ApiResponse, JobDiagnosticsView, JobReportView, TranslationDiagnosticsView};
 use crate::routes::common::{
-    build_jobs_query_route_deps, build_quality_route_deps, build_usage_route_deps, ok_json, ApiPath,
-    ApiQuery,
+    build_jobs_query_route_deps, build_quality_route_deps, build_usage_route_deps, ok_json,
+    run_state_blocking, ApiPath, ApiQuery,
 };
 use crate::services::jobs::{
     job_usage_view, quality_items_view, quality_summary_view, QualityItemsParams as ItemsParams,
@@ -71,8 +71,11 @@ pub async fn get_job_diagnostics(
     State(state): State<AppState>,
     ApiPath(job_id): ApiPath<String>,
 ) -> Result<Json<ApiResponse<JobDiagnosticsView>>, AppError> {
-    let deps = build_jobs_query_route_deps(&state);
-    Ok(ok_json(deps.jobs.job_diagnostics_view(&job_id)?))
+    run_state_blocking(&state, "job diagnostics", move |state| {
+        let deps = build_jobs_query_route_deps(state);
+        Ok(ok_json(deps.jobs.job_diagnostics_view(&job_id)?))
+    })
+    .await
 }
 
 pub async fn get_translation_diagnostics(
@@ -80,32 +83,44 @@ pub async fn get_translation_diagnostics(
     ApiPath(job_id): ApiPath<String>,
     _headers: HeaderMap,
 ) -> Result<Json<ApiResponse<TranslationDiagnosticsView>>, AppError> {
-    let deps = build_jobs_query_route_deps(&state);
-    Ok(ok_json(deps.jobs.translation_diagnostics_view(&job_id)?))
+    run_state_blocking(&state, "translation diagnostics", move |state| {
+        let deps = build_jobs_query_route_deps(state);
+        Ok(ok_json(deps.jobs.translation_diagnostics_view(&job_id)?))
+    })
+    .await
 }
 
 pub async fn get_translation_qa(
     State(state): State<AppState>,
     ApiPath(job_id): ApiPath<String>,
 ) -> Result<Json<ApiResponse<JobReportView>>, AppError> {
-    let deps = build_jobs_query_route_deps(&state);
-    Ok(ok_json(deps.jobs.translation_qa_view(&job_id)?))
+    run_state_blocking(&state, "translation qa", move |state| {
+        let deps = build_jobs_query_route_deps(state);
+        Ok(ok_json(deps.jobs.translation_qa_view(&job_id)?))
+    })
+    .await
 }
 
 pub async fn get_fit_report(
     State(state): State<AppState>,
     ApiPath(job_id): ApiPath<String>,
 ) -> Result<Json<ApiResponse<JobReportView>>, AppError> {
-    let deps = build_jobs_query_route_deps(&state);
-    Ok(ok_json(deps.jobs.fit_report_view(&job_id)?))
+    run_state_blocking(&state, "fit report", move |state| {
+        let deps = build_jobs_query_route_deps(state);
+        Ok(ok_json(deps.jobs.fit_report_view(&job_id)?))
+    })
+    .await
 }
 
 pub async fn get_refine_report(
     State(state): State<AppState>,
     ApiPath(job_id): ApiPath<String>,
 ) -> Result<Json<ApiResponse<JobReportView>>, AppError> {
-    let deps = build_jobs_query_route_deps(&state);
-    Ok(ok_json(deps.jobs.refine_report_view(&job_id)?))
+    run_state_blocking(&state, "refine report", move |state| {
+        let deps = build_jobs_query_route_deps(state);
+        Ok(ok_json(deps.jobs.refine_report_view(&job_id)?))
+    })
+    .await
 }
 
 /// 这个任务的模型用量（token）。

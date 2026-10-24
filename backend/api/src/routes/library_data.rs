@@ -20,7 +20,7 @@ use crate::models::api::{
 };
 use crate::routes::common::{
     build_jobs_route_deps, build_library_route_deps, jobs_facade, ok_json, request_base_url,
-    run_job_query_once, run_library_blocking, ApiJson, ApiPath, ApiQuery,
+    run_job_query_once, run_library_blocking, run_state_blocking, ApiJson, ApiPath, ApiQuery,
 };
 use crate::routes::download_response::file_download_response;
 use crate::services::library::{
@@ -169,12 +169,15 @@ pub async fn list_document_metadata_suggestions_route(
     ApiPath(document_id): ApiPath<String>,
     ApiQuery(query): ApiQuery<ListDocumentMetadataSuggestionsQuery>,
 ) -> Result<Json<ApiResponse<DocumentMetadataSuggestionListView>>, AppError> {
-    let deps = build_library_route_deps(&state);
-    Ok(ok_json(list_document_metadata_suggestions_view(
-        &deps.library,
-        &document_id,
-        &query,
-    )?))
+    run_state_blocking(&state, "document metadata suggestions", move |state| {
+        let deps = build_library_route_deps(state);
+        Ok(ok_json(list_document_metadata_suggestions_view(
+            &deps.library,
+            &document_id,
+            &query,
+        )?))
+    })
+    .await
 }
 
 pub async fn apply_document_metadata_suggestion_route(
@@ -183,15 +186,18 @@ pub async fn apply_document_metadata_suggestion_route(
     ApiPath((document_id, suggestion_id)): ApiPath<(String, String)>,
     ApiJson(input): ApiJson<ApplyDocumentMetadataSuggestionInput>,
 ) -> Result<Json<ApiResponse<DocumentMetadataSuggestionApplyView>>, AppError> {
-    let deps = build_library_route_deps(&state);
-    let base_url = request_base_url(&headers, deps.default_port, &deps.bind_host);
-    Ok(ok_json(apply_document_metadata_suggestion_view(
-        &deps.library,
-        &document_id,
-        &suggestion_id,
-        &input,
-        &base_url,
-    )?))
+    run_state_blocking(&state, "document metadata suggestion", move |state| {
+        let deps = build_library_route_deps(state);
+        let base_url = request_base_url(&headers, deps.default_port, &deps.bind_host);
+        Ok(ok_json(apply_document_metadata_suggestion_view(
+            &deps.library,
+            &document_id,
+            &suggestion_id,
+            &input,
+            &base_url,
+        )?))
+    })
+    .await
 }
 
 /// DELETE /api/v1/documents/:id —— 彻底删除文档(行 + jobs + uploads + 文件)。
@@ -230,16 +236,19 @@ pub async fn translate_document_route(
     ApiJson(payload): ApiJson<Value>,
 ) -> Result<Json<ApiResponse<JobSubmissionView>>, AppError> {
     let request = DocumentJobRequest::from_api_value(payload)?;
-    let deps = build_library_route_deps(&state);
-    let jobs = build_jobs_route_deps(&state).jobs;
-    let base_url = request_base_url(&headers, deps.default_port, &deps.bind_host);
-    Ok(ok_json(translate_document_view(
-        &deps.library,
-        &jobs,
-        &document_id,
-        request,
-        &base_url,
-    )?))
+    run_state_blocking(&state, "document translation", move |state| {
+        let deps = build_library_route_deps(state);
+        let jobs = build_jobs_route_deps(state).jobs;
+        let base_url = request_base_url(&headers, deps.default_port, &deps.bind_host);
+        Ok(ok_json(translate_document_view(
+            &deps.library,
+            &jobs,
+            &document_id,
+            request,
+            &base_url,
+        )?))
+    })
+    .await
 }
 
 /// POST /api/v1/documents/:id/ocr

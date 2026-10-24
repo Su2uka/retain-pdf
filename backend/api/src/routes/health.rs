@@ -4,21 +4,27 @@ use axum::response::{IntoResponse, Response};
 use axum::Json;
 use serde_json::json;
 
+use crate::error::AppError;
 use crate::models::api::ApiResponse;
-use crate::routes::common::build_health_route_deps;
+use crate::routes::common::{build_health_route_deps, run_state_blocking};
 use crate::services::platform::{
     build_current_readiness_view, build_health_view, HealthView, ReadinessView,
 };
 use crate::AppState;
 
-pub async fn health(State(state): State<AppState>) -> Json<ApiResponse<HealthView>> {
-    let deps = build_health_route_deps(&state);
-    Json(ApiResponse::ok(build_health_view(&deps)))
+/// 两个都要连库（`ping`、数任务），放进阻塞线程：库被锁时健康检查不该把异步工作线程一起占住。
+pub async fn health(State(state): State<AppState>) -> Result<Json<ApiResponse<HealthView>>, AppError> {
+    run_state_blocking(&state, "health", |state| {
+        Ok(Json(ApiResponse::ok(build_health_view(&build_health_route_deps(state)))))
+    })
+    .await
 }
 
-pub async fn ready(State(state): State<AppState>) -> Response {
-    let deps = build_health_route_deps(&state);
-    readiness_response(build_current_readiness_view(&deps))
+pub async fn ready(State(state): State<AppState>) -> Result<Response, AppError> {
+    run_state_blocking(&state, "readiness", |state| {
+        Ok(readiness_response(build_current_readiness_view(&build_health_route_deps(state))))
+    })
+    .await
 }
 
 /// 就绪：200 + 普通成功信封。不就绪：503，信封的 `code` 是 `50300`、`message` 是 `not ready`，

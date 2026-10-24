@@ -17,7 +17,7 @@ use crate::models::api::{
     ApiResponse, JobEventListView, ListJobEventsQuery, LiveTranslationCommitEventView,
     LiveTranslationEventsQuery, LiveTranslationLayoutView, LiveTranslationPageView,
 };
-use crate::routes::common::{ok_json, run_job_query, ApiPath, ApiQuery};
+use crate::routes::common::{ok_json, run_job_query, run_state_blocking, ApiPath, ApiQuery};
 use crate::AppState;
 
 const EVENT_BATCH_LIMIT: u32 = 128;
@@ -43,18 +43,24 @@ pub async fn get_live_translation_layout(
     State(state): State<AppState>,
     ApiPath(job_id): ApiPath<String>,
 ) -> Result<Json<ApiResponse<LiveTranslationLayoutView>>, AppError> {
-    Ok(ok_json(
-        build_jobs_facade_from_state(&state).live_translation_layout(&job_id)?,
-    ))
+    run_state_blocking(&state, "live translation layout", move |state| {
+        Ok(ok_json(
+            build_jobs_facade_from_state(state).live_translation_layout(&job_id)?,
+        ))
+    })
+    .await
 }
 
 pub async fn get_live_translation_page(
     State(state): State<AppState>,
     ApiPath((job_id, page_idx)): ApiPath<(String, u32)>,
 ) -> Result<Json<ApiResponse<LiveTranslationPageView>>, AppError> {
-    Ok(ok_json(
-        build_jobs_facade_from_state(&state).live_translation_page(&job_id, page_idx)?,
-    ))
+    run_state_blocking(&state, "live translation page", move |state| {
+        Ok(ok_json(
+            build_jobs_facade_from_state(state).live_translation_page(&job_id, page_idx)?,
+        ))
+    })
+    .await
 }
 
 pub async fn get_live_translation_events(
