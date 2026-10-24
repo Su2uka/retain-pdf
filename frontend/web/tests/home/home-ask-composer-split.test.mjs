@@ -30,7 +30,7 @@ for (const k of [
   }
 }
 globalThis.window = dom.window;
-globalThis.IS_REACT_ACT_ENVIRONMENT = false;
+globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
 const { createRoot } = await import("react-dom/client");
 const React = await import("react");
@@ -38,16 +38,20 @@ const { HomeAskComposer } = await import(
   "../../src/features/ask/ui/HomeAskComposer.tsx"
 );
 
-function wait(ms = 40) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+// 挂载和每次交互都包进 React.act：act 返回时渲染和 effect 都跑完了。以前是固定等 40ms，
+// 机器忙的时候不够，挂载后 querySelector 拿到 null，几条一起偶发红。
+async function settle(action) {
+  await React.act(async () => {
+    action();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
 }
 
 async function mount(props) {
   const host = dom.window.document.createElement("div");
   dom.window.document.getElementById("root").appendChild(host);
   const root = createRoot(host);
-  root.render(React.createElement(HomeAskComposer, { scopes: [], onScopesChange() {}, onSend() {}, ...props }));
-  await wait();
+  await settle(() => root.render(React.createElement(HomeAskComposer, { scopes: [], onScopesChange() {}, onSend() {}, ...props })));
   return { host, root };
 }
 
@@ -67,7 +71,7 @@ test("HomeAskComposer：根 class 与空范围提示", async () => {
   assert.ok(composer.classList.contains("home-ask-composer-hero"));
   assert.equal(host.querySelector(".home-ask-scope-hint").textContent, "全库 · @ 文章或合集");
   assert.equal(host.querySelector(".home-ask-composer-shell").getAttribute("aria-disabled"), null);
-  root.unmount();
+  await settle(() => root.unmount());
   host.remove();
 });
 
@@ -78,15 +82,13 @@ test("HomeAskComposer：输入后可发送并回调 trim 后的文本", async ()
   const send = host.querySelector(".home-ask-send");
   assert.equal(send.disabled, true);
 
-  setTextareaValue(textarea, "  帮我总结  ");
-  await wait();
+  await settle(() => setTextareaValue(textarea, "  帮我总结  "));
   assert.equal(send.disabled, false);
 
-  send.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
-  await wait();
+  await settle(() => send.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })));
   assert.equal(sent, "帮我总结");
 
-  root.unmount();
+  await settle(() => root.unmount());
   host.remove();
 });
 
@@ -103,14 +105,13 @@ test("HomeAskComposer：chips 渲染与移除回调", async () => {
   assert.equal(host.querySelectorAll(".home-ask-chip").length, 2);
   assert.equal(host.querySelector(".home-ask-chip").classList.contains("is-collection"), true);
 
-  host.querySelectorAll(".home-ask-chip-remove")[1].dispatchEvent(
+  await settle(() => host.querySelectorAll(".home-ask-chip-remove")[1].dispatchEvent(
     new dom.window.MouseEvent("click", { bubbles: true }),
-  );
-  await wait();
+  ));
   assert.equal(changes.length, 1);
   assert.deepEqual(changes[0], [scopes[0]]);
 
-  root.unmount();
+  await settle(() => root.unmount());
   host.remove();
 });
 
@@ -120,10 +121,9 @@ test("HomeAskComposer：isRunning 展示停止按钮", async () => {
   const stop = host.querySelector(".home-ask-send-stop");
   assert.ok(stop);
   assert.equal(host.querySelector(".home-ask-scope-hint").textContent, "全库 · @ 文章或合集");
-  stop.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
-  await wait();
+  await settle(() => stop.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })));
   assert.equal(stopped, 1);
-  root.unmount();
+  await settle(() => root.unmount());
   host.remove();
 });
 
@@ -147,26 +147,23 @@ test("HomeAskComposer：credentialBlocked 只留横幅引导，不锁输入；�
     assert.equal(textarea.hasAttribute("readonly"), false);
 
     // 可输入：草稿保留，不被清空
-    setTextareaValue(textarea, "帮我总结");
-    await wait();
+    await settle(() => setTextareaValue(textarea, "帮我总结"));
     assert.equal(textarea.value, "帮我总结");
     assert.equal(host.querySelector(".home-ask-send").disabled, false);
 
     // 发送时不直调 onSend，而是把焦点送到横幅按钮引导补 Key
-    host.querySelector(".home-ask-send").dispatchEvent(
+    await settle(() => host.querySelector(".home-ask-send").dispatchEvent(
       new dom.window.MouseEvent("click", { bubbles: true }),
-    );
-    await wait();
+    ));
     assert.equal(sent, null);
     assert.equal(dom.window.document.activeElement, host.querySelector(".home-ask-key-banner-btn"));
 
     // 横幅按钮仍派发 CustomEvent（直达设置）
-    host.querySelector(".home-ask-key-banner-btn").dispatchEvent(
+    await settle(() => host.querySelector(".home-ask-key-banner-btn").dispatchEvent(
       new dom.window.MouseEvent("click", { bubbles: true }),
-    );
-    await wait();
+    ));
     assert.equal(events, 1);
-    root.unmount();
+    await settle(() => root.unmount());
     host.remove();
   } finally {
     dom.window.document.removeEventListener("retainpdf:open-browser-credentials", onEvent);
