@@ -70,14 +70,12 @@ impl JobsdState {
 }
 
 /// 鉴权：与壳同源的 RETAIN_API_KEYS。仅监听回环，这层是纵深防御而非边界。
+/// 没配 key 时谁都不放（以前是全放；配置加载保证非空，那条路走不到，但写法是"出错就放行"）。
 fn authorized(state: &JobsdState, headers: &HeaderMap) -> bool {
-    if state.api_keys.is_empty() {
-        return true;
-    }
     headers
         .get("X-API-Key")
         .and_then(|value| value.to_str().ok())
-        .map(|key| state.api_keys.contains(key.trim()))
+        .map(|key| retainpdf_core::config::api_key_matches(&state.api_keys, key.trim()))
         .unwrap_or(false)
 }
 

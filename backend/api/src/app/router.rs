@@ -2,6 +2,7 @@ use axum::middleware;
 use axum::Router;
 use axum::http::HeaderValue;
 use tower_http::cors::{AllowHeaders, AllowMethods, AllowOrigin, CorsLayer, ExposeHeaders};
+use tower_http::classify::{ServerErrorsAsFailures, SharedClassifier};
 use tower_http::trace::TraceLayer;
 
 use crate::app::AppState;
@@ -51,6 +52,23 @@ pub(crate) fn registered_endpoints() -> Vec<crate::app::endpoints::Endpoint> {
     tables.into_iter().flatten().copied().collect()
 }
 
+type RequestSpan = fn(&axum::http::Request<axum::body::Body>) -> tracing::Span;
+
+/// 请求日志：span 只记方法和路径，不记查询串。助手终端握手可以把 key 放在查询参数里
+/// （`?api_key=…`），默认的 span 记整个 URI，开 `RUST_LOG=debug` 时 key 就进了日志。
+fn trace_layer() -> TraceLayer<SharedClassifier<ServerErrorsAsFailures>, RequestSpan> {
+    TraceLayer::new_for_http().make_span_with(request_span as RequestSpan)
+}
+
+fn request_span(request: &axum::http::Request<axum::body::Body>) -> tracing::Span {
+    tracing::debug_span!(
+        "request",
+        method = %request.method(),
+        path = %request.uri().path(),
+        version = ?request.version(),
+    )
+}
+
 pub fn build_app(state: AppState) -> Router {
     // 多用户模式下没有终端：助手终端能在服务器上执行命令，只给单机版。
     let websocket_routes = if state.config.accounts.mode.is_multi() {
@@ -69,7 +87,7 @@ pub fn build_app(state: AppState) -> Router {
         .layer(middleware::from_fn(super::route_usage::record))
         .layer(middleware::from_fn_with_state(state.clone(), auth::reject_foreign_host))
         .layer(cors_layer(&state.config.accounts, &state.config.origin_policy))
-        .layer(TraceLayer::new_for_http())
+        .layer(trace_layer())
         .with_state(state)
 }
 
@@ -112,7 +130,7 @@ pub fn build_simple_app(state: AppState) -> Router {
         .fallback(unknown_route)
         .layer(middleware::from_fn_with_state(state.clone(), auth::reject_foreign_host))
         .layer(cors_layer(&state.config.accounts, &state.config.origin_policy))
-        .layer(TraceLayer::new_for_http())
+        .layer(trace_layer())
         .with_state(state)
 }
 
