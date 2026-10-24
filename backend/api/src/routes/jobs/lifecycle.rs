@@ -17,7 +17,7 @@ use serde_json::Value;
 
 use crate::routes::common::{
     build_job_deletion, build_jobs_query_route_deps, build_jobs_route_deps, jobs_facade, ok_json,
-    request_base_url, run_job_query_once, ApiJson, ApiPath, ApiQuery,
+    request_base_url, run_job_query_once, run_state_blocking, ApiJson, ApiPath, ApiQuery,
 };
 
 pub async fn create_job(
@@ -27,11 +27,15 @@ pub async fn create_job(
 ) -> Result<Json<ApiResponse<JobSubmissionView>>, AppError> {
     let request = CreateJobInput::from_api_value(payload)
         .map_err(|e| AppError::bad_request(format!("invalid job payload: {e}")))?;
-    let deps = build_jobs_route_deps(&state);
-    let base_url = request_base_url(&headers, deps.default_port, &deps.bind_host);
-    Ok(ok_json(
-        jobs_facade(deps).create_submission(&base_url, &request)?,
-    ))
+    // 读上传、写库、建目录都是同步的。
+    run_state_blocking(&state, "job creation", move |state| {
+        let deps = build_jobs_route_deps(state);
+        let base_url = request_base_url(&headers, deps.default_port, &deps.bind_host);
+        Ok(ok_json(
+            jobs_facade(deps).create_submission(&base_url, &request)?,
+        ))
+    })
+    .await
 }
 
 pub async fn list_jobs(
@@ -71,13 +75,21 @@ pub async fn delete_job(
     ApiPath(job_id): ApiPath<String>,
     ApiQuery(query): ApiQuery<DeleteJobQuery>,
 ) -> Result<Json<ApiResponse<JobDeleteResultView>>, AppError> {
-    let deletion = build_job_deletion(&state);
-    if query.force {
+    let force = query.force;
+    if force {
         // 强删运行中的任务：先走取消的同一条路径（登记取消 + 终止 worker），再删。
-        let job_ids = deletion.job_ids(&job_id)?;
+        let lookup = job_id.clone();
+        let job_ids = run_state_blocking(&state, "job deletion", move |state| {
+            build_job_deletion(state).job_ids(&lookup)
+        })
+        .await?;
         jobs_facade(build_jobs_route_deps(&state))
             .cancel_before_delete(&job_ids)
             .await;
     }
-    Ok(ok_json(deletion.delete(&job_id, query.force)?))
+    // 删库里的行和整个任务目录，大任务要一会儿。
+    run_state_blocking(&state, "job deletion", move |state| {
+        Ok(ok_json(build_job_deletion(state).delete(&job_id, force)?))
+    })
+    .await
 }

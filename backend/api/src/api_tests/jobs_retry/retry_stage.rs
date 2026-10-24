@@ -9,7 +9,7 @@ use crate::models::{JobArtifacts, JobStatusKind};
 
 use super::common::{
     seed_ambiguous_ocr_dispatch, seed_ambiguous_translation_request_journal,
-    seed_ocr_checkpoint_files, seed_ocr_upload, seed_translation_result_files,
+    hold_job_drivers, seed_ocr_checkpoint_files, seed_ocr_upload, seed_translation_result_files,
     source_job_with_artifacts,
 };
 
@@ -769,7 +769,8 @@ async fn retry_stage_render_jobs_inherit_the_source_document() {
 
 #[tokio::test]
 async fn retry_stage_route_allows_in_place_render_when_requested() {
-    let state = test_state("retry-stage-render-in-place");
+    let mut state = test_state("retry-stage-render-in-place");
+    hold_job_drivers(&mut state);
     let mut source_job = source_job_with_artifacts(
         "job-retry-stage-render-in-place",
         JobArtifacts {

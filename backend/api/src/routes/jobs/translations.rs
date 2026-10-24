@@ -14,7 +14,7 @@ use crate::AppState;
 
 use crate::routes::common::{
     build_jobs_query_route_deps, build_jobs_route_deps, jobs_facade, ok_json, request_base_url,
-    ApiJson, ApiPath, ApiQuery, JobsRouteDeps,
+    run_state_blocking, ApiJson, ApiPath, ApiQuery, JobsRouteDeps,
 };
 
 pub async fn list_translation_items(
@@ -22,16 +22,22 @@ pub async fn list_translation_items(
     ApiPath(job_id): ApiPath<String>,
     ApiQuery(query): ApiQuery<ListTranslationItemsQuery>,
 ) -> Result<Json<ApiResponse<TranslationDebugListView>>, AppError> {
-    let deps = build_jobs_query_route_deps(&state);
-    Ok(ok_json(deps.jobs.translation_items_view(&job_id, &query)?))
+    run_state_blocking(&state, "translation items", move |state| {
+        let deps = build_jobs_query_route_deps(state);
+        Ok(ok_json(deps.jobs.translation_items_view(&job_id, &query)?))
+    })
+    .await
 }
 
 pub async fn get_translation_item(
     State(state): State<AppState>,
     ApiPath((job_id, item_id)): ApiPath<(String, String)>,
 ) -> Result<Json<ApiResponse<TranslationDebugItemView>>, AppError> {
-    let deps = build_jobs_query_route_deps(&state);
-    Ok(ok_json(deps.jobs.translation_item_view(&job_id, &item_id)?))
+    run_state_blocking(&state, "translation item", move |state| {
+        let deps = build_jobs_query_route_deps(state);
+        Ok(ok_json(deps.jobs.translation_item_view(&job_id, &item_id)?))
+    })
+    .await
 }
 
 pub async fn revise_translation_item_route(
@@ -54,10 +60,13 @@ pub async fn get_translation_item_revisions(
     State(state): State<AppState>,
     ApiPath((job_id, item_id)): ApiPath<(String, String)>,
 ) -> Result<Json<ApiResponse<TranslationRevisionHistoryView>>, AppError> {
-    let deps = build_jobs_query_route_deps(&state);
-    Ok(ok_json(
-        deps.jobs.translation_item_revisions_view(&job_id, &item_id)?,
-    ))
+    run_state_blocking(&state, "translation item revisions", move |state| {
+        let deps = build_jobs_query_route_deps(state);
+        Ok(ok_json(
+            deps.jobs.translation_item_revisions_view(&job_id, &item_id)?,
+        ))
+    })
+    .await
 }
 
 pub async fn replay_translation_item_route(

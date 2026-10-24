@@ -91,6 +91,17 @@ impl DevDefaultsGuard {
     }
 }
 
+/// 把当前线程的覆盖值带到执行 `work` 的那个线程：rust_api 的处理函数把建任务放进阻塞线程做
+/// （`run_state_blocking`），按线程隔离的覆盖值不带过去，那边就看不到。
+#[cfg(any(test, feature = "test-fixtures"))]
+pub fn carry_dev_defaults_override<T>(work: impl FnOnce() -> T) -> impl FnOnce() -> T {
+    let carried = TEST_OVERRIDE.with(|cell| cell.borrow().clone());
+    move || {
+        let _guard = carried.map(DevDefaultsGuard::set);
+        work()
+    }
+}
+
 #[cfg(any(test, feature = "test-fixtures"))]
 impl Drop for DevDefaultsGuard {
     fn drop(&mut self) {

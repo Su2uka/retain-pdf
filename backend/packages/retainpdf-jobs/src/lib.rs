@@ -113,7 +113,7 @@ pub use actions::translation_request_recovery::{
 #[cfg(any(test, feature = "test-fixtures"))]
 pub use lifecycle::validation::validate_translation_credentials;
 #[cfg(any(test, feature = "test-fixtures"))]
-pub use lifecycle::{DevDefaultsGuard, DevTranslationDefaults};
+pub use lifecycle::{carry_dev_defaults_override, DevDefaultsGuard, DevTranslationDefaults};
 #[cfg(any(test, feature = "test-fixtures"))]
 pub use reports::usage::job_usage_ledger_path;
 // 只给测试用的：rust_api 里要搭整个应用的建任务、查询测试，和书库对任务视图的测试。

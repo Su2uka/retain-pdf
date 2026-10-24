@@ -85,7 +85,8 @@ async fn retry(state: &crate::AppState, job_id: &str, body: Value) -> axum::resp
 
 #[tokio::test]
 async fn refine_retry_defaults_to_whole_book_review_and_fix_in_place() {
-    let state = test_state("retry-refine-defaults");
+    let mut state = test_state("retry-refine-defaults");
+    super::common::hold_job_drivers(&mut state);
     let id = "job-retry-refine-defaults";
     let source = seed_translated_job(&state, id);
 
