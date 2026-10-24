@@ -165,7 +165,8 @@ pub(crate) fn build_jobs_facade_with_launcher(
         },
     ))
     .with_page_quota(state.config.accounts.mode.is_multi())
-    .with_min_free_disk(state.config.min_free_disk_bytes);
+    .with_min_free_disk(state.config.min_free_disk_bytes)
+    .with_max_queued_jobs(state.config.job_runner.max_queued_jobs);
     let snapshot = SnapshotBuildDeps::new(state.db.as_ref(), state.config.job_snapshot_runtime());
     let submit = JobSubmitDeps::new(snapshot, launcher);
     let control = ControlDeps::new(

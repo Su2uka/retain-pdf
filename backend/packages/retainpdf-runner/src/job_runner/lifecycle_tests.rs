@@ -1141,3 +1141,40 @@ async fn a_job_canceled_by_its_own_runner_checkpoint_hands_the_card_back() {
         "runner 自己落定的取消没有把书卡退回上一个成功任务"
     );
 }
+
+/// 名额按排队先后给：以前每个排队的 driver 每 250ms `try_acquire` 一次，名额空出来时谁那一轮先醒谁拿到，
+/// 先排的不一定先跑；现在挂在信号量的等待队列上，先来先跑。
+///
+/// 反证方式：把 `wait_for_execution_slot` 退回每轮 `try_acquire_owned` 加 sleep，这条应当变红（五个任务的
+/// 开跑顺序按各自轮询的相位打乱）。
+#[tokio::test]
+async fn queued_jobs_start_in_the_order_they_were_queued() {
+    let fx = Fixture::new(1);
+    let hold = fx.deps.job_slots.clone().acquire_owned().await.unwrap();
+    let started = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let mut handles = Vec::new();
+    let ids: Vec<String> = (0..5).map(|index| format!("job-fifo-{index}")).collect();
+    for id in &ids {
+        fx.job(id, JobStatusKind::Queued);
+        let started = started.clone();
+        let handle = spawn_job_with_workflow(fx.deps.clone(), id.clone(), move |deps, job| async move {
+            started.lock().unwrap().push(job.job_id.clone());
+            // 占一会儿名额，让后面的都还在排队。
+            tokio::time::sleep(std::time::Duration::from_millis(30)).await;
+            succeeded(deps, job).await
+        })
+        .expect("driver");
+        handles.push(handle);
+        // 错开登记时间，排队先后就是 ids 的顺序。
+        tokio::time::sleep(std::time::Duration::from_millis(70)).await;
+    }
+
+    drop(hold);
+    for handle in handles {
+        tokio::time::timeout(std::time::Duration::from_secs(20), handle)
+            .await
+            .expect("every queued job runs")
+            .unwrap();
+    }
+    assert_eq!(*started.lock().unwrap(), ids);
+}

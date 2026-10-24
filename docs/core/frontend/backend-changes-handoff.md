@@ -1068,3 +1068,14 @@ API / jobsd 重启时，翻译阶段运行中的任务以前一律自动续跑�
   `/ready` 不因为磁盘变成 503。
 - 前端可以做（可选）：按 `reason === "insufficient_storage"` 提示「磁盘空间不够，删掉一些任务再试」，不要解析 `message`；
   需要的话设置页或首页按 `/health` 的 `disk.low` 给个提醒。现在这类 503 会走通用的报错显示。
+
+## 排队的任务按先后开跑，排满了 429（fix/job-queue-fifo）
+
+2026-10-24。决定见 [排队先来先跑和排队上限](../../ops/planning/backend-review/20261024-排队先来先跑和排队上限.md)。只增不改。
+
+- 排队的任务现在按交上来的先后开跑（以前名额空出来时谁先轮询到谁跑）。接口不变。
+- 排队（还没开跑）的任务已经有 `RUST_API_MAX_QUEUED_JOBS` 个（默认 1000）时，所有建任务的入口（`POST /jobs`、书的翻译和 OCR、
+  重试、续跑）、原地重跑返回 `429`，`error.code = "TOO_MANY_REQUESTS"`，`error.details.reason = "queue_full"`，
+  `message` 是英文的「N jobs are already waiting to run (limit M); try again after some of them start」。被拒时什么都没写。
+- 前端可以做（可选）：按 `reason === "queue_full"` 提示「排队的任务太多了，等前面的开跑再交」，不要解析 `message`；
+  批量提交时遇到它可以停下剩下的。现在这类 429 会走通用的报错显示。正常用（几十、几百本）碰不到。

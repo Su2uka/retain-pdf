@@ -86,7 +86,8 @@ Docker 中 `ops/deployment/docker/delivery/docker/auth.local.json` 的 `api_keys
 - `RUST_API_UPLOAD_MAX_PAGES`：普通上传页数限制，`0` 表示不限制。
 - `RUST_API_SHUTDOWN_GRACE_SECS`：收到停机信号（Ctrl-C、SIGTERM）以后最多等还没结束的请求多少秒（默认 `3`，`0` 不等），进度流这类长连接到点断开。桌面壳、`docker stop` 只给 10 秒，进程内模式最坏约 7.5 秒（见 `config/server.rs`），改大要算这笔账。
 - `RUST_API_MIN_FREE_DISK_MB`：数据目录所在磁盘至少留多少 MiB 才接新上传、新任务（默认 `1024`，`0` 不查）；不够时 503 `insufficient_storage`。
-- `RUST_API_MAX_RUNNING_JOBS`：最大并发任务数。
+- `RUST_API_MAX_RUNNING_JOBS`：最大并发任务数。排队的任务按交上来的先后开跑（2026-10-24 起）。
+- `RUST_API_MAX_QUEUED_JOBS`：排队（还没开跑）的任务最多多少个（默认 `1000`，`0` 不限）；满了建任务、原地重跑 429 `queue_full`。
 
 ## Docker 配置位置
 

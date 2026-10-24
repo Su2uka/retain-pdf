@@ -59,6 +59,7 @@ mod ocr_dispatch_ownership;
 mod ocr_lifecycle;
 mod providers;
 mod provider_probes;
+mod queue_limit;
 mod public_document_operations;
 mod quality;
 mod route_manifest;

@@ -274,6 +274,15 @@ impl AppError {
         Self::TooManyRequests(msg.into())
     }
 
+    /// 429,`error.details.reason` 写稳定原因(太多了,过一会再来,如排队满了 `queue_full`)。
+    pub fn too_many_requests_because(reason: &'static str, msg: impl Into<String>) -> Self {
+        Self::Reasoned {
+            status: StatusCode::TOO_MANY_REQUESTS,
+            message: msg.into(),
+            reason,
+        }
+    }
+
     pub fn bad_gateway(msg: impl Into<String>) -> Self {
         Self::BadGateway(msg.into())
     }
@@ -533,11 +542,13 @@ impl IntoResponse for AppError {
                 .into_response();
         }
         if let AppError::Reasoned { status, message, reason } = &self {
-            // 只有 404 / 409 / 503 有构造方法,信封与对应的普通错误一致。
+            // 只有 404 / 409 / 429 / 503 有构造方法,信封与对应的普通错误一致。
             let (code, stable_code) = if *status == StatusCode::NOT_FOUND {
                 (40400, "NOT_FOUND")
             } else if *status == StatusCode::SERVICE_UNAVAILABLE {
                 (50300, "SERVICE_UNAVAILABLE")
+            } else if *status == StatusCode::TOO_MANY_REQUESTS {
+                (42900, "TOO_MANY_REQUESTS")
             } else {
                 (40900, "CONFLICT")
             };
@@ -864,6 +875,11 @@ mod tests {
                 AppError::service_unavailable_because("insufficient_storage", "not enough free disk space"),
                 AppError::service_unavailable("not enough free disk space"),
                 StatusCode::SERVICE_UNAVAILABLE,
+            ),
+            (
+                AppError::too_many_requests_because("queue_full", "too many queued jobs"),
+                AppError::too_many_requests("too many queued jobs"),
+                StatusCode::TOO_MANY_REQUESTS,
             ),
         ] {
             let reason = match &error {
