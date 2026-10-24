@@ -53,6 +53,7 @@ mod model_requests;
 mod not_ready;
 mod origin_checks;
 mod route_access;
+mod shutdown;
 mod ocr_dispatch_ownership;
 mod ocr_lifecycle;
 mod providers;

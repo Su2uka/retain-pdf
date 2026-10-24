@@ -39,6 +39,7 @@ fn test_config() -> Arc<AppConfig> {
         bind_host: "127.0.0.1".to_string(),
         port: 41000,
         simple_port: 41001,
+        shutdown_grace_secs: 1,
         upload_max_bytes: 0,
         upload_max_pages: 0,
         min_free_disk_bytes: 0,
