@@ -6,8 +6,13 @@ mod test_fixtures;
 mod uploads;
 
 // 门面：领域外只能用这里导出的东西，子模块都是私有的（见 BOUNDARIES.md「Domain Facades」）。
-pub use uploads::{UploadError, UploadedPdfInput, UploadService, UploadServiceConfig};
-pub use uploads::api::{ensure_upload_disk_space, store_upload, store_upload_view, UploadApiDeps};
+pub use uploads::{
+    IncomingFile, IncomingUpload, UploadError, UploadedPdfInput, UploadService, UploadServiceConfig,
+};
+pub use uploads::api::{
+    begin_upload, ensure_upload_disk_space, store_incoming_upload_view, store_upload,
+    store_upload_view, UploadApiDeps,
+};
 pub use uploads::view::{upload_to_response, UploadView};
 // 只给测试用的：rust_api 的测试经 `test-fixtures` 特性用它，生产构建里没有。
 #[cfg(any(test, feature = "test-fixtures"))]

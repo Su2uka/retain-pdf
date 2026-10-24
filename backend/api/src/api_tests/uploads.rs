@@ -111,7 +111,7 @@ async fn upload_route_uses_the_injected_processing_budget() {
         "PDF exceeds processing buffer budget",
         "{uri}"
     );
-    assert_eq!(std::fs::read_dir(&uploads_dir).unwrap().count(), 0);
+    assert_eq!(upload_leftovers(&uploads_dir), Vec::<std::path::PathBuf>::new());
     assert_eq!(std::fs::read_dir(&output_root).unwrap().count(), 0);
     assert!(db.list_jobs(10, 0, None, None).unwrap().is_empty());
 }
@@ -124,6 +124,7 @@ use tower::util::ServiceExt;
 async fn upload_route_preserves_success_view_and_document_deduplication() {
     let state = test_state("upload-route-success");
     let db = state.db.clone();
+    let uploads_dir = state.config.uploads_dir.clone();
     let app = build_app(state);
     let pdf = crate::test_support::pdf::build_test_pdf_bytes();
     let mut ids = Vec::new();
@@ -180,6 +181,11 @@ async fn upload_route_preserves_success_view_and_document_deduplication() {
     );
     assert!(std::path::Path::new(&first.stored_path).exists());
     assert!(std::path::Path::new(&second.stored_path).exists());
+    // 边收边写、边算指纹：落盘的就是收到的字节，指纹和整份算的一样，收上传用的临时文件一个不剩。
+    assert_eq!(std::fs::read(&first.stored_path).unwrap(), pdf);
+    assert_eq!(first.content_hash, crate::db::documents::sha256_hex(&pdf));
+    let incoming = uploads_dir.join(".incoming");
+    assert_eq!(std::fs::read_dir(&incoming).map(|entries| entries.count()).unwrap(), 0);
 }
 
 #[tokio::test]
@@ -213,7 +219,25 @@ async fn upload_route_repair_unavailable_preserves_safe_error_and_cleanup() {
     assert_eq!(payload["error"]["http_status"], 503);
     assert_eq!(payload["error"]["details"], serde_json::json!({}));
     assert!(!payload.to_string().contains("synthetic-private"));
-    assert_eq!(std::fs::read_dir(uploads_dir).unwrap().count(), 0);
+    assert_eq!(upload_leftovers(&uploads_dir), Vec::<std::path::PathBuf>::new());
+}
+
+/// 上传目录里留下的东西：上传目录本身的条目，和收上传用的 `.incoming/` 里的临时文件（目录在，里面得是空的）。
+fn upload_leftovers(uploads_dir: &std::path::Path) -> Vec<std::path::PathBuf> {
+    let mut leftovers = Vec::new();
+    for entry in std::fs::read_dir(uploads_dir).expect("read uploads directory") {
+        let path = entry.expect("uploads entry").path();
+        if path.file_name().is_some_and(|name| name == ".incoming") {
+            leftovers.extend(
+                std::fs::read_dir(&path)
+                    .expect("read incoming directory")
+                    .map(|entry| entry.expect("incoming entry").path()),
+            );
+        } else {
+            leftovers.push(path);
+        }
+    }
+    leftovers
 }
 
 const UPLOAD_BOUNDARY: &str = "retainpdf-upload-route-test";
@@ -259,11 +283,8 @@ async fn upload_route_enforces_configured_stream_limit_without_content_length() 
     assert_eq!(payload["code"], 41300);
     assert_eq!(payload["message"], "request body is too large");
     assert_eq!(payload["error"]["code"], "PAYLOAD_TOO_LARGE");
-    let entries = std::fs::read_dir(uploads_dir)
-        .expect("read uploads directory")
-        .collect::<Result<Vec<_>, _>>()
-        .expect("collect uploads directory");
-    assert!(entries.is_empty(), "oversize route upload created files");
+    let entries = upload_leftovers(&uploads_dir);
+    assert!(entries.is_empty(), "oversize route upload created files: {entries:?}");
 }
 
 #[tokio::test]

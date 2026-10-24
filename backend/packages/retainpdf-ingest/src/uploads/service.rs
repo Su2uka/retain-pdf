@@ -2,8 +2,9 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use super::capacity::{busy, UploadCapacity};
+use super::incoming::{remove_stale_incoming, IncomingFile, IncomingUpload};
 use super::pdf::{load_pdf_page_count, repair_pdf_with_pymupdf};
-use super::staging::{prepare_upload, publish_upload, sanitize_upload_filename};
+use super::staging::{prepare_upload, publish_upload, sanitize_upload_filename, UploadContent};
 use super::UploadError;
 use retainpdf_data::db::Db;
 use retainpdf_core::models::domain::UploadRecord;
@@ -40,6 +41,7 @@ pub struct UploadService {
 
 impl UploadService {
     pub fn new(db: Arc<Db>, config: UploadServiceConfig) -> Self {
+        remove_stale_incoming(&config.uploads_dir);
         let capacity = Arc::new(UploadCapacity::new(config.processing.clone()));
         Self {
             inner: Arc::new(UploadServiceInner {
@@ -77,32 +79,81 @@ impl UploadService {
         self.store_for(upload, retainpdf_accounts::Principal::local()).await
     }
 
+    /// 开始收一个上传：先查文件名和磁盘，再开临时文件（见 `incoming.rs`）。不是 PDF 的名字不用等收完再拒。
+    /// 收的时候最多收 `max_bytes`（处理函数那边的上限）和服务自己的上限里小的那个。
+    pub async fn begin_incoming(
+        &self,
+        filename: &str,
+        max_bytes: u64,
+    ) -> Result<IncomingUpload, UploadError> {
+        validate_upload_filename(filename)?;
+        self.ensure_free_space(0)?;
+        let service = self.clone();
+        IncomingUpload::create(
+            &self.inner.config.uploads_dir,
+            max_bytes.min(effective_upload_max_bytes(self.inner.config.upload_max_bytes).get()),
+            Box::new(move || service.ensure_free_space(0)),
+        )
+        .await
+    }
+
+    /// 收完的上传落库，记在 `owner` 名下。临时文件换名进 `uploads/<编号>/`，不再读进内存。
+    pub async fn store_incoming_for(
+        &self,
+        filename: String,
+        file: IncomingFile,
+        developer_mode: bool,
+        owner: retainpdf_accounts::Principal,
+    ) -> Result<UploadRecord, UploadError> {
+        self.store_content_for(filename, developer_mode, UploadContent::Incoming(file), owner)
+            .await
+    }
+
     /// 记在 `owner` 名下。多用户模式下书的编号（上传指纹）按账号区分，见 `Principal::scoped_content_hash`。
     pub async fn store_for(
         &self,
         upload: UploadedPdfInput,
         owner: retainpdf_accounts::Principal,
     ) -> Result<UploadRecord, UploadError> {
+        self.store_content_for(
+            upload.filename,
+            upload.developer_mode,
+            UploadContent::Bytes(upload.bytes),
+            owner,
+        )
+        .await
+    }
+
+    async fn store_content_for(
+        &self,
+        filename: String,
+        developer_mode: bool,
+        content: UploadContent,
+        owner: retainpdf_accounts::Principal,
+    ) -> Result<UploadRecord, UploadError> {
         let uploads_dir = &self.inner.config.uploads_dir;
         let python_bin = &self.inner.config.python_bin;
         let upload_max_bytes = self.inner.config.upload_max_bytes;
         let upload_max_pages = self.inner.config.upload_max_pages;
-        if !upload.filename.to_lowercase().ends_with(".pdf") {
-            return Err(UploadError::bad_request("uploaded file must be a PDF"));
-        }
-        let byte_count = upload.bytes.len() as u64;
+        let safe_filename = validate_upload_filename(&filename)?;
+        let byte_count = content.byte_count();
         if byte_count > effective_upload_max_bytes(upload_max_bytes).get() {
             return Err(UploadError::payload_too_large("request body is too large"));
         }
-        let safe_filename = sanitize_upload_filename(&upload.filename)?;
-        // 原文要落两份（原样一份、修复或规范化后一份），按两倍文件大小加上下限算。
-        self.ensure_free_space(byte_count.saturating_mul(2))?;
+        // 原文要落两份（原样一份、修复或规范化后一份），按两倍文件大小加上下限算；
+        // 边收边写的那一份已经在盘上了，只算还要写的那一份。
+        let incoming = match content {
+            UploadContent::Bytes(_) => byte_count.saturating_mul(2),
+            UploadContent::Incoming(_) => byte_count,
+        };
+        self.ensure_free_space(incoming)?;
         let capacity = self.inner.capacity.clone();
         let admitted = capacity
             .admitted
             .clone()
             .try_acquire_owned()
             .map_err(|_| busy())?;
+        // lopdf 解析时把整份 PDF 读进内存，这一份照旧按文件大小占内存预算。
         let buffer = capacity.reserve_buffer(byte_count)?;
         let permit = capacity.acquire(&capacity.parse).await?;
         let db = self.inner.db.clone();
@@ -115,7 +166,7 @@ impl UploadService {
             let prepared = tokio::task::spawn_blocking(move || {
                 let _permit = permit;
                 let _buffer = buffer;
-                prepare_upload(&uploads_dir, upload, safe_filename, byte_count)
+                prepare_upload(&uploads_dir, filename, developer_mode, content, safe_filename)
             })
             .await
             .map_err(|_| UploadError::internal("PDF upload worker failed"))??;
@@ -150,4 +201,11 @@ impl UploadService {
         .await
         .map_err(|_| UploadError::internal("PDF upload worker failed"))?
     }
+}
+
+fn validate_upload_filename(filename: &str) -> Result<PathBuf, UploadError> {
+    if !filename.to_lowercase().ends_with(".pdf") {
+        return Err(UploadError::bad_request("uploaded file must be a PDF"));
+    }
+    sanitize_upload_filename(filename)
 }

@@ -4,7 +4,9 @@
 
 ## 主要路径
 
-- `DATA_ROOT/uploads/`：上传文件。
+- `DATA_ROOT/uploads/`：上传文件，每个上传一个 `uploads/<upload_id>/` 目录。
+  `uploads/.incoming/` 放正在收的上传（2026-10-24 起请求体边收边写到这里的 `<随机>.part`，收完校验过了换名进
+  `uploads/<upload_id>/`）；请求断开、超限、校验没过的当场删，进程被杀留下的下次起服务时删掉一小时以前的。
 - `DATA_ROOT/jobs/{job_id}/`：任务工作目录。
 - `DATA_ROOT/downloads/`：下载缓存。
 - `DATA_ROOT/db/jobs.db`：SQLite 数据库。
