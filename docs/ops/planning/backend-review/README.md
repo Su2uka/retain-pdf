@@ -25,3 +25,4 @@
 | 2026-10-24 | [建任务的数字参数加上限](./20261024-建任务的数字参数加上限.md) | L1：`translation.workers` ≤ 256、批大小 ≤ 1000、`render.compile_workers` ≤ 64、`pdf_compress_dpi` ≤ 1200、两个超时 ≤ 一周，超了 400；下限和契约不变 |
 | 2026-10-24 | [删掉没用上的依赖](./20261024-删掉没用上的依赖.md) | L2 的一部分：rust_api 的 8 个（审查列的）、命令行和 jobsd 的 `serde`、runner 的 `libc`，代码里一处都没用到；重复版本、`workspace.dependencies`、发布构建配置没动（理由在文档里） |
 | 2026-10-24 | [几处小的代码清理](./20261024-几处小的代码清理.md) | L5 能单独做的：读 Markdown、整理 Paddle Markdown 的正则改成编一次；WebDAV 同步的缓存锁中毒后照常用，不再每轮 panic；`cas_save_job` 复用 `save_job` 的准备和 upsert；链式再导出、包的划分没动 |
+| 2026-10-24 | [派生产物的生成进程用进程包来杀](./20261024-派生产物的生成进程用进程包来杀.md) | L8 的一部分：文件包超时杀生成进程改用 `retainpdf-proc` 的新函数 `kill_std_child_process_tree`，Windows 上也连孙进程一起杀（`taskkill /T /F`）；Windows Job Object 没做 |
