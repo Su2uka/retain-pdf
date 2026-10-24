@@ -194,21 +194,29 @@ fn write_backup(conn: &Connection, dir: &Path, kind: &str) -> Result<BackupInfo>
     Ok(BackupInfo { id, kind: kind.to_string(), created_at, schema_version: version, bytes })
 }
 
-/// 数据库结构要升级时先存一份(`ensure_schema` 调用)。失败只记日志:备份不成不该让程序
-/// 起不来。
-pub(super) fn backup_before_upgrade(conn: &Connection, data_root: &Path) {
+/// 数据库结构要升级时先存一份(`ensure_schema` 调用)。默认失败只记日志:备份不成不该让程序
+/// 起不来;设了 `RUST_API_DB_REQUIRE_UPGRADE_BACKUP`(`require` 为真)时返回错误,不升级。
+pub(super) fn backup_before_upgrade(conn: &Connection, data_root: &Path, require: bool) -> Result<()> {
     let current = match user_version(conn) {
         Ok(version) => version,
-        Err(_) => return,
+        Err(_) => return Ok(()),
     };
     // 0 是新建的空库(或远古的库),没什么可存。
     if current == 0 || current >= versioned_migration_count() {
-        return;
+        return Ok(());
     }
     let dir = backups_dir_for(data_root);
-    if let Err(error) = write_backup(conn, &dir, KIND_BEFORE_UPGRADE) {
-        // 升级照常往下走（备份目录写不进去不该让程序起不来），但要让人看得到：之后迁移出错就没有回退点。
-        tracing::error!("backup before database upgrade failed (upgrading without a fallback copy): {error:#}");
+    match write_backup(conn, &dir, KIND_BEFORE_UPGRADE) {
+        Ok(_) => Ok(()),
+        Err(error) if require => Err(error.context(format!(
+            "backup before database upgrade (v{current} -> v{}) failed; not upgrading because RUST_API_DB_REQUIRE_UPGRADE_BACKUP is set",
+            versioned_migration_count()
+        ))),
+        Err(error) => {
+            // 升级照常往下走（备份目录写不进去不该让程序起不来），但要让人看得到：之后迁移出错就没有回退点。
+            tracing::error!("backup before database upgrade failed (upgrading without a fallback copy): {error:#}");
+            Ok(())
+        }
     }
 }
 
@@ -512,6 +520,26 @@ mod tests {
             .unwrap();
     }
 
+    /// 升级前的备份存不成（备份目录的位置被一个文件占着）：默认照常升级，要求备份时报错、不升级。
+    #[test]
+    fn a_failed_upgrade_backup_stops_the_upgrade_only_when_required() {
+        let (root, db) = temp_db();
+        let conn = db.connect().unwrap();
+        conn.pragma_update(None, "user_version", versioned_migration_count() - 1).unwrap();
+        fs::write(root.join("backups"), b"not a directory").unwrap();
+
+        backup_before_upgrade(&conn, &root, false).expect("default: upgrade without a backup");
+        let error = backup_before_upgrade(&conn, &root, true).expect_err("required: refuse");
+        let message = format!("{error:#}");
+        assert!(message.contains("RUST_API_DB_REQUIRE_UPGRADE_BACKUP"), "{message}");
+
+        // 备份存得成时两种都放行，要求备份时也真的存了一份。
+        fs::remove_file(root.join("backups")).unwrap();
+        backup_before_upgrade(&conn, &root, true).expect("backup written");
+        assert_eq!(db.list_backups().unwrap().len(), 1);
+        fs::remove_dir_all(root).unwrap();
+    }
+
     #[test]
     fn a_backup_restores_into_the_live_database_and_other_connections_see_it() {
         let (root, db) = temp_db();
@@ -568,7 +596,7 @@ mod tests {
         assert!(db.list_backups().unwrap().is_empty(), "fresh database: nothing to keep");
         let conn = db.connect().unwrap();
         conn.pragma_update(None, "user_version", versioned_migration_count() - 1).unwrap();
-        backup_before_upgrade(&conn, &root);
+        backup_before_upgrade(&conn, &root, false).unwrap();
         let list = db.list_backups().unwrap();
         assert_eq!(list.len(), 1);
         assert_eq!((list[0].kind.as_str(), list[0].schema_version), (KIND_BEFORE_UPGRADE, versioned_migration_count() - 1));

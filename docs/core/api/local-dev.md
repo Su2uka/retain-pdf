@@ -92,6 +92,7 @@ Docker 中 `ops/deployment/docker/delivery/docker/auth.local.json` 的 `api_keys
   - `RUST_API_ORPHAN_UPLOAD_RETENTION_HOURS`：没被任务、书用上的上传保留几小时（默认 `48`）。
   - `RUST_API_DERIVED_CACHE_RETENTION_DAYS`：已结束任务和书的派生缓存（Word、对照 PDF、线性化 PDF、页预览）生成后保留几天
     （默认 `0` 不清）。删了下次下载、翻页时重新生成，整本书的 Word 要几分钟；译文 PDF、原文、管线产物、封面和缩略图不删。
+- `RUST_API_DB_REQUIRE_UPGRADE_BACKUP`：数据库结构升级前的备份存不成时不升级、不启动（默认关：记 `error` 照常升级）。
 
 ## Docker 配置位置
 

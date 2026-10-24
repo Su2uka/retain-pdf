@@ -1,7 +1,7 @@
-//! 数据库结构：编号迁移的执行器，以及任务系统老表的幂等加列（ensure_*_column）。
+//! 数据库结构：编号迁移的执行器，以及任务系统老表后来加的列（`LEGACY_COLUMNS`）。
 //!
-//! 迁移本身在 `migrations/` 下，一个迁移一个 `.sql` 文件，见那里的说明。现有 ensure_schema 的
-//! 幂等 DDL 与 ensure_*_column 增量加列继续负责任务系统的表；平台新表从编号迁移走。
+//! 迁移本身在 `migrations/` 下，一个迁移一个 `.sql` 文件，见那里的说明。`apply_schema` 的
+//! 幂等建表和 `ensure_legacy_columns` 补列继续负责任务系统的老表；新表、新列都从编号迁移走。
 
 use anyhow::{Context, Result};
 use rusqlite::{Connection, Transaction, TransactionBehavior};
@@ -38,56 +38,71 @@ pub(super) fn run_versioned_migrations(conn: &Connection) -> Result<()> {
     Ok(())
 }
 
-pub(super) fn ensure_uploads_column(
-    conn: &Connection,
-    column: &str,
-    column_def: &str,
-) -> Result<()> {
-    ensure_table_column(conn, "uploads", column, column_def)
+/// 编号迁移以前就有的老表后来加的列：(表, 列, 定义)。只许往后加。
+///
+/// 不能收进编号迁移：早的几个迁移（v01 起）就要用到其中的列（`jobs.document_id` 等），而编号迁移是从库现在的版本往后跑的，
+/// 一个更早的库得先有这些列、才跑得了 v01。所以它们在迁移阶梯之前补，每次起来都看一眼（几条 `PRAGMA table_info`）。
+const LEGACY_COLUMNS: &[(&str, &str, &str)] = &[
+    ("jobs", "document_id", "TEXT"),
+    // 运行代次：每次建/重新发射一次运行加一，CAS 写按它认"是不是同一次运行"。
+    ("jobs", "run_generation", "INTEGER NOT NULL DEFAULT 0"),
+    // worker 进程身份（`<pid>@<启动时间指纹>`）：杀进程前核对 pid 没被别的进程复用。
+    // 只由 `record_worker_identity` 写；任务行的 upsert 不碰它。
+    ("jobs", "worker_identity", "TEXT"),
+    ("jobs", "runtime_json", "TEXT"),
+    ("jobs", "failure_json", "TEXT"),
+    ("events", "stage_detail", "TEXT"),
+    ("events", "provider", "TEXT"),
+    ("events", "provider_stage", "TEXT"),
+    ("events", "event_type", "TEXT"),
+    ("events", "progress_current", "INTEGER"),
+    ("events", "progress_total", "INTEGER"),
+    ("events", "retry_count", "INTEGER"),
+    ("events", "elapsed_ms", "INTEGER"),
+    ("glossaries", "description", "TEXT NOT NULL DEFAULT ''"),
+    ("glossaries", "source_lang", "TEXT NOT NULL DEFAULT ''"),
+    ("glossaries", "target_lang", "TEXT NOT NULL DEFAULT ''"),
+    ("glossaries", "enabled", "INTEGER NOT NULL DEFAULT 1"),
+    ("uploads", "content_hash", "TEXT NOT NULL DEFAULT ''"),
+];
+
+/// 补上 `LEGACY_COLUMNS` 里缺的列。
+///
+/// 先不加锁看一遍，都在就直接回去（平常每次起来都是这样）。缺了才拿写锁、在锁里再看一遍再加：rust_api 和 jobsd
+/// 会同时起来，以前两边都看到缺列、都去 `ALTER`，后到的那个报 "duplicate column" 起不来。和编号迁移一样用
+/// IMMEDIATE 事务，加列要么全加上要么一个不加。
+pub(super) fn ensure_legacy_columns(conn: &Connection) -> Result<()> {
+    if missing_legacy_columns(conn)?.is_empty() {
+        return Ok(());
+    }
+    let tx = Transaction::new_unchecked(conn, TransactionBehavior::Immediate)?;
+    for (table, column, column_def) in missing_legacy_columns(&tx)? {
+        tx.execute(&format!("ALTER TABLE {table} ADD COLUMN {column} {column_def}"), [])
+            .with_context(|| format!("failed to add column {table}.{column}"))?;
+    }
+    tx.commit()?;
+    Ok(())
 }
 
-pub(super) fn ensure_jobs_column(conn: &Connection, column: &str, column_def: &str) -> Result<()> {
-    ensure_table_column(conn, "jobs", column, column_def)
-}
-
-pub(super) fn ensure_events_column(
-    conn: &Connection,
-    column: &str,
-    column_def: &str,
-) -> Result<()> {
-    ensure_table_column(conn, "events", column, column_def)
-}
-
-pub(super) fn ensure_glossaries_column(
-    conn: &Connection,
-    column: &str,
-    column_def: &str,
-) -> Result<()> {
-    ensure_table_column(conn, "glossaries", column, column_def)
-}
-
-fn ensure_table_column(
-    conn: &Connection,
-    table: &str,
-    column: &str,
-    column_def: &str,
-) -> Result<()> {
-    let mut stmt = conn.prepare(&format!("PRAGMA table_info({table})"))?;
-    let rows = stmt.query_map([], |row| row.get::<_, String>(1))?;
-    let mut has_column = false;
-    for row in rows {
-        if row? == column {
-            has_column = true;
-            break;
+fn missing_legacy_columns(conn: &Connection) -> Result<Vec<(&'static str, &'static str, &'static str)>> {
+    let mut missing = Vec::new();
+    let mut table_columns: Vec<(&str, Vec<String>)> = Vec::new();
+    for &(table, column, column_def) in LEGACY_COLUMNS {
+        if !table_columns.iter().any(|(name, _)| *name == table) {
+            table_columns.push((table, table_column_names(conn, table)?));
+        }
+        let (_, columns) = table_columns.iter().find(|(name, _)| *name == table).expect("just added");
+        if !columns.iter().any(|existing| existing == column) {
+            missing.push((table, column, column_def));
         }
     }
-    if !has_column {
-        conn.execute(
-            &format!("ALTER TABLE {table} ADD COLUMN {column} {column_def}"),
-            [],
-        )?;
-    }
-    Ok(())
+    Ok(missing)
+}
+
+fn table_column_names(conn: &Connection, table: &str) -> Result<Vec<String>> {
+    let mut stmt = conn.prepare(&format!("PRAGMA table_info({table})"))?;
+    let rows = stmt.query_map([], |row| row.get::<_, String>(1))?;
+    Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
 }
 
 pub(super) fn ensure_no_legacy_artifacts_json(conn: &Connection) -> Result<()> {
