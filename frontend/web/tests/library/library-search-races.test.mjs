@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { JSDOM } from "jsdom";
+import { flushSync } from "react-dom";
 import { deferred, wait } from "../helpers/async.mjs";
 
 // 库检索面板的竞态：查询变了以后旧请求回来不能写回结果；书目在一次检索里只取一次；
@@ -42,7 +43,9 @@ function mount(ports) {
     host,
     setQuery: async (q) => {
       await until(() => typeof deliver === "function", "岛屿已订阅查询");
-      deliver(q);
+      // 真实输入是 input 事件里同步触发的：React 按同步优先级渲染，查询变了的 effect 清理（作废旧请求）
+      // 在事件里就跑完。这里用 flushSync 照样做，不靠等几毫秒——机器忙的时候 10ms 不够，旧请求先写回结果。
+      flushSync(() => deliver(q));
     },
     cleanup() {
       app.unmount();
@@ -67,7 +70,6 @@ test("查询变了以后，还在路上的旧请求回来不写回结果", async
   await until(() => pending["旧词"], "旧词的检索已发出");
   // 旧词的请求还在路上，用户接着改了查询
   await harness.setQuery("新词");
-  await wait(10); // 让「新词」先渲染（真实输入是事件里同步触发的）
   // 新词还在防抖期间，旧请求回来了
   pending["旧词"].resolve({ hits: [hit("旧词")] });
   await wait(30);
