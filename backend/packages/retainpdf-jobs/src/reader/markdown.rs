@@ -16,6 +16,17 @@ const MARKDOWN_IMAGE_LINK_RE: &str =
 const HTML_IMAGE_SRC_DQ_RE: &str = r#"(?i)(<img\b[^>]*?\bsrc\s*=\s*")((?:\./)?images/[^"]+)(")"#;
 const HTML_IMAGE_SRC_SQ_RE: &str = r#"(?i)(<img\b[^>]*?\bsrc\s*=\s*')((?:\./)?images/[^']+)(')"#;
 
+// 每次读 Markdown 都要用，编一次留着（以前每次调用都 `Regex::new`）。
+static MARKDOWN_IMAGE_LINK: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
+    regex::Regex::new(MARKDOWN_IMAGE_LINK_RE).expect("valid markdown image regex")
+});
+static HTML_IMAGE_SRC_DQ: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
+    regex::Regex::new(HTML_IMAGE_SRC_DQ_RE).expect("valid html img dq regex")
+});
+static HTML_IMAGE_SRC_SQ: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
+    regex::Regex::new(HTML_IMAGE_SRC_SQ_RE).expect("valid html img sq regex")
+});
+
 impl<'a> JobDownloads<'a> {
 
     pub async fn markdown_document_view(
@@ -105,9 +116,9 @@ pub(super) fn rewrite_markdown_image_links_to_absolute_urls(
     job_id: &str,
     base_url: &str,
 ) -> String {
-    let md_re = regex::Regex::new(MARKDOWN_IMAGE_LINK_RE).expect("valid markdown image regex");
-    let html_dq = regex::Regex::new(HTML_IMAGE_SRC_DQ_RE).expect("valid html img dq regex");
-    let html_sq = regex::Regex::new(HTML_IMAGE_SRC_SQ_RE).expect("valid html img sq regex");
+    let md_re = &*MARKDOWN_IMAGE_LINK;
+    let html_dq = &*HTML_IMAGE_SRC_DQ;
+    let html_sq = &*HTML_IMAGE_SRC_SQ;
 
     let rewritten_md = md_re.replace_all(content, |captures: &regex::Captures<'_>| {
         let alt = &captures[1];

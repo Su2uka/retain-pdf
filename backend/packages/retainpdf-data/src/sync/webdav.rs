@@ -193,7 +193,7 @@ impl WebDavBackend {
             dirs.push(format!("{}/", parts[..i].join("/")));
         }
         for dir in dirs {
-            if self.made.lock().expect("webdav dirs poisoned").contains(&dir) {
+            if relock(&self.made).contains(&dir) {
                 continue;
             }
             let url = self.url(&dir)?;
@@ -203,7 +203,7 @@ impl WebDavBackend {
             if !(status.is_success() || status == StatusCode::METHOD_NOT_ALLOWED || status.is_redirection()) {
                 return Err(status_error(status, "MKCOL", &url));
             }
-            self.made.lock().expect("webdav dirs poisoned").insert(dir);
+            relock(&self.made).insert(dir);
         }
         Ok(())
     }
@@ -389,10 +389,10 @@ impl Backend for WebDavBackend {
     }
 
     fn local_copy(&self, path: &str) -> Result<Option<PathBuf>> {
-        if let Some(cached) = self.cache.lock().expect("webdav cache poisoned").get(path) {
+        if let Some(cached) = relock(&self.cache).get(path) {
             return Ok(Some(cached.clone()));
         }
-        if self.failed.lock().expect("webdav failed poisoned").contains(path) {
+        if relock(&self.failed).contains(path) {
             return Ok(None);
         }
         let url = self.url(path)?;
@@ -420,7 +420,7 @@ impl Backend for WebDavBackend {
         }
         if !complete {
             // 这一轮放弃(已下的部分留着,下一轮接着下);用到它的改动进等待区。
-            self.failed.lock().expect("webdav failed poisoned").insert(path.to_string());
+            relock(&self.failed).insert(path.to_string());
             if let Some(error) = last_error {
                 tracing::warn!("sync: download of {url} interrupted, will resume next cycle: {error:#}");
             }
@@ -428,9 +428,7 @@ impl Backend for WebDavBackend {
         }
         let local = self.cache_dir.join(path.replace('/', "_"));
         fs::rename(&partial, &local).with_context(|| format!("下载 {url} 失败"))?;
-        self.cache
-            .lock()
-            .expect("webdav cache poisoned")
+        relock(&self.cache)
             .insert(path.to_string(), local.clone());
         Ok(Some(local))
     }
@@ -440,17 +438,40 @@ impl Backend for WebDavBackend {
     }
 
     fn end_cycle(&self) {
-        self.cache.lock().expect("webdav cache poisoned").clear();
-        self.failed.lock().expect("webdav failed poisoned").clear();
+        relock(&self.cache).clear();
+        relock(&self.failed).clear();
         let _ = fs::remove_dir_all(&self.cache_dir);
         // 续传用的目录空了就删(还有半截文件时留着,下一轮接着下)。
         let _ = fs::remove_dir(&self.partial_dir);
     }
 }
 
+
+/// 拿锁；别的线程拿着锁时 panic 了也照常用。这几把锁护的都是一轮同步里的缓存（建过的目录、下好的文件、
+/// 这轮放弃的下载），里面不会是写了一半的东西；以前 `expect("… poisoned")`，一次 panic 以后每一轮同步都 panic，
+/// 同步就永久停了。
+fn relock<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
+    mutex.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{hrefs, percent_decode};
+    use super::{hrefs, percent_decode, relock};
+
+    /// 别的线程拿着锁时 panic 了（锁中毒），这几个缓存照常能用，同步不会从此每轮都 panic。
+    #[test]
+    fn a_poisoned_cache_lock_is_still_usable() {
+        let cache = std::sync::Arc::new(std::sync::Mutex::new(std::collections::HashSet::new()));
+        let held = cache.clone();
+        let _ = std::thread::spawn(move || {
+            let _guard = held.lock().unwrap();
+            panic!("panic while holding the lock");
+        })
+        .join();
+        assert!(cache.is_poisoned());
+        relock(&cache).insert("dir/".to_string());
+        assert!(relock(&cache).contains("dir/"));
+    }
 
     #[test]
     fn hrefs_are_found_whatever_the_namespace_prefix() {

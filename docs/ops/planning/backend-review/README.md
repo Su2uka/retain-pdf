@@ -24,3 +24,4 @@
 | 2026-10-24 | [请求编号和访问日志](./20261024-请求编号和访问日志.md) | M11 剩下的：每个回应带 `X-Request-ID`（像样的客户端编号沿用）；请求 span 升成 info、带编号，请求里的日志都能对上；慢请求（≥1 秒）记 info，完整访问日志开 `retainpdf_api::access=debug`；runner 的 driver 在 `job{job_id}` span 里；指标、`/ready` 自检没做（理由在文档里） |
 | 2026-10-24 | [建任务的数字参数加上限](./20261024-建任务的数字参数加上限.md) | L1：`translation.workers` ≤ 256、批大小 ≤ 1000、`render.compile_workers` ≤ 64、`pdf_compress_dpi` ≤ 1200、两个超时 ≤ 一周，超了 400；下限和契约不变 |
 | 2026-10-24 | [删掉没用上的依赖](./20261024-删掉没用上的依赖.md) | L2 的一部分：rust_api 的 8 个（审查列的）、命令行和 jobsd 的 `serde`、runner 的 `libc`，代码里一处都没用到；重复版本、`workspace.dependencies`、发布构建配置没动（理由在文档里） |
+| 2026-10-24 | [几处小的代码清理](./20261024-几处小的代码清理.md) | L5 能单独做的：读 Markdown、整理 Paddle Markdown 的正则改成编一次；WebDAV 同步的缓存锁中毒后照常用，不再每轮 panic；`cas_save_job` 复用 `save_job` 的准备和 upsert；链式再导出、包的划分没动 |
