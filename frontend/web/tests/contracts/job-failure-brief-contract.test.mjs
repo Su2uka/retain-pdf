@@ -1,6 +1,6 @@
 /** 列表失败简报的字段名，两端必须一致。
  *
- * 真值是契约 `contracts/library-books.v1.schema.json#/definitions/JobFailureBriefView`
+ * 真值是契约 `contracts/job-status.v1.schema.json#/definitions/JobFailureBriefView`
  * （后端测试 failed_job_list_item_failure_matches_published_schema 拿真实接口输出对照它）；
  * 前端 `JobFailureBrief` 按这些键硬读。
  *
@@ -40,7 +40,7 @@ const tsDeclared = () => new Map(
 );
 const tsFields = () => [...tsDeclared().keys()];
 
-const SCHEMA = JSON.parse(read("../../../../contracts/library-books.v1.schema.json"));
+const SCHEMA = JSON.parse(read("../../../../contracts/job-status.v1.schema.json"));
 
 const schemaBrief = () => {
   const brief = SCHEMA.definitions?.JobFailureBriefView;

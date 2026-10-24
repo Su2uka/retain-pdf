@@ -4,12 +4,12 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 // 消费者契约测试: library / jobs 视图的 Rust 真值 ↔ TS 消费必须一致。
-// 真值: contracts/library-books.v1.schema.json 与 job-status.v1.schema.json
+// 真值: contracts/job-status.v1.schema.json（library-books.v1 只剩删除任务的查询和返回，任务列表的定义都在 job-status.v1）
 // 生产侧: backend/packages/retainpdf-jobs/src/views/job_types.rs
 // 消费侧: contracts 生成 DTO（删除返回 LibraryDeleteResultView 由 @retainpdf/api 的 deleteJob 用）
 // 改契约先改 schema，再让两端测试变绿——与 ai-ask / ai-conversations 同门禁。
 
-const CONTRACT_PATH = join(process.cwd(), "..", "..", "contracts", "library-books.v1.schema.json");
+const CONTRACT_PATH = join(process.cwd(), "..", "..", "contracts", "job-status.v1.schema.json");
 const contract = JSON.parse(readFileSync(CONTRACT_PATH, "utf8"));
 
 function schemaProps(definition) {
@@ -29,8 +29,7 @@ function tsTypeFields(source, typeName) {
   return new Set([...block.matchAll(/^\s*([a-zA-Z_][a-zA-Z0-9_]*)\??:/gm)].map((m) => m[1]));
 }
 
-// 生成的 TS 读 job-status.ts：library-books 里重复登记的 GET /jobs 要删，删了以后 library-books.ts 只导出
-// 删任务用到的类型。两份契约的 Job 定义由 contracts/tests/job-definitions-parity 锁成一致。
+// 生成的 TS 也读 job-status.ts：library-books 里重复登记的 GET /jobs 删了，library-books.ts 只导出删任务用到的类型。
 const generatedContractsSource = readFileSync(join(
   process.cwd(),
   "../../contracts/src/job-status.ts",

@@ -2,8 +2,8 @@
  * Shared types for the job core model (normalize / terminal / artifacts).
  * Inferred from normalize.ts, mock job payloads, and status-card consumers.
  *
- * Source of truth: `contracts/job-status.v1.schema.json` (JobDetailView / JobListView / JobProgressView / JobStageSnapshotView)
- * and `contracts/library-books.v1.schema.json` (JobListItemView cover/progress fields).
+ * Source of truth: `contracts/job-status.v1.schema.json` (JobDetailView / JobListView / JobListItemView /
+ * JobProgressView / JobStageSnapshotView).
  * These hand-written types are a mirror of the Rust views in
  * `backend/packages/retainpdf-jobs/src/views/job_types.rs` + `common.rs`.
  * Contract tests `tests/job-status-contract.test.mjs` + `tests/library-books-contract.test.mjs`
