@@ -3,11 +3,11 @@ use std::fs::File;
 use std::io::Read;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
 use sha2::{Digest, Sha256};
-use tokio::io::{AsyncBufReadExt, BufReader};
+use tokio::io::{AsyncBufRead, AsyncBufReadExt, BufReader};
 use tokio::sync::{Mutex, RwLock};
 
 use crate::db::{PipelineAttemptCursor, PipelineStageObservation, PipelineUnitCommit};
@@ -25,17 +25,87 @@ use super::super::stdout_parser::{
 };
 use super::checkpoint_commit::apply_durable_checkpoint;
 
+/// 只有日志尾巴变了的行（[`persist_key`] 没变），最快隔这么久才落一次库。
+///
+/// 以前 stdout 每读一行就整行重写一次任务（读出旧行做 diff、重写全部列、重登记产物、提交一次事务），
+/// 一本书几千行日志时数据库和磁盘全耗在这上面。阶段、进度、产物这些会派生事件、别人要立刻看到的字段
+/// 变了照旧马上写，所以派生出来的事件一条不少；合并的只是纯日志行。
+const LOG_ONLY_PERSIST_INTERVAL: Duration = Duration::from_millis(500);
+
+/// 逐行落库连续失败这么多次才当作读取任务出错（偶尔一次 `database is locked` 不该让任务失败）。
+const MAX_CONSECUTIVE_PERSIST_FAILURES: u32 = 3;
+
+/// 读一行，不是 UTF-8 的字节按替换字符解码。`lines()` 碰到一行坏字节直接报错，读取任务就退出了。
+/// 和 `lines()` 一样去掉行尾的 `\n` / `\r\n`。
+async fn next_line_lossy<R>(reader: &mut R, buf: &mut Vec<u8>) -> std::io::Result<Option<String>>
+where
+    R: AsyncBufRead + Unpin,
+{
+    buf.clear();
+    if reader.read_until(b'\n', buf).await? == 0 {
+        return Ok(None);
+    }
+    if buf.ends_with(b"\n") {
+        buf.pop();
+        if buf.ends_with(b"\r") {
+            buf.pop();
+        }
+    }
+    Ok(Some(String::from_utf8_lossy(buf).into_owned()))
+}
+
 pub(super) async fn read_stream<R>(reader: R, secrets: Vec<String>) -> Result<String>
 where
     R: tokio::io::AsyncRead + Unpin,
 {
-    let mut lines = BufReader::new(reader).lines();
+    let mut reader = BufReader::new(reader);
+    let mut buf = Vec::new();
     let mut out = String::new();
-    while let Some(line) = lines.next_line().await? {
+    while let Some(line) = next_line_lossy(&mut reader, &mut buf).await? {
         out.push_str(&redact_text(&line, &secrets));
         out.push('\n');
     }
     Ok(out)
+}
+
+/// 变了就要马上落库的字段：派生事件看的（状态、阶段、阶段说明、进度、错误、失败）和读的人要立刻拿到的
+/// （产物、结果）。剩下 `log_tail`、`updated_at`、`runtime` 只变的行按 [`LOG_ONLY_PERSIST_INTERVAL`] 合并。
+fn persist_key(job: &JobRuntimeState) -> serde_json::Value {
+    serde_json::json!({
+        "status": job.status,
+        "stage": job.stage,
+        "stage_detail": job.stage_detail,
+        "progress_current": job.progress_current,
+        "progress_total": job.progress_total,
+        "error": job.error,
+        "failure": job.failure,
+        "result": job.result,
+        "artifacts": job.artifacts,
+    })
+}
+
+/// 逐行落库的节流：上一次写进去的 [`persist_key`] 和时间。
+struct PersistGate {
+    key: serde_json::Value,
+    at: Instant,
+}
+
+impl PersistGate {
+    fn new(job: &JobRuntimeState, now: Instant) -> Self {
+        Self {
+            key: persist_key(job),
+            at: now,
+        }
+    }
+
+    fn should_persist(&self, key: &serde_json::Value, now: Instant) -> bool {
+        *key != self.key || now.duration_since(self.at) >= LOG_ONLY_PERSIST_INTERVAL
+    }
+
+    fn persisted(&mut self, key: serde_json::Value, now: Instant) {
+        self.key = key;
+        self.at = now;
+    }
 }
 
 pub(super) async fn read_stdout(
@@ -51,7 +121,8 @@ pub(super) async fn read_stdout(
     let mut out = String::new();
     let mut secrets = sensitive_values(&job.request_payload);
     secrets.extend(runtime_secrets);
-    let mut lines = BufReader::new(stdout).lines();
+    let mut reader = BufReader::new(stdout);
+    let mut line_buf = Vec::new();
     let stage_key = durable_stage_key(job.stage.as_deref());
     let worker_id = format!(
         "{}:{}",
@@ -66,12 +137,18 @@ pub(super) async fn read_stdout(
         stage_key,
         durable_stage_order(stage_key),
     )?;
-    while let Some(raw_line) = lines.next_line().await? {
+    let mut gate = PersistGate::new(&job, Instant::now());
+    // 有读过的行还没落库（被合并掉了）。读到结尾时补写一次。
+    let mut pending = false;
+    let mut persist_failures = 0;
+    let mut stopped = false;
+    while let Some(raw_line) = next_line_lossy(&mut reader, &mut line_buf).await? {
         let line = redact_text(&raw_line, &secrets);
         // 收到任何一行就算"还在动"。放在所有 break 之前:进程有没有活着,
         // 与这行内容是什么、要不要继续处理它无关。
         *last_output_at.lock().await = Instant::now();
         if is_cancel_requested_any(&canceled_jobs, &job.job_id, &extra_cancel_job_ids).await {
+            stopped = true;
             break;
         }
         out.push_str(&line);
@@ -91,29 +168,70 @@ pub(super) async fn read_stdout(
             apply_durable_artifact_commit(persist.db.as_ref(), &mut pipeline_cursor, artifact)?;
         }
         if is_cancel_requested_any(&canceled_jobs, &job.job_id, &extra_cancel_job_ids).await {
+            stopped = true;
             break;
         }
         job.updated_at = now_iso();
+        let key = persist_key(&job);
+        let now = Instant::now();
+        if !gate.should_persist(&key, now) {
+            pending = true;
+            continue;
+        }
         // 逐行进度也走 CAS。上面那次取消检查和这次写之间不是原子的,无条件写会把
         // 期间落库的终态(通常是取消)盖回 running——和 driver 推进阶段是同一个
         // lost update,只是这里每读一行就有一次机会。
         //
         // CAS 失败说明别人已经给这个任务落了终态,继续读它的 stdout 也没有意义,
         // 和上面命中取消标记时一样 break 出去。
-        let updated = cas_persist_job_with_resources(
+        match cas_persist_job_with_resources(
             persist.db.as_ref(),
             &persist.data_root,
             &persist.output_root,
             &job.snapshot(),
             &["queued", "running"],
-        )?;
-        if !updated {
-            // 行被删了（强制删除）和「别人已落终态」不同：后者 worker 由取消路径负责杀，
-            // 前者没有人会来杀它，通知等待方把进程树终止掉。
-            if job_row_is_gone(persist.db.as_ref(), &job.job_id) {
-                row_gone.store(true, Ordering::SeqCst);
+        ) {
+            Ok(true) => {
+                gate.persisted(key, now);
+                pending = false;
+                persist_failures = 0;
             }
-            break;
+            Ok(false) => {
+                // 行被删了（强制删除）和「别人已落终态」不同：后者 worker 由取消路径负责杀，
+                // 前者没有人会来杀它，通知等待方把进程树终止掉。
+                if job_row_is_gone(persist.db.as_ref(), &job.job_id) {
+                    row_gone.store(true, Ordering::SeqCst);
+                }
+                stopped = true;
+                break;
+            }
+            // 逐行进度只是镜像，写不进去下一行再写；连续几次都不行才放弃（读取任务出错，worker 会被停掉）。
+            Err(error) => {
+                persist_failures += 1;
+                if persist_failures >= MAX_CONSECUTIVE_PERSIST_FAILURES {
+                    return Err(error.context(format!(
+                        "persisting stdout progress for job {} failed {persist_failures} times in a row",
+                        job.job_id
+                    )));
+                }
+                tracing::warn!(
+                    "job={}: 逐行进度落库失败（第 {persist_failures} 次），下一行再试: {error:#}",
+                    job.job_id
+                );
+                pending = true;
+            }
+        }
+    }
+    // 读到结尾（worker 关了 stdout），把合并掉的最后几行补写进去；收尾还会再写一次终态，这里写不进去不要紧。
+    if pending && !stopped {
+        if let Err(error) = cas_persist_job_with_resources(
+            persist.db.as_ref(),
+            &persist.data_root,
+            &persist.output_root,
+            &job.snapshot(),
+            &["queued", "running"],
+        ) {
+            tracing::warn!("job={}: stdout 结束时补写进度失败: {error:#}", job.job_id);
         }
     }
     Ok((out, job))
@@ -269,6 +387,48 @@ mod tests {
     use crate::db::Db;
     use crate::models::domain::JobSnapshot;
     use crate::models::request::CreateJobInput;
+
+    #[tokio::test]
+    async fn lossy_lines_strip_line_endings_and_replace_bad_bytes() {
+        let mut reader = BufReader::new(&b"one\r\ntwo\n\xffthree"[..]);
+        let mut buf = Vec::new();
+        let mut lines = Vec::new();
+        while let Some(line) = next_line_lossy(&mut reader, &mut buf).await.unwrap() {
+            lines.push(line);
+        }
+        assert_eq!(lines, ["one", "two", "\u{fffd}three"]);
+    }
+
+    #[test]
+    fn persist_gate_merges_log_only_lines_but_not_visible_changes() {
+        let mut job = JobSnapshot::new(
+            "job-1".to_string(),
+            CreateJobInput::default(),
+            vec!["python".to_string()],
+        )
+        .into_runtime();
+        let start = Instant::now();
+        let gate = PersistGate::new(&job, start);
+        let soon = start + Duration::from_millis(100);
+
+        // 只多了一行日志：窗口内不写，过了窗口写。
+        job.append_log("plain log line");
+        let key = persist_key(&job);
+        assert!(!gate.should_persist(&key, soon));
+        assert!(gate.should_persist(&key, start + LOG_ONLY_PERSIST_INTERVAL));
+
+        // 阶段说明、进度、产物变了：马上写（派生事件看的就是这些）。
+        let mut detail = job.clone();
+        detail.stage_detail = Some("正在翻译第 3 批".to_string());
+        assert!(gate.should_persist(&persist_key(&detail), soon));
+        let mut progress = job.clone();
+        progress.progress_current = Some(3);
+        assert!(gate.should_persist(&persist_key(&progress), soon));
+        let mut artifacts = job.clone();
+        crate::job_runner::runtime_state::job_artifacts_mut(&mut artifacts).output_pdf =
+            Some("/tmp/out.pdf".to_string());
+        assert!(gate.should_persist(&persist_key(&artifacts), soon));
+    }
 
     #[test]
     fn published_render_output_commits_final_unit_and_completes_stage() {

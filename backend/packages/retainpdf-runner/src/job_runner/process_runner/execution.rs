@@ -56,6 +56,9 @@ enum WaitOutcome {
     TimedOut(TimeoutKind),
     /// 任务行被删了（强制删除）：没有人再关心这个 worker 的结果，必须停掉它。
     RowGone,
+    /// 读 stdout 的任务出错退出了（落库连续失败、和 worker 的约定对不上……）：没人再读管道，
+    /// 这次运行的结果也不会被认，停掉 worker，别让它白跑（白花模型的钱）到总超时。
+    ReaderFailed,
 }
 
 /// 同时盯总时长与空闲时长。轮询而不是 select,因为空闲的截止时刻会随每一行
@@ -69,6 +72,7 @@ async fn wait_with_limits(
     last_output_at: &Mutex<Instant>,
     started: Instant,
     row_gone: &AtomicBool,
+    reader_failed: &AtomicBool,
 ) -> Result<WaitOutcome> {
     let poll = Duration::from_millis(250);
     loop {
@@ -77,6 +81,9 @@ async fn wait_with_limits(
         }
         if row_gone.load(Ordering::SeqCst) {
             return Ok(WaitOutcome::RowGone);
+        }
+        if reader_failed.load(Ordering::SeqCst) {
+            return Ok(WaitOutcome::ReaderFailed);
         }
         if total_secs > 0 && started.elapsed() >= Duration::from_secs(total_secs as u64) {
             return Ok(WaitOutcome::TimedOut(TimeoutKind::Total));
@@ -108,7 +115,8 @@ pub(super) async fn collect_process_execution(
     let started = Instant::now();
     let last_output_at = Arc::new(Mutex::new(started));
     let row_gone = Arc::new(AtomicBool::new(false));
-    let stdout_handle = tokio::spawn(read_stdout(
+    let reader_failed = Arc::new(AtomicBool::new(false));
+    let reader = read_stdout(
         persist.clone(),
         canceled_jobs.clone(),
         job,
@@ -117,7 +125,17 @@ pub(super) async fn collect_process_execution(
         extra_cancel_job_ids.to_vec(),
         last_output_at.clone(),
         row_gone.clone(),
-    ));
+    );
+    let stdout_handle = tokio::spawn({
+        let reader_failed = reader_failed.clone();
+        async move {
+            let result = reader.await;
+            if result.is_err() {
+                reader_failed.store(true, Ordering::SeqCst);
+            }
+            result
+        }
+    });
     let stderr_handle = tokio::spawn(read_stream(stderr, runtime_secrets));
 
     let status = {
@@ -128,6 +146,7 @@ pub(super) async fn collect_process_execution(
             &last_output_at,
             started,
             &row_gone,
+            &reader_failed,
         )
         .await?
         {
@@ -135,6 +154,13 @@ pub(super) async fn collect_process_execution(
             WaitOutcome::RowGone => {
                 // 任务被强制删除：终止整棵进程树并回收，之后照常收尾（收尾会认出行已删，不再写任何东西）。
                 tracing::warn!("job={job_id}: 任务行已被删除，终止 worker 进程");
+                terminate_child_process_tree(&mut child, worker_runtime.worker_terminate_grace_secs)
+                    .await;
+                child.wait().await?
+            }
+            WaitOutcome::ReaderFailed => {
+                // 下面的 drain_stdout 把读取任务的错误原样带出去，任务按失败收尾（检查点还在，可以续跑）。
+                tracing::warn!("job={job_id}: stdout 读取任务出错，终止 worker 进程");
                 terminate_child_process_tree(&mut child, worker_runtime.worker_terminate_grace_secs)
                     .await;
                 child.wait().await?

@@ -299,6 +299,95 @@ async fn force_deleting_a_running_job_stops_the_runner_and_revives_no_row() {
     );
 }
 
+/// 读 stdout 的任务出错退出时，worker 要马上被停掉，任务带着那个错误落失败。
+///
+/// 以前读取任务带着 `Err` 退出以后没人通知等待方：worker 照样跑（吞掉 BrokenPipe 的
+/// Python 会把翻译做完、继续花模型的钱），一直拖到它自己退出或总超时，才在收尾时把错误抛出来。
+/// 这里让 worker 报一条 job_id 对不上的阶段观测（`apply_durable_stage_observation` 会拒绝），
+/// 然后假装继续干 12 秒。
+///
+/// 反证方式：把 `wait_with_limits` 里 `reader_failed` 那个分支去掉，这个测试必须变红——
+/// driver 要陪 worker 跑满 12 秒。
+#[tokio::test]
+async fn a_failing_stdout_reader_stops_the_worker_right_away() {
+    let fx = Fixture::new(1);
+    let marker = fx.root.join("orphaned-worker-ticks.txt");
+    let mut job = fx.job("reader-fails", JobStatusKind::Running);
+    job.command = vec![
+        "python3".into(),
+        "-c".into(),
+        concat!(
+            "import pathlib,sys,time\n",
+            "p=pathlib.Path(sys.argv[1])\n",
+            "print('{\"schema\":\"pipeline_stage_observation_v1\",\"schema_version\":1,\"job_id\":\"someone-else\",",
+            "\"seq\":1,\"ts\":\"2026-10-24T00:00:00Z\",\"user_stage\":\"translation\",\"stage\":\"translating\",",
+            "\"substage\":\"translation_batches\",\"event_type\":\"stage_progress\",\"message\":\"batch 1/2\",",
+            "\"progress_current\":1,\"progress_total\":2,\"progress_unit\":\"batch\",\"payload\":{}}', flush=True)\n",
+            "for i in range(60):\n",
+            "    p.open('a').write('tick\\n')\n",
+            "    try:\n",
+            "        print('line', i, flush=True)\n",
+            "    except Exception:\n",
+            "        pass\n",
+            "    time.sleep(0.2)\n",
+        )
+        .into(),
+        marker.to_string_lossy().into_owned(),
+    ];
+    fx.deps.db.save_job(&job).unwrap();
+    let handle = spawn_job_with_workflow(
+        fx.deps.clone(),
+        job.job_id.clone(),
+        |deps, job| async move {
+            super::super::process_runner::execute_process_job(deps, job, &[]).await
+        },
+    )
+    .unwrap();
+
+    tokio::time::timeout(std::time::Duration::from_secs(5), handle)
+        .await
+        .expect("读取任务出错以后 driver 必须很快收尾，而不是陪 worker 跑到结束")
+        .unwrap();
+    let stored = fx.deps.db.get_job("reader-fails").unwrap();
+    assert_eq!(stored.status, JobStatusKind::Failed);
+    let error = stored.error.clone().unwrap_or_default();
+    assert!(error.contains("job mismatch"), "失败原因要是读取任务的错误: {error}");
+    let ticks = || {
+        std::fs::read_to_string(&marker)
+            .map(|text| text.lines().count())
+            .unwrap_or(0)
+    };
+    let after = ticks();
+    tokio::time::sleep(std::time::Duration::from_millis(800)).await;
+    assert_eq!(ticks(), after, "worker 进程必须已被终止，不能继续干活");
+}
+
+/// worker 打出一行不是 UTF-8 的字节，任务照样成功（按替换字符解码），不再让读取任务报错退出。
+#[tokio::test]
+async fn non_utf8_stdout_does_not_fail_the_job() {
+    let fx = Fixture::new(1);
+    let mut job = fx.job("non-utf8", JobStatusKind::Queued);
+    job.command = vec![
+        "python3".into(),
+        "-c".into(),
+        "import sys; sys.stdout.buffer.write(b'before\\n\\xff\\xfe bad bytes\\nafter\\n'); sys.stdout.flush()".into(),
+    ];
+    fx.deps.db.save_job(&job).unwrap();
+    let handle = spawn_job_with_workflow(
+        fx.deps.clone(),
+        job.job_id.clone(),
+        |deps, job| async move {
+            super::super::process_runner::execute_process_job(deps, job, &[]).await
+        },
+    )
+    .unwrap();
+    handle.await.unwrap();
+    let stored = fx.deps.db.get_job("non-utf8").unwrap();
+    assert_eq!(stored.status, JobStatusKind::Succeeded, "error: {:?}", stored.error);
+    assert!(stored.log_tail.iter().any(|line| line == "\u{fffd}\u{fffd} bad bytes"), "{:?}", stored.log_tail);
+    assert_eq!(stored.log_tail.last().map(String::as_str), Some("after"));
+}
+
 /// 取消标记在队列门被消费掉之后，任务必须落终态，不能挂着。
 ///
 /// `wait_for_execution_slot` 命中标记会清掉它并返回 None，driver 随即退出。
