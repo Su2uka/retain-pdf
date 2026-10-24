@@ -15,7 +15,8 @@ use retainpdf_core::models::domain::{JobSnapshot, JobStatusKind};
 use retainpdf_files::{
     artifact_is_direct_downloadable, build_bundle_for_job, build_markdown_bundle_for_job,
     ensure_book_image, ensure_layout_docx, ensure_page_preview, ensure_side_by_side_pdf,
-    job_download_file_name, job_upload_id, resolve_registry_artifact, BookImageKind, DownloadKind,
+    job_download_file_name, job_page_preview_file_name, job_upload_id, resolve_registry_artifact,
+    BookImageKind, DownloadKind,
     LayoutDocxOptions, JOB_INTERNAL_FILES,
 };
 use retainpdf_core::storage_paths::{
@@ -351,12 +352,11 @@ fn locate(deps: &DownloadJobsDeps<'_>, job: &JobSnapshot, file: &JobFile) -> Res
             if page_count.is_some_and(|count| count > 0 && i64::from(spec.page) > count) {
                 return Err(AppError::not_found(format!("no such file: pages/{}.jpg", spec.page)));
             }
-            let output_path = job_artifacts_dir(deps, job)?.join(format!(
-                "preview-{}-p{:04}-w{}-d{}.jpg",
+            let output_path = job_artifacts_dir(deps, job)?.join(job_page_preview_file_name(
                 kind.as_str(),
                 spec.page,
                 spec.width_px,
-                spec.dpi
+                spec.dpi,
             ));
             let path = ensure_page_preview(
                 derived_artifact_deps(deps),

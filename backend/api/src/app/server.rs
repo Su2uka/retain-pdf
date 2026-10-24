@@ -10,7 +10,7 @@ use super::jobs::{
     acquire_owned_runtime_lock, resume_requeued_pipeline_jobs, start_driverless_sweeper,
 };
 use crate::app::cleanup::{
-    log_startup_settings_with_interval, run_cleanup_once, spawn_periodic_cleanup_with_interval,
+    log_startup_settings_with_interval, run_cleanup_blocking, spawn_periodic_cleanup_with_interval,
     RetentionSettings,
 };
 use crate::app::{build_app, build_simple_app, build_state};
@@ -55,12 +55,16 @@ async fn serve_with_shutdown(
     // background retention sweeps touching their fixtures.
     let retention_settings = RetentionSettings::from_env();
     log_startup_settings_with_interval(&retention_settings, config.cleanup.interval);
-    if let Err(error) = run_cleanup_once(&retention_settings, state.db.as_ref()) {
+    let data_root = state.config.data_root.clone();
+    if let Err(error) =
+        run_cleanup_blocking(retention_settings, state.db.clone(), data_root.clone()).await
+    {
         tracing::warn!("startup retention cleanup sweep failed: {error:#}");
     }
     let _cleanup_handle = spawn_periodic_cleanup_with_interval(
         retention_settings,
         state.db.clone(),
+        data_root,
         config.cleanup.interval,
     );
 
