@@ -17,7 +17,9 @@ use crate::models::api::{
     ApiResponse, JobEventListView, ListJobEventsQuery, LiveTranslationCommitEventView,
     LiveTranslationEventsQuery, LiveTranslationLayoutView, LiveTranslationPageView,
 };
-use crate::routes::common::{ok_json, run_job_query, run_state_blocking, ApiPath, ApiQuery};
+use crate::routes::common::{
+    build_jobs_query_route_deps, ok_json, run_job_query, run_state_blocking, ApiPath, ApiQuery,
+};
 use crate::AppState;
 
 const EVENT_BATCH_LIMIT: u32 = 128;
@@ -135,15 +137,18 @@ async fn next_live_event(
     }
 }
 
+/// 边翻边看的流每 750ms 查一次新提交的页。不走 `run_job_query` 的有界执行器：那里只有 2 个槽、所有普通读请求共用，
+/// 开着几个边翻边看的页签时任务列表、详情要排在这些轮询后面（服务端工程审查 M8）。轮询放进阻塞线程池，各查各的。
 async fn read_commit_events(
     state: &AppState,
     job_id: &str,
     after: i64,
 ) -> Result<Vec<LiveTranslationCommitEventView>, AppError> {
-    let key = format!("translation-commits:{job_id}:{after}");
     let job_id = job_id.to_owned();
-    run_job_query(state, key, move |jobs| {
-        jobs.live_translation_events_after(&job_id, after, EVENT_BATCH_LIMIT)
+    run_state_blocking(state, "live translation events", move |state| {
+        build_jobs_query_route_deps(state)
+            .jobs
+            .live_translation_events_after(&job_id, after, EVENT_BATCH_LIMIT)
     })
     .await
 }

@@ -373,3 +373,69 @@ async fn live_events_use_the_greater_of_after_seq_and_last_event_id() {
     let first = tokio::time::timeout(Duration::from_millis(900), stream.next()).await;
     assert!(first.is_err(), "Last-Event-ID must advance the replay cursor");
 }
+
+/// 普通读请求共用的有界执行器（2 个槽）被占满时，边翻边看的流照样能开、能收到已提交的页：
+/// 它的轮询走自己的阻塞线程，不和任务列表、详情抢槽（服务端工程审查 M8）。
+///
+/// 反证方式：把 `read_commit_events` 改回走 `run_job_query`，这个测试必须变红——流的第一次查询要排在被占住的槽后面。
+#[tokio::test]
+async fn live_events_do_not_wait_for_the_shared_read_slots() {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::Arc;
+
+    let state = test_state("live-translation-events-own-slots");
+    let (job, _snapshot) = seed_live_translation_job(&state, "own-slots");
+
+    // 把两个槽都占住，直到测试结束才放。
+    let started = Arc::new(AtomicUsize::new(0));
+    let mut releases = Vec::new();
+    let mut holders = Vec::new();
+    for index in 0..2 {
+        let (release, wait) = std::sync::mpsc::channel::<()>();
+        releases.push(release);
+        let started = started.clone();
+        let state = state.clone();
+        holders.push(tokio::spawn(async move {
+            crate::routes::common::run_job_query_once(&state, format!("hold-slot-{index}"), move |_| {
+                started.fetch_add(1, Ordering::SeqCst);
+                let _ = wait.recv();
+                Ok(())
+            })
+            .await
+        }));
+    }
+    for _ in 0..200 {
+        if started.load(Ordering::SeqCst) == 2 {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+    assert_eq!(started.load(Ordering::SeqCst), 2, "两个槽都应该被占住");
+
+    let opened = tokio::time::timeout(
+        Duration::from_secs(3),
+        build_app(state).oneshot(
+            Request::builder()
+                .uri(format!("/api/v1/jobs/{}/progress/stream?after_seq=0", job.job_id))
+                .header("X-API-Key", "test-key")
+                .body(Body::empty())
+                .expect("events request"),
+        ),
+    )
+    .await;
+    for release in releases {
+        let _ = release.send(());
+    }
+    for holder in holders {
+        holder.await.expect("holder task").expect("holder query");
+    }
+    let response = opened.expect("槽被占满时流也要能开").expect("events response");
+    assert_eq!(response.status(), StatusCode::OK);
+    let mut stream = response.into_body().into_data_stream();
+    let chunk = tokio::time::timeout(Duration::from_secs(1), stream.next())
+        .await
+        .expect("event timeout")
+        .expect("event chunk")
+        .expect("event bytes");
+    assert!(String::from_utf8_lossy(&chunk).contains("event: translation_units_committed"));
+}
