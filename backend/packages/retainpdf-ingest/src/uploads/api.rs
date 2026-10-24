@@ -14,6 +14,11 @@ impl<'a> UploadApiDeps<'a> {
     }
 }
 
+/// 读请求体之前先看磁盘放不放得下（只看下限，文件大小这会儿还不知道）。
+pub fn ensure_upload_disk_space(deps: &UploadApiDeps<'_>) -> Result<(), AppError> {
+    deps.uploads.ensure_free_space(0).map_err(AppError::from)
+}
+
 pub async fn store_upload(
     deps: &UploadApiDeps<'_>,
     filename: String,

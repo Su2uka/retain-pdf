@@ -64,6 +64,7 @@
 | `queue_depth`、`running_jobs` | 排队、在跑的任务数。读不出来时是 `null`（2026-10-22 以前当 `0`，看着像空闲） |
 | `provider_backends` | 这个版本支持的 OCR 服务商 |
 | `ai_service`、`jobsd` | 监督器的状态：`starting`、`healthy`、`unhealthy`、`unsupervised` |
+| `disk` | 数据目录所在磁盘（2026-10-24 起）：`free_bytes` 剩余可用字节（拿不到是 `null`）、`min_free_bytes` 下限（`RUST_API_MIN_FREE_DISK_MB`，`0` 不查）、`low` 低于下限。低于下限时新上传、新任务 503 `insufficient_storage`；`status` 和 `/ready` 不跟着变（磁盘满了更要能打开页面删任务） |
 | `time` | 服务器时间 |
 
 `GET /ready`（能接请求了）就绪 `200`，不就绪 `503`。**看 HTTP 状态码**（Docker 用 `curl -f`，开发栈等 2xx）。

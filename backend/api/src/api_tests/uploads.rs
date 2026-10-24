@@ -79,6 +79,7 @@ async fn upload_route_uses_the_injected_processing_budget() {
             python_bin: "/never-start-python".into(),
             upload_max_bytes: 0,
             upload_max_pages: 0,
+            min_free_disk_bytes: 0,
             processing,
         },
     ));
@@ -192,6 +193,7 @@ async fn upload_route_repair_unavailable_preserves_safe_error_and_cleanup() {
             python_bin: "/synthetic-private-missing-python".into(),
             upload_max_bytes: 0,
             upload_max_pages: 0,
+            min_free_disk_bytes: 0,
             processing: Default::default(),
         },
     ));

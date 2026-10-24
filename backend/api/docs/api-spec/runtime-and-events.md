@@ -330,6 +330,7 @@ Neither route needs `X-API-Key`; both are also served on the simple port.
 | `provider_backends` | string[] | OCR provider keys this build supports |
 | `ai_service` | string | supervisor state of the AI service: `starting`, `healthy`, `unhealthy`, or `unsupervised` |
 | `jobsd` | string | supervisor state of jobsd, same values |
+| `disk` | object | since 2026-10-24: the disk holding the data directory — `free_bytes` (integer \| `null` when unknown, e.g. on Windows), `min_free_bytes` (`RUST_API_MIN_FREE_DISK_MB`; `0` disables the check), `low` (below the floor). Below the floor, new uploads and new jobs answer `503` with `error.details.reason = "insufficient_storage"`; `status` and `/ready` do not change |
 | `time` | string | server time, ISO 8601 |
 
 `GET /ready` (readiness) answers `200` when ready and `503` otherwise; decide by

@@ -5,12 +5,13 @@
 //!
 //! 1. 翻译类的新提交补开发栈的默认值（OCR 歧义恢复沿用源任务的设置，不补）；
 //! 2. 多用户模式换成平台的模型和 OCR——在校验和凭据入库之前，网站账号自带的 key 不进服务器的凭据库；
-//! 3. 按 workflow 校验参数、建任务；
+//! 3. 数据目录所在磁盘剩余空间低于下限就 503（`reason` 是 `insufficient_storage`），再按 workflow 校验参数、建任务；
 //! 4. 明文 key 导入凭据库换成引用，加使用锁，锁到落库之后；
 //! 5. 落库（多用户模式按页预扣）、归到书下、发射。
 //!
 //! 任务运行时内部派生的 `{id}-ocr` 子任务不经这里，所以不会重复计费。
 
+use retainpdf_api_base::disk_space::ensure_free_space;
 use serde_json::Value;
 
 use retainpdf_data::db::{NewRunWrite, PipelineDispatchRecord};
@@ -137,6 +138,8 @@ pub fn submit_job(deps: &JobSubmitDeps<'_>, new: NewJob<'_>) -> Result<JobSnapsh
     if let Some(source) = deps.launcher.platform {
         apply_platform_models_to_input(&mut input, &source.resolve()?)?;
     }
+    // 建任务目录、落库之前：磁盘快满了就不接新任务（已经在跑的不管）。
+    ensure_free_space(deps.launcher.data_root, deps.launcher.min_free_disk_bytes, "create a job")?;
 
     let job = if ocr_only {
         build_ocr_job_snapshot(&deps.snapshot, &input, None)?
@@ -202,6 +205,8 @@ pub fn relaunch_in_place(
             "job is already queued or running; cancel it before rerunning it in place",
         ));
     }
+    // 拒绝时什么都没动（见上），所以放在挪旧 PDF、落库之前。
+    ensure_free_space(deps.data_root, deps.min_free_disk_bytes, "rerun this job")?;
     persist_and_launch(deps, job, None, Some(read_as))
 }
 
