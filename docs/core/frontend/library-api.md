@@ -11,7 +11,7 @@
 > 字段以契约为准：书、合集、全文检索、阅读入口、翻译覆盖、书的文件清单、元数据建议，以及书的任务列表、翻译这本书、给这本书做 OCR（第 1b 期）见
 > [`library-documents.v1.schema.json`](../../../contracts/library-documents.v1.schema.json)（2026-10-22 起，TS 类型从
 > `@retainpdf/contracts/library-documents` 导入，可以换掉 `frontend/packages/api` 里手写的类型，见
-> [给前端的交接](backend-changes-handoff.md)）；任务列表和删任务的返回见 `library-books.v1.schema.json`（名字沿用书架时期，
+> [给前端的交接](backend-changes-handoff.md)）；任务列表见 `job-status.v1.schema.json`，删任务的返回见 `library-books.v1.schema.json`（名字沿用书架时期，
 > 书架的类型 2026-10-22 删了）。
 
 ## 核心概念(前端需要理解的唯一模型变化)

@@ -1,4 +1,4 @@
-//! job-status/library-books 生产者契约锁。
+//! job-status/library-books 生产者契约锁（library-books 只剩删任务的返回）。
 //!
 //! 通过真实 router 获取 serde JSON，再按 backend-root/contracts 中的定义验证。
 //! 这里有意不复制 Rust DTO 构造器，避免测试与生产者同时漂移。
@@ -335,27 +335,6 @@ async fn real_job_and_library_views_match_published_schemas() {
         job_events["items"][0]["payload"]["metadata"]["flags"][1],
         false
     );
-
-    let library_contract = contract("library-books.v1.schema.json");
-    assert_definition(
-        &job_list,
-        &library_contract,
-        "JobListView",
-        "job_list (library contract)",
-    );
-    assert_exact_object_keys(
-        &job_list,
-        &library_contract,
-        "JobListView",
-        "job_list (library contract)",
-    );
-    assert_object_keys_allowing_absent(
-        &job_list["items"][0],
-        &library_contract,
-        "JobListItemView",
-        "job_list.items[0] (library contract)",
-        &["failure"],
-    );
 }
 
 /// `/files` 的返回对着契约核对。用文件出口快照那套夹具：有书、有登记过的产物，
@@ -408,7 +387,7 @@ async fn job_files_view_matches_published_schema() {
 ///
 /// 两个夹具：一个把简报的 7 个字段全填满（键集合必须等于契约的全部属性），一个只有
 /// 必填项（root_cause / suggestion / provider 整个键不出现，不是 null）。
-/// 两份契约（job-status、library-books）里的 JobListItemView 都要认得这个键。
+/// 契约 job-status 里的 JobListItemView 要认得这个键（library-books 抄的那份 2026-10-23 删了）。
 #[tokio::test]
 async fn failed_job_list_item_failure_matches_published_schema() {
     use crate::models::JobFailureInfo;
@@ -468,7 +447,7 @@ async fn failed_job_list_item_failure_matches_published_schema() {
     let full = item("job-brief-full");
     let minimal = item("job-brief-minimal");
 
-    for file_name in ["library-books.v1.schema.json", "job-status.v1.schema.json"] {
+    for file_name in ["job-status.v1.schema.json"] {
         let contract = contract(file_name);
         assert_definition(&job_list, &contract, "JobListView", file_name);
         for (label, list_item) in [("full", &full), ("minimal", &minimal)] {
@@ -584,7 +563,7 @@ fn list_jobs_query_contract_names_every_accepted_param() {
     .into_iter()
     .map(String::from)
     .collect();
-    for file in ["job-status.v1.schema.json", "library-books.v1.schema.json"] {
+    for file in ["job-status.v1.schema.json"] {
         let contract = contract(file);
         assert_eq!(schema_keys(&contract, "ListJobsQuery"), accepted, "{file}");
         assert_eq!(

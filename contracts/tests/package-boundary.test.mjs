@@ -190,6 +190,12 @@ test("library-books no longer publishes the removed shelf DTOs", () => {
   assert.doesNotMatch(generatedLibraryBooks, /ArtifactDisplayItemView/);
 });
 
+// 任务列表的定义只在 job-status.v1；library-books.v1 以前抄的 14 个 2026-10-23 删了，不再抄回来。
+test("library-books schema keeps only the delete-job definitions", () => {
+  const libraryBooks = JSON.parse(readFileSync(resolve("library-books.v1.schema.json"), "utf8"));
+  assert.deepEqual(Object.keys(libraryBooks.definitions).sort(), ["LibraryDeleteQuery", "LibraryDeleteResultView"]);
+});
+
 test("generated job DTOs keep request and event records structurally typed", () => {
   assert.match(generatedJobStatus, /request_payload: PublicResolvedJobSpec;/);
   assert.match(generatedJobEvents, /items: JobEventRecord\[\];/);

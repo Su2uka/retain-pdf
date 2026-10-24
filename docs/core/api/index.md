@@ -139,7 +139,7 @@ Reader 宿主接入 job/artifact、Markdown、区域、页面元数据和实时�
 契约 [`library-books.v1.schema.json`](../../../contracts/library-books.v1.schema.json) 文件名和 `$id` 沿用，现在只登记
 删任务（返回 `LibraryDeleteResultView`）；书架的 `LibraryBookListView`、`LibraryBookDetailView` 等定义 2026-10-22 一起删了。
 任务列表只登记在 [`job-status.v1.schema.json`](../../../contracts/job-status.v1.schema.json)（`library-books` 里重复的一条
-2026-10-23 删了，那份任务列表定义暂时留着给前端契约测试读）。
+和抄过来的任务列表定义 2026-10-23 删了）。
 
 ### 删除一个任务
 

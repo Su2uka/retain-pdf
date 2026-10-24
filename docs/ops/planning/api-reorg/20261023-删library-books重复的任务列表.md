@@ -17,8 +17,12 @@
   `library-books-contract.test.mjs` 读 `JobProgressView`、`JobStatusKind`、`WorkflowKind`、`JobListItemView`、`JobStageSnapshotView`，
   `job-failure-brief-contract.test.mjs` 读 `JobFailureBriefView`。后端不改 `frontend/`，所以这次不删定义，
   `contracts/tests/job-definitions-parity.test.mjs` 照旧把它们和 `job-status.v1` 锁成一致。前端把两个测试改读
-  `job-status.v1.schema.json` 以后，另开分支删这 14 个定义和那条一致性测试，以及 rust_api `job_view_contract` 里对 `library-books` 的
+  `job-status.v1.schema.json` 以后，再删这 14 个定义和那条一致性测试，以及 rust_api `job_view_contract` 里对 `library-books` 的
   任务列表核对。
+- **前端改好了，同一个分支接着删**：前端 `test/contracts-read-job-status-schema`（8fa12fba）把两个测试改读 `job-status.v1`，
+  分支还没合，就在这个分支上把 14 个定义删了（两份镜像），`definitions` 只剩 `LibraryDeleteQuery`、`LibraryDeleteResultView`；
+  `job-definitions-parity.test.mjs` 删掉，`package-boundary` 改成断言 `library-books` 的定义只有这两个、不再抄回来；
+  rust_api `job_view_contract` 里三处对 `library-books` 的任务列表核对去掉，只核 `job-status`。生成的 TS 不变。
 - 契约测试：`endpoint-client-names` 改成断言 `library-books` 里没有 `GET /api/v1/jobs`；`package-boundary` 断言任务列表类型
   只从 `job-status` 导出、`library-books` 不再导出。
 - 文档里指向 `library-books` 的 `JobFailureBriefView` 改指 `job-status`（`docs/api/01-任务/03-任务列表.md`、`docs/core/api/index.md`）。
