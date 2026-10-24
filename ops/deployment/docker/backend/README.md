@@ -28,6 +28,14 @@ Runtime credentials and provider secrets must be supplied as environment
 variables or mounted configuration. `RUST_API_KEYS` is required because the
 image does not contain `auth.local.json`; the example value must be replaced.
 Do not bake keys into the image or publish the API with a placeholder key.
+The container listens on `0.0.0.0`, so the backend refuses `dev-local-key` and
+keys shorter than 16 characters.
+
+With the delivery `docker-compose.yml`, a mounted `auth.local.json` that still
+holds the bundle placeholder (`replace-with-your-backend-key`) is replaced at
+startup by a random key stored in `RETAINPDF_SHARED_KEY_DIR`
+(`/run/retainpdf-key/backend-api-key`); the web image reads the same file.
+`RUST_API_KEYS` always wins and disables the generation.
 
 The `/data` volume contains `db/jobs.db`, job artifacts/checkpoints, managed
 uploads/downloads, both credential stores, and caches. Persist the whole

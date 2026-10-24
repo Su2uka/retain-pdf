@@ -89,4 +89,8 @@ if [ "${RETAIN_AI_RUNTIME:-python}" = "fx" ]; then
   fi
 fi
 
+# 交付包的占位 key：compose 挂了共享目录就换成随机生成的（见 api-key.sh）。
+. /usr/local/lib/retainpdf/api-key.sh
+retainpdf_resolve_api_key "$RUST_API_ROOT/auth.local.json"
+
 exec /usr/local/bin/rust_api

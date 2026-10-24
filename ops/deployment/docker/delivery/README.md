@@ -103,8 +103,27 @@ http://127.0.0.1:40001
   前端 provider 和模型默认值等。
 - `docker/auth.local.json`
   Rust API 鉴权白名单。前端和 CLI 都需要用这里配置的后端 key 才能访问接口。
+  仓库里带的是公开的占位 key `replace-with-your-backend-key`，不改也能用：app 容器第一次启动时
+  会生成一把随机 key 代替它（见下面「后端 key」）。
 
 ## 常见修改项
+
+### 后端 key
+
+- **不改**：`auth.local.json` 和 `web.env` 里还是占位 key 时，app 容器第一次启动生成一把随机 key
+  （64 位十六进制），存在共享卷 `api_key`（容器里的 `/run/retainpdf-key/backend-api-key`），
+  后端改用它；web 容器从同一个卷读，NGINX 替浏览器补的也是它。之后每次启动沿用同一把，
+  `docker compose down -v` 删了卷才会重新生成。占位 key 本身不再能用。
+  要自己拿 key 调接口（CLI、直连 `41000`）：
+
+  ```bash
+  docker compose exec app cat /run/retainpdf-key/backend-api-key
+  ```
+
+- **自己定**：把 `auth.local.json` 的 `api_keys` 和 `web.env` 的 `RETAINPDF_PROXY_API_KEY` 换成同一个随机长串
+  （例如 `openssl rand -hex 32`），就不会再生成。也可以在 `app.env` 里设 `RUST_API_KEYS`，它优先于文件。
+- **旧的 compose 文件**（没有 `api_key` 卷）拉新镜像：照旧用占位 key，启动日志里打一条警告。
+- 容器里后端监听 `0.0.0.0`，所以 key 至少要 16 个字符，开发默认的 `dev-local-key` 不能用，否则后端拒绝启动。
 
 ### docker/auth.local.json
 
@@ -121,7 +140,7 @@ http://127.0.0.1:40001
   前端内部使用的 API 基地址。通常留空，让前端自动走同源代理。
 - `RETAINPDF_PROXY_API_KEY`
   web 容器内的 NGINX 在 `/api/` 请求缺少 `X-API-Key` 时注入的后端
-  key。必须与 `docker/auth.local.json` 中的一个值一致。
+  key。必须与 `docker/auth.local.json` 中的一个值一致；两边都还是占位 key 时自动换成生成的那把。
 - `FRONT_X_API_KEY`
   只为旧的非同源客户端保留的兼容字段。标准 Docker/NGINX 部署应留空，
   避免后端 key 出现在浏览器可读的 `runtime-config.js`。
@@ -181,7 +200,11 @@ http://127.0.0.1:40001
   - `127.0.0.1:41000`：完整 Rust API，仅供本机调试
   - `127.0.0.1:42000`：第二个端口，只提供 `/health` 和 `/ready`（旧的一步提交接口 `POST /api/v1/translate/bundle` 已于 2026-10-19 删除）
 - `HOST_BIND_ADDRESS` 默认是 `127.0.0.1`。只有在另外配置了可靠的网络边界鉴权时，
-  才应显式改为 `0.0.0.0`。
+  才应显式改为 `0.0.0.0`。**`40001` 端口能被谁访问，谁就有全部权限**：NGINX 会给没带 key 的请求
+  补上后端 key，后端 key 换得再长也拦不住经过 `40001` 的请求（包括能在服务器上执行命令的助手终端、
+  读出已保存的模型和 OCR 凭据）。要让别的机器访问，在前面加一层带登录的反向代理（例如
+  [宿主机 NGINX 示例](../../nginx/retainpdf.example.conf) 的 `auth_basic`），不要直接改成 `0.0.0.0`。
+  后端 key 只保护直连的 `41000`。
 - 前端通过同源代理访问后端；普通用户通常不需要手工理解 `API Base`
 - `RETAINPDF_PROXY_API_KEY` 由 web 容器内的 NGINX 注入，不会输出到浏览器
   `runtime-config.js`。它必须与 `docker/auth.local.json` 中的一个 key 一致。
@@ -364,7 +387,9 @@ docker compose up -d
 
 ```bash
 export HOST="http://127.0.0.1:40001"
-export X_API_KEY="replace-with-your-backend-key"
+# 经过 40001 时可以不带 key（NGINX 会补）；直连 41000 或要显式带 key 时，用自动生成的那把
+# （自己换过 key 就填自己的）。
+export X_API_KEY="$(docker compose exec -T app cat /run/retainpdf-key/backend-api-key)"
 export OCR_PROVIDER="paddle"
 export PADDLE_TOKEN="your-paddle-token"
 export MINERU_TOKEN="your-mineru-token"

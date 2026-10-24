@@ -50,7 +50,10 @@ X-API-Key: your-rust-api-key
 `RUST_API_SIMPLE_PORT`、`RUST_API_MAX_RUNNING_JOBS` 同样以显式环境变量优先，
 不再被本地文件覆盖。损坏的本地文件仍会阻止启动，不静默忽略配置错误。
 
-Docker 中 `ops/deployment/docker/delivery/docker/auth.local.json` 的 `api_keys` 必须和 `ops/deployment/docker/delivery/docker/web.env` 里的 `FRONT_X_API_KEY` 对上。
+Docker 中 `ops/deployment/docker/delivery/docker/auth.local.json` 的 `api_keys` 必须和 `ops/deployment/docker/delivery/docker/web.env` 里的 `RETAINPDF_PROXY_API_KEY` 对上；
+两边都还是占位 key `replace-with-your-backend-key` 时，app 容器第一次启动生成一把随机 key 代替（见交付包 README 的「后端 key」）。
+
+非回环监听（例如容器里的 `0.0.0.0`）时，后端拒绝 `dev-local-key` 和短于 16 个字符的 key；还在用上面那个占位 key 只打一条警告（旧 compose 换不掉它，得能起来）。
 
 ## 常用环境变量
 

@@ -42,12 +42,48 @@ impl AuthRuntimeConfig {
 
     pub fn validate_bind_host(&self, host: &str) -> Result<()> {
         let _: IpAddr = host.parse().context("bind host must be an IP address")?;
-        if !super::origin_policy::bind_host_is_loopback(host) && self.api_keys.contains("dev-local-key") {
+        if super::origin_policy::bind_host_is_loopback(host) {
+            return Ok(());
+        }
+        if self.api_keys.contains("dev-local-key") {
             bail!("the default development API key is not allowed for non-loopback listening");
+        }
+        // 只报长度，不把 key 本身写进报错。
+        if let Some(short) = self
+            .api_keys
+            .iter()
+            .map(|key| key.chars().count())
+            .find(|len| *len < MIN_NON_LOOPBACK_API_KEY_CHARS)
+        {
+            bail!(
+                "API keys must be at least {MIN_NON_LOOPBACK_API_KEY_CHARS} characters for non-loopback listening (one configured key has {short})"
+            );
         }
         Ok(())
     }
+
+    /// 非本机监听还在用交付包的公开占位 key 时给一句警告。不拒绝：容器里后端总是监听 0.0.0.0，
+    /// 分不清宿主机端口是不是只开在 127.0.0.1；旧 compose 没挂共享目录、入口脚本换不掉它时还得能起来。
+    pub fn placeholder_key_warning(&self, host: &str) -> Option<String> {
+        if super::origin_policy::bind_host_is_loopback(host)
+            || !self.api_keys.contains(DELIVERY_PLACEHOLDER_API_KEY)
+        {
+            return None;
+        }
+        Some(format!(
+            "warning: the API key is still the public placeholder `{DELIVERY_PLACEHOLDER_API_KEY}` from the Docker delivery bundle; \
+             anyone who can reach port 41000 can use it. Replace it in docker/auth.local.json and web.env, \
+             or use the current docker-compose.yml, which generates a random key on first start"
+        ))
+    }
 }
+
+/// 非本机监听时 key 的最短长度。容器入口脚本生成的是 64 位十六进制。
+pub const MIN_NON_LOOPBACK_API_KEY_CHARS: usize = 16;
+
+/// 交付包 `docker/auth.local.json`、`docker/web.env` 里的公开占位 key，和
+/// `ops/deployment/docker/backend/api-key.sh` 里的同一个字面量。
+pub const DELIVERY_PLACEHOLDER_API_KEY: &str = "replace-with-your-backend-key";
 
 fn load_local_auth_config(path: &Path) -> Result<Option<LocalAuthConfig>> {
     if !path.exists() {
@@ -232,5 +268,34 @@ mod tests {
         }
         let config = AuthRuntimeConfig::from_desktop(42000, "explicit-test-key".into(), 4);
         config.validate_bind_host("0.0.0.0").expect("explicit key");
+    }
+
+    #[test]
+    fn short_keys_are_confined_to_loopback() {
+        let config = AuthRuntimeConfig::from_desktop(42000, "a".repeat(15), 4);
+        config.validate_bind_host("127.0.0.1").expect("loopback");
+        let error = config.validate_bind_host("0.0.0.0").unwrap_err().to_string();
+        assert!(error.contains("at least 16 characters"), "{error}");
+        assert!(!error.contains(&"a".repeat(15)), "the key must not be echoed: {error}");
+
+        let mut config = AuthRuntimeConfig::from_desktop(42000, "b".repeat(16), 4);
+        config.validate_bind_host("0.0.0.0").expect("16 characters is enough");
+        // 多把 key 里只要有一把太短就拒绝。
+        config.api_keys.insert("short".into());
+        assert!(config.validate_bind_host("192.168.1.2").is_err());
+    }
+
+    #[test]
+    fn delivery_placeholder_key_only_warns_off_loopback() {
+        let config =
+            AuthRuntimeConfig::from_desktop(42000, DELIVERY_PLACEHOLDER_API_KEY.into(), 4);
+        // 旧 compose 拉新镜像时要能起来，所以只警告不拒绝。
+        config.validate_bind_host("0.0.0.0").expect("placeholder still starts");
+        let warning = config.placeholder_key_warning("0.0.0.0").expect("warning");
+        assert!(warning.contains("public placeholder"), "{warning}");
+        assert_eq!(config.placeholder_key_warning("127.0.0.1"), None);
+
+        let config = AuthRuntimeConfig::from_desktop(42000, "c".repeat(64), 4);
+        assert_eq!(config.placeholder_key_warning("0.0.0.0"), None);
     }
 }
