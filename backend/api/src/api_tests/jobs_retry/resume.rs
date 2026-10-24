@@ -9,7 +9,8 @@ use crate::app::build_app;
 use crate::models::{JobArtifacts, JobStatusKind};
 
 use super::common::{
-    seed_partial_translation_checkpoint, seed_translation_result_files, source_job_with_artifacts,
+    hold_job_drivers, seed_partial_translation_checkpoint, seed_translation_result_files,
+    source_job_with_artifacts,
 };
 
 #[tokio::test]
@@ -184,7 +185,8 @@ async fn resume_plan_requires_terminal_source_job() {
 
 #[tokio::test]
 async fn resume_route_reuses_rerun_submission_contract() {
-    let state = test_state("resume-render");
+    let mut state = test_state("resume-render");
+    hold_job_drivers(&mut state);
     let mut source_job = source_job_with_artifacts(
         "job-resume-render-source",
         JobArtifacts {

@@ -154,3 +154,11 @@ pub(crate) fn seed_ambiguous_translation_request_journal(
     )
     .expect("request journal");
 }
+
+/// 不给执行名额，发射出去的 driver 停在排队：这些测试只看提交写了什么（工作流、状态、代次、产物）。
+///
+/// 提交在阻塞线程里做（`run_state_blocking`），处理函数等它的时候单线程的测试运行时会接着跑刚发射的
+/// driver，任务马上变成 running、再往后走；以前提交在处理函数里同步做完，测试读库时 driver 还没机会动。
+pub(crate) fn hold_job_drivers(state: &mut crate::AppState) {
+    state.job_slots = std::sync::Arc::new(tokio::sync::Semaphore::new(0));
+}

@@ -7,12 +7,14 @@ use crate::app::build_app;
 use crate::models::{JobArtifacts, JobStatusKind};
 
 use super::common::{
-    seed_ocr_checkpoint_files, seed_translation_result_files, source_job_with_artifacts,
+    hold_job_drivers, seed_ocr_checkpoint_files, seed_translation_result_files,
+    source_job_with_artifacts,
 };
 
 #[tokio::test]
 async fn rerun_route_prefers_render_when_translations_are_available() {
-    let state = test_state("rerun-render");
+    let mut state = test_state("rerun-render");
+    hold_job_drivers(&mut state);
     let mut source_job = source_job_with_artifacts(
         "job-rerun-render-source",
         JobArtifacts {

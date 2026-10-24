@@ -12,7 +12,11 @@ pub async fn run_state_blocking<T: Send + 'static>(
     work: impl FnOnce(&AppState) -> Result<T, AppError> + Send + 'static,
 ) -> Result<T, AppError> {
     let state = state.clone();
-    tokio::task::spawn_blocking(move || work(&state))
+    let work = move || work(&state);
+    // 测试用的开发默认模型按线程设（见 `DevDefaultsGuard`），跟着带进阻塞线程。
+    #[cfg(test)]
+    let work = crate::services::jobs::carry_dev_defaults_override(work);
+    tokio::task::spawn_blocking(work)
         .await
         .map_err(|_| AppError::internal(format!("{what} task failed")))?
 }
