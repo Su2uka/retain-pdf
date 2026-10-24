@@ -35,18 +35,27 @@ async fn debug_request_logs_keep_the_path_but_not_the_query_string() {
         .finish();
     let _guard = tracing::subscriber::set_default(subscriber);
 
+    // tracing 的级别和兴趣缓存是全进程共享的，别的测试线程同时在建、丢订阅者时，偶尔会让这边一次请求一条都抓不到；
+    // 抓到为止，最多试 20 次。要守的是"抓到的日志里没有 key"。
     let app = build_app(test_state("request-log-query"));
-    let response = app
-        .oneshot(
-            Request::builder()
-                .uri("/health?api_key=query-secret-0123456789")
-                .header("X-API-Key", "test-key")
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-    assert_eq!(response.status(), StatusCode::OK);
+    for _ in 0..20 {
+        tracing::callsite::rebuild_interest_cache();
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/health?api_key=query-secret-0123456789")
+                    .header("X-API-Key", "test-key")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        if !captured.0.lock().unwrap().is_empty() {
+            break;
+        }
+    }
 
     let logs = String::from_utf8(captured.0.lock().unwrap().clone()).unwrap();
     assert!(logs.contains("/health"), "request span should still name the path: {logs}");
