@@ -236,6 +236,15 @@ impl AppError {
         }
     }
 
+    /// 503,`error.details.reason` 写稳定原因(服务这会儿干不了,如磁盘快满了 `insufficient_storage`)。
+    pub fn service_unavailable_because(reason: &'static str, msg: impl Into<String>) -> Self {
+        Self::Reasoned {
+            status: StatusCode::SERVICE_UNAVAILABLE,
+            message: msg.into(),
+            reason,
+        }
+    }
+
     /// 404,`error.details.reason` 写稳定原因(记录在,但要的东西还没产出,如 `not_ready`)。
     pub fn not_found_because(reason: &'static str, msg: impl Into<String>) -> Self {
         Self::Reasoned {
@@ -524,9 +533,11 @@ impl IntoResponse for AppError {
                 .into_response();
         }
         if let AppError::Reasoned { status, message, reason } = &self {
-            // 只有 404 / 409 有构造方法,信封与对应的普通错误一致。
+            // 只有 404 / 409 / 503 有构造方法,信封与对应的普通错误一致。
             let (code, stable_code) = if *status == StatusCode::NOT_FOUND {
                 (40400, "NOT_FOUND")
+            } else if *status == StatusCode::SERVICE_UNAVAILABLE {
+                (50300, "SERVICE_UNAVAILABLE")
             } else {
                 (40900, "CONFLICT")
             };
@@ -848,6 +859,11 @@ mod tests {
                 AppError::not_found_because("not_ready", "report not ready"),
                 AppError::not_found("report not ready"),
                 StatusCode::NOT_FOUND,
+            ),
+            (
+                AppError::service_unavailable_because("insufficient_storage", "not enough free disk space"),
+                AppError::service_unavailable("not enough free disk space"),
+                StatusCode::SERVICE_UNAVAILABLE,
             ),
         ] {
             let reason = match &error {

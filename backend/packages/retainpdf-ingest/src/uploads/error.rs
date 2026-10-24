@@ -14,6 +14,9 @@ pub enum UploadError {
     RepairUnavailable,
     #[error("PDF repair timed out")]
     RepairTimeout,
+    /// 数据目录所在磁盘剩余空间不够（见 `retainpdf_api_base::disk_space`）。
+    #[error("{0}")]
+    InsufficientStorage(String),
     #[error("{0}")]
     Internal(&'static str),
     #[error("{0}")]

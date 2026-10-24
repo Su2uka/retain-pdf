@@ -1056,3 +1056,15 @@ API / jobsd 重启时，翻译阶段运行中的任务以前一律自动续跑�
 - 前端 `test/contracts-read-job-status-schema`（8fa12fba）改好以后，同一个分支删了这 14 个定义：`library-books.v1.schema.json` 的
   `definitions` 只剩 `LibraryDeleteQuery`、`LibraryDeleteResultView`，`contracts/tests/job-definitions-parity.test.mjs` 删了，
   `package-boundary` 断言不再抄回来。生成的 TS 没变，前端不用做什么。
+
+## 磁盘快满时拒绝新上传、新任务（fix/disk-space-guard）
+
+2026-10-24。决定见 [磁盘剩余空间下限](../../ops/planning/backend-review/20261024-磁盘剩余空间下限.md)。只增不改。
+
+- 数据目录所在磁盘剩余空间低于下限（`RUST_API_MIN_FREE_DISK_MB`，默认 1024 MiB）时，`POST /uploads`、所有建任务的入口
+  （`POST /jobs`、书的翻译和 OCR、重试、续跑）、原地重跑返回 `503`，`error.details.reason = "insufficient_storage"`，
+  `message` 是英文的「not enough free disk space to …: N MiB left …, need at least M MiB」。被拒时什么都没写。
+- `GET /health` 的 `data` 多一个 `disk`：`{ free_bytes: number | null, min_free_bytes: number, low: boolean }`。
+  `/ready` 不因为磁盘变成 503。
+- 前端可以做（可选）：按 `reason === "insufficient_storage"` 提示「磁盘空间不够，删掉一些任务再试」，不要解析 `message`；
+  需要的话设置页或首页按 `/health` 的 `disk.low` 给个提醒。现在这类 503 会走通用的报错显示。

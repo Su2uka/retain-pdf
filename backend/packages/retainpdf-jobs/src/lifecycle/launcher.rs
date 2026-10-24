@@ -19,6 +19,8 @@ pub struct JobLaunchDeps<'a> {
     pub platform: Option<PlatformSource<'a>>,
     /// 多用户模式：新任务开跑前按页预扣（见 [`retainpdf_accounts::page_quota`]）。单机模式为 false。
     pub page_quota: bool,
+    /// 数据目录所在磁盘至少留多少空间（字节）才接新任务、原地重跑；0 是不查（`RUST_API_MIN_FREE_DISK_MB`）。
+    pub min_free_disk_bytes: u64,
 }
 
 impl<'a> JobLaunchDeps<'a> {
@@ -35,6 +37,7 @@ impl<'a> JobLaunchDeps<'a> {
             runtime,
             platform: None,
             page_quota: false,
+            min_free_disk_bytes: 0,
         }
     }
 
@@ -45,6 +48,11 @@ impl<'a> JobLaunchDeps<'a> {
 
     pub fn with_page_quota(mut self, enabled: bool) -> Self {
         self.page_quota = enabled;
+        self
+    }
+
+    pub fn with_min_free_disk(mut self, bytes: u64) -> Self {
+        self.min_free_disk_bytes = bytes;
         self
     }
 }

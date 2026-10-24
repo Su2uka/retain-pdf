@@ -109,6 +109,7 @@ pub(crate) fn test_app_config(root: &Path) -> crate::config::AppConfig {
         simple_port: 41001,
         upload_max_bytes: 0,
         upload_max_pages: 0,
+        min_free_disk_bytes: 0,
         upload_processing: Default::default(),
         api_keys: HashSet::new(),
         max_running_jobs: 1,

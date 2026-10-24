@@ -73,6 +73,8 @@ impl TestDirs {
             simple_port: 42000,
             upload_max_bytes: 0,
             upload_max_pages: 0,
+            // 测试机的磁盘空间不归测试管；要测这条的测试自己设。
+            min_free_disk_bytes: 0,
             upload_processing: Default::default(),
             api_keys: HashSet::from(["test-key".to_string()]),
             max_running_jobs: 1,

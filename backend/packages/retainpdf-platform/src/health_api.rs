@@ -1,9 +1,12 @@
 //! Application facade for liveness and readiness projections.
 
+use std::path::Path;
+
 use serde::Serialize;
 
 use retainpdf_data::db::Db;
 use retainpdf_core::models::domain::{now_iso, JobStatusKind};
+use retainpdf_api_base::disk_space::free_space_bytes;
 use retainpdf_api_base::supervisor::{supervisor_status_label, SUPERVISOR_HEALTHY};
 use retainpdf_data::ocr_provider::supported_provider_keys;
 
@@ -14,6 +17,8 @@ pub struct HealthApiDeps<'a> {
     /// 建依赖那一刻两个监督器的状态（`retainpdf_api_base::supervisor`），由调用方从 runtime 读来传进来。
     ai_status: u8,
     jobsd_status: u8,
+    data_root: Option<&'a Path>,
+    min_free_disk_bytes: u64,
 }
 
 impl<'a> HealthApiDeps<'a> {
@@ -30,7 +35,37 @@ impl<'a> HealthApiDeps<'a> {
             jobsd_supervised,
             ai_status,
             jobsd_status,
+            data_root: None,
+            min_free_disk_bytes: 0,
         }
+    }
+
+    /// 健康检查里报数据目录所在磁盘的剩余空间（`disk`）。
+    pub fn with_disk(mut self, data_root: &'a Path, min_free_disk_bytes: u64) -> Self {
+        self.data_root = Some(data_root);
+        self.min_free_disk_bytes = min_free_disk_bytes;
+        self
+    }
+}
+
+/// 数据目录所在磁盘。只是报告：低于下限时上传、建任务、原地重跑会 503（`insufficient_storage`），
+/// 但 `status` 和 `/ready` 不跟着变——web 容器等后端就绪才启动，磁盘满了更要能打开页面删任务腾空间。
+#[derive(Debug, Serialize)]
+pub struct DiskSpaceView {
+    /// 剩余可用空间（字节）；拿不到（Windows、没配数据目录）是 `null`。
+    pub free_bytes: Option<u64>,
+    /// 下限（`RUST_API_MIN_FREE_DISK_MB`）；0 是不查。
+    pub min_free_bytes: u64,
+    /// 剩余空间低于下限。
+    pub low: bool,
+}
+
+fn disk_space_view(deps: &HealthApiDeps<'_>) -> DiskSpaceView {
+    let free_bytes = deps.data_root.and_then(free_space_bytes);
+    DiskSpaceView {
+        free_bytes,
+        min_free_bytes: deps.min_free_disk_bytes,
+        low: deps.min_free_disk_bytes > 0 && free_bytes.is_some_and(|free| free < deps.min_free_disk_bytes),
     }
 }
 
@@ -45,6 +80,7 @@ pub struct HealthView {
     pub provider_backends: Vec<String>,
     pub ai_service: &'static str,
     pub jobsd: &'static str,
+    pub disk: DiskSpaceView,
     pub time: String,
 }
 
@@ -87,6 +123,7 @@ pub fn build_health_view(deps: &HealthApiDeps<'_>) -> HealthView {
         provider_backends: supported_provider_keys(),
         ai_service: supervisor_status_label(deps.ai_status),
         jobsd: supervisor_status_label(deps.jobsd_status),
+        disk: disk_space_view(deps),
         time: now_iso(),
     }
 }

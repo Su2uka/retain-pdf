@@ -21,6 +21,8 @@ pub struct UploadServiceConfig {
     pub python_bin: String,
     pub upload_max_bytes: u64,
     pub upload_max_pages: u32,
+    /// 上传目录所在磁盘至少留多少空间（字节）；0 是不查。
+    pub min_free_disk_bytes: u64,
     pub processing: UploadProcessingConfig,
 }
 
@@ -53,6 +55,21 @@ impl UploadService {
         self.inner.capacity.clone()
     }
 
+    /// 上传目录所在磁盘的剩余空间够不够再放 `incoming` 字节（加上配置的下限）。处理函数在读请求体之前用
+    /// `incoming = 0` 先查一次，免得把几百 MB 收完才说放不下。
+    pub fn ensure_free_space(&self, incoming: u64) -> Result<(), UploadError> {
+        let config = &self.inner.config;
+        if config.min_free_disk_bytes == 0 {
+            return Ok(());
+        }
+        retainpdf_api_base::disk_space::ensure_free_space(
+            &config.uploads_dir,
+            config.min_free_disk_bytes.saturating_add(incoming),
+            "store this upload",
+        )
+        .map_err(|error| UploadError::InsufficientStorage(error.to_string()))
+    }
+
     pub async fn store(
         &self,
         upload: UploadedPdfInput,
@@ -78,6 +95,8 @@ impl UploadService {
             return Err(UploadError::payload_too_large("request body is too large"));
         }
         let safe_filename = sanitize_upload_filename(&upload.filename)?;
+        // 原文要落两份（原样一份、修复或规范化后一份），按两倍文件大小加上下限算。
+        self.ensure_free_space(byte_count.saturating_mul(2))?;
         let capacity = self.inner.capacity.clone();
         let admitted = capacity
             .admitted

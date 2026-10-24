@@ -8,7 +8,7 @@ use crate::routes::common::{
     build_upload_route_deps, ok_json, read_multipart_field_limited, read_multipart_text_limited,
     safe_multipart_error, ApiMultipart,
 };
-use crate::services::ingest::store_upload_view;
+use crate::services::ingest::{ensure_upload_disk_space, store_upload_view};
 use crate::AppState;
 
 pub async fn upload_pdf(
@@ -20,6 +20,7 @@ pub async fn upload_pdf(
         std::num::NonZeroU64::new(1024 * 1024).expect("multipart text limit is non-zero");
 
     let deps = build_upload_route_deps(&state);
+    ensure_upload_disk_space(&deps.uploads)?;
     let mut file_name: Option<String> = None;
     let mut file_bytes: Option<Vec<u8>> = None;
     let mut developer_mode = false;
