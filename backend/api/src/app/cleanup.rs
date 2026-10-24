@@ -51,25 +51,15 @@ pub struct RetentionSettings {
 }
 
 impl RetentionSettings {
+    /// 解析在 `CleanupConfig::from_env`（`0` 是关掉这项清理，不当成没设），启动时 `AppConfig::from_env` 已经读过一遍、
+    /// 取值不对就不启动了。
     pub fn from_env() -> Self {
+        let config = CleanupConfig::from_env();
         Self {
-            events_retention_days: env_u64_allow_zero("RUST_API_EVENTS_RETENTION_DAYS", 30),
-            orphan_upload_retention_hours: env_u64_allow_zero(
-                "RUST_API_ORPHAN_UPLOAD_RETENTION_HOURS",
-                48,
-            ),
+            events_retention_days: config.events_retention_days,
+            orphan_upload_retention_hours: config.orphan_upload_retention_hours,
         }
     }
-}
-
-/// Same shape as `config::env_vars::env_u64`, except `0` is a legitimate,
-/// meaningful value here ("disable this cleanup") rather than "unset", so it
-/// must not be filtered out in favor of the fallback.
-fn env_u64_allow_zero(name: &str, fallback: u64) -> u64 {
-    std::env::var(name)
-        .ok()
-        .and_then(|value| value.trim().parse::<u64>().ok())
-        .unwrap_or(fallback)
 }
 
 pub fn log_startup_settings(settings: &RetentionSettings) {

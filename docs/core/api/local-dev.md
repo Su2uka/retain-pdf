@@ -57,6 +57,12 @@ Docker 中 `ops/deployment/docker/delivery/docker/auth.local.json` 的 `api_keys
 
 ## 常用环境变量
 
+数字和开关类的变量，设了但解析不了时后端**不启动**，把这些变量和取值一个个列出来（例如 `RUST_API_PORT="abc"`、
+`RUST_API_UPLOAD_MAX_BYTES="200MB"`、`RUST_API_JOBS_SUPERVISE="enabled"`）。以前会悄悄换成默认值。
+没设、空白和以前一样用默认值；数字类大多数 `0` 也是用默认值，`0` 有别的意思的在下面写明了。
+开关认 `1/true/yes/on` 和 `0/false/no/off`，不分大小写。`RUST_API_JOBS_MODE` 只认 `remote` 和 `in_process`。
+启动以后才读的几个（备份、同步的间隔，默认的翻译并发数）取值不对时不拦启动，在 stderr 报一次、用默认值。
+
 - `RUST_API_ROOT`：Rust API 根目录。
 - `RUST_API_PROJECT_ROOT`：项目根目录。
 - `RUST_API_BIND_HOST`：监听 IP 地址，默认 `127.0.0.1`。监听回环地址时会校验 `Host`（见下面两条）。
@@ -76,7 +82,7 @@ Docker 中 `ops/deployment/docker/delivery/docker/auth.local.json` 的 `api_keys
 - `RUST_API_PYTHON_ENTRYPOINT_MODE`：已废弃，不再选择 worker 模式；开发启动器不再传递该变量。
 - `RUST_API_PIPELINE_COMMAND`：辅助任务（如 document-operation）使用的 `retainpdf-pipeline` 命令路径。OCR、翻译、渲染主阶段固定使用 `PYTHON_BIN -m retainpdf_pipeline.ocr|translate|render --spec ...`，不再回退到旧脚本。
 - `PYTHON_BIN`：Python 可执行文件。
-- `RUST_API_UPLOAD_MAX_BYTES`：普通上传大小限制，`0` 表示不限制。
+- `RUST_API_UPLOAD_MAX_BYTES`：普通上传大小限制（字节，只写数字），不设或 `0` 用默认的 512 MiB。
 - `RUST_API_UPLOAD_MAX_PAGES`：普通上传页数限制，`0` 表示不限制。
 - `RUST_API_SHUTDOWN_GRACE_SECS`：收到停机信号（Ctrl-C、SIGTERM）以后最多等还没结束的请求多少秒（默认 `3`，`0` 不等），进度流这类长连接到点断开。桌面壳、`docker stop` 只给 10 秒，进程内模式最坏约 7.5 秒（见 `config/server.rs`），改大要算这笔账。
 - `RUST_API_MIN_FREE_DISK_MB`：数据目录所在磁盘至少留多少 MiB 才接新上传、新任务（默认 `1024`，`0` 不查）；不够时 503 `insufficient_storage`。
