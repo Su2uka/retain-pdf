@@ -49,8 +49,7 @@ async fn serve_with_shutdown(
     let _driverless_sweep_handle = start_driverless_sweeper(&state);
 
     // Retention/cleanup is operational maintenance, not startup correctness
-    // (unlike `reconcile_stale_running_jobs`/`cleanup_legacy_workflows`
-    // inside `build_state`), so it only runs here - once when the real
+    // (unlike `reconcile_owned_runtime` inside `build_state`), so it only runs here - once when the real
     // server actually starts serving - rather than in `build_state` itself,
     // which is also called directly by many unit tests that don't want
     // background retention sweeps touching their fixtures.

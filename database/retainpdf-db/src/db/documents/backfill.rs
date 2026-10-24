@@ -53,7 +53,7 @@ fn cleanup_orphan_documents(db: &Db) -> Result<()> {
             params![document_id],
         )?;
     }
-    eprintln!(
+    tracing::info!(
         "[library] cleaned {} orphan document(s) with no backing upload",
         orphan_ids.len()
     );
@@ -75,7 +75,7 @@ fn backfill_fts_indexes(db: &Db) -> Result<()> {
         // 按这本书所有成功任务建索引，不只是 active_job：范围翻译之后前面翻过的页也要搜得到；
         // 复用 OCR 的书原来按 job_root/ocr 找不到 OCR 文档、一行都建不出来，每次启动都重试。
         if let Err(error) = db.rebuild_document_fts(&document_id) {
-            eprintln!("[library] fts backfill failed for {document_id}: {error}");
+            tracing::warn!("[library] fts backfill failed for {document_id}: {error}");
         }
     }
     Ok(())
@@ -149,14 +149,14 @@ fn backfill_upload_hashes(db: &Db) -> Result<()> {
         let resolved = match resolve_data_path(&db.data_root, &stored_path) {
             Ok(path) => path,
             Err(error) => {
-                eprintln!("[library] backfill skip upload {upload_id}: bad path: {error}");
+                tracing::warn!("[library] backfill skip upload {upload_id}: bad path: {error}");
                 continue;
             }
         };
         let bytes = match std::fs::read(&resolved) {
             Ok(bytes) => bytes,
             Err(error) => {
-                eprintln!(
+                tracing::warn!(
                     "[library] backfill skip upload {upload_id}: unreadable {}: {error}",
                     resolved.display()
                 );

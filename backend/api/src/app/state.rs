@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use tokio::sync::{RwLock, Semaphore};
-use tracing::{info, warn};
+use tracing::info;
 
 use super::jobs::{adopt_unlinked_job_documents, install_restore_recovery, reconcile_owned_runtime};
 use crate::config::AppConfig;
@@ -42,12 +42,6 @@ pub fn build_state(config: Arc<AppConfig>) -> Result<AppState> {
         config.data_root.clone(),
     ));
     db.init()?;
-    let cleaned_legacy_workflows = db.cleanup_legacy_workflows()?;
-    if cleaned_legacy_workflows > 0 {
-        warn!(
-            "startup cleanup migrated {cleaned_legacy_workflows} legacy workflow row(s) from mineru to book"
-        );
-    }
     reconcile_owned_runtime(config.as_ref(), db.as_ref())?;
     let adopted = adopt_unlinked_job_documents(config.as_ref(), db.as_ref())?;
     if adopted > 0 {

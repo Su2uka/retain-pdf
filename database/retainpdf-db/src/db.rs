@@ -363,35 +363,6 @@ impl Db {
         Ok(())
     }
 
-    pub fn cleanup_legacy_workflows(&self) -> Result<usize> {
-        let conn = self.connect()?;
-        let changed_jobs = conn.execute(
-            r#"
-            UPDATE jobs
-            SET workflow = '"book"'
-            WHERE workflow = '"mineru"'
-            "#,
-            [],
-        )?;
-        conn.execute(
-            r#"
-            UPDATE jobs
-            SET request_json = replace(request_json, '"workflow":"mineru"', '"workflow":"book"')
-            WHERE request_json LIKE '%"workflow":"mineru"%'
-            "#,
-            [],
-        )?;
-        conn.execute(
-            r#"
-            UPDATE events
-            SET payload_json = replace(payload_json, '"workflow":"mineru"', '"workflow":"book"')
-            WHERE payload_json LIKE '%"workflow":"mineru"%'
-            "#,
-            [],
-        )?;
-        Ok(changed_jobs)
-    }
-
     pub fn ping(&self) -> Result<()> {
         let conn = self.connect()?;
         conn.query_row("SELECT 1", [], |_| Ok(()))?;
