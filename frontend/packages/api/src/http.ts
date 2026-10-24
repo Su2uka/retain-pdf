@@ -110,6 +110,37 @@ export function isPageQuotaError(error: unknown): error is PageQuotaError {
   return !!error && typeof error === "object" && (error as { code?: unknown }).code === PAGE_QUOTA_EXCEEDED;
 }
 
+/** 数据目录所在的磁盘快满了：上传、建任务、原地重跑回 503，error.details.reason 是这个。后端的 message 是英文，不给用户看。 */
+export const INSUFFICIENT_STORAGE = "insufficient_storage";
+export const INSUFFICIENT_STORAGE_MESSAGE = "磁盘空间不够，删掉一些任务再试。";
+
+/** 错误响应是「磁盘空间不够」就做成一句中文的错误（带 status、reason），不是就返回 null。 */
+export function insufficientStorageErrorFromPayload(status: number, payload: unknown, url?: string): HttpError | null {
+  const p = (isObject(payload) ? payload : {}) as Record<string, any>;
+  if (p.error?.details?.reason !== INSUFFICIENT_STORAGE) return null;
+  const error = attachErrorDetails(new Error(INSUFFICIENT_STORAGE_MESSAGE) as HttpError, payload);
+  error.name = "InsufficientStorageError";
+  error.status = status;
+  if (url) error.url = url;
+  return error;
+}
+
+export function isInsufficientStorageError(error: unknown): boolean {
+  return !!error && typeof error === "object" && (error as HttpError).reason === INSUFFICIENT_STORAGE;
+}
+
+/**
+ * 提交被拒但不是故障：页数额度不够、磁盘空间不够。message 是能照着做的中文，界面原样显示，
+ * 不加「提交失败: 状态码」前缀，也不给诊断。都不是就返回 null。
+ */
+export function refusedSubmissionError(status: number, payload: unknown, url?: string): HttpError | null {
+  return pageQuotaErrorFromPayload(status, payload, url) ?? insufficientStorageErrorFromPayload(status, payload, url);
+}
+
+export function isRefusedSubmission(error: unknown): boolean {
+  return isPageQuotaError(error) || isInsufficientStorageError(error);
+}
+
 export interface SubmitJsonOptions {
   /** 超过该毫秒数就 abort。省略或 <=0 表示不设超时（保持既有调用方行为）。 */
   timeoutMs?: number;
@@ -156,8 +187,8 @@ export async function submitJson(
     const contentType = resp.headers.get("content-type") || "";
     if (contentType.includes("application/json")) {
       const errorPayload: any = await resp.json();
-      const quotaError = pageQuotaErrorFromPayload(resp.status, errorPayload, url);
-      if (quotaError) throw quotaError;
+      const refused = refusedSubmissionError(resp.status, errorPayload, url);
+      if (refused) throw refused;
       const error = new Error(`提交失败: ${resp.status} ${errorPayload.message || JSON.stringify(errorPayload)}${requestContext}`) as HttpError;
       error.status = resp.status;
       error.url = url;
@@ -199,9 +230,9 @@ export function submitUploadRequest(url: string, form: FormData, onProgress?: (l
         resolve(unwrapEnvelope(xhr.response));
         return;
       }
-      const quotaError = pageQuotaErrorFromPayload(xhr.status, xhr.response, url);
-      if (quotaError) {
-        reject(quotaError);
+      const refused = refusedSubmissionError(xhr.status, xhr.response, url);
+      if (refused) {
+        reject(refused);
         return;
       }
       const message = typeof xhr.response === "object" && xhr.response ? ((xhr.response as any).message || JSON.stringify(xhr.response)) : ((xhr as any).responseText || "");

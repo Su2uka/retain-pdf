@@ -1,5 +1,5 @@
 // documents — pure
-import { pageQuotaErrorFromPayload } from "./http.js";
+import { refusedSubmissionError } from "./http.js";
 import * as generated from "./generated/library-documents.js";
 import { failWith, failWithServerMessage } from "./request.js";
 
@@ -266,11 +266,11 @@ export async function translateDocument(
   documentId: string,
   payload: Record<string, unknown> = {},
 ): Promise<DocumentJobSubmissionView> {
-  // 402 页数额度不够给 PageQuotaError；复用 OCR 出错时的 reason、can_fallback_to_ocr 由 documentRequestError 挂上。
+  // 页数额度不够、磁盘空间不够给一句中文（refusedSubmissionError）；复用 OCR 出错时的 reason、can_fallback_to_ocr 由 documentRequestError 挂上。
   return generated.translateDocument(
     apiPrefix,
     { document_id: requireId(documentId, "document_id"), body: payload as unknown as CreateJobInput },
-    { onError: (status, envelope) => pageQuotaErrorFromPayload(status, envelope) ?? documentRequestError("发起翻译失败，请稍后重试。", status, envelope) },
+    { onError: (status, envelope) => refusedSubmissionError(status, envelope) ?? documentRequestError("发起翻译失败，请稍后重试。", status, envelope) },
   ) as unknown as Promise<DocumentJobSubmissionView>;
 }
 
@@ -282,7 +282,7 @@ export async function ocrDocument(
   return generated.ocrDocument(
     apiPrefix,
     { document_id: requireId(documentId, "document_id"), body: payload as unknown as CreateJobInput },
-    { onError: (status, envelope) => pageQuotaErrorFromPayload(status, envelope) ?? failWithServerMessage("发起 OCR 失败，请稍后重试。")(status, envelope) },
+    { onError: (status, envelope) => refusedSubmissionError(status, envelope) ?? failWithServerMessage("发起 OCR 失败，请稍后重试。")(status, envelope) },
   );
 }
 

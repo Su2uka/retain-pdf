@@ -2,7 +2,7 @@
 // 给用户看的报错文案不在这里定——各领域的手写函数通过 onError 传进来，生成层只负责把失败的
 // 状态码和后端回的错误体交出去。方案见 docs/ops/planning/api-client-codegen/。
 import { apiFetch, buildApiHeaders, buildApiUrl, unwrapEnvelope } from "./internal/runtime.js";
-import { attachErrorDetails, pageQuotaErrorFromPayload } from "./http.js";
+import { attachErrorDetails, refusedSubmissionError } from "./http.js";
 /** 查询参数按传入顺序编码：undefined、null、空串不发；数组按后端约定用逗号连接（job_ids=a,b）。 */
 export function encodeQuery(query) {
     if (!query)
@@ -63,14 +63,14 @@ export function failWithDetails(fallback) {
     return (status, payload) => attachErrorDetails(withStatus(new Error(`${typeof payload?.message === "string" && payload.message ? payload.message : fallback}(${status})`), status), payload);
 }
 /**
- * 和 submitJson 一样的提交报错：页数额度不够给 PageQuotaError（后端的中文原样显示），
+ * 和 submitJson 一样的提交报错：页数额度不够、磁盘空间不够给一句中文（refusedSubmissionError），
  * 其余是「提交失败: 状态码 后端 message」加 context，挂上 errorCode、reason。
  */
 export function submitFailure(context = "") {
     return (status, payload) => {
-        const quotaError = pageQuotaErrorFromPayload(status, payload);
-        if (quotaError)
-            return quotaError;
+        const refused = refusedSubmissionError(status, payload);
+        if (refused)
+            return refused;
         const detail = payload ? ` ${payload.message || JSON.stringify(payload)}` : "";
         return attachErrorDetails(withStatus(new Error(`提交失败: ${status}${detail}${context}`), status), payload);
     };

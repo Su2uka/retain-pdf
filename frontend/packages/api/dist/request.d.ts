@@ -28,7 +28,7 @@ export declare function serverMessageOr(fallback: string): NonNullable<RequestOp
 /** 同 failWithServerMessage，再挂上后端错误里的 errorCode、reason（409 靠 reason 说明为什么不允许）。 */
 export declare function failWithDetails(fallback: string): NonNullable<RequestOptions["onError"]>;
 /**
- * 和 submitJson 一样的提交报错：页数额度不够给 PageQuotaError（后端的中文原样显示），
+ * 和 submitJson 一样的提交报错：页数额度不够、磁盘空间不够给一句中文（refusedSubmissionError），
  * 其余是「提交失败: 状态码 后端 message」加 context，挂上 errorCode、reason。
  */
 export declare function submitFailure(context?: string): NonNullable<RequestOptions["onError"]>;

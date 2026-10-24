@@ -3,7 +3,7 @@
 // 状态码和后端回的错误体交出去。方案见 docs/ops/planning/api-client-codegen/。
 
 import { apiFetch, buildApiHeaders, buildApiUrl, unwrapEnvelope } from "./internal/runtime.js";
-import { attachErrorDetails, pageQuotaErrorFromPayload, type HttpError } from "./http.js";
+import { attachErrorDetails, refusedSubmissionError, type HttpError } from "./http.js";
 
 export type QueryValue = string | number | boolean | null | undefined | ReadonlyArray<string | number>;
 
@@ -91,13 +91,13 @@ export function failWithDetails(fallback: string): NonNullable<RequestOptions["o
 }
 
 /**
- * 和 submitJson 一样的提交报错：页数额度不够给 PageQuotaError（后端的中文原样显示），
+ * 和 submitJson 一样的提交报错：页数额度不够、磁盘空间不够给一句中文（refusedSubmissionError），
  * 其余是「提交失败: 状态码 后端 message」加 context，挂上 errorCode、reason。
  */
 export function submitFailure(context = ""): NonNullable<RequestOptions["onError"]> {
   return (status, payload) => {
-    const quotaError = pageQuotaErrorFromPayload(status, payload);
-    if (quotaError) return quotaError;
+    const refused = refusedSubmissionError(status, payload);
+    if (refused) return refused;
     const detail = payload ? ` ${payload.message || JSON.stringify(payload)}` : "";
     return attachErrorDetails(withStatus(new Error(`提交失败: ${status}${detail}${context}`), status), payload);
   };

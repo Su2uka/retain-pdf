@@ -34,6 +34,18 @@ export interface PageQuotaError extends HttpError {
  */
 export declare function pageQuotaErrorFromPayload(status: number, payload: unknown, url?: string): PageQuotaError | null;
 export declare function isPageQuotaError(error: unknown): error is PageQuotaError;
+/** 数据目录所在的磁盘快满了：上传、建任务、原地重跑回 503，error.details.reason 是这个。后端的 message 是英文，不给用户看。 */
+export declare const INSUFFICIENT_STORAGE = "insufficient_storage";
+export declare const INSUFFICIENT_STORAGE_MESSAGE = "\u78C1\u76D8\u7A7A\u95F4\u4E0D\u591F\uFF0C\u5220\u6389\u4E00\u4E9B\u4EFB\u52A1\u518D\u8BD5\u3002";
+/** 错误响应是「磁盘空间不够」就做成一句中文的错误（带 status、reason），不是就返回 null。 */
+export declare function insufficientStorageErrorFromPayload(status: number, payload: unknown, url?: string): HttpError | null;
+export declare function isInsufficientStorageError(error: unknown): boolean;
+/**
+ * 提交被拒但不是故障：页数额度不够、磁盘空间不够。message 是能照着做的中文，界面原样显示，
+ * 不加「提交失败: 状态码」前缀，也不给诊断。都不是就返回 null。
+ */
+export declare function refusedSubmissionError(status: number, payload: unknown, url?: string): HttpError | null;
+export declare function isRefusedSubmission(error: unknown): boolean;
 export interface SubmitJsonOptions {
     /** 超过该毫秒数就 abort。省略或 <=0 表示不设超时（保持既有调用方行为）。 */
     timeoutMs?: number;
