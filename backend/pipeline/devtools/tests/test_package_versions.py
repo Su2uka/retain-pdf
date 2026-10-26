@@ -39,20 +39,24 @@ def test_workspace_version_matches_release_tag() -> None:
     tag = proc.stdout.strip()
     if proc.returncode != 0 or not tag:
         pytest.skip("HEAD is not a tagged release; member alignment is checked separately")
-    # Delivery tags can carry hotfix/prerelease/build labels while the Python
-    # workspace keeps the shared numeric package version.
+    # Delivery tags can carry hotfix/prerelease/build labels or the desktop-test/
+    # namespace while the Python workspace keeps the shared numeric version.
     assert _release_base_version(tag) == WORKSPACE_VERSION, (
         f"workspace {WORKSPACE_VERSION} != release tag {tag}"
     )
 
 
 def _release_base_version(tag: str) -> str:
+    tag = tag.removeprefix("desktop-test/")
     match = re.fullmatch(r"v?(\d+\.\d+\.\d+)(?:[-+][0-9A-Za-z.+-]+)?", tag)
     assert match is not None, f"invalid release version tag: {tag}"
     return match[1]
 
 
-@pytest.mark.parametrize("tag", ["4.2.2", "v4.2.2", "v4.2.2-hotfix-4", "4.2.2-rc.1+build.2"])
+@pytest.mark.parametrize("tag", [
+    "4.2.2", "v4.2.2", "v4.2.2-hotfix-4", "4.2.2-rc.1+build.2",
+    "desktop-test/v4.2.2-continuity.1",
+])
 def test_release_base_version_accepts_delivery_labels(tag: str) -> None:
     assert _release_base_version(tag) == "4.2.2"
 
