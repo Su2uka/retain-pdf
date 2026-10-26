@@ -1,9 +1,11 @@
 name: Build Desktop Packages
+run-name: Build Desktop Packages · ${{ inputs.version }}
 
 # 三平台桌面安装包的唯一构建定义（reusable workflow），两处调用、共用同一份配置：
 # - prebuild-release-candidates.yml：push main 时用「声明版本」预构建，产物作为
 #   workflow artifact 保留 7 天，打 tag 时由 release-desktop.yml 直接提升；
 # - release-desktop.yml：找不到可提升的预构建产物时，用 tag 版本完整构建（回退路径）。
+# 也可手动选择分支和版本构建测试安装包，产物保留在本次 run 的 artifacts。
 #
 # 每个平台上传两个 artifact：
 # - desktop-<platform>-<sha>：安装包本身；
@@ -14,6 +16,12 @@ name: Build Desktop Packages
 # Rust 编译参数必须与 desktop-rust-cache-warmup.yml 逐字一致（rust cache 契约测试）。
 
 "on":
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "测试安装包版本号（不带 v），例如 4.2.6-continuity.1"
+        required: true
+        type: string
   workflow_call:
     inputs:
       version:
@@ -31,6 +39,11 @@ env:
   MITEX_VERSION: "0.2.7"
 
 jobs:
+  quality-gate:
+    # Reusable callers retain their own gates; direct manual builds run them here.
+    if: github.event_name == 'workflow_dispatch' && github.workflow == 'Build Desktop Packages'
+    uses: ./.github/workflows/tests.yml
+
   build-windows-release:
     runs-on: windows-latest
     timeout-minutes: 90
