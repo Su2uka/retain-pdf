@@ -33,45 +33,82 @@ def candidate_continuation_pairs(payload: list[dict]) -> list[dict]:
     return pairs
 
 
-def apply_candidate_pair_joins(payload: list[dict], approved_pairs: list[tuple[str, str]]) -> int:
-    if not approved_pairs:
+def merge_continuation_pairs(
+    payload: list[dict],
+    joined_pairs: list[tuple[str, str]],
+    *,
+    decision: str,
+    group_prefix: str,
+) -> int:
+    """Union accepted edges with existing groups without losing any members.
+
+    Payload order is the book's reading order, independent of review completion
+    order. Only changed components are rewritten; repeated approvals are no-ops.
+    """
+    if not joined_pairs:
         return 0
-    item_by_id = {item.get("item_id", ""): item for item in payload}
-    next_map = {prev_id: next_id for prev_id, next_id in approved_pairs}
-    prev_targets = {next_id for _, next_id in approved_pairs}
-    starts = [prev_id for prev_id, _ in approved_pairs if prev_id not in prev_targets]
+    index_by_id = {item["item_id"]: index for index, item in enumerate(payload) if item.get("item_id")}
+    parents = list(range(len(payload)))
+
+    def root(index: int) -> int:
+        while parents[index] != index:
+            parents[index] = parents[parents[index]]
+            index = parents[index]
+        return index
+
+    def union(left: int, right: int) -> bool:
+        left, right = root(left), root(right)
+        if left == right:
+            return False
+        parents[max(left, right)] = min(left, right)
+        return True
+
+    group_heads: dict[str, int] = {}
+    for index, item in enumerate(payload):
+        group_id = str(item.get("continuation_group", "") or "")
+        if group_id:
+            union(group_heads.setdefault(group_id, index), index)
+
+    changed: set[int] = set()
+    for prev_id, next_id in joined_pairs:
+        prev_index, next_index = index_by_id.get(prev_id), index_by_id.get(next_id)
+        if prev_index is None or next_index is None or prev_index >= next_index:
+            continue
+        if union(prev_index, next_index):
+            changed.add(prev_index)
+    changed_roots = {root(index) for index in changed}
+    components: dict[int, list[dict]] = {}
+    for index, item in enumerate(payload):
+        component = root(index)
+        if component in changed_roots:
+            components.setdefault(component, []).append(item)
+
+    used_group_ids = set(group_heads)
     group_index = 1000
     annotated = 0
-
-    def assign_chain(start_id: str) -> None:
-        nonlocal group_index
-        chain: list[dict] = []
-        current_id = start_id
-        visited: set[str] = set()
-        while current_id and current_id not in visited:
-            visited.add(current_id)
-            item = item_by_id.get(current_id)
-            if not item:
-                break
-            chain.append(item)
-            current_id = next_map.get(current_id, "")
-        if len(chain) < 2:
-            return
+    for chain in components.values():
         group_index += 1
-        group_id = f"cg-review-{group_index:04d}"
+        group_id = f"{group_prefix}-{group_index:04d}"
+        while group_id in used_group_ids:
+            group_index += 1
+            group_id = f"{group_prefix}-{group_index:04d}"
+        used_group_ids.add(group_id)
+        member_ids = {item.get("item_id", "") for item in chain}
         for pos, item in enumerate(chain):
             item["continuation_group"] = group_id
-            item["continuation_decision"] = "review_joined"
-            item["continuation_candidate_prev_id"] = ""
-            item["continuation_candidate_next_id"] = ""
+            item["continuation_decision"] = decision
+            # Unresolved edges outside this component must survive later joins.
+            for field in ("continuation_candidate_prev_id", "continuation_candidate_next_id"):
+                if item.get(field) in member_ids:
+                    item[field] = ""
             item["continuation_prev_text"] = normalize_text(chain[pos - 1].get("protected_source_text", "")) if pos > 0 else ""
             item["continuation_next_text"] = normalize_text(chain[pos + 1].get("protected_source_text", "")) if pos < len(chain) - 1 else ""
-
-    for start_id in starts:
-        before = sum(1 for item in payload if item.get("continuation_decision") == "review_joined")
-        assign_chain(start_id)
-        after = sum(1 for item in payload if item.get("continuation_decision") == "review_joined")
-        annotated += max(0, after - before)
-
+        annotated += len(chain)
     return annotated
+
+
+def apply_candidate_pair_joins(payload: list[dict], approved_pairs: list[tuple[str, str]]) -> int:
+    return merge_continuation_pairs(
+        payload, approved_pairs, decision="review_joined", group_prefix="cg-review",
+    )
 

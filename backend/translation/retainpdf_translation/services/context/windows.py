@@ -50,16 +50,22 @@ def _context_source(item: dict) -> str:
     )
 
 
-def _trim_context(text: str, *, limit: int) -> str:
+def _trim_context(text: str, *, limit: int, keep_tail: bool = False) -> str:
     compact = sanitize_prompt_context_text(text)
+    if limit <= 0:
+        return ""
     if len(compact) <= limit:
         return compact
-    return f"{compact[: max(0, limit - 1)].rstrip()}..."
+    if limit <= 3:
+        return "." * limit
+    if keep_tail:
+        return f"...{compact[-(limit - 3):].lstrip()}"
+    return f"{compact[:limit - 3].rstrip()}..."
 
 
-def _join_context_items(items: list[dict], *, limit: int) -> str:
+def _join_context_items(items: list[dict], *, limit: int, keep_tail: bool = False) -> str:
     parts = [_context_source(item) for item in items if _context_source(item)]
-    return _trim_context(" / ".join(parts), limit=limit)
+    return _trim_context(" / ".join(parts), limit=limit, keep_tail=keep_tail)
 
 
 def _is_context_candidate(item: dict) -> bool:
@@ -123,7 +129,7 @@ def build_translation_context_windows(
         after_items = context_items[index + 1 : index + 1 + window_size]
         windows[item_id] = TranslationContextWindow(
             item_id=item_id,
-            before=_join_context_items(before_items, limit=text_limit),
+            before=_join_context_items(before_items, limit=text_limit, keep_tail=True),
             after=_join_context_items(after_items, limit=text_limit),
         )
     return windows

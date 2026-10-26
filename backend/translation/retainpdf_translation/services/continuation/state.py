@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from retainpdf_translation.services.continuation.pairs import merge_continuation_pairs
 from retainpdf_translation.services.continuation.rules import eligible
 from retainpdf_translation.services.continuation.rules import normalize_text
 from retainpdf_translation.services.continuation.rules import pair_decision
@@ -223,8 +224,6 @@ def _next_candidate_index(payload: list[dict], start: int) -> int | None:
     current_page_idx = payload[start - 1].get("page_idx", -1) if start > 0 else payload[start].get("page_idx", -1)
     for idx in range(start, len(payload)):
         item = payload[idx]
-        if item.get("continuation_decision") == PROVIDER_JOIN_DECISION:
-            continue
         page_idx = item.get("page_idx", -1)
         if page_idx < current_page_idx:
             continue
@@ -237,61 +236,53 @@ def annotate_continuation_context(payload: list[dict]) -> int:
     for item in payload:
         clear_continuation_state(item)
 
-    annotated = _annotate_provider_continuation_context(payload)
-    group_index = 0
-    i = 0
-
-    while i < len(payload) - 1:
-        current = payload[i]
-        if current.get("continuation_decision") == PROVIDER_JOIN_DECISION:
-            i += 1
+    _annotate_provider_continuation_context(payload)
+    provider_groups: dict[str, list[dict]] = {}
+    for item in payload:
+        if item.get("continuation_group"):
+            provider_groups.setdefault(item["continuation_group"], []).append(item)
+    provider_bounds = {
+        group_id: (ordered[0], ordered[-1])
+        for group_id, items in provider_groups.items()
+        for ordered in [_provider_group_ordered_items(items)]
+    }
+    joined_pairs: list[tuple[str, str]] = []
+    # Visit every boundary, including the edge after a rule-joined chain or
+    # provider group. A candidate must not disappear when its left side joins.
+    for i, current in enumerate(payload[:-1]):
+        if not eligible(current):
             continue
         next_idx = _next_candidate_index(payload, i + 1)
         if next_idx is None:
-            # No further eligible items after this point — advance instead of
-            # aborting the whole remainder of the book (historical bug: break).
-            i += 1
             continue
         nxt = payload[next_idx]
+        current_group = current.get("continuation_group", "")
+        next_group = nxt.get("continuation_group", "")
+        if current_group and current_group == next_group:
+            continue
+        # Provider-internal edges are trusted; only extend at their endpoints.
+        if current_group and provider_bounds[current_group][1] is not current:
+            continue
+        if next_group and provider_bounds[next_group][0] is not nxt:
+            continue
         decision = pair_decision(current, nxt)
         if decision == "join" and not _cross_page_body_transition_is_usable(current, nxt):
             # Score says join but the boundary roles disagree (e.g. a page tail
             # paired with a non-head block such as a caption that slipped past
             # tagging). Do not join silently — leave it to LLM review.
             decision = "candidate"
-        if decision != "join":
-            if decision == "candidate":
+        if decision == "candidate":
+            if not current_group:
                 current["continuation_decision"] = "candidate_break"
-                current["continuation_candidate_next_id"] = nxt.get("item_id", "")
+            current["continuation_candidate_next_id"] = nxt.get("item_id", "")
+            if not next_group:
                 nxt["continuation_decision"] = "candidate_break"
-                nxt["continuation_candidate_prev_id"] = current.get("item_id", "")
-            i += 1
-            continue
+            nxt["continuation_candidate_prev_id"] = current.get("item_id", "")
+        elif decision == "join":
+            joined_pairs.append((current.get("item_id", ""), nxt.get("item_id", "")))
 
-        group_index += 1
-        group_id = f"cg-{current.get('page_idx', 0) + 1:03d}-{group_index:03d}"
-        chain = [current, nxt]
-        j = next_idx
-        while j < len(payload) - 1:
-            probe_idx = _next_candidate_index(payload, j + 1)
-            if probe_idx is None or pair_decision(payload[j], payload[probe_idx]) != "join":
-                break
-            if not _cross_page_body_transition_is_usable(payload[j], payload[probe_idx]):
-                break
-            chain.append(payload[probe_idx])
-            j = probe_idx
-
-        for pos, item in enumerate(chain):
-            item["continuation_group"] = group_id
-            item["continuation_decision"] = RULE_JOIN_DECISION
-            if pos > 0:
-                item["continuation_prev_text"] = normalize_text(chain[pos - 1].get("protected_source_text", ""))
-            if pos < len(chain) - 1:
-                item["continuation_next_text"] = normalize_text(chain[pos + 1].get("protected_source_text", ""))
-            annotated += 1
-        i = j + 1
-
-    return annotated
+    merge_continuation_pairs(payload, joined_pairs, decision=RULE_JOIN_DECISION, group_prefix="cg-rule")
+    return sum(bool(item.get("continuation_group")) for item in payload)
 
 
 def annotate_continuation_context_global(payloads_by_page: dict[int, list[dict]]) -> int:

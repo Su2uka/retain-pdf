@@ -285,6 +285,11 @@ def _build_group_translation_unit(unit_id: str, items: list[dict]) -> dict | Non
         "formula_map": formula_map,
         "protected_map": protected_map,
         "continuation_group": str(first_item.get("continuation_group", "") or ""),
+        # Group members already form the source. Only their outer boundary
+        # windows belong in the prompt; internal continuation text would repeat it.
+        "translation_context_before": str(first_item.get("translation_context_before", "") or ""),
+        "translation_context_after": str(items[-1].get("translation_context_after", "") or ""),
+        "translation_context_mode": str(first_item.get("translation_context_mode", "") or ""),
         "translation_group_id": str(first_item.get("translation_group_id", "") or ""),
         "translation_group_kind": str(first_item.get("translation_group_kind", "") or ""),
         "translation_group_strategy": str(first_item.get("translation_group_strategy", "") or ""),

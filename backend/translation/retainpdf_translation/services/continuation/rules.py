@@ -6,7 +6,8 @@ from retainpdf_translation.core.item_reader import item_is_bodylike
 TERMINAL_PUNCTUATION = (".", "!", "?", ":", ";")
 LOWER_START_RE = re.compile(r"^[a-z]")
 UPPER_START_RE = re.compile(r"^[A-Z]")
-HEADING_START_RE = re.compile(r"^(?:\(?\d+(?:\.\d+)*\)?[.)]?\s+|[A-Z][A-Z\s\-]{3,}|[•\-*]\s+)")
+# An acronym prefix (e.g. "DFT calculations") is not an all-capitals heading.
+HEADING_START_RE = re.compile(r"^(?:\(?\d+(?:\.\d+)*\)?[.)]?\s+|[A-Z][A-Z\s\-]{3,}$|[•\-*]\s+)")
 # Multi-level section numbers like "2.2.1 Title" / "2.1 Lithium-halogen..." — not body continuations.
 SECTION_NUMBER_START_RE = re.compile(r"^\d+(?:\.\d+){1,}\s+[A-Z]")
 # Figure/table/scheme captions mis-tagged as body must never join continuations
