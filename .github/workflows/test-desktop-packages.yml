@@ -1,0 +1,37 @@
+name: Test Desktop Packages
+run-name: Test Desktop Packages · ${{ github.ref_name }}
+
+# A push trigger also works before a fork has registered manual workflows.
+# This namespace never matches the v* tags used by the release workflows.
+"on":
+  push:
+    tags:
+      - "desktop-test/v*"
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Validate test version
+        id: version
+        shell: bash
+        run: |
+          python3 .github/scripts/resolve_release_version.py \
+            --tag "${GITHUB_REF_NAME#desktop-test/}" \
+            --github-output "$GITHUB_OUTPUT"
+
+  quality-gate:
+    needs: prepare
+    uses: ./.github/workflows/tests.yml
+
+  build:
+    needs: prepare
+    uses: ./.github/workflows/build-desktop-packages.yml
+    with:
+      version: ${{ needs.prepare.outputs.version }}

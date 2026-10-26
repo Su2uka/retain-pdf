@@ -7,10 +7,20 @@
 gh workflow run build-desktop-packages.yml --ref codex/fix-translation-continuity -f version=4.2.6-continuity.1
 ```
 
+新 fork 尚未注册手动工作流时，可在待测试提交上创建专用标签，触发 **Test Desktop Packages**：
+
+```bash
+git tag desktop-test/v4.2.6-continuity.1 codex/fix-translation-continuity
+git push origin refs/tags/desktop-test/v4.2.6-continuity.1
+```
+
+每次测试使用新的版本号和标签；`desktop-test/v*` 不匹配正式发版的 `v*` 标签。
+该入口校验版本后调用同一套 Tests 门禁和三平台打包工作流，也适用于尚未合入 main 的工作流变更。
+
 手动构建并行执行完整 Tests 门禁和 Windows、Linux、macOS 打包，复用正式发版的安装包构建步骤。
 确认门禁和目标平台构建都成功后，在该 run 的 Artifacts 中下载
 `desktop-<platform>-<commit>`；对应的 `desktop-meta-<platform>-<commit>` 包含版本、
 提交和文件 SHA256。产物保留 7 天。这条入口只上传构建产物，不创建 Release 或更新 main。
 
 验证工作流变更时运行 `python -m pytest -q .github/scripts/tests`，并在 Actions 中核对构建提交、
-平台结果和产物清单。若需撤销手动入口，回退添加该入口的 CI 提交即可，原有预构建和 tag 发版调用继续保留。
+平台结果和产物清单。若需撤销测试入口，回退添加入口的 CI 提交即可，原有预构建和 tag 发版调用继续保留。
